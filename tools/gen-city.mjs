@@ -125,6 +125,11 @@ const jobMeta = {
   job_bus: { ...jobLoc.job_bus, label: 'Bus Park' },
   job_market: { ...jobLoc.job_market, label: 'Market stall' }
 };
+// market stall shop (cheapest price channel) at the market job point
+city.shops.push({ id: 'shop_market', name: 'Balogun-style Market Stall', desc: 'Cheapest prices in the district. Haggle not included.', buildingId: null, x: jobLoc.job_market.x - 10, z: jobLoc.job_market.z, channel: 'market', items: [
+  { id: 'water', name: 'Sachet water (pure water)', price: 150, hunger: 3, energy: 4 }, { id: 'bread', name: 'Agege bread', price: 350, hunger: 18, energy: 0 },
+  { id: 'rice', name: 'Rice and stew (small)', price: 900, hunger: 38, energy: 5 }, { id: 'zobo', name: 'Zobo drink', price: 300, hunger: 5, energy: 6 }, { id: 'pie', name: 'Meat pie', price: 400, hunger: 20, energy: 0 } ] });
+for (const sh of city.shops) if (!sh.channel) sh.channel = 'supermarket';
 city.jobs = Object.entries(jobMeta).map(([id, v]) => ({ id, x: +v.x.toFixed(1), z: +v.z.toFixed(1), label: v.label }));
 const bb = (id, surface, tier, x, z, nx, nz, w, h, y = 9) => city.billboards.push({ id, surface, tier, x, z, nx, nz, w, h, y });
 bb('bb01', 'road_billboard', 'street', -60, -110, 0, -1, 12, 6);
@@ -146,6 +151,11 @@ city.trafficLoops = [
   { id: 'nw', pts: ring(-120, -120, 0, 0), npcs: ['car', 'okada'] }, { id: 'ne', pts: ring(0, -120, 120, 0), npcs: ['danfo', 'car'] },
   { id: 'se', pts: ring(0, 0, 120, 120), npcs: ['keke', 'car', 'okada'] }, { id: 'sw', pts: ring(-120, 0, 0, 120), npcs: ['danfo', 'keke'] }
 ];
+// land plots (empty lots): ESTIMATE prices; growth/week and omo-onile risk are placeholders
+const plotDefs = [['Ikorodu Gardens', 'Ikorodu', 600, 1500000, 0.02, 'high'], ['Epe Green Estate', 'Epe', 600, 2500000, 0.03, 'medium'], ['Ibeju Corridor Lot', 'Ibeju-Lekki', 600, 4000000, 0.04, 'high'], ['Lekki Phase 2 (C of O)', 'Lekki Phase 2', 600, 15000000, 0.025, 'low']];
+city.plots = []; const lots = city.zones.filter(z => z.id === 'blk00' || z.id === 'blk30');
+const lotCenters = [[-156, -156], [156, -152], [209, -152], [-30, 141]]; // hand-placed in empty lots
+plotDefs.forEach((d, i) => city.plots.push({ id: `p${i + 1}`, name: d[0], area: d[1], sqm: d[2], price: d[3], growthPerWeek: d[4], risk: d[5], x: lotCenters[i][0], z: lotCenters[i][1], size: i === 3 ? 16 : 26 }));
 fs.mkdirSync('server/config/cities', { recursive: true });
 fs.writeFileSync('server/config/cities/lagos-mainland.json', JSON.stringify(city, null, 1));
 console.log('buildings', city.buildings.length, 'props', city.properties.length, 'shops', city.shops.length, 'jobs', city.jobs.length, 'boards', city.billboards.length);

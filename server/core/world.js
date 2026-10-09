@@ -3,6 +3,7 @@
 import { bad, clamp, cleanText, hasBadWord } from './util.js';
 import { dist, getState, refreshNeeds, notify, gameTime, profile, activeShift, jobsFor } from './economy.js';
 import { processEvidence, adsSnapshot } from './ads.js';
+import { knockState } from './social.js';
 
 export function createWorld() { return { players: new Map(), chatSeq: 0 }; }
 
@@ -85,7 +86,7 @@ export function heartbeat(app, uid, body, meta = {}) {
   const chatMax = app.db.prepare('SELECT COALESCE(MAX(id),0) m FROM chat_messages').get().m;
   const me = profile(app, uid);
   const resp = { now, interval, ccu, shed: interval >= 20000, world: gameTime(app, now), me, players, notifs, chat, chatCursor: chatMax,
-    teleport: p.force || undefined, adsVersion: app.adsVersion, ads: body.adsVersion === app.adsVersion ? undefined : adsSnapshot(app, now), adResult };
+    knocks: knockState(app, uid), teleport: p.force || undefined, adsVersion: app.adsVersion, ads: body.adsVersion === app.adsVersion ? undefined : adsSnapshot(app, now), adResult };
   p.force = undefined;
   return resp;
 }

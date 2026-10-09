@@ -4,8 +4,9 @@ import { dispatch } from '../server/core/routes.js';
 import { makePng } from '../server/lib/png.js';
 import * as auth from '../server/core/auth.js';
 import { teleport } from '../server/core/world.js';
+import { BALANCE } from '../server/config/balance.js';
 
-export function makeServer(opts = {}) { return buildServer({ dbPath: ':memory:', quiet: true, adminPassword: 'test-admin', dev: true, ...opts }); }
+export function makeServer(opts = {}) { const balance = structuredClone(BALANCE); balance.shops.enforceHours = false; return buildServer({ dbPath: ':memory:', quiet: true, adminPassword: 'test-admin', dev: true, balance, ...opts }); }
 export async function call(s, method, path, { uid, body, query, raw, headers = {}, admin, ua, ip = '10.0.0.1' } = {}) {
   const [p, qs] = path.split('?'); const q = { ...(qs ? Object.fromEntries(new URLSearchParams(qs)) : {}), ...(query || {}) };
   return dispatch(s.app, { method, path: p, query: q, body, raw, headers, ip, ua, uid, isAdmin: !!admin });

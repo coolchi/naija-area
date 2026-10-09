@@ -27,15 +27,31 @@ export const BALANCE = {
     rentPeriodMs: num('NA_RENT_PERIOD_MS', 24 * 3600 * 1000), // ESTIMATE: rent due every 24h real time
     graceMissedPeriods: 2,         // evicted after this many missed rent ticks
     sellBackFraction: 0.7,         // ESTIMATE
-    maxNameLen: 30, minNameLen: 3,
+    maxNameLen: 24, minNameLen: 3, knockTimeoutMs: 95000, knockDeclineCooldownMs: 60000, visitPermitMs: 10 * 60000, guestsByTier: { 1: 2, 2: 4, 3: 6 }, room: { 1: [6, 6], 2: [8, 8], 3: [10, 10] }, furnitureSellFraction: 0.5,
+    // w x d in grid cells; layer 'floor' items (rug) may sit under others. ESTIMATE prices.
     furniture: [
-      { id: 'tv',     name: 'Flat-screen TV', price: 6000 },
-      { id: 'sofa',   name: 'Sofa',           price: 4500 },
-      { id: 'fridge', name: 'Fridge',         price: 5500 },
-      { id: 'rug',    name: 'Ankara rug',     price: 1500 },
-      { id: 'plant',  name: 'Potted plant',   price: 800 }
+      { id: 'tv',     name: 'Flat-screen TV', price: 6000, w: 2, d: 1, layer: 'object', cat: 'fun' },
+      { id: 'sofa',   name: 'Sofa',           price: 4500, w: 3, d: 1, layer: 'object', cat: 'comfort' },
+      { id: 'fridge', name: 'Fridge',         price: 5500, w: 1, d: 1, layer: 'object', cat: 'kitchen' },
+      { id: 'rug',    name: 'Ankara rug',     price: 1500, w: 2, d: 2, layer: 'floor',  cat: 'decor' },
+      { id: 'plant',  name: 'Potted plant',   price: 800,  w: 1, d: 1, layer: 'object', cat: 'decor' },
+      { id: 'table',  name: 'Dining table',   price: 3800, w: 2, d: 2, layer: 'object', cat: 'kitchen' },
+      { id: 'gen',    name: 'Small generator',price: 9000, w: 1, d: 1, layer: 'object', cat: 'power' }
     ]
   },
+  shops: {
+    // price channels (as in the Lagos Life research, 09_lagos_life_mechanics.md §4). Multipliers are ESTIMATES.
+    channels: { market: { mult: 0.85, label: 'Market (cheapest, walk there)' }, supermarket: { mult: 1.0, label: 'Supermarket' }, delivery: { mult: 1.1, fee: 150, label: 'Delivery (anywhere) x1.1 + fee' } },
+    hours: { shop_market: [7, 19], shop_mart: [6, 23], shop_canteen: [6, 22], shop_suya: [17, 24] }, // game-clock hours
+    enforceHours: true
+  },
+  transport: {
+    // fare = round((base + perM * distance) * rush). ESTIMATES. 'car' = your own starter car: fuel only.
+    modes: { keke: { label: 'Keke', base: 100, perM: 1.1, speed: 14 }, danfo: { label: 'Danfo', base: 50, perM: 0.35, speed: 9 }, car: { label: 'My car', base: 0, perM: 0.25, speed: 20 } },
+    rushHours: [[7, 10], [16, 19]], rushMult: 1.3, minSec: 3, maxSec: 6
+  },
+  land: { dayMs: num('NA_LAND_DAY_MS', 24 * 3600 * 1000), sellFraction: 0.95, maxPlots: 3, levyFraction: 0.06, risk: { low: 0.01, medium: 0.04, high: 0.10 } }, // ESTIMATES
+  work: { task: { periodMs: 1800, width: 0.22, bonusPct: 25 } }, // timing mini-game: hit the green zone for +25% wage (ESTIMATE)
   bank: {
     dailyInterestRate: 0.005,      // ESTIMATE: 0.5%/day on savings
     interestPeriodMs: num('NA_INTEREST_PERIOD_MS', 24 * 3600 * 1000),

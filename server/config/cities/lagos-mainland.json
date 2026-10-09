@@ -1321,7 +1321,8 @@
      "hunger": 0,
      "energy": 28
     }
-   ]
+   ],
+   "channel": "supermarket"
   },
   {
    "id": "shop_canteen",
@@ -1352,7 +1353,8 @@
      "hunger": 5,
      "energy": 6
     }
-   ]
+   ],
+   "channel": "supermarket"
   },
   {
    "id": "shop_suya",
@@ -1374,6 +1376,53 @@
      "name": "Agege bread",
      "price": 350,
      "hunger": 18,
+     "energy": 0
+    }
+   ],
+   "channel": "supermarket"
+  },
+  {
+   "id": "shop_market",
+   "name": "Balogun-style Market Stall",
+   "desc": "Cheapest prices in the district. Haggle not included.",
+   "buildingId": null,
+   "x": -45,
+   "z": -13,
+   "channel": "market",
+   "items": [
+    {
+     "id": "water",
+     "name": "Sachet water (pure water)",
+     "price": 150,
+     "hunger": 3,
+     "energy": 4
+    },
+    {
+     "id": "bread",
+     "name": "Agege bread",
+     "price": 350,
+     "hunger": 18,
+     "energy": 0
+    },
+    {
+     "id": "rice",
+     "name": "Rice and stew (small)",
+     "price": 900,
+     "hunger": 38,
+     "energy": 5
+    },
+    {
+     "id": "zobo",
+     "name": "Zobo drink",
+     "price": 300,
+     "hunger": 5,
+     "energy": 6
+    },
+    {
+     "id": "pie",
+     "name": "Meat pie",
+     "price": 400,
+     "hunger": 20,
      "energy": 0
     }
    ]
@@ -1863,6 +1912,56 @@
    "x1": 236,
    "z0": 130,
    "z1": 163
+  }
+ ],
+ "plots": [
+  {
+   "id": "p1",
+   "name": "Ikorodu Gardens",
+   "area": "Ikorodu",
+   "sqm": 600,
+   "price": 1500000,
+   "growthPerWeek": 0.02,
+   "risk": "high",
+   "x": -156,
+   "z": -156,
+   "size": 26
+  },
+  {
+   "id": "p2",
+   "name": "Epe Green Estate",
+   "area": "Epe",
+   "sqm": 600,
+   "price": 2500000,
+   "growthPerWeek": 0.03,
+   "risk": "medium",
+   "x": 156,
+   "z": -152,
+   "size": 26
+  },
+  {
+   "id": "p3",
+   "name": "Ibeju Corridor Lot",
+   "area": "Ibeju-Lekki",
+   "sqm": 600,
+   "price": 4000000,
+   "growthPerWeek": 0.04,
+   "risk": "high",
+   "x": 209,
+   "z": -152,
+   "size": 26
+  },
+  {
+   "id": "p4",
+   "name": "Lekki Phase 2 (C of O)",
+   "area": "Lekki Phase 2",
+   "sqm": 600,
+   "price": 15000000,
+   "growthPerWeek": 0.025,
+   "risk": "low",
+   "x": -30,
+   "z": 141,
+   "size": 16
   }
  ]
 }

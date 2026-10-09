@@ -79,7 +79,21 @@ CREATE TABLE IF NOT EXISTS property_owner (
 CREATE UNIQUE INDEX IF NOT EXISTS ux_one_home_per_user ON property_owner(user_id);
 CREATE TABLE IF NOT EXISTS property_items (
   property_id TEXT NOT NULL, item_id TEXT NOT NULL, user_id INTEGER NOT NULL, bought_at INTEGER NOT NULL,
+  x INTEGER NOT NULL DEFAULT 0, z INTEGER NOT NULL DEFAULT 0, rot INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (property_id, item_id)
+);
+CREATE TABLE IF NOT EXISTS knocks (       -- visitor knock flow: host accepts/declines; unanswered knocks time out (~95 s)
+  id INTEGER PRIMARY KEY AUTOINCREMENT, property_id TEXT NOT NULL, visitor_id INTEGER NOT NULL, owner_id INTEGER NOT NULL,
+  status TEXT NOT NULL,                   -- pending | accepted | declined | expired | cancelled | ended
+  created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, decided_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS ix_knock_owner ON knocks(owner_id, status);
+CREATE INDEX IF NOT EXISTS ix_knock_visitor ON knocks(visitor_id, status);
+CREATE TABLE IF NOT EXISTS land_plots (
+  plot_id TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), paid_price INTEGER NOT NULL, bought_at INTEGER NOT NULL, last_check_at INTEGER NOT NULL, levies_paid INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS work_tasks (   -- timing mini-game attached to a shift (server picks the target, server clock judges the tap)
+  shift_id INTEGER PRIMARY KEY, started_at INTEGER NOT NULL, period_ms INTEGER NOT NULL, target REAL NOT NULL, width REAL NOT NULL, result TEXT, bonus_pct INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS notifications (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

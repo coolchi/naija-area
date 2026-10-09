@@ -4,6 +4,7 @@ import * as auth from './auth.js';
 import * as eco from './economy.js';
 import * as ads from './ads.js';
 import * as world from './world.js';
+import * as soc from './social.js';
 import { history, checkInvariants, moneySupply, balanceOf, cashId } from './ledger.js';
 import { RATE_CARD, AD_POLICY } from '../config/ratecard.js';
 import { GAME_NAME, GAME_TAGLINE, MIN_AGE } from '../config/game.js';
@@ -14,8 +15,8 @@ const route = (method, path, opts, handler) => { if (typeof opts === 'function')
 // ---- public / meta
 route('GET', '/api/health', (c) => ({ ok: true, name: c.app.gameName, now: c.app.clock.now() }));
 route('GET', '/api/config', (c) => ({ name: c.app.gameName, tagline: GAME_TAGLINE, minAge: MIN_AGE, testMode: true, devRoutes: !!c.app.devRoutes, rotationMs: AD_POLICY.rotationMs, balanceNote: c.app.balance._note,
-  topupOptions: c.app.balance.topup.options, housing: { rentPeriodMs: c.app.balance.housing.rentPeriodMs }, furniture: c.app.balance.housing.furniture }));
-route('GET', '/api/city', (c) => { const { propertyById, shopById, jobLoc, billboardById, buildingById, ...rest } = c.app.city; return rest; });
+  topupOptions: c.app.balance.topup.options, transport: c.app.balance.transport, shopChannels: c.app.balance.shops.channels, workTask: c.app.balance.work.task, land: { risk: c.app.balance.land.risk }, maxNameLen: c.app.balance.housing.maxNameLen, housing: { rentPeriodMs: c.app.balance.housing.rentPeriodMs }, furniture: c.app.balance.housing.furniture }));
+route('GET', '/api/city', (c) => { const { propertyById, shopById, jobLoc, billboardById, buildingById, plotById, placeById, area, ...rest } = c.app.city; return rest; });
 route('GET', '/api/stats', (c) => {
   const a = c.app; const players = a.db.prepare('SELECT COUNT(*) n FROM users WHERE is_bot=0').get().n; const bots = a.db.prepare('SELECT COUNT(*) n FROM users WHERE is_bot=1').get().n;
   const live = a.db.prepare("SELECT COUNT(*) n FROM ad_campaigns WHERE status='live'").get().n;
@@ -40,13 +41,28 @@ route('GET', '/api/jobs', { auth: 'user' }, (c) => ({ jobs: eco.jobsFor(c.app, c
 route('POST', '/api/jobs/start', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); const r = eco.startShift(c.app, c.uid, c.body.jobId); return { ok: true, endsAt: r.endsAt, user: eco.profile(c.app, c.uid) }; });
 route('POST', '/api/jobs/claim', { auth: 'user' }, (c) => { const r = eco.claimShift(c.app, c.uid); return { ok: true, wage: r.wage, user: eco.profile(c.app, c.uid) }; });
 route('POST', '/api/jobs/abandon', { auth: 'user' }, (c) => { eco.abandonShift(c.app, c.uid); return { ok: true, user: eco.profile(c.app, c.uid) }; });
-route('POST', '/api/shop/buy', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); const r = eco.shopBuy(c.app, c.uid, c.body.shopId, c.body.itemId, c.body.qty ?? 1, c.body.idem); return { ok: true, ...r, user: eco.profile(c.app, c.uid) }; });
+route('GET', '/api/shops', { auth: 'user' }, (c) => ({ shops: eco.shopsView(c.app), channels: c.app.balance.shops.channels }));
+route('POST', '/api/shop/buy', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); const r = eco.shopBuy(c.app, c.uid, c.body.shopId, c.body.itemId, c.body.qty ?? 1, c.body.idem, c.body.channel || 'local'); return { ok: true, ...r, user: eco.profile(c.app, c.uid) }; });
 route('GET', '/api/properties', { auth: 'user' }, (c) => ({ properties: eco.listProperties(c.app, c.uid) }));
 route('POST', '/api/property/acquire', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); eco.acquireProperty(c.app, c.uid, c.body.propertyId, c.body.mode, c.body.idem); return { ok: true, user: eco.profile(c.app, c.uid) }; });
 route('POST', '/api/property/release', { auth: 'user' }, (c) => { const r = eco.releaseProperty(c.app, c.uid); return { ok: true, refund: r.refund, user: eco.profile(c.app, c.uid) }; });
 route('POST', '/api/property/name', { auth: 'user' }, (c) => { const r = eco.nameProperty(c.app, c.uid, c.body.name); return { ok: true, name: r.name, user: eco.profile(c.app, c.uid) }; });
 route('GET', '/api/property/:id/interior', { auth: 'user' }, (c) => eco.interior(c.app, c.uid, c.params.id));
-route('POST', '/api/property/furniture', { auth: 'user' }, (c) => { eco.buyFurniture(c.app, c.uid, c.body.itemId, c.body.idem); return { ok: true, user: eco.profile(c.app, c.uid), interior: eco.interior(c.app, c.uid, eco.homeOf(c.app, c.uid).property_id) }; });
+route('POST', '/api/property/furniture', { auth: 'user' }, (c) => { const r = eco.placeFurniture(c.app, c.uid, c.body.itemId, c.body.x, c.body.z, c.body.rot ?? 0, c.body.idem); return { ok: true, ...r, user: eco.profile(c.app, c.uid), interior: eco.interior(c.app, c.uid, eco.homeOf(c.app, c.uid).property_id) }; });
+route('POST', '/api/property/furniture/sell', { auth: 'user' }, (c) => { const r = eco.sellFurniture(c.app, c.uid, c.body.itemId); return { ok: true, ...r, user: eco.profile(c.app, c.uid), interior: eco.interior(c.app, c.uid, eco.homeOf(c.app, c.uid).property_id) }; });
+route('POST', '/api/property/enter', { auth: 'user' }, (c) => soc.enterHome(c.app, c.uid));
+route('POST', '/api/property/leave', { auth: 'user' }, (c) => soc.leaveHome(c.app, c.uid));
+route('POST', '/api/visit/knock', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return soc.knock(c.app, c.uid, c.body.propertyId); });
+route('POST', '/api/visit/respond', { auth: 'user' }, (c) => soc.respondKnock(c.app, c.uid, c.body.knockId, c.body.accept === true));
+route('POST', '/api/visit/cancel', { auth: 'user' }, (c) => soc.cancelKnock(c.app, c.uid));
+route('POST', '/api/dm', { auth: 'user' }, (c) => soc.sendDm(c.app, c.uid, c.body.to, c.body.text));
+route('GET', '/api/travel/quote', { auth: 'user' }, (c) => soc.travelQuote(c.app, c.uid, c.query.place));
+route('POST', '/api/travel', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return { ...soc.travel(c.app, c.uid, c.body.placeId, c.body.mode, c.body.idem), user: eco.profile(c.app, c.uid) }; });
+route('GET', '/api/plots', { auth: 'user' }, (c) => ({ plots: soc.plotsView(c.app, c.uid) }));
+route('POST', '/api/plot/buy', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); soc.buyPlot(c.app, c.uid, c.body.plotId, c.body.idem); return { ok: true, user: eco.profile(c.app, c.uid) }; });
+route('POST', '/api/plot/sell', { auth: 'user' }, (c) => { const r = soc.sellPlot(c.app, c.uid, c.body.plotId); return { ...r, user: eco.profile(c.app, c.uid) }; });
+route('POST', '/api/jobs/task/start', { auth: 'user' }, (c) => ({ ok: true, ...eco.taskStart(c.app, c.uid) }));
+route('POST', '/api/jobs/task/stop', { auth: 'user' }, (c) => ({ ok: true, ...eco.taskStop(c.app, c.uid) }));
 route('POST', '/api/bank', { auth: 'user' }, (c) => { eco.bankMove(c.app, c.uid, c.body.dir, c.body.amount, c.body.idem); return { ok: true, user: eco.profile(c.app, c.uid) }; });
 route('POST', '/api/transfer', { auth: 'user' }, (c) => { const r = eco.transfer(c.app, c.uid, c.body.to, c.body.amount, c.body.idem); return { ...r, user: eco.profile(c.app, c.uid) }; });
 route('POST', '/api/topup/test', { auth: 'user' }, (c) => { eco.testTopup(c.app, c.uid, c.body.amount, c.body.idem); return { ok: true, test: true, user: eco.profile(c.app, c.uid) }; });
@@ -77,7 +93,7 @@ route('GET', '/api/admin/overview', { auth: 'admin' }, (c) => {
   return { users: db.prepare('SELECT COUNT(*) n FROM users').get().n, online: world.ccuNow(a), moneySupply: moneySupply(db), systemAccounts: faucets, ledger: checkInvariants(db), campaignsByStatus: byStatus, interval: world.recommendedInterval(a, world.ccuNow(a)) };
 });
 route('GET', '/api/admin/ledger/:username', { auth: 'admin' }, (c) => { const u = c.app.db.prepare('SELECT id FROM users WHERE username=?').get(c.params.username); if (!u) bad('NO_USER', 'No such user', 404); return { rows: history(c.app.db, u.id, 100), balance: balanceOf(c.app.db, cashId(u.id)) }; });
-route('POST', '/api/admin/tick', { auth: 'admin' }, (c) => ({ ads: ads.tickAds(c.app), rent: eco.tickRent(c.app), interest: eco.tickInterest(c.app) }));
+route('POST', '/api/admin/tick', { auth: 'admin' }, (c) => ({ ads: ads.tickAds(c.app), rent: eco.tickRent(c.app), interest: eco.tickInterest(c.app), land: soc.tickLand(c.app) }));
 
 // ---- dev (only when NA_DEV=1)
 route('POST', '/api/dev/teleport', { auth: 'user' }, (c) => { if (!c.app.devRoutes) bad('NOT_FOUND', 'Not found', 404); world.teleport(c.app, c.uid, Number(c.body.x), Number(c.body.z)); return { ok: true }; });

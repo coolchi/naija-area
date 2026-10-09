@@ -73,9 +73,10 @@ export function claimShift(app, uid) {
     // the status flip is the lock: only the request that changes the row pays out
     const u = app.db.prepare("UPDATE shifts SET status='claimed', claimed_at=? WHERE id=? AND status='active'").run(now, sh.id);
     if (u.changes !== 1) bad('ALREADY_CLAIMED', 'Already claimed.', 409);
-    move(app, { from: SYS.FAUCET_JOBS, to: cashId(uid), amount: sh.wage, reason: 'job_wage', ref: sh.job_id, userId: uid, idemKey: `shift:${sh.id}` });
+    const task = app.db.prepare('SELECT bonus_pct FROM work_tasks WHERE shift_id=?').get(sh.id); const bonus = task ? Math.floor(sh.wage * task.bonus_pct / 100) : 0;
+    move(app, { from: SYS.FAUCET_JOBS, to: cashId(uid), amount: sh.wage + bonus, reason: 'job_wage', ref: sh.job_id, userId: uid, idemKey: `shift:${sh.id}` });
     app.db.prepare('UPDATE player_state SET total_shifts=total_shifts+1 WHERE user_id=?').run(uid);
-    return { wage: sh.wage, cash: balanceOf(app.db, cashId(uid)) };
+    return { wage: sh.wage + bonus, bonus, cash: balanceOf(app.db, cashId(uid)) };
   })();
 }
 export function abandonShift(app, uid) {
@@ -83,27 +84,63 @@ export function abandonShift(app, uid) {
   if (!r.changes) bad('NO_SHIFT', 'No active shift.', 404); return { ok: true };
 }
 
-// ---- SHOPS --------------------------------------------------------------
-export function shopBuy(app, uid, shopId, itemId, qty = 1, idemKey = null) {
+// ---- WORK TASK mini-game: "stop it in the green". The server owns the clock and the target; the client only animates.
+export const triWave = (x) => { const f = x - Math.floor(x); return f < 0.5 ? f * 2 : 2 - f * 2; };
+export function taskStart(app, uid) {
+  const sh = activeShift(app, uid); if (!sh) bad('NO_SHIFT', 'Start a shift first.', 404);
+  if (app.db.prepare('SELECT 1 FROM work_tasks WHERE shift_id=?').get(sh.id)) bad('TASK_USED', 'One task per shift.', 409);
+  const T = app.balance.work.task; const target = 0.25 + Math.random() * 0.5; const now = app.clock.now();
+  app.db.prepare('INSERT INTO work_tasks(shift_id,started_at,period_ms,target,width) VALUES (?,?,?,?,?)').run(sh.id, now, T.periodMs, target, T.width);
+  return { periodMs: T.periodMs, target, width: T.width, startedAt: now, bonusPct: T.bonusPct };
+}
+export function taskStop(app, uid) {
+  const sh = activeShift(app, uid) || app.db.prepare("SELECT * FROM shifts WHERE user_id=? ORDER BY id DESC LIMIT 1").get(uid); if (!sh) bad('NO_SHIFT', 'No shift.', 404);
+  const t = app.db.prepare('SELECT * FROM work_tasks WHERE shift_id=?').get(sh.id); if (!t) bad('NO_TASK', 'Start the task first.', 404);
+  if (t.result) bad('TASK_DONE', 'Already played.', 409);
+  const now = app.clock.now(); const pos = triWave((now - t.started_at) / t.period_ms); const hit = Math.abs(pos - t.target) <= t.width / 2 && now - t.started_at < 20000;
+  const bonus = hit ? app.balance.work.task.bonusPct : 0; app.db.prepare('UPDATE work_tasks SET result=?, bonus_pct=? WHERE shift_id=?').run(hit ? 'hit' : 'miss', bonus, sh.id);
+  return { hit, pos, target: t.target, width: t.width, bonusPct: bonus };
+}
+// ---- SHOPS (three price channels, as in the Lagos Life research) ------------
+const fmtHour = (h) => { const hh = h % 24; return `${((hh + 11) % 12) + 1}:00 ${hh >= 12 && hh < 24 ? 'PM' : 'AM'}`; };
+export function shopHours(app, shopId) { return app.balance.shops.hours[shopId] || [0, 24]; }
+export function shopOpen(app, shopId, now = app.clock.now()) {
+  const [o, c] = shopHours(app, shopId); const h = gameTime(app, now).hour; const open = !app.balance.shops.enforceHours || (h >= o && h < c);
+  return { open, opens: o, closes: c, text: open ? `Open till ${fmtHour(c)}` : `Closed till ${fmtHour(o)}` };
+}
+export function itemPrice(app, shop, item, channel) {
+  const ch = app.balance.shops.channels[channel]; return { price: Math.round(item.price * ch.mult), fee: ch.fee || 0 };
+}
+export function shopsView(app) {
+  return app.city.shops.map(s => ({ id: s.id, name: s.name, desc: s.desc, channel: s.channel, x: s.x, z: s.z, area: app.city.area(s.x, s.z), status: shopOpen(app, s.id),
+    items: s.items.map(i => ({ ...i, price: itemPrice(app, s, i, s.channel).price, deliveryPrice: itemPrice(app, s, i, 'delivery').price })), deliveryFee: app.balance.shops.channels.delivery.fee, deliveryMult: app.balance.shops.channels.delivery.mult }));
+}
+export function shopBuy(app, uid, shopId, itemId, qty = 1, idemKey = null, channel = 'local') {
   const shop = app.city.shopById[shopId]; if (!shop) bad('NO_SHOP', 'Unknown shop.', 404);
   const item = shop.items.find(i => i.id === itemId); if (!item) bad('NO_ITEM', 'Unknown item.', 404);
   if (!Number.isInteger(qty) || qty < 1 || qty > 5) bad('BAD_QTY', 'Quantity 1-5.');
+  if (!['local', 'delivery'].includes(channel)) bad('BAD_CHANNEL', 'channel must be local or delivery.');
   return app.db.transaction(() => {
-    const st = refreshNeeds(app, uid);
-    if (dist(st.x, st.z, shop.x, shop.z) > app.balance.interact.shopRadius + 8) bad('TOO_FAR', `Walk up to ${shop.name} first.`);
-    const total = item.price * qty;
-    const r = move(app, { from: cashId(uid), to: SYS.SINK_SHOPS, amount: total, reason: 'shop_purchase', ref: `${shopId}:${itemId}x${qty}`, userId: uid, idemKey: idemKey ? `shop:${uid}:${idemKey}` : null });
+    const st = refreshNeeds(app, uid); const ch = channel === 'delivery' ? 'delivery' : shop.channel; const { price, fee } = itemPrice(app, shop, item, ch);
+    if (channel === 'local') {
+      const hrs = shopOpen(app, shopId); if (!hrs.open) bad('CLOSED', `${shop.name}: ${hrs.text}.`, 409);
+      if (dist(st.x, st.z, shop.x, shop.z) > app.balance.interact.shopRadius + 8) bad('TOO_FAR', `Walk up to ${shop.name} first.`);
+    }
+    const total = price * qty + fee; const key = idemKey ? `shop:${uid}:${idemKey}` : null;
+    const r = move(app, { from: cashId(uid), to: channel === 'delivery' ? SYS.SINK_DELIVERY : SYS.SINK_SHOPS, amount: total, reason: channel === 'delivery' ? 'shop_delivery' : 'shop_purchase', ref: `${shopId}:${itemId}x${qty}`, userId: uid, idemKey: key });
     if (!r.duplicate) setNeeds(app, uid, st.energy + item.energy * qty, st.hunger + item.hunger * qty);
     const s2 = getState(app, uid);
-    return { spent: total, duplicate: r.duplicate, energy: s2.energy, hunger: s2.hunger, cash: balanceOf(app.db, cashId(uid)) };
+    return { spent: total, channel: ch, duplicate: r.duplicate, energy: s2.energy, hunger: s2.hunger, cash: balanceOf(app.db, cashId(uid)) };
   })();
 }
 
 // ---- HOUSING ------------------------------------------------------------
 export function propertyView(app, p, uid) {
   const o = app.db.prepare('SELECT po.*, u.username FROM property_owner po JOIN users u ON u.id=po.user_id WHERE property_id=?').get(p.id);
-  return { id: p.id, name: o?.custom_name || p.name, baseName: p.name, tier: p.tier, tierLabel: p.tierLabel, rent: p.rent, price: p.price, rooms: p.rooms, door: p.door, buildingId: p.buildingId,
-    status: o ? (o.user_id === uid ? 'yours' : 'taken') : 'available', owner: o ? o.username : null, mode: o && (o.user_id === uid || true) ? o.mode : null,
+  const items = o ? app.db.prepare('SELECT COUNT(*) n FROM property_items WHERE property_id=?').get(p.id).n : 0;
+  return { id: p.id, name: o?.custom_name || p.name, baseName: p.name, tier: p.tier, tierLabel: p.tierLabel, rent: p.rent, price: p.price, rooms: p.rooms, door: p.door, buildingId: p.buildingId, area: p.area, items,
+    status: o ? (o.user_id === uid ? 'yours' : 'taken') : 'available', owner: o ? o.username : null, mode: o ? o.mode : null,
+    presence: o ? app.presenceOf?.(o.user_id, p.id) || 'away' : null, maxGuests: app.balance.housing.guestsByTier[p.tier],
     nextRentDue: o && o.user_id === uid ? o.next_rent_due : undefined, missed: o && o.user_id === uid ? o.missed : undefined };
 }
 export function listProperties(app, uid) { return app.city.properties.map(p => propertyView(app, p, uid)); }
@@ -146,24 +183,60 @@ export function nameProperty(app, uid, name) {
   app.db.prepare('UPDATE property_owner SET custom_name=? WHERE property_id=? AND user_id=?').run(n, h.property_id, uid);
   return { name: n };
 }
-/** OWNER-ONLY: furniture list. Anyone else gets 403 (tested). */
+/** Interior view. Owner: full (catalogue, buy mode). Accepted visitor (knock flow): read-only. Everyone else: 403 (tested). */
 export function interior(app, uid, propertyId) {
   const p = propDef(app, propertyId); if (!p) bad('NO_PROPERTY', 'Unknown property.', 404);
-  const o = app.db.prepare('SELECT * FROM property_owner WHERE property_id=?').get(propertyId);
-  if (!o || o.user_id !== uid) bad('FORBIDDEN', 'Only the person who lives here can go inside.', 403);
-  const items = app.db.prepare('SELECT item_id FROM property_items WHERE property_id=?').all(propertyId).map(r => r.item_id);
-  return { id: p.id, name: o.custom_name || p.name, tier: p.tier, tierLabel: p.tierLabel, rooms: p.rooms, items, catalog: app.balance.housing.furniture };
+  const o = app.db.prepare('SELECT po.*, u.username FROM property_owner po JOIN users u ON u.id=po.user_id WHERE property_id=?').get(propertyId);
+  const visitor = o && o.user_id !== uid && app.hasVisitPermit?.(uid, propertyId);
+  if (!o || (o.user_id !== uid && !visitor)) bad('FORBIDDEN', 'Only the person who lives here can go inside (or guests they let in).', 403);
+  const placed = app.db.prepare('SELECT item_id id, x, z, rot FROM property_items WHERE property_id=?').all(propertyId);
+  const [rw, rd] = app.balance.housing.room[p.tier];
+  const base = { id: p.id, name: o.custom_name || p.name, owner: o.username, area: p.area, tier: p.tier, tierLabel: p.tierLabel, rooms: p.rooms, room: { w: rw, d: rd, reserved: reservedRects(app, p.tier) }, items: placed.map(i => i.id), placed, maxGuests: app.balance.housing.guestsByTier[p.tier], guests: app.guestCount?.(propertyId) || 0 };
+  return visitor ? { ...base, visitor: true, readOnly: true } : { ...base, visitor: false, catalog: app.balance.housing.furniture, sellFraction: app.balance.housing.furnitureSellFraction };
 }
-export function buyFurniture(app, uid, itemId, idemKey) {
+export function reservedRects(app, tier) { const [w, d] = app.balance.housing.room[tier]; return [{ x: 0, z: 0, w: 2, d: 3, what: 'bed' }, { x: Math.floor(w / 2) - 1, z: d - 2, w: 2, d: 2, what: 'doorway' }]; }
+const footprint = (def, rot) => (rot % 2 ? { w: def.d, d: def.w } : { w: def.w, d: def.d });
+const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.z < b.z + b.d && b.z < a.z + a.d;
+/** buy-mode placement: grid snap (integers), rotate (0-3), inside room, not on bed/doorway/other objects ('Something is in the way') */
+export function placeFurniture(app, uid, itemId, x, z, rot = 0, idemKey = null) {
   const h = homeOf(app, uid); if (!h) bad('NO_HOME', 'You have no home.', 404);
-  const item = app.balance.housing.furniture.find(f => f.id === itemId); if (!item) bad('NO_ITEM', 'Unknown item.', 404);
+  const def = app.balance.housing.furniture.find(f => f.id === itemId); if (!def) bad('NO_ITEM', 'Unknown item.', 404);
+  const p = propDef(app, h.property_id); const [rw, rd] = app.balance.housing.room[p.tier];
+  if (!Number.isInteger(rot) || rot < 0 || rot > 3) bad('BAD_ROT', 'rot must be 0-3.');
   return app.db.transaction(() => {
-    if (app.db.prepare('SELECT 1 FROM property_items WHERE property_id=? AND item_id=?').get(h.property_id, itemId)) bad('OWNED', 'Already placed.', 409);
-    move(app, { from: cashId(uid), to: SYS.SINK_FURNITURE, amount: item.price, reason: 'furniture', ref: `${h.property_id}:${itemId}`, userId: uid, idemKey: idemKey ? `furn:${uid}:${idemKey}` : null });
-    app.db.prepare('INSERT INTO property_items(property_id,item_id,user_id,bought_at) VALUES (?,?,?,?)').run(h.property_id, itemId, uid, app.clock.now());
-    return { ok: true, cash: balanceOf(app.db, cashId(uid)) };
+    const owned = app.db.prepare('SELECT 1 FROM property_items WHERE property_id=? AND item_id=?').get(h.property_id, itemId);
+    const others = app.db.prepare('SELECT item_id id, x, z, rot FROM property_items WHERE property_id=? AND item_id!=?').all(h.property_id, itemId);
+    const test = (x0, z0) => {
+      const f = footprint(def, rot); const r = { x: x0, z: z0, w: f.w, d: f.d };
+      if (x0 < 0 || z0 < 0 || x0 + f.w > rw || z0 + f.d > rd) return 'OUT';
+      for (const rs of reservedRects(app, p.tier)) if (overlap(r, rs)) return 'BLOCKED';
+      for (const o of others) { const od = app.balance.housing.furniture.find(q => q.id === o.id); if (od.layer === 'floor' && def.layer === 'floor' || (od.layer !== 'floor' && def.layer !== 'floor')) { const of = footprint(od, o.rot); if (overlap(r, { x: o.x, z: o.z, w: of.w, d: of.d })) return 'BLOCKED'; } }
+      return null;
+    };
+    if ((x === undefined || z === undefined) && owned) bad('OWNED', 'Already placed. Send x,z to move it.', 409);
+    if (x === undefined || z === undefined) { // auto-place at first free cell (used by simple clients and tests)
+      let found = false; for (let zz = 0; zz < rd && !found; zz++) for (let xx = 0; xx < rw && !found; xx++) if (!test(xx, zz)) { x = xx; z = zz; found = true; }
+      if (!found) bad('BLOCKED', 'Something is in the way: no free space left.', 409);
+    }
+    if (!Number.isInteger(x) || !Number.isInteger(z)) bad('BAD_CELL', 'x and z must be whole grid cells.');
+    const err = test(x, z); if (err === 'OUT') bad('OUT_OF_ROOM', 'That does not fit inside the room.', 409); if (err) bad('BLOCKED', 'Something is in the way.', 409);
+    let charged = 0;
+    if (!owned) { move(app, { from: cashId(uid), to: SYS.SINK_FURNITURE, amount: def.price, reason: 'furniture', ref: `${h.property_id}:${itemId}`, userId: uid, idemKey: idemKey ? `furn:${uid}:${idemKey}` : null }); charged = def.price; app.db.prepare('INSERT INTO property_items(property_id,item_id,user_id,bought_at,x,z,rot) VALUES (?,?,?,?,?,?,?)').run(h.property_id, itemId, uid, app.clock.now(), x, z, rot); }
+    else app.db.prepare('UPDATE property_items SET x=?, z=?, rot=? WHERE property_id=? AND item_id=?').run(x, z, rot, h.property_id, itemId);
+    return { ok: true, charged, x, z, rot, cash: balanceOf(app.db, cashId(uid)) };
   })();
 }
+export function sellFurniture(app, uid, itemId) {
+  const h = homeOf(app, uid); if (!h) bad('NO_HOME', 'You have no home.', 404);
+  const def = app.balance.housing.furniture.find(f => f.id === itemId); if (!def) bad('NO_ITEM', 'Unknown item.', 404);
+  return app.db.transaction(() => {
+    const r = app.db.prepare('DELETE FROM property_items WHERE property_id=? AND item_id=?').run(h.property_id, itemId); if (!r.changes) bad('NOT_PLACED', 'You do not have that item.', 404);
+    const refund = Math.floor(def.price * app.balance.housing.furnitureSellFraction);
+    if (refund > 0) move(app, { from: SYS.SINK_FURNITURE, to: cashId(uid), amount: refund, reason: 'furniture_sell', ref: `${h.property_id}:${itemId}`, userId: uid, idemKey: `fsell:${h.property_id}:${itemId}:${app.clock.now()}` });
+    return { ok: true, refund, cash: balanceOf(app.db, cashId(uid)) };
+  })();
+}
+export const buyFurniture = (app, uid, itemId, idemKey) => placeFurniture(app, uid, itemId, undefined, undefined, 0, idemKey);
 /** Scheduled: charge rent when due. Missed payment -> notify; after N missed periods -> evict. Idempotent per period. */
 export function tickRent(app) {
   const now = app.clock.now(); const period = app.balance.housing.rentPeriodMs; const out = { charged: 0, missed: 0, evicted: 0 };
@@ -263,7 +336,8 @@ export function testTopup(app, uid, amount, idemKey) {
 export function netWorth(app, uid) {
   const cash = balanceOf(app.db, cashId(uid)), sav = balanceOf(app.db, savId(uid)); const h = homeOf(app, uid);
   const prop = h && h.mode === 'own' ? Math.floor(h.paid_price * app.balance.housing.sellBackFraction) : 0;
-  return { cash, savings: sav, property: prop, total: cash + sav + prop };
+  const land = app.plotValue ? app.plotValue(uid) : 0;
+  return { cash, savings: sav, property: prop + land, total: cash + sav + prop + land };
 }
 export function leaderboard(app) {
   const now = app.clock.now(); const lb = app.balance.leaderboard;
