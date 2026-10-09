@@ -64,6 +64,8 @@ export const BALANCE = {
   topup: { // MOCK ONLY. 'Test top-up' mints fake test ₦. Real Monipay integration is a later step.
     options: [1000, 5000, 20000], maxPerDay: 40000
   },
+  // trust & safety thresholds (ESTIMATES: tune from real report data)
+  safety: { reportsPerHour: 10, maxBlocks: 100, autoHideAfter: 3, autoMuteAfter: 3, autoMuteMs: 10 * 60000, adminMuteMs: 60 * 60000, chatPerMin: 12, dmPerMin: 8, dmPerRecipientPerMin: 3, knockPerMin: 5, knockPerTargetPer10Min: 3, dupWindowMs: 20000 },
   chat: { maxLen: 140, minIntervalMs: 2000, radius: 80, keep: 100 },
   movement: { maxWalkSpeed: 7, maxDriveSpeed: 26, slack: 1.6 }, // m/s; server clamps teleports
   interact: { shopRadius: 16, jobRadius: 16, houseRadius: 22 },

@@ -8,8 +8,7 @@ export function cleanText(s, max = 140) {
   if (typeof s !== 'string') return '';
   return s.replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
 }
-const BAD_WORDS = ['fuck', 'shit', 'bitch', 'nigga', 'rape', 'cunt'];
-export const hasBadWord = (s) => { const t = String(s).toLowerCase().replace(/[^a-z]/g, ''); return BAD_WORDS.some(w => t.includes(w)); };
+export { hasBadWord } from './filter.js';
 export const dayKey = (ms) => new Date(ms).toISOString().slice(0, 10);
 // simple token bucket by key: returns true if allowed
 export class Limiter {

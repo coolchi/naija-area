@@ -1,5 +1,6 @@
 // Economy v0. ALL amounts live in config/balance.js (ESTIMATES). Everything that moves money goes through ledger.post.
-import { bad, clamp, cleanText, hasBadWord, dayKey } from './util.js';
+import { bad, clamp, cleanText, dayKey } from './util.js';
+import { screen } from './filter.js';
 import { move, post, cashId, savId, balanceOf, SYS } from './ledger.js';
 
 export const dist = (ax, az, bx, bz) => Math.hypot(ax - bx, az - bz);
@@ -138,7 +139,7 @@ export function shopBuy(app, uid, shopId, itemId, qty = 1, idemKey = null, chann
 export function propertyView(app, p, uid) {
   const o = app.db.prepare('SELECT po.*, u.username, u.color FROM property_owner po JOIN users u ON u.id=po.user_id WHERE property_id=?').get(p.id);
   const items = o ? app.db.prepare('SELECT COUNT(*) n FROM property_items WHERE property_id=?').get(p.id).n : 0;
-  return { id: p.id, name: o?.custom_name || p.name, baseName: p.name, tier: p.tier, tierLabel: p.tierLabel, rent: p.rent, price: p.price, rooms: p.rooms, door: p.door, buildingId: p.buildingId, area: p.area, items,
+  return { id: p.id, name: (o && !o.name_hidden && o.custom_name) || p.name, nameHidden: !!o?.name_hidden, hasCustomName: !!o?.custom_name, baseName: p.name, tier: p.tier, tierLabel: p.tierLabel, rent: p.rent, price: p.price, rooms: p.rooms, door: p.door, buildingId: p.buildingId, area: p.area, items,
     status: o ? (o.user_id === uid ? 'yours' : 'taken') : 'available', owner: o ? o.username : null, ownerColor: o ? o.color : null, mode: o ? o.mode : null,
     presence: o ? app.presenceOf?.(o.user_id, p.id) || 'away' : null, maxGuests: app.balance.housing.guestsByTier[p.tier],
     nextRentDue: o && o.user_id === uid ? o.next_rent_due : undefined, missed: o && o.user_id === uid ? o.missed : undefined };
@@ -179,8 +180,8 @@ export function nameProperty(app, uid, name) {
   const h = homeOf(app, uid); if (!h) bad('NO_HOME', 'You have no home.', 404);
   const n = cleanText(name, app.balance.housing.maxNameLen);
   if (n.length < app.balance.housing.minNameLen) bad('BAD_NAME', `Name must be at least ${app.balance.housing.minNameLen} characters.`);
-  if (hasBadWord(n)) bad('BAD_NAME', 'Please pick a cleaner name.');
-  app.db.prepare('UPDATE property_owner SET custom_name=? WHERE property_id=? AND user_id=?').run(n, h.property_id, uid);
+  { const sc = screen(n); if (!sc.ok) bad('BAD_NAME', sc.code === 'CLEAN_IT_UP' ? 'Please pick a cleaner name.' : sc.message); }
+  app.db.prepare('UPDATE property_owner SET custom_name=?, name_hidden=0 WHERE property_id=? AND user_id=?').run(n, h.property_id, uid);
   return { name: n };
 }
 /** Interior view. Owner: full (catalogue, buy mode). Accepted visitor (knock flow): read-only. Everyone else: 403 (tested). */
@@ -191,7 +192,7 @@ export function interior(app, uid, propertyId) {
   if (!o || (o.user_id !== uid && !visitor)) bad('FORBIDDEN', 'Only the person who lives here can go inside (or guests they let in).', 403);
   const placed = app.db.prepare('SELECT item_id id, x, z, rot FROM property_items WHERE property_id=?').all(propertyId);
   const [rw, rd] = app.balance.housing.room[p.tier];
-  const base = { id: p.id, name: o.custom_name || p.name, owner: o.username, area: p.area, tier: p.tier, tierLabel: p.tierLabel, rooms: p.rooms, room: { w: rw, d: rd, reserved: reservedRects(app, p.tier) }, items: placed.map(i => i.id), placed, maxGuests: app.balance.housing.guestsByTier[p.tier], guests: app.guestCount?.(propertyId) || 0 };
+  const base = { id: p.id, name: (!o.name_hidden && o.custom_name) || p.name, owner: o.username, area: p.area, tier: p.tier, tierLabel: p.tierLabel, rooms: p.rooms, room: { w: rw, d: rd, reserved: reservedRects(app, p.tier) }, items: placed.map(i => i.id), placed, maxGuests: app.balance.housing.guestsByTier[p.tier], guests: app.guestCount?.(propertyId) || 0 };
   return visitor ? { ...base, visitor: true, readOnly: true } : { ...base, visitor: false, catalog: app.balance.housing.furniture, sellFraction: app.balance.housing.furnitureSellFraction };
 }
 export function reservedRects(app, tier) { const [w, d] = app.balance.housing.room[tier]; return [{ x: 0, z: 0, w: 2, d: 3, what: 'bed' }, { x: Math.floor(w / 2) - 1, z: d - 2, w: 2, d: 2, what: 'doorway' }]; }

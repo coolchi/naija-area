@@ -162,4 +162,57 @@ CREATE TABLE IF NOT EXISTS ad_taps (
   valid INTEGER NOT NULL, reason TEXT, created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_taps ON ad_taps(campaign_id, user_id, created_at);
+
+-- ---- trust & safety (phase 2)
+CREATE TABLE IF NOT EXISTS reports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, reporter_id INTEGER NOT NULL, kind TEXT NOT NULL,       -- house_name | chat | ad_creative
+  target_ref TEXT NOT NULL, target_user_id INTEGER, reason TEXT NOT NULL, detail TEXT, snapshot TEXT,
+  status TEXT NOT NULL DEFAULT 'open',                  -- open | actioned | dismissed
+  created_at INTEGER NOT NULL, resolved_at INTEGER, resolved_by TEXT, resolution TEXT,
+  UNIQUE (reporter_id, kind, target_ref)
+);
+CREATE INDEX IF NOT EXISTS ix_reports_status ON reports(status, id);
+CREATE INDEX IF NOT EXISTS ix_reports_target ON reports(kind, target_ref);
+CREATE TABLE IF NOT EXISTS user_blocks (               -- mute = I do not see them; block = mute + they cannot DM/knock/sit with me
+  blocker_id INTEGER NOT NULL, blocked_id INTEGER NOT NULL, kind TEXT NOT NULL, created_at INTEGER NOT NULL,
+  PRIMARY KEY (blocker_id, blocked_id)
+);
+CREATE INDEX IF NOT EXISTS ix_blocks_blocked ON user_blocks(blocked_id);
+
+-- ---- venues + games (phase 2)
+CREATE TABLE IF NOT EXISTS game_matches (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, venue_id TEXT NOT NULL, station_id TEXT NOT NULL, kind TEXT NOT NULL,   -- whot | ayo
+  p1 INTEGER NOT NULL, p2 INTEGER, stake INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL,                       -- waiting | active | finished | cancelled
+  state TEXT, turn_user INTEGER, winner INTEGER, result TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deadline_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS ix_match_station ON game_matches(venue_id, station_id, status);
+CREATE INDEX IF NOT EXISTS ix_match_p1 ON game_matches(p1, status);
+CREATE INDEX IF NOT EXISTS ix_match_p2 ON game_matches(p2, status);
+CREATE TABLE IF NOT EXISTS game_scores (
+  week INTEGER NOT NULL, kind TEXT NOT NULL, user_id INTEGER NOT NULL, wins INTEGER NOT NULL DEFAULT 0, losses INTEGER NOT NULL DEFAULT 0, draws INTEGER NOT NULL DEFAULT 0, points INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (week, kind, user_id)
+);
+
+-- ---- cars + homes social (phase 2)
+CREATE TABLE IF NOT EXISTS player_cars (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, model TEXT NOT NULL, paid INTEGER NOT NULL, bought_at INTEGER NOT NULL, active INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS ix_cars_user ON player_cars(user_id);
+CREATE TABLE IF NOT EXISTS house_loves (
+  property_id TEXT NOT NULL, user_id INTEGER NOT NULL, day TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (property_id, user_id, day)
+);
+CREATE TABLE IF NOT EXISTS room_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, property_id TEXT NOT NULL, user_id INTEGER NOT NULL, username TEXT NOT NULL, kind TEXT NOT NULL, text TEXT, created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_room_events ON room_events(property_id, id);
 `;
+
+/** Add columns to databases created by earlier versions (CREATE TABLE IF NOT EXISTS never alters an existing table). Idempotent. */
+export function migrate(db) {
+  const cols = (t) => db.prepare(`PRAGMA table_info(${t})`).all().map(c => c.name);
+  const add = (t, c, def) => { if (!cols(t).includes(c)) db.exec(`ALTER TABLE ${t} ADD COLUMN ${c} ${def}`); };
+  add('property_items', 'x', 'INTEGER NOT NULL DEFAULT 0'); add('property_items', 'z', 'INTEGER NOT NULL DEFAULT 0'); add('property_items', 'rot', 'INTEGER NOT NULL DEFAULT 0');
+  add('users', 'chat_muted_until', 'INTEGER NOT NULL DEFAULT 0');
+  add('property_owner', 'name_hidden', 'INTEGER NOT NULL DEFAULT 0'); add('property_owner', 'wall_color', "TEXT NOT NULL DEFAULT 'cream'"); add('property_owner', 'floor_color', "TEXT NOT NULL DEFAULT 'oak'");
+  add('player_state', 'mood', 'REAL NOT NULL DEFAULT 60');
+}

@@ -46,7 +46,7 @@ test('house card: presence (home/online/away), owner/area/items fields, name lim
   s.app.clock.advance(61000); let card = (await ok(s, 'GET', '/api/properties', { uid: b })).properties.find(x => x.id === p.id); assert.equal(card.presence, 'away'); assert.ok(card.owner && card.area && card.type !== undefined || card.tierLabel);
   await ok(s, 'POST', '/api/heartbeat', { uid: a, body: {} }); card = (await ok(s, 'GET', '/api/properties', { uid: b })).properties.find(x => x.id === p.id); assert.equal(card.presence, 'online');
   await ok(s, 'POST', '/api/property/enter', { uid: a }); card = (await ok(s, 'GET', '/api/properties', { uid: b })).properties.find(x => x.id === p.id); assert.equal(card.presence, 'home'); assert.equal(card.maxGuests, 2);
-  const long = await ok(s, 'POST', '/api/property/name', { uid: a, body: { name: 'A'.repeat(40) } }); assert.equal(long.name.length, 24);
+  const long = await ok(s, 'POST', '/api/property/name', { uid: a, body: { name: 'Mama Tunde Place Extra Long Name' } }); assert.equal(long.name.length, 24);
   s.app.clock.advance(61000); card = (await ok(s, 'GET', '/api/properties', { uid: b })).properties.find(x => x.id === p.id); assert.equal(card.presence, 'away');
 });
 test('knock flow: only when host is home; host accepts -> visitor gets read-only interior; decline -> cooldown; timeout ~95s; guest cap; owner-only still enforced', async () => {

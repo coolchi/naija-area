@@ -40,8 +40,25 @@ export class UI {
   toast(text, kind = '') { const el = h('div', { class: `toast ${kind}` }, text); const box = $('#toasts'); box.append(el); while (box.children.length > 3) box.firstChild.remove(); setTimeout(() => el.remove(), 4300); if (kind === 'bad') this.sfx('bad'); else if (kind === 'money') { this.sfx('coin'); this.haptic(); } }
   error(e) { if (e instanceof ApiError) { if (e.status === 401 && e.code === 'LOGIN_REQUIRED') { this.g.sessionLost(); return; } const f = ERR[e.code]; this.toast(f ? f() : e.message, 'bad'); } else { console.error(e); this.toast('Something went wrong. Try again.', 'bad'); } }
   showChat() { $('#chatForm').classList.add('on'); $('#chatInput').focus(); } hideChat() { $('#chatForm').classList.remove('on'); $('#game').focus(); }
-  addChat(u, t) { const d = h('div', {}, `${u}: ${t}`); $('#chatlog').append(d); while ($('#chatlog').children.length > 5) $('#chatlog').firstChild.remove(); setTimeout(() => d.remove(), 14000); }
+  addChat(u, t, id) { const d = h('div', { style: 'pointer-events:auto;cursor:pointer', title: 'Tap to report, mute or block', onclick: () => this.playerMenu(u, id && { kind: 'chat', target: id, text: `${u}: ${t}` }) }, `${u}: ${t}`); $('#chatlog').append(d); while ($('#chatlog').children.length > 5) $('#chatlog').firstChild.remove(); setTimeout(() => d.remove(), 14000); }
 
+  // ---------- trust & safety UI ----------
+  /** menu for a player (from chat or a house card): report the thing, mute, block */
+  playerMenu(username, report) {
+    if (username === this.g.user?.username) return;
+    const draw = () => this.openSheet(`@${username}`, [report ? h('p', { class: 'mut' }, `"${report.text}"`) : '', h('div', { class: 'row' },
+      report ? h('button', { class: 'btn red', onclick: () => this.reportSheet(report.kind, report.target, report.text) }, '🚩 Report') : '',
+      h('button', { class: 'btn ghost', onclick: () => this.setBlock(username, 'mute') }, '🔇 Mute'), h('button', { class: 'btn ghost', onclick: () => this.setBlock(username, 'block') }, '⛔ Block')),
+      h('p', { class: 'mut' }, 'Mute: you stop seeing their chat and messages. Block: they cannot message you, knock on your door or sit at your tables, and you will not see each other.')]);
+    draw();
+  }
+  async setBlock(username, kind) { const r = await this.guard(() => post('/api/social/mute', { username, kind })); if (r) { this.toast(kind === 'block' ? `@${username} blocked.` : kind === 'mute' ? `@${username} muted.` : `@${username} unblocked.`); this.closeSheet(); } }
+  reportSheet(kind, target, what = '') {
+    const labels = { abusive: 'Abusive or insulting', sexual: 'Sexual content', hate: 'Hate or discrimination', scam_spam: 'Scam or spam', personal_info: 'Shares personal info', misleading: 'Misleading', other: 'Something else' };
+    let reason = 'abusive'; const note = h('input', { class: 'sheet-input', maxlength: 200, placeholder: 'Anything we should know? (optional)' });
+    const chips = h('div', { class: 'chips' }); const drawChips = () => chips.replaceChildren(...Object.entries(labels).map(([k, l]) => h('button', { class: `chip ${k === reason ? 'on' : ''}`, onclick: () => { reason = k; drawChips(); } }, l))); drawChips();
+    this.openSheet('Report', [h('p', { class: 'mut' }, what ? `Reporting: ${what}` : 'Tell us what is wrong.'), chips, note, h('div', { class: 'row' }, h('button', { class: 'btn red', onclick: async () => { const r = await this.guard(() => post('/api/report', { kind, target: String(target), reason, detail: note.value })); if (r) { this.toast(r.message); this.closeSheet(); } } }, 'Send report'), h('button', { class: 'btn ghost', onclick: () => this.closeSheet() }, 'Cancel')), h('p', { class: 'mut' }, 'Reports go to a human reviewer. False reports can limit your own account.')]);
+  }
   // ---------- HUD ----------
   hud(u) {
     $('#cash').textContent = fmtN(u.cash); $('#sav').textContent = '🏦 ' + fmtN(u.savings); $('#energyBar').style.width = u.energy + '%'; $('#hungerBar').style.width = u.hunger + '%';
@@ -147,7 +164,7 @@ export class UI {
       kids.push(h('div', { class: 'row' }, h('span', { class: 'tag green' }, p.mode === 'own' ? 'You own this' : `Rent ${fmtN(p.rent)}/day`), p.nextRentDue ? h('span', { class: 'mut' }, `next rent ${new Date(p.nextRentDue).toLocaleString('en-NG', { weekday: 'short', hour: 'numeric', minute: '2-digit' })}`) : ''));
       kids.push(h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => { this.closeSheet(); g.enterHome(); } }, '🚪 Go inside'), h('button', { class: 'btn ghost', onclick: () => this.confirm(p.mode === 'own' ? `Sell for about 70% of what you paid?` : 'Move out? (no refund)', async () => { const r = await this.guard(() => post('/api/property/release')); if (r) { g.update(r.user); this.toast(r.refund ? say('sold', r.refund) : 'You moved out.'); this.houseBlock(el, propertyId); } }) }, p.mode === 'own' ? 'Sell house' : 'Move out')));
     } else if (p.owner) {
-      kids.push(h('div', { class: 'row' }, h('button', { class: 'btn', disabled: p.presence !== 'home' || !near, onclick: () => this.knock(p) }, '🏠 Visit'), h('button', { class: 'btn ghost', onclick: () => this.message(p.owner) }, '💬 Message')));
+      kids.push(h('div', { class: 'row' }, h('button', { class: 'btn', disabled: p.presence !== 'home' || !near, onclick: () => this.knock(p) }, '🏠 Visit'), h('button', { class: 'btn ghost', onclick: () => this.message(p.owner) }, '💬 Message'), h('button', { class: 'btn ghost small', title: 'Mute, block or report', onclick: () => this.playerMenu(p.owner, p.hasCustomName && !p.nameHidden ? { kind: 'house_name', target: p.id, text: `${p.owner}'s "${p.name}"` } : null) }, '⋯')));
       kids.push(h('div', { class: 'mut' }, "You can only drop by when they're home" + (near ? '.' : ' and you are at the door.')));
     } else {
       kids.push(h('p', { class: 'mut' }, `${p.rooms} room(s). Rent ${fmtN(p.rent)} per day (first day paid up front)${p.price ? ` · or buy for ${fmtN(p.price)}` : ' · rent only'}.`));
@@ -184,7 +201,7 @@ export class UI {
   async board(slotId) {
     const g = this.g; const win = Math.floor(g.serverNow() / g.ads.rot); const cur = g.ads.currentFor(slotId, win); const def = g.world.boards[slotId].def;
     const kids = [h('div', { class: 'mut' }, `${{ road_billboard: 'Road billboard', airport_board: 'Airport board', lagoon_plot: 'Lagoon plot' }[def.surface]} · ${slotId}`)];
-    if (cur) { kids.push(h('h3', {}, cur.b), cur.h ? h('p', {}, cur.h) : '', h('span', { class: 'tag amber' }, 'Sponsored'), h('div', { class: 'row' }, h('button', { class: 'btn alt', onclick: async () => { const r = await this.guard(() => post('/api/ads/tap', { campaign: cur.c, slot: slotId, pos: g.pos() })); if (r) { window.open(r.path, '_blank', 'noopener'); this.toast(`Opening ${r.brand}'s page in a new tab.`); } } }, 'Visit advertiser'))); }
+    if (cur) { kids.push(h('h3', {}, cur.b), cur.h ? h('p', {}, cur.h) : '', h('span', { class: 'tag amber' }, 'Sponsored'), h('div', { class: 'row' }, h('button', { class: 'btn ghost small', onclick: () => this.reportSheet('ad_creative', cur.c, `${cur.b}${cur.h ? ': ' + cur.h : ''}`) }, '🚩 Report this ad'), h('button', { class: 'btn alt', onclick: async () => { const r = await this.guard(() => post('/api/ads/tap', { campaign: cur.c, slot: slotId, pos: g.pos() })); if (r) { window.open(r.path, '_blank', 'noopener'); this.toast(`Opening ${r.brand}'s page in a new tab.`); } } }, 'Visit advertiser'))); }
     else kids.push(h('h3', {}, 'Your ad here'), h('p', {}, 'This board is free. Brands rent boards at /advertise (test mode).'), h('a', { href: '/advertise', target: '_blank', rel: 'noopener', class: 'btn' }, 'Advertise on this board'));
     this.openSheet('Billboard', kids);
   }
@@ -214,8 +231,8 @@ export class UI {
   async tab_land() { const d = await this.guard(() => get('/api/plots')); if (!d) return []; return [h('div', { class: 'list' }, d.plots.map(p => h('div', {}, h('div', {}, h('b', {}, p.name), h('div', { class: 'mut' }, `${p.area} · ${fmtN(p.price)} · risk ${p.risk} · ${p.status}`)), h('button', { class: 'btn small ghost', onclick: () => this.place(p.id) }, 'View'))))]; }
   async tab_ranks() { const d = await this.guard(() => get('/api/leaderboard')); if (!d) return []; return [h('p', { class: 'mut' }, 'Net worth = cash + savings + property (70%) + land (95%). Bots are hidden.'), h('div', { class: 'list' }, d.rows.map(r => h('div', {}, h('span', {}, `#${r.rank} ${r.name}${r.guest ? ' (guest)' : ''}`), h('b', {}, fmtN(r.netWorth)))))]; }
   async tab_alerts() { const d = await this.guard(() => get('/api/notifications')); this.g.markRead(); if (!d) return []; return [h('div', { class: 'list' }, d.rows.map(n => h('div', {}, h('span', {}, n.text), h('span', { class: 'mut' }, new Date(n.created_at).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' })))))]; }
-  tab_more() {
-    const g = this.g; return [h('div', { class: 'row' }, h('a', { class: 'btn ghost', href: '/advertise', target: '_blank', rel: 'noopener' }, 'Advertise'), h('a', { class: 'btn ghost', href: '/methodology', target: '_blank', rel: 'noopener' }, 'How ads are counted'), h('a', { class: 'btn ghost', href: '/stats.html', target: '_blank', rel: 'noopener' }, 'Stats')),
+  async tab_more() {
+    const g = this.g; const bl = await this.guard(() => get('/api/social/blocks')); const blocked = h('div', { class: 'list' }, (bl?.rows || []).map(r => h('div', {}, h('span', {}, `@${r.username} · ${r.kind}`), h('button', { class: 'btn small ghost', onclick: async () => { await this.setBlock(r.username, null); this.phone('more'); } }, 'Undo')))); return [h('b', {}, 'Muted and blocked'), (bl?.rows || []).length ? blocked : h('p', { class: 'mut' }, 'Nobody. Tap a chat line or the ⋯ on a house card to mute, block or report.'), h('div', { class: 'row' }, h('a', { class: 'btn ghost', href: '/advertise', target: '_blank', rel: 'noopener' }, 'Advertise'), h('a', { class: 'btn ghost', href: '/methodology', target: '_blank', rel: 'noopener' }, 'How ads are counted'), h('a', { class: 'btn ghost', href: '/stats.html', target: '_blank', rel: 'noopener' }, 'Stats')),
       h('p', { class: 'mut' }, `${g.cfg.name} v0 · test build. In-game ₦ is fictional with no cash-out. 18+.`), h('div', { class: 'row' }, h('button', { class: 'btn red', onclick: () => g.logout() }, 'Log out'))];
   }
 }

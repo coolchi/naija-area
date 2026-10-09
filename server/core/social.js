@@ -1,5 +1,7 @@
 // House presence, the visitor knock flow, DMs, travel (fare + timed commute) and land plots.
-import { bad, cleanText, hasBadWord } from './util.js';
+import { bad, cleanText } from './util.js';
+import { screen } from './filter.js';
+import { isBlocked, chatMuted } from './safety.js';
 import { dist, notify, homeOf, gameTime, getState } from './economy.js';
 import { move, cashId, balanceOf, SYS } from './ledger.js';
 import { ensurePresence, syncPos } from './world.js';
@@ -26,6 +28,9 @@ export function knock(app, uid, propertyId) {
   if (!o) bad('NO_OWNER', 'Nobody lives here.', 404); if (o.user_id === uid) bad('YOURS', 'That is your own place.');
   const p = app.city.propertyById[propertyId]; const st = getState(app, uid);
   if (dist(st.x, st.z, p.door.x, p.door.z) > app.balance.interact.houseRadius + 10) bad('TOO_FAR', 'Walk up to the door to knock.');
+  if (isBlocked(app, uid, o.user_id)) bad('CANNOT_VISIT', 'You cannot visit this home.', 403);
+  if (!app.limiter.hit(`knock:${uid}`, app.balance.safety.knockPerMin, 60000, now)) bad('RATE_LIMIT', 'Too many knocks. Give it a minute.', 429);
+  if (!app.limiter.hit(`knock:${uid}:${propertyId}`, app.balance.safety.knockPerTargetPer10Min, 600000, now)) bad('RATE_LIMIT', 'You have knocked here a lot. Try again later.', 429);
   if (app.presenceOf(o.user_id, propertyId) !== 'home') bad('NOT_HOME', "You can only drop by when they're home.", 409);
   if (app.db.prepare("SELECT 1 FROM knocks WHERE visitor_id=? AND status='pending'").get(uid)) bad('ALREADY_KNOCKING', 'You are already knocking somewhere.', 409);
   const dec = app.db.prepare("SELECT decided_at FROM knocks WHERE visitor_id=? AND property_id=? AND status='declined' ORDER BY id DESC LIMIT 1").get(uid, propertyId);
@@ -35,7 +40,7 @@ export function knock(app, uid, propertyId) {
   const r = app.db.prepare("INSERT INTO knocks(property_id,visitor_id,owner_id,status,created_at,expires_at) VALUES (?,?,?,'pending',?,?)").run(propertyId, uid, o.user_id, now, now + H.knockTimeoutMs);
   const me = app.db.prepare('SELECT username FROM users WHERE id=?').get(uid).username;
   notify(app, o.user_id, 'knock', `Knock knock! @${me} is at your door. Open the Home tab to let them in.`);
-  return { knockId: Number(r.lastInsertRowid), expiresAt: now + H.knockTimeoutMs, owner: o.username, name: o.custom_name || p.name };
+  return { knockId: Number(r.lastInsertRowid), expiresAt: now + H.knockTimeoutMs, owner: o.username, name: (!o.name_hidden && o.custom_name) || p.name };
 }
 export function respondKnock(app, uid, knockId, accept) {
   expireKnocks(app); const k = app.db.prepare('SELECT * FROM knocks WHERE id=?').get(knockId);
@@ -57,10 +62,17 @@ export function knockState(app, uid) {
 }
 
 export function sendDm(app, uid, toUsername, text) {
-  const t = cleanText(text, 140); if (!t) bad('EMPTY', 'Type a message.'); if (hasBadWord(t)) bad('CLEAN_IT_UP', 'Keep it clean, please.');
+  const t = cleanText(text, 140); if (!t) bad('EMPTY', 'Type a message.'); const sc = screen(t); if (!sc.ok) bad(sc.code, sc.message);
+  if (chatMuted(app, uid)) bad('CHAT_PAUSED', 'Messaging is paused for your account for a little while.', 403);
   const me = app.db.prepare('SELECT username, is_guest FROM users WHERE id=?').get(uid); const to = app.db.prepare('SELECT id FROM users WHERE username=?').get(String(toUsername || ''));
   if (!to) bad('NO_RECIPIENT', 'No player with that username.', 404); if (to.id === uid) bad('SELF', 'You cannot message yourself.');
-  const now = app.clock.now(); if (!app.limiter.hit(`dm:${uid}`, 6, 60000, now)) bad('RATE_LIMIT', 'Too many messages, slow down.', 429);
+  const now = app.clock.now(); const S = app.balance.safety;
+  if (isBlocked(app, uid, to.id)) bad('CANNOT_MESSAGE', 'You cannot message this player.', 403);
+  const lk = `dmlast:${uid}:${to.id}`; const lastDm = app.world.lastDm ||= new Map(); const ld = lastDm.get(lk); if (ld && ld.t === t.toLowerCase() && now - ld.at < S.dupWindowMs) bad('SPAM', 'You just sent that.', 429); lastDm.set(lk, { t: t.toLowerCase(), at: now });
+  if (!app.limiter.hit(`dm:${uid}`, S.dmPerMin, 60000, now)) bad('RATE_LIMIT', 'Too many messages, slow down.', 429);
+  if (!app.limiter.hit(`dm:${uid}:${to.id}`, S.dmPerRecipientPerMin, 60000, now)) bad('RATE_LIMIT', 'Easy now: let them reply first.', 429);
+  // a muted sender is allowed to send but a recipient who muted them never sees it
+  if (app.db.prepare("SELECT 1 FROM user_blocks WHERE blocker_id=? AND blocked_id=?").get(to.id, uid)) return { ok: true };
   notify(app, to.id, 'dm', `@${me.username}: ${t}`); return { ok: true };
 }
 

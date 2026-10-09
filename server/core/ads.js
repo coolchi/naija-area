@@ -1,5 +1,6 @@
 // Ad system v0: campaigns + moderation state machine + rotation + server-side impression validation + signed-redirect taps.
 import { bad, dayKey, cleanText } from './util.js';
+import { screen } from './filter.js';
 import { RATE_CARD, AD_POLICY, priceFor } from '../config/ratecard.js';
 import { dist } from './economy.js';
 
@@ -51,7 +52,7 @@ export function getCreative(app, id) { return app.db.prepare('SELECT id, mime, d
 
 // ---- advertisers ------------------------------------------------------
 export function getOrCreateAdvertiser(app, { email, brand }) {
-  email = cleanText(email, 120).toLowerCase(); brand = cleanText(brand, 40);
+  email = cleanText(email, 120).toLowerCase(); brand = cleanText(brand, 40); { const sc = screen(brand, { links: false }); if (!sc.ok) bad('BAD_BRAND', 'Brand name: ' + sc.message); }
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) bad('BAD_EMAIL', 'Enter a valid contact email.');
   if (brand.length < 2) bad('BAD_BRAND', 'Enter your brand or business name.');
   const ex = app.db.prepare('SELECT * FROM advertisers WHERE email=? AND brand_name=?').get(email, brand);
@@ -101,7 +102,7 @@ export function createCampaign(app, advertiserId, p, opts = {}) {
   if (link.length > 300 || !hostOk(link)) bad('BAD_LINK', 'Link must be a public https:// URL.');
   const spec = RATE_CARD.surfaces[p.surface]; const ar = cr.width / cr.height;
   if (Math.abs(ar - spec.aspect) / spec.aspect > 0.2) bad('BAD_ASPECT', `Image should be about ${spec.size} (yours is ${cr.width}x${cr.height}).`);
-  const headline = cleanText(p.headline || '', 60);
+  const headline = cleanText(p.headline || '', 60); { const sc = screen(headline, { links: false }); if (!sc.ok) bad('BAD_HEADLINE', 'Headline: ' + sc.message); }
   let reqStart = Number.isFinite(p.startAt) && p.startAt > now ? Math.min(p.startAt, now + 60 * 86400000) : now;
   const end = reqStart + p.days * 86400000;
   const av = availability(app, p.surface, p.tier, p.units, reqStart, end);

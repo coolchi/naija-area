@@ -1,6 +1,8 @@
 // Presence + heartbeat. Plain-HTTP polling: client posts its movement trail + ad-view evidence, server answers with nearby
 // players' trails, state, world time, notifications and the recommended next interval (load adaptive).
-import { bad, clamp, cleanText, hasBadWord } from './util.js';
+import { bad, clamp, cleanText } from './util.js';
+import { screen } from './filter.js';
+import { hiddenFrom, chatMuted } from './safety.js';
 import { dist, getState, refreshNeeds, notify, gameTime, profile, activeShift, jobsFor } from './economy.js';
 import { processEvidence, adsSnapshot } from './ads.js';
 import { knockState } from './social.js';
@@ -67,7 +69,8 @@ export function heartbeat(app, uid, body, meta = {}) {
   // other players near me
   const hb = app.balance.heartbeat; const since = Number.isFinite(body.since) ? body.since : 0; const cutoff = now - hb.activeWindowMs;
   const cand = [];
-  for (const o of w.players.values()) { if (o.id === uid || o.lastSeen < cutoff) continue; const d = dist(o.x, o.z, p.x, p.z); if (d <= hb.nearbyRadius) cand.push([d, o]); }
+  const hidden = hiddenFrom(app, uid);
+  for (const o of w.players.values()) { if (o.id === uid || o.lastSeen < cutoff || hidden.has(o.id)) continue; const d = dist(o.x, o.z, p.x, p.z); if (d <= hb.nearbyRadius) cand.push([d, o]); }
   cand.sort((a, b) => a[0] - b[0]);
   const players = cand.slice(0, hb.maxNearby).map(([, o]) => {
     // downsample trail to ~1 sample/2s newer than `since`
@@ -81,8 +84,8 @@ export function heartbeat(app, uid, body, meta = {}) {
   const notifs = app.db.prepare('SELECT id,kind,text,created_at FROM notifications WHERE user_id=? AND id>? ORDER BY id LIMIT 20').all(uid, nSince);
   // nearby chat
   const chatSince = Number.isFinite(body.chatSince) ? body.chatSince : p.chatSince;
-  const chat = app.db.prepare('SELECT id,username,x,z,text,created_at FROM chat_messages WHERE id>? ORDER BY id LIMIT 60').all(chatSince)
-    .filter(m => dist(m.x, m.z, p.x, p.z) <= app.balance.chat.radius).map(m => ({ id: m.id, u: m.username, t: m.text, at: m.created_at }));
+  const chat = app.db.prepare('SELECT id,user_id,username,x,z,text,created_at FROM chat_messages WHERE id>? ORDER BY id LIMIT 60').all(chatSince)
+    .filter(m => dist(m.x, m.z, p.x, p.z) <= app.balance.chat.radius && !hidden.has(m.user_id)).map(m => ({ id: m.id, u: m.username, t: m.text, at: m.created_at }));
   const chatMax = app.db.prepare('SELECT COALESCE(MAX(id),0) m FROM chat_messages').get().m;
   const me = profile(app, uid);
   const resp = { now, interval, ccu, shed: interval >= 20000, world: gameTime(app, now), me, players, notifs, chat, chatCursor: chatMax,
@@ -95,7 +98,11 @@ export function sendChat(app, uid, text) {
   const p = app.world.players.get(uid); if (!p) bad('NOT_IN_WORLD', 'Join the world first.', 409);
   const t = cleanText(text, app.balance.chat.maxLen); if (!t) bad('EMPTY', 'Say something.');
   const now = app.clock.now(); if (p.lastChat && now - p.lastChat < app.balance.chat.minIntervalMs) bad('SLOW_DOWN', 'Slow down a little.', 429);
-  if (hasBadWord(t)) bad('CLEAN_IT_UP', 'Keep it clean, please.');
+  const sc = screen(t); if (!sc.ok) bad(sc.code, sc.message);
+  if (chatMuted(app, uid)) bad('CHAT_PAUSED', 'Chat is paused for your account for a little while.', 403);
+  const S = app.balance.safety; if (!app.limiter.hit(`chat:${uid}`, S.chatPerMin, 60000, now)) bad('RATE_LIMIT', 'Too many messages. Take a breather.', 429);
+  if (p.lastText === t.toLowerCase() && now - (p.lastTextAt || 0) < S.dupWindowMs) bad('SPAM', 'You just said that.', 429);
+  p.lastText = t.toLowerCase(); p.lastTextAt = now;
   p.lastChat = now;
   app.db.prepare('INSERT INTO chat_messages(user_id,username,x,z,text,created_at) VALUES (?,?,?,?,?,?)').run(uid, p.name, p.x, p.z, t, now);
   app.db.prepare('DELETE FROM chat_messages WHERE id < (SELECT MAX(id) FROM chat_messages) - ?').run(app.balance.chat.keep);
