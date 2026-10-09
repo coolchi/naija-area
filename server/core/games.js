@@ -7,8 +7,14 @@ import { move as ledgerMove, cashId, SYS } from './ledger.js';
 import { isBlocked } from './safety.js';
 import * as whot from './games/whot.js';
 import * as ludo from './games/ludo.js';
+import * as dominoes from './games/dominoes.js';
+import * as draughts from './games/draughts.js';
+import * as ayo from './games/ayo.js';
 
-export const GAMES = { whot: { label: 'Whot', min: 2, max: 2, eng: whot }, ludo: { label: 'Ludo', min: 2, max: 4, eng: ludo } };
+// Every engine except Whot (the original, 'a'/'b' sides) shares one contract: newGame(n, rng), play(st, seat, move, rng) -> {ok,won}|{error}, forfeit(st, seat), view(st, seat), bot(st, seat, rng).
+// State carries n (players), turn (seat index), winner (null | seat | 'draw').
+export const GAMES = { whot: { label: 'Whot', min: 2, max: 2, eng: whot }, ludo: { label: 'Ludo', min: 2, max: 4, eng: ludo }, dominoes: { label: 'Dominoes', min: 2, max: 4, eng: dominoes },
+  draughts: { label: 'Draughts', min: 2, max: 2, eng: draughts }, ayo: { label: 'Ayo', min: 2, max: 2, eng: ayo } };
 const DAY = 86400000, WEEK = 7 * DAY;
 export const weekOf = (ms) => Math.floor((ms - 4 * DAY) / WEEK);   // weeks start Monday 00:00 UTC (1970-01-05 was a Monday)
 export const weekInfo = (app) => { const w = weekOf(app.clock.now()); return { week: w, endsAt: 4 * DAY + (w + 1) * WEEK }; };
@@ -18,7 +24,7 @@ const rngOf = (app) => app.rng || Math.random;
 const seatsOf = (app, id) => app.db.prepare('SELECT user_id, seat, out FROM game_players WHERE match_id=? ORDER BY seat').all(id);
 const seatOf = (app, m, uid) => seatsOf(app, m.id).find(s => s.user_id === uid) || null;
 const side = (m, seat) => (m.kind === 'whot' ? 'ab'[seat] : seat);           // engine-side identity of a seat
-const paidCount = (app, m) => (m.state ? (m.kind === 'ludo' ? JSON.parse(m.state).n : 2) : seatsOf(app, m.id).length);
+const paidCount = (app, m) => (m.state ? (m.kind === 'whot' ? 2 : JSON.parse(m.state).n) : seatsOf(app, m.id).length);
 
 const joins = (app, m, uid) => app.db.prepare("SELECT COUNT(*) n FROM ledger_tx WHERE ref=? AND user_id=? AND reason='game_stake'").get(`match:${m.id}`, uid).n;   // a player may leave a waiting table and sit again: each seating is its own ledger entry
 function escrowIn(app, m, uid) { if (m.stake > 0) ledgerMove(app, { from: cashId(uid), to: SYS.ESCROW_GAMES, amount: m.stake, reason: 'game_stake', ref: `match:${m.id}`, userId: uid, idemKey: `game:${m.id}:stake:${uid}:${joins(app, m, uid)}` }); }
@@ -44,8 +50,8 @@ export function myMatchView(app, uid) { const m = myMatch(app, uid); return m ? 
 export function getMatch(app, uid, id) { expireStale(app); const m = row(app, id); if (!m || !seatOf(app, m, uid)) bad('NO_MATCH', 'No such game.', 404); return viewFor(app, uid, m); }
 
 function activate(app, m, now) {
-  const seats = seatsOf(app, m.id); const eng = GAMES[m.kind].eng; const st = m.kind === 'ludo' ? eng.newGame(seats.length, rngOf(app)) : eng.newGame(rngOf(app));
-  const turnUser = seats[m.kind === 'ludo' ? st.turn : (st.turn === 'a' ? 0 : 1)].user_id;
+  const seats = seatsOf(app, m.id); const eng = GAMES[m.kind].eng; const st = m.kind === 'whot' ? eng.newGame(rngOf(app)) : eng.newGame(seats.length, rngOf(app));
+  const turnUser = seats[m.kind === 'whot' ? (st.turn === 'a' ? 0 : 1) : st.turn].user_id;
   app.db.prepare("UPDATE game_matches SET status='active', state=?, turn_user=?, updated_at=?, deadline_at=? WHERE id=?").run(JSON.stringify(st), turnUser, now, now + app.balance.games.turnMs, m.id);
   for (const s of seats) if (s.user_id !== m.p1) notify(app, s.user_id, 'game', `Your ${GAMES[m.kind].label} game has started!`); notify(app, m.p1, 'game', `Your ${GAMES[m.kind].label} game has started!`);
 }
@@ -101,14 +107,14 @@ export function playMove(app, uid, id, mv = {}) {
     if (m.status !== 'active') bad('NOT_ACTIVE', m.status === 'waiting' ? 'Waiting for the game to start.' : 'This game is over.', 409); if (me.out) bad('NOT_ACTIVE', 'You left this game.', 409);
     const sd = side(m, me.seat); const st = JSON.parse(m.state); let r;
     if (m.kind === 'whot') r = mv.action === 'draw' ? whot.draw(st, sd, rngOf(app)) : whot.play(st, sd, String(mv.card || ''), mv.shape, rngOf(app));
-    else r = mv.action === 'roll' ? ludo.roll(st, sd, rngOf(app)) : ludo.move(st, sd, Number(mv.token));
+    else r = GAMES[m.kind].eng.play(st, sd, mv, rngOf(app));
     if (r.error) bad(r.error, r.message || 'That move is not allowed.', r.error === 'NOT_YOUR_TURN' ? 409 : 400);
     persist(app, m, st, uid); return viewFor(app, uid, row(app, id));
   })();
 }
 function persist(app, m, st, actor) {
-  const now = app.clock.now(); const seats = seatsOf(app, m.id); const turnSeat = m.kind === 'ludo' ? st.turn : (st.turn === 'a' ? 0 : 1);
-  const winnerSeat = m.kind === 'ludo' ? st.winner : st.winner === 'draw' ? 'draw' : st.winner === 'a' ? 0 : st.winner === 'b' ? 1 : null;
+  const now = app.clock.now(); const seats = seatsOf(app, m.id); const turnSeat = m.kind !== 'whot' ? st.turn : (st.turn === 'a' ? 0 : 1);
+  const winnerSeat = m.kind !== 'whot' ? st.winner : st.winner === 'draw' ? 'draw' : st.winner === 'a' ? 0 : st.winner === 'b' ? 1 : null;
   app.db.prepare('UPDATE game_matches SET state=?, turn_user=?, updated_at=?, deadline_at=? WHERE id=?').run(JSON.stringify(st), winnerSeat != null ? null : seats[turnSeat]?.user_id ?? null, now, now + app.balance.games.turnMs, m.id);
   if (winnerSeat != null) finish(app, row(app, m.id), winnerSeat === 'draw' ? null : seats[winnerSeat].user_id, 'Played to the end'); void actor;
 }
@@ -122,8 +128,8 @@ export function resign(app, uid, id) {
 function leaveActive(app, m, uid, why) {
   const seats = seatsOf(app, m.id); const me = seats.find(s => s.user_id === uid); const st = JSON.parse(m.state);
   if (m.kind === 'whot') return finish(app, m, seats.find(s => s.user_id !== uid).user_id, why);
-  app.db.prepare('UPDATE game_players SET out=1 WHERE match_id=? AND user_id=?').run(m.id, uid); ludo.forfeit(st, me.seat); notify(app, uid, 'game', `You left the Ludo game. ${why}.`);
-  if (st.winner != null) { app.db.prepare('UPDATE game_matches SET state=? WHERE id=?').run(JSON.stringify(st), m.id); return finish(app, row(app, m.id), seats[st.winner].user_id, why); }
+  app.db.prepare('UPDATE game_players SET out=1 WHERE match_id=? AND user_id=?').run(m.id, uid); GAMES[m.kind].eng.forfeit(st, me.seat); notify(app, uid, 'game', `You left the ${GAMES[m.kind].label} game. ${why}.`);
+  if (st.winner != null && st.winner !== 'draw') { app.db.prepare('UPDATE game_matches SET state=? WHERE id=?').run(JSON.stringify(st), m.id); return finish(app, row(app, m.id), seats[st.winner].user_id, why); }
   const now = app.clock.now(); app.db.prepare('UPDATE game_matches SET state=?, turn_user=?, updated_at=?, deadline_at=? WHERE id=?').run(JSON.stringify(st), seats[st.turn].user_id, now, now + app.balance.games.turnMs, m.id);
 }
 function finish(app, m, winner, why) {

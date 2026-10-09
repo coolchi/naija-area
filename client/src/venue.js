@@ -8,6 +8,7 @@ const SHAPE = { circle: ['●', '#d6402f'], triangle: ['▲', '#2e7dd1'], cross:
 const hash = (s) => { let x = 7; for (const c of String(s)) x = (x * 31 + c.charCodeAt(0)) >>> 0; return x; };
 const ICON = { eat: '🍲', game: '🎲', board: '🏆', poster: '📜', tv: '📺', car: '🚗', check: '🔍', service: '🔧' };
 
+const GAME_NAME = { whot: 'Whot', ludo: 'Ludo', dominoes: 'Dominoes', draughts: 'Draughts', ayo: 'Ayo' };
 export class Venue {
   constructor(game) { this.g = game; this.el = $('#venue'); this.open = false; this.shotId = null; }
   async show(venueId) {
@@ -70,7 +71,7 @@ export class Venue {
   }
   async board(kind = 'all') {
     const ui = this.g.ui; const d = await ui.guard(() => get('/api/scoreboard' + (kind === 'all' ? '' : `?kind=${kind}`))); if (!d) return; const left = Math.max(0, d.endsAt - this.g.serverNow());
-    const tabs = h('div', { class: 'chips' }, ['all', 'whot', 'ludo'].map(k => h('button', { class: `chip ${k === kind ? 'on' : ''}`, onclick: () => this.board(k) }, k === 'all' ? 'All games' : k === 'whot' ? 'Whot' : 'Ludo')));
+    const tabs = h('div', { class: 'chips' }, ['all', 'whot', 'ludo', 'dominoes', 'draughts', 'ayo'].map(k => h('button', { class: `chip ${k === kind ? 'on' : ''}`, onclick: () => this.board(k) }, k === 'all' ? 'All games' : GAME_NAME[k])));
     ui.openSheet('Weekly scoreboard', [tabs, d.rows.length ? h('div', { class: 'list' }, d.rows.map(r => h('div', {}, h('span', {}, `${r.rank}. @${r.username}`), h('span', { class: 'mut' }, `${r.wins}W ${r.draws}D ${r.losses}L · `), h('b', {}, `${r.points} pts`)))) : h('p', { class: 'mut' }, 'Nobody has played this week yet. Be the first!'), h('p', { class: 'mut' }, `${d.scoring} Resets in ${Math.floor(left / 86400000)}d ${Math.floor(left % 86400000 / 3600000)}h.`)]);
   }
   async mechanicSheet(st) {
@@ -90,12 +91,12 @@ export class Venue {
   }
   sitPanel(st) {
     const G = this.data.stakes; let stake = 0; const m = st.match; const info = this.g.cfg; void info;
-    const title = st.game === 'ludo' ? 'Ludo table (2 to 4 players)' : 'Whot bench'; const kids = [h('div', { class: 'row sp' }, h('b', {}, `${st.label}`), h('button', { class: 'btn small ghost', onclick: () => this.panel.classList.add('hidden') }, '✕'))];
+    const title = { ludo: 'Ludo table (2 to 4 players)', dominoes: 'Dominoes table (2 to 4 players)', draughts: 'Draughts board (2 players)', ayo: 'Ayo board (2 players)', whot: 'Whot bench' }[st.game] || 'Table'; const kids = [h('div', { class: 'row sp' }, h('b', {}, `${st.label}`), h('button', { class: 'btn small ghost', onclick: () => this.panel.classList.add('hidden') }, '✕'))];
     if (m && m.you) { this.focusMatch(m.id); return; }
     if (m && m.status === 'active') kids.push(h('p', { class: 'mut' }, `Game in progress: ${m.players.map(x => '@' + x).join(', ')}. Try another table.`));
     else if (m) kids.push(h('p', {}, `${m.players.map(x => '@' + x).join(', ')} ${m.players.length > 1 ? 'are' : 'is'} waiting (${m.players.length}/${m.max}).`), h('p', { class: 'mut' }, m.stake ? `Stake ₦${m.stake} each (game money). Winner takes the whole pot.` : 'Friendly game: no stake.'), h('button', { class: 'btn big alt', onclick: () => this.sit(st, 0) }, m.stake ? `Join · stake ${fmtN(m.stake)}` : 'Join the game'));
     else { const draw = () => chips.replaceChildren(...G.map(s => h('button', { class: `chip ${s === stake ? 'on' : ''}`, onclick: () => { stake = s; draw(); sitBtn.textContent = s ? `Sit and wait · stake ${fmtN(s)}` : 'Sit and wait · friendly'; } }, s ? fmtN(s) : 'Friendly'))); const chips = h('div', { class: 'chips' }); const sitBtn = h('button', { class: 'btn big alt', onclick: () => this.sit(st, stake) }, 'Sit and wait · friendly'); draw();
-      kids.push(h('p', { class: 'mut' }, `${title}: sit down and wait for others to join (Ludo: host starts when 2 to 4 are seated). Pick a stake (game money, held safely until the game ends).`), chips, sitBtn); }
+      kids.push(h('p', { class: 'mut' }, `${title}: sit down and wait for others to join (Ludo and Dominoes: host starts when 2 to 4 are seated). Pick a stake (game money, held safely until the game ends).`), chips, sitBtn); }
     kids.push(h('p', { class: 'mut' }, '🎲 Game money only. No cash value, no cash-out.')); this.showPanel(kids);
   }
   showPanel(kids) { this.panel.replaceChildren(...[].concat(kids)); this.panel.classList.remove('hidden'); }
@@ -107,7 +108,7 @@ export class Venue {
     if (v.status === 'waiting') { kids.push(h('p', {}, `Seated ${v.players.length}/${v.max} · waiting for players… ⏳`), h('div', { class: 'row' }, v.players.map(x => h('span', { class: 'tag' }, '@' + x.name))), h('p', { class: 'mut' }, 'Your stake is held safely and comes back if nobody joins.'), v.canStart ? h('button', { class: 'btn big alt', id: 'ludoStart', onclick: () => this.startMatch(v) }, `▶ Start now with ${v.players.length} players`) : v.max > 2 && v.isHost ? h('p', { class: 'mut' }, 'Need at least 2 players to start.') : '', h('button', { class: 'btn ghost', onclick: () => this.leaveMatch(v) }, 'Leave the table')); }
     else if (v.status === 'active') {
       const mine = v.board?.mine; const left = Math.max(0, Math.ceil((v.deadlineAt - this.g.serverNow()) / 1000)); kids.push(h('div', { class: 'row sp' }, h('span', { class: mine ? 'tag green' : 'tag' }, mine ? '🟢 Your turn' : `⏳ @${v.turn}'s turn`), h('span', { class: 'mut', id: 'gtimer' }, `${left}s`)));
-      kids.push(v.kind === 'ludo' ? this.ludoBoard(v) : this.whotBoard(v)); kids.push(h('div', { class: 'row' }, h('button', { class: 'btn small ghost', onclick: () => this.g.ui.confirm?.call(this.g.ui, v.kind === 'ludo' ? 'Leave this game? Your tokens leave the board and your stake stays in the pot.' : 'Resign this game? Your opponent wins the pot.', () => this.leaveMatch(v)) }, '🏳 Resign')));
+      kids.push(({ ludo: () => this.ludoBoard(v), dominoes: () => this.dominoBoard(v), draughts: () => this.draughtsBoard(v), ayo: () => this.ayoBoard(v) }[v.kind] || (() => this.whotBoard(v)))()); kids.push(h('div', { class: 'row' }, h('button', { class: 'btn small ghost', onclick: () => this.g.ui.confirm?.call(this.g.ui, v.kind === 'ludo' || v.kind === 'dominoes' ? 'Leave this game? You are out and your stake stays in the pot.' : 'Resign this game? Your opponent wins the pot.', () => this.leaveMatch(v)) }, '🏳 Resign')));
     } else { const r = v.result || {}; kids.push(h('div', { class: `banner ${r.youWon ? 'win' : r.draw ? 'draw' : 'lose'}` }, r.cancelled ? `Table closed. ${r.why || ''}` : r.draw ? '🤝 Draw' : r.youWon ? `🏆 You won! ${v.stake ? '+' + fmtN(v.pot) : ''}` : `You lost. ${r.why || ''}`), h('button', { class: 'btn alt', onclick: () => { this.dismissed.add(v.id); this.matchId = null; this.panel.classList.add('hidden'); this.g.net.nudge(); this.refreshVenue(); } }, 'Back to the room')); this.g.refreshMe?.(); }
     kids.push(h('p', { class: 'mut' }, '🎲 Game money only.')); this.showPanel(kids); void me;
   }
@@ -119,6 +120,35 @@ export class Venue {
   }
   lastText(v) { const l = v.board.last; if (!l) return ''; const who = (l.who === v.you) ? 'You' : 'They'; if (l.effect === 'draw') return `${who} drew a card.`; const fx = { hold: 'Hold on!', suspend: 'Suspension!', pick2: 'Pick two!', pick3: 'Pick three!', market: 'General market!', whot: 'Whot!' }[l.effect]; return `${who} played ${l.card.replace(/[a-z]+/, '')}${fx ? ' · ' + fx : ''}`; }
   pickShape(v, c) { this.shapeBox.replaceChildren(h('b', {}, 'Call a shape: '), ...['circle', 'triangle', 'cross', 'square', 'star'].map(s => h('button', { class: 'chip', style: `color:${SHAPE[s][1]}`, 'data-shape': s, onclick: () => this.move(v, { card: c.id, shape: s }) }, SHAPE[s][0] + ' ' + s))); }
+  ayoBoard(v) {
+    const b = v.board; const me = v.youSeat; const base = me === 0 ? 0 : 6; const oppBase = me === 0 ? 6 : 0; const bottom = [0, 1, 2, 3, 4, 5].map(k => base + k); const top = [5, 4, 3, 2, 1, 0].map(k => oppBase + k);
+    const pit = (i, mine) => { const k = i - base; const legal = mine && b.legal.includes(k); return h('button', { class: `pit ${mine ? 'mine' : ''} ${legal ? 'legal' : ''}`, 'data-pit': i, disabled: !legal, onclick: () => this.move(v, { house: k }) }, h('b', {}, b.pits[i])); };
+    const opp = 1 - me; const oppName = v.players.find(p => p.seat === opp)?.name;
+    return h('div', { class: 'ayo' }, h('div', { class: 'row sp' }, h('span', { class: 'mut' }, `@${oppName} captured: ${b.store[opp]}`), h('span', { class: 'mut' }, b.last ? `Last: house ${b.last.house + 1}${b.last.captured ? ` · captured ${b.last.captured}` : ''}` : '')), h('div', { class: 'pits' }, top.map(i => pit(i, false))), h('div', { class: 'pits' }, bottom.map(i => pit(i, true))), h('div', { class: 'row sp' }, h('b', {}, `You captured: ${b.store[me]} (first to 25 wins)`)));
+  }
+  dominoBoard(v) {
+    const b = v.board; const PIP = ['·', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅']; const half = (n) => h('span', { class: 'dh' }, PIP[n]);
+    const tile = (a, c, o = {}) => h('button', { class: `dtile ${o.mini ? 'mini' : ''}`, 'data-tile': o.id || '', disabled: !!o.disabled, onclick: o.onclick }, half(a), h('i', {}), half(c));
+    const names = h('div', { class: 'row' }, v.players.map(p => h('span', { class: `tag ${p.seat === b.turn ? 'green' : ''}` }, `${p.you ? 'You' : '@' + p.name}: ${b.counts[p.seat]}${b.out[p.seat] ? ' (out)' : ''}`)), h('span', { class: 'tag amber' }, `Boneyard ${b.yard}`));
+    const chain = h('div', { class: 'dchain' }, b.chain.length ? b.chain.map(t => tile(t[0], t[1], { mini: true, disabled: true })) : h('span', { class: 'mut' }, 'No tiles down yet. Play any tile to start.'));
+    const pick = h('div', { class: 'row' }); const dp = this.dpick && b.playable.includes(this.dpick) ? this.dpick : null; if (!dp) this.dpick = null;
+    const go = (mv) => { this.dpick = null; this.move(v, mv); };
+    if (dp) { const e = b.ends; pick.replaceChildren(h('span', { class: 'mut' }, `Tile ${dp}: which end?`), h('button', { class: 'btn small alt', id: 'domLeft', onclick: () => go({ tile: dp, end: 'left' }) }, `◀ Left (${e[0]})`), h('button', { class: 'btn small alt', id: 'domRight', onclick: () => go({ tile: dp, end: 'right' }) }, `Right (${e[1]}) ▶`)); }
+    const choose = (id) => { const [x, y] = id.split('-').map(Number); const e = b.ends; if (!e || e[0] === e[1] || !((x === e[0] || y === e[0]) && (x === e[1] || y === e[1]))) return go({ tile: id }); this.dpick = id; this.renderMatch(v); };
+    const hand = h('div', { class: 'hand' }, b.hand.map(id => { const [x, y] = id.split('-').map(Number); return tile(x, y, { id, disabled: !b.mine || !b.playable.includes(id), onclick: () => choose(id) }); }));
+    const draw = b.canDraw ? h('button', { class: 'btn alt', id: 'domDraw', onclick: () => this.move(v, { action: 'draw' }) }, `Draw from the boneyard (${b.yard})`) : '';
+    const last = b.last; const who = last ? (v.players.find(p => p.seat === last.who)?.name) : null; const lt = last ? (last.pass ? `@${who} had no play and passed.` : last.draw ? `@${who} drew a tile.` : `@${who} played ${last.tile}.`) : '';
+    return h('div', { class: 'domino' }, names, chain, h('p', { class: 'mut' }, lt), pick, hand, draw, b.mine && !b.playable.length && !b.canDraw ? h('p', { class: 'mut' }, 'No play: you pass.') : '', b.tiles ? h('p', { class: 'mut' }, 'Final hands: ' + v.players.map(p => `@${p.name} ${b.tiles[p.seat].join(' ') || '(empty)'}`).join(' · ')) : '');
+  }
+  draughtsBoard(v) {
+    const b = v.board; const me = v.youSeat; const flip = me === 1; const sel = this.dsel; const legal = b.legal || []; const froms = new Set(legal.map(m => m.from)); const tos = sel ? legal.filter(m => m.from === sel).map(m => m.to) : [];
+    const rows = [...Array(8).keys()]; if (flip) rows.reverse(); const cols = [...Array(8).keys()]; if (flip) cols.reverse();
+    const grid = h('div', { class: 'dgrid' }, rows.flatMap(r => cols.map(c => { const val = b.board[r * 8 + c]; const k = `${r},${c}`; const dark = (r + c) % 2 === 1; const mine = val && ((val <= 2) === (me === 0)); const cls = `dcell ${dark ? 'dk' : 'lt'} ${sel === k ? 'sel' : ''} ${tos.includes(k) ? 'dest' : ''} ${b.mine && froms.has(k) ? 'can' : ''}`;
+      const piece = val ? h('span', { class: `dp ${val <= 2 ? 'p0' : 'p1'} ${mine ? 'mine' : ''}` }, val === 2 || val === 4 ? '♛' : '') : '';
+      return h('button', { class: cls, 'data-cell': k, disabled: !dark || !b.mine, onclick: () => { if (tos.includes(k)) { const paths = legal.filter(m => m.from === sel && m.to === k); this.dsel = null; this.move(v, { from: sel, to: k, path: paths[0].path }); } else if (froms.has(k)) { this.dsel = k; this.renderMatch(v); } else { this.dsel = null; this.renderMatch(v); } } }, piece); })));
+    const opp = v.players.find(p => p.seat === 1 - me)?.name; const last = b.last; const lt = last ? `${last.who === me ? 'You' : '@' + opp} moved ${last.captured ? `and captured ${last.captured}` : ''}${last.crowned ? ' · crowned 👑' : ''}` : '';
+    return h('div', { class: 'draughts' }, h('div', { class: 'row sp' }, h('span', { class: 'mut' }, `You ${b.count[me]} · @${opp} ${b.count[1 - me]}`), b.mine && b.mustJump ? h('span', { class: 'tag amber' }, 'You must capture!') : ''), grid, h('p', { class: 'mut' }, lt));
+  }
   ludoBoard(v) {
     const b = v.board; const COL = ['#d6402f', '#2e9b5e', '#e0a020', '#2e7dd1']; const NAME = ['Red', 'Green', 'Yellow', 'Blue']; const colOf = (seat) => b.corners[seat]; const S = 250, C = S / 2, R = 104, step = 13;
     const pos = (cell, r = R) => { const a = (cell / 52) * 2 * Math.PI - Math.PI / 2; return [C + r * Math.cos(a), C + r * Math.sin(a)]; };

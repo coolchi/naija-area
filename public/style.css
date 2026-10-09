@@ -79,3 +79,11 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 @keyframes pulse{50%{transform:scale(1.35)}}
 
 .cbar{display:inline-block;width:60px;height:8px;border-radius:4px;background:#0002;overflow:hidden;vertical-align:middle}.cbar i{display:block;height:100%;background:#2fbf6b}
+
+/* dominoes + draughts */
+.dtile{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:0;width:44px;padding:2px 0;border:2px solid #1f4e3d;border-radius:8px;background:#fffdf3;color:#111;cursor:pointer}
+.dtile .dh{font-size:26px;line-height:26px}.dtile i{width:70%;height:2px;background:#1f4e3d;margin:1px 0}.dtile:disabled{opacity:.55;cursor:default}.dtile.mini{width:30px;border-width:1px}.dtile.mini .dh{font-size:17px;line-height:17px}
+.dchain{display:flex;flex-wrap:wrap;gap:3px;min-height:40px;padding:6px;border-radius:10px;background:#12392d;margin:6px 0}.domino .hand{margin:8px 0}
+.dgrid{display:grid;grid-template-columns:repeat(8,1fr);width:min(88vw,330px,52vh);aspect-ratio:1;border:3px solid #3b2a1a;border-radius:6px;overflow:hidden;margin:6px auto}
+.dcell{border:0;padding:0;display:flex;align-items:center;justify-content:center;background:#ecd9b0}.dcell.dk{background:#7a5232}.dcell.sel{outline:3px solid #f0c419;outline-offset:-3px}.dcell.dest{background:#4a8a5a}.dcell.can{box-shadow:inset 0 0 0 2px #f0c41988}
+.dp{width:78%;height:78%;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:clamp(12px,4vw,20px);color:#f0c419;box-shadow:0 2px 3px #0008}.dp.p0{background:#f4f0e6;border:3px solid #bbb;color:#7a5232}.dp.p1{background:#262626;border:3px solid #555}

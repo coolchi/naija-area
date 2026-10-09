@@ -50,3 +50,7 @@ export function view(st, who) {
   const mine = st.turn === who && st.winner == null && !st.out[who];
   return { game: 'ludo', n: st.n, you: who, corners: startCells(st.n), tokens: st.tokens, turn: st.turn, mine, die: st.die, canRoll: mine && st.die == null, legal: mine && st.die != null ? legalTokens(st, who) : [], out: st.out, last: st.last, actions: st.actions, safe: [...SAFE], cells: st.tokens.map((ts, s) => ts.map(p => (p >= 0 && p <= 50 ? absCell(st, s, p) : null))) };
 }
+
+/** shared engine contract (see games.js): a move is {action:'roll'} or {token}. */
+export const play = (st, seat, mv, rng) => (mv.action === 'roll' ? roll(st, seat, rng) : move(st, seat, Number(mv.token)));
+export function bot(st, seat, rng = Math.random) { if (st.die == null) return { action: 'roll' }; const lg = legalTokens(st, seat); return { token: lg[Math.floor(rng() * lg.length)] }; }
