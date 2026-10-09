@@ -2021,7 +2021,7 @@
    "blurb": "Watch the match. Play Whot at the back.",
    "buildingId": "b012",
    "x": -156.5,
-   "z": 165.8,
+   "z": 151.8,
    "hours": [
     10,
     24
@@ -2080,7 +2080,7 @@
    "blurb": "Ayo tables and a Whot bench. Table talk allowed (clean).",
    "buildingId": "b047",
    "x": 209.5,
-   "z": 165.8,
+   "z": 151.8,
    "hours": [
     12,
     24
@@ -2139,7 +2139,7 @@
    "blurb": "Look at the cars. Prices are ESTIMATES.",
    "buildingId": "b024",
    "x": -35,
-   "z": 165.8,
+   "z": 151.8,
    "hours": [
     9,
     19

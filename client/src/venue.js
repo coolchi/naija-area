@@ -37,11 +37,11 @@ export class Venue {
     else if (st.type === 'poster') { box(0.1, 1.4, 1.2, col, 1.6); }
     else if (st.type === 'tv') { box(2.8, 1.5, 0.2, 0x151515, 1.8); box(2.6, 1.3, 0.22, 0x2a65c5, 1.8); box(3.0, 0.5, 0.8, 0x6b4a2b, 0.25); }
     else if (st.type === 'car') { const c = makePlayerCar(st.color || '#888'); c.scale.setScalar(0.38); c.rotation.y = Math.PI / 6; grp.add(c); box(1.8, 0.06, 1.0, 0xdddddd, 0.03); }
-    const sp = makeNameSprite(`${ICON[st.type] || ''} ${st.label}`.slice(0, 26), st.type === 'game' ? '#8a5a2b' : '#1f6f4a'); sp.scale.set(2.8, 0.7, 1); sp.position.y = st.type === 'car' ? 1.8 : st.type === 'tv' ? 3.0 : st.type === 'board' ? 2.8 : 2.1; grp.add(sp);
+    const sp = makeNameSprite(`${ICON[st.type] || ''} ${st.label}`.slice(0, 26), '#fff3c4'); sp.scale.set(2.8, 0.7, 1); sp.position.y = st.type === 'car' ? 1.8 : st.type === 'tv' ? 3.0 : st.type === 'board' ? 2.8 : 2.1; grp.add(sp);
     grp.position.set(st.x, 0, st.z); if (st.type === 'poster') grp.rotation.y = 0; grp.traverse(o => { o.userData.stationId = st.id; }); this.stations.add(grp); this.meshes[st.id] = grp;
   }
   people_refresh() {
-    this.people.clear(); const d = this.data; const names = new Set(); const put = (u, color, x, z) => { if (names.has(u)) return; names.add(u); const a = makeAvatar(color || '#2e9b5e'); a.scale.setScalar(0.55); a.position.set(x, 0, z); const t = makeNameSprite('@' + u, '#222'); t.scale.set(1.6, 0.4, 1); t.position.y = 2.2; a.add(t); this.people.add(a); };
+    this.people.clear(); const d = this.data; const names = new Set(); const put = (u, color, x, z) => { if (names.has(u)) return; names.add(u); const a = makeAvatar(color || '#2e9b5e'); a.scale.setScalar(0.55); a.position.set(x, 0, z); const t = makeNameSprite('@' + u, '#ffffff'); t.scale.set(1.6, 0.4, 1); t.position.y = 2.2; a.add(t); this.people.add(a); };
     for (const st of d.stations) if (st.type === 'game' && st.match) { const m = st.match; if (m.p1) put(m.p1, null, st.x - 1.25, st.z + 0.5); if (m.p2) put(m.p2, null, st.x + 1.25, st.z + 0.5); }
     for (const o of d.occupants) { const hx = hash(o.username); put(o.username, o.color, -3 + (hx % 7) * 1.0, d.room.d / 2 - 1.1 - ((hx >> 4) % 2) * 0.8); }
   }
@@ -51,10 +51,11 @@ export class Venue {
     this.el.append(head, this.strip, this.panel); this.drawStrip(); this.people_refresh();
   }
   drawStrip() {
-    const d = this.data; this.strip.replaceChildren(...d.stations.map(st => { const m = st.match; const sub = st.type === 'game' ? (m ? (m.status === 'waiting' ? `waiting: @${m.p1}${m.stake ? ' · ₦' + m.stake : ''}` : `${m.p1} vs ${m.p2}`) : 'free table') : st.type === 'car' ? fmtN(this.price(st.model)) + ' (est.)' : '';
-      return h('button', { class: `vst ${m?.you ? 'mine' : ''}`, 'data-station': st.id, onclick: () => this.station(st) }, `${ICON[st.type] || '•'} ${st.label}`, sub ? h('small', {}, sub) : ''); }));
+    const d = this.data; this.strip.replaceChildren(...d.stations.map(st => { const m = st.match; const sub = st.type === 'game' ? (m ? (m.status === 'waiting' ? `waiting: @${m.p1}${m.stake ? ' · ₦' + m.stake : ''}` : `${m.p1} vs ${m.p2}`) : 'free table') : st.type === 'car' ? fmtN(st.price || 0) + ' (est.)' : '';
+      return h('button', { class: `vst ${m?.you ? 'mine' : ''}`, 'data-station': st.id, onclick: () => this.pick(st.id) }, `${ICON[st.type] || '•'} ${st.label}`, sub ? h('small', {}, sub) : ''); }));
   }
   price(model) { return this.g.cfg.cars?.[model]?.price ?? this.catalog?.find(c => c.id === model)?.price ?? 0; }
+  async pick(id) { await this.refreshVenue(); const st = this.data.stations.find(x => x.id === id); if (st) this.station(st); }
   async station(st) {
     const ui = this.g.ui;
     if (st.type === 'eat') { const body = h('div'); ui.openSheet(st.label, body); ui.shopBlock(body, st.shopId); }
@@ -116,7 +117,7 @@ export class Venue {
   async leaveMatch(v) { const r = await this.g.ui.guard(() => post('/api/game/leave', { matchId: v.id })); this.g.ui.closeSheet(); if (r) this.renderMatch(r); else this.pollGame(); this.refreshVenue(); }
   async refreshVenue() { const d = await get(`/api/venue?id=${this.id}`).catch(() => null); if (d && this.open) { this.data = d; this.drawStrip(); this.people_refresh(); } }
   poll() { clearInterval(this.pt); this.pt = setInterval(async () => { if (!this.open) return; await this.refreshVenue(); if (this.matchId) await this.pollGame(); else { const mine = this.data.stations.find(s => s.match?.you); if (mine && !this.dismissed.has(mine.match.id)) this.focusMatch(mine.match.id); } const t = $('#gtimer'); if (t && this.match?.status === 'active') t.textContent = `${Math.max(0, Math.ceil((this.match.deadlineAt - this.g.serverNow()) / 1000))}s`; }, 1500); }
-  tap(ev) { const rc = this.canvas.getBoundingClientRect(); const v = new THREE.Vector2(((ev.clientX - rc.left) / rc.width) * 2 - 1, -((ev.clientY - rc.top) / rc.height) * 2 + 1); const ray = new THREE.Raycaster(); ray.setFromCamera(v, this.cam); const hit = ray.intersectObjects(this.stations.children, true)[0]; if (hit) { const id = hit.object.userData.stationId; const st = this.data.stations.find(s => s.id === id); if (st) this.station(st); } }
+  tap(ev) { const rc = this.canvas.getBoundingClientRect(); const v = new THREE.Vector2(((ev.clientX - rc.left) / rc.width) * 2 - 1, -((ev.clientY - rc.top) / rc.height) * 2 + 1); const ray = new THREE.Raycaster(); ray.setFromCamera(v, this.cam); const hit = ray.intersectObjects(this.stations.children, true)[0]; if (hit) { const id = hit.object.userData.stationId; this.pick(id); } }
   bind() {
     let drag = null; const cv = this.canvas; cv.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, moved: 0, id: e.pointerId }; cv.setPointerCapture(e.pointerId); });
     cv.addEventListener('pointermove', (e) => { if (drag && drag.id === e.pointerId) { const dx = e.clientX - drag.x; drag.x = e.clientX; drag.moved += Math.abs(dx); this.yaw = Math.max(Math.PI / 5 - 0.7, Math.min(Math.PI / 5 + 0.7, this.yaw - dx * 0.006)); } });

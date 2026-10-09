@@ -1,0 +1,15 @@
+// Builds demo-static/: a double-click-to-open demo. The real server core runs in the page on sql.js (SQLite in JS); fetch('/api/...') is answered locally.
+import { build } from 'esbuild'; import fs from 'node:fs'; import path from 'node:path';
+const out = 'demo-static'; fs.mkdirSync(out, { recursive: true });
+await build({ entryPoints: ['client/src/main.js'], bundle: true, format: 'iife', outfile: `${out}/game.js`, minify: true, target: ['es2020'], logLevel: 'warning', legalComments: 'none' });
+await build({ entryPoints: ['demo-src/entry.js'], bundle: true, format: 'iife', outfile: `${out}/demo.js`, minify: true, platform: 'browser', target: ['es2020'], logLevel: 'warning', legalComments: 'none', external: ['node:*', 'fs', 'path', 'crypto'], define: { 'process.env': '{}' }, loader: { '.json': 'json' } });
+fs.cpSync('public/assets', `${out}/assets`, { recursive: true });
+const rel = (s) => s.replace(/url\('\/assets\//g, "url('./assets/");
+fs.writeFileSync(`${out}/style.css`, rel(fs.readFileSync('public/style.css', 'utf8')));
+let html = fs.readFileSync('public/index.html', 'utf8');
+html = html.replace(/href="\/(assets|style\.css)/g, 'href="./$1').replace(/src="\/assets/g, 'src="./assets').replace('<script src="/game.js"></script>', '<script src="demo.js"></script>\n<script src="game.js"></script>')
+  .replace(/href="\/(advertise|advertiser|admin|methodology|terms|stats)"/g, 'href="#" title="Not part of the static demo (needs the server)"')
+  .replace('<body>', '<body>\n<div id="demoRibbon" style="position:fixed;left:0;right:0;bottom:0;z-index:200;background:#ffc20e;color:#111;font:800 12px system-ui;text-align:center;padding:3px 8px;pointer-events:none">DEMO · the whole game runs inside this page · pretend money only · progress resets when you reload</div>');
+fs.writeFileSync(`${out}/index.html`, html);
+fs.writeFileSync(`${out}/README.txt`, 'Naija Area: static demo\n\nDouble-click index.html (Chrome, Edge, Firefox or Safari with WebGL). No server, no internet needed.\nThe real game rules run in the page on a JS build of SQLite (sql.js). A few friendly bots walk around and a practice bot (@Practice_Bot) will join any FRIENDLY Whot/Ayo table you sit at.\nLimits: reload = new world; no second human player, no advertiser/admin pages, no live push. Use the real server (npm start) for those.\nRebuild: npm run build:demo\n');
+const kb = (f) => (fs.statSync(path.join(out, f)).size / 1024).toFixed(0) + ' KB'; console.log('demo-static built:', { 'demo.js': kb('demo.js'), 'game.js': kb('game.js') });

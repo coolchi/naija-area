@@ -19,6 +19,7 @@ export class Net {
     if (this.running) this.timer = setTimeout(() => this.tick(), ok ? this.interval : Math.min(15000, 1500 * 2 ** Math.min(this.fails, 3)));
   }
   openWs() {
+    if (window.__naDemo) return; // static demo: no server to push from
     try { const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`); this.ws = ws;
       ws.onmessage = (ev) => { try { const m = JSON.parse(ev.data); if (m.type === 'notification') { this.g.onPush(m); this.nudge(); } } catch { /* ignore */ } };
       ws.onclose = () => { if (this.running) setTimeout(() => this.running && this.openWs(), 5000); }; ws.onerror = () => {};

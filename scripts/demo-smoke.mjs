@@ -1,0 +1,21 @@
+// Opens demo-static/index.html from disk (file://), exactly like a double-click, and plays a bit. Screenshots -> screenshots/demo-*.png
+import puppeteer from 'puppeteer-core'; import fs from 'node:fs'; import path from 'node:path'; import assert from 'node:assert/strict';
+const CHROME = process.env.CHROME || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find(p => fs.existsSync(p));
+const url = 'file://' + path.resolve('demo-static/index.html'); fs.mkdirSync('screenshots', { recursive: true });
+const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--window-size=1280,760'], defaultViewport: { width: 1280, height: 760 } });
+const page = await browser.newPage(); page.setDefaultTimeout(30000); const errors = []; page.on('pageerror', e => errors.push(String(e))); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+const sleep = (ms) => new Promise(r => setTimeout(r, ms)); const shot = (n) => page.screenshot({ path: `screenshots/demo-${n}.png` }); let failed = false;
+try {
+  console.log('Static demo smoke (file://)'); await page.goto(url, { waitUntil: 'domcontentloaded' }); await page.waitForSelector('#auth:not(.hidden)', { timeout: 90000 }); await shot('auth'); console.log('  ✓ opened from file://, no server');
+  await page.click('#age18'); await page.click('#authGo'); await page.waitForSelector('#hud:not(.hidden)', { timeout: 30000 }); await sleep(3000); await shot('spawn'); const me = await page.evaluate(() => window.__game.user); assert.ok(me.cash > 0); console.log(`  ✓ guest joined (cash ${me.cash}), world is running in-page`);
+  const nearby = await page.evaluate(async () => (await (await fetch('/api/stats')).json()).onlineNow); assert.ok(nearby >= 2); console.log(`  ✓ ${nearby} players online (bots) inside the page`);
+  // Whot against the practice bot at Mama Put
+  const v = await page.evaluate(async () => { const c = await (await fetch('/api/city')).json(); return c.venues.find(x => x.id === 'venue_mamaput'); });
+  await page.evaluate(async (v) => { await fetch('/api/dev/teleport', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ x: v.x, z: v.z + 1 }) }); window.__game.net.nudge(); }, v); await page.waitForFunction((v) => Math.hypot(window.__game.ctrl.x - v.x, window.__game.ctrl.z - v.z) < 6, {}, v);
+  await page.evaluate(() => window.__game.ui.place('venue_mamaput')); await page.waitForSelector('#venueEnter:not([disabled])'); await page.click('#venueEnter'); await page.waitForSelector('#venue:not(.hidden) canvas'); await sleep(1200); await shot('venue');
+  await page.evaluate(() => document.querySelector('[data-station=whot1]').click()); await page.waitForFunction(() => [...document.querySelectorAll('.vpanel .btn')].some(x => /Sit and wait/.test(x.textContent))); await page.evaluate(() => [...document.querySelectorAll('.vpanel .btn')].find(x => /Sit and wait/.test(x.textContent)).click());
+  await page.waitForFunction(() => document.querySelector('.hand .wcard'), { timeout: 20000 }); await sleep(800); for (let i = 0; i < 8; i++) { await page.evaluate(() => { const c = document.querySelector('.hand .wcard:not([disabled])'); if (c) { c.click(); document.querySelector('[data-shape]')?.click(); } else document.querySelector('#whotDraw:not([disabled])')?.click(); }); await sleep(1800); } await shot('whot-vs-practice-bot');
+  const moves = await page.evaluate(async () => { const m = await (await fetch('/api/game?id=1')).json(); return m.board?.moves ?? 0; }); assert.ok(moves >= 4); console.log(`  ✓ played Whot against the labelled practice bot (${moves} moves, all server-validated in the page)`);
+  const real = errors.filter(e => !/WebGL|GPU stall|swiftshader|Failed to load resource.*(401|402|409)/i.test(e)); assert.equal(real.length, 0, 'errors: ' + real.join(' | ')); console.log('  ✓ no console errors'); console.log('DEMO SMOKE PASSED');
+} catch (e) { failed = true; console.error('DEMO SMOKE FAILED:', e.message); await shot('fail').catch(() => {}); }
+await browser.close(); process.exit(failed ? 1 : 0);

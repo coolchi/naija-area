@@ -10,7 +10,7 @@ export class AdsClient {
     this.state = {}; this.lastKey = {}; this.maxDist = 90;
   }
   setSnapshot(ads) { if (!ads) return; this.slots = ads.slots || {}; this.rot = ads.rotationMs || 10000; for (const list of Object.values(this.slots)) for (const a of list) this.loadImg(a.i); }
-  loadImg(id) { if (this.imgs.has(id)) return; const rec = { img: new Image(), ok: false, tex: {} }; this.imgs.set(id, rec); rec.img.onload = () => { rec.ok = true; this.lastKey = {}; }; rec.img.onerror = () => { rec.failed = true; }; rec.img.src = `/media/creative/${id}`; }
+  loadImg(id) { if (this.imgs.has(id)) return; const rec = { img: new Image(), ok: false, tex: {} }; this.imgs.set(id, rec); rec.img.onload = () => { rec.ok = true; this.lastKey = {}; }; rec.img.onerror = () => { rec.failed = true; }; rec.img.src = window.__naMedia ? window.__naMedia(id) : `/media/creative/${id}`; }
   house(id, w, h) { let t = this.houseTex.get(id); if (!t) { const d = this.world.boards[id].def; t = houseAd(w >= h * 1.5 ? 1024 : 768, w >= h * 1.5 ? 512 : 768, d.surface === 'lagoon_plot' ? 'Lagoon plot' : d.surface === 'airport_board' ? 'Airport board' : 'Road billboard', 'Rent this board at /advertise', id.charCodeAt(id.length - 1)); this.houseTex.set(id, t); } return t; }
   /** which ad is on this board right now (deterministic from server time, same rule the server uses to validate) */
   currentFor(id, win) { const list = this.slots[id]; if (!list || !list.length) return null; return list[win % list.length]; }

@@ -12,7 +12,8 @@ npm run build        # bundles client/src -> public/game.js (also committed, so 
 npm run seed         # optional: demo residents, homes, a land plot, 3 live demo ad campaigns
 npm start            # http://127.0.0.1:3000
 BOTS=8 npm run bots  # same server + simulated residents walking, working, shopping, chatting
-npm test             # 64 node:test tests (ledger invariants, auth, heartbeat, ads, economy, features)
+npm test             # node:test suite (ledger invariants, auth, heartbeat, ads, economy, safety, games, cars, homes)
+npm run build:demo   # rebuild demo-static/ (double-click demo-static/index.html: no server needed)
 npm run smoke        # headless Chrome end-to-end run; screenshots land in ./screenshots (needs Chrome: set CHROME=/path)
 ```
 
@@ -26,6 +27,14 @@ Environment: `PORT`, `HOST` (default 127.0.0.1: put a TLS proxy in front before 
 - **Homes:** tap a house for its card (`@owner's {name}`, type, area, presence dot, items). Rent/Buy uses Review → Pay. Owners rename (24 chars, filtered) and go inside; **Buy mode** (key B) places furniture on a grid with rotate/sell and "Something is in the way". Visitors **Knock**: the host sees a prompt and accepts or declines (95 s timeout), and accepted guests get a read-only view.
 - **Land:** four plots with area, size, price, growth and an "omo-onile risk" chip. Value grows with time; high-risk plots may be hit by a levy.
 - **Ads:** boards rotate creatives; tap a board for the advertiser card. Advertisers register at `/advertise`, upload an image, get a quote, submit, and track valid impressions at `/advertiser`. Moderators use `/admin`. `/methodology` explains exactly what counts as an impression.
+
+## Phase 2 features (how to try them)
+- **Venues:** tap *Mama Put Canteen*, *Alhaji Joe's Viewing Centre*, *Corner Joint (Ayo and Whot)* or *Naija Auto Mart* (yellow rings with signs) → walk to the door → **Go inside**. Tap stations (or the buttons along the bottom): food counter, TV (mood), Whot bench, Ayo table, weekly scoreboard, rules poster. 🎲 *Game money only.*
+- **Whot / Ayo:** sit at a table and pick **Friendly** or a stake (₦100 / ₦500, ESTIMATES; guests and brand-new accounts are friendly only). Another player joins the same table to start. Alone? `@Practice_Bot` joins friendly tables (labelled, no money, no scoreboard).
+- **Cars:** Naija Auto Mart sells four fictional models (prices are ESTIMATES). Phone → 🚗 Garage to switch or sell (resale falls with age). Your active car is the *My car* chip when you tap a place; the default *Borrowed car* costs more per trip, is slower and has no mood perk.
+- **Homes:** owners get 🎨 Paint (wall + floor colours). Guests can ❤️ love the house (once a day), greet, hype, sit on the sofa, watch TV and chat in the room; hosts can ✕ ask a guest to leave.
+- **Safety:** tap a chat line for Report / Mute / Block; **⋯** on a house card; **Report this ad** on a billboard card. Phone → More lists your muted/blocked players. Admin: `/admin` → *Player reports*.
+- **Static demo:** open `demo-static/index.html` by double-click. It runs the real rules in your browser (see `demo-static/README.txt`).
 
 ## Where things are
 `ARCHITECTURE.md` explains the design. `../10_build_log.md` is what was built and tested, `../11_next_steps.md` is what to do next. Placeholder numbers (prices, rates, decay) all live in `server/config/` and are marked ESTIMATE.

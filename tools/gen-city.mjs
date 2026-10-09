@@ -157,7 +157,7 @@ city.plots = []; const lots = city.zones.filter(z => z.id === 'blk00' || z.id ==
 const lotCenters = [[-156, -156], [156, -152], [209, -152], [-30, 141]]; // hand-placed in empty lots
 plotDefs.forEach((d, i) => city.plots.push({ id: `p${i + 1}`, name: d[0], area: d[1], sqm: d[2], price: d[3], growthPerWeek: d[4], risk: d[5], x: lotCenters[i][0], z: lotCenters[i][1], size: i === 3 ? 16 : 26 }));
 // venues: enterable rooms with stations (data-driven). Room coordinates are metres from the room centre (door on the +z wall).
-const kiosks = city.buildings.filter(b => b.kind === 'kiosk').sort((a, b) => a.x - b.x); const kd = (b) => ({ buildingId: b.id, x: +b.x.toFixed(1), z: +(b.z + b.d / 2 + 3).toFixed(1) });
+const kiosks = city.buildings.filter(b => b.kind === 'kiosk').sort((a, b) => a.x - b.x); const kd = (b) => ({ buildingId: b.id, x: +b.x.toFixed(1), z: +(b.z - b.d / 2 - 3).toFixed(1) });
 const canteen = city.shops.find(x => x.id === 'shop_canteen');
 const poster = { id: 'poster', type: 'poster', label: 'Rules poster', x: -3.4, z: 2.2, color: '#f0c419', text: 'GAME MONEY ONLY. Stakes are pretend naira with no cash value and no cash-out. 18+. Be respectful: you can be reported, muted or blocked.' };
 const board = (x, z) => ({ id: 'board', type: 'board', label: 'Weekly scoreboard', x, z, color: '#1f6f4a' });

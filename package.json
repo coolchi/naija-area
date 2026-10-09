@@ -10,7 +10,8 @@
     "seed": "node scripts/seed.js",
     "bots": "node scripts/bots.js",
     "test": "node --test --test-concurrency=1 tests/",
-    "smoke": "node scripts/e2e-smoke.mjs"
+    "smoke": "node scripts/e2e-smoke.mjs",
+    "build:demo": "node tools/build-demo.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

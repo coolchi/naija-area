@@ -17,6 +17,7 @@ export function venueView(app, uid, venueId) {
   const stations = v.stations.map(st => {
     const o = { ...st };
     if (st.type === 'game') o.match = games.stationMatch(app, uid, venueId, st.id);
+    if (st.type === 'car') o.price = app.balance.cars.models[st.model]?.price;
     return o;
   });
   return { id: v.id, name: v.name, blurb: v.blurb, hours: v.hours, open: isOpen(app, v), shopId: v.shopId || null, sign: v.sign, room: { w: 9, d: 9 }, stations, occupants: occupants(app, venueId), stakes: app.balance.games.stakes, week: games.weekInfo(app) };
