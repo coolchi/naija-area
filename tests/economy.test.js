@@ -35,7 +35,7 @@ test('needs decay with server time and shops restore them (proximity required)',
   assert.equal((await call(s, 'POST', '/api/shop/buy', { uid: u, body: { shopId: 'shop_canteen', itemId: 'jollof' } })).json.error, 'TOO_FAR');
   s.app.clock.advance(10 * 60000); const p = (await ok(s, 'GET', '/api/me', { uid: u })).user; assert.ok(p.hunger < 80 - 3 && p.energy < 90 - 2);
   at(s, u, shop.x, shop.z); const b = await ok(s, 'POST', '/api/shop/buy', { uid: u, body: { shopId: 'shop_canteen', itemId: 'jollof' } });
-  assert.ok(b.user.hunger > p.hunger + 50 - 1); assert.equal(b.user.cash, 5000 - 1500);
+  assert.ok(b.user.hunger >= Math.min(100, p.hunger + 54)); assert.equal(b.user.cash, 5000 - 1500);
 });
 test('housing: rent, first period paid, one home per user, one user per home, owner-only interior, naming, furniture', async () => {
   const s = makeServer(); const [a, b] = [mkUser(s), mkUser(s)]; const p = s.app.city.properties.find(x => x.tier === 1);

@@ -179,7 +179,8 @@ export function adsSnapshot(app, now) {
   return { slots, rotationMs: AD_POLICY.rotationMs, serverNow: now };
 }
 export function expectedCampaign(app, slotId, win) {
-  const t = win * AD_POLICY.rotationMs; const list = liveOnSlot(app, slotId, t + 1);
+  // membership is judged at the END of the window (or now, for the current window) so an ad that went live mid-window still counts
+  const t = Math.min(win * AD_POLICY.rotationMs + AD_POLICY.rotationMs - 1, app.clock.now()); const list = liveOnSlot(app, slotId, t);
   return list.length ? list[win % list.length].campaign : null;
 }
 

@@ -18,7 +18,7 @@ export function mkUser(s, { cash, guest = false, bot = false, ageMs = 0 } = {}) 
   return uid;
 }
 export const at = (s, uid, x, z) => teleport(s.app, uid, x, z);
-export const png = (w = 1024, h = 512) => makePng(w, h, (x, y) => [(x * 255 / w) | 0, 120, (y * 255 / h) | 0], 40);
+export const png = (w = 1024, h = 512) => makePng(w, h, (x, y) => [(x * 255 / w) | 0, 120, (y * 255 / h) | 0], 0);
 export const jobPos = (s, jobLocId) => s.app.city.jobLoc[jobLocId];
 export const HOUR = 3600000, DAY = 86400000;
 export async function newAdvertiser(s, brand = 'Test Brand') { const r = await ok(s, 'POST', '/api/advertiser/register', { body: { email: 'ads@example.com', brand } }); return r.key; }
