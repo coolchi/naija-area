@@ -9,14 +9,14 @@ const NAMES = ['ade_ojo', 'chioma_k', 'tunde_ib', 'ngozi_a', 'musa_ng', 'bisi_la
 const LINES = ['How far?', 'Na wa o, this traffic!', 'Oga, where the market dey?', 'I don collect my shift money.', 'Who get change for ₦500?', 'Hustle never end.', 'Nice house o!', 'Abeg, which way to Corner Mart?', 'Wetin dey happen?', 'Hunger dey catch me.'];
 const rnd = (a) => a[Math.floor(Math.random() * a.length)];
 
-export function startBots(app, count = 8) {
+export function startBots(app, count = 8, { initialWait } = {}) {
   const city = app.city; const horiz = [...new Set(city.roads.filter(r => r.z1 === r.z2).map(r => r.z1))]; const vert = [...new Set(city.roads.filter(r => r.x1 === r.x2).map(r => r.x1))];
   const nearest = (arr, v) => arr.reduce((b, x) => (Math.abs(x - v) < Math.abs(b - v) ? x : b), arr[0]);
   const bots = [];
   for (let i = 0; i < Math.min(count, NAMES.length); i++) {
     const name = `${NAMES[i]}_bot`; let u = app.db.prepare('SELECT id FROM users WHERE username=?').get(name); const uid = u ? u.id : newPlayer(app, { username: name, isBot: true, ageConfirmed: true, cash: 4000 });
     const sp = city.spawns[i % city.spawns.length]; teleport(app, uid, sp.x, sp.z);
-    bots.push({ uid, name, path: [], wait: 1 + Math.random() * 5, mode: 'walk', place: null, ry: 0 });
+    bots.push({ uid, name, path: [], wait: initialWait ?? 1 + Math.random() * 5, mode: 'walk', place: null, ry: 0 });
   }
   const pathTo = (b, x, z) => { const p = app.world.players.get(b.uid); const hz = nearest(horiz, p.z), vx = nearest(vert, x); return [[p.x, hz], [vx, hz], [vx, nearest(horiz, z)], [x, nearest(horiz, z)], [x, z]]; };
   const step = (b) => {
