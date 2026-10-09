@@ -1,4 +1,4 @@
-// Venue rooms (Mama Put, viewing centre, Ayo joint, car showroom): a small 3D room with tappable stations + a game panel for Whot and Ayo.
+// Venue rooms (Mama Put, viewing centre, Ludo and Whot joint, car showroom): a small 3D room with tappable stations + a game panel for Whot and Ayo.
 // GAME MONEY ONLY. The server owns every rule; this file only draws what the server sends and forwards taps.
 import * as THREE from 'three';
 import { get, post, fmtN, h, $ } from './api.js';
@@ -32,7 +32,7 @@ export class Venue {
     const grp = new THREE.Group(); const col = new THREE.Color(st.color || '#888'); const mat = (c) => new THREE.MeshLambertMaterial({ color: c });
     const box = (w, hh, dd, c, y) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, hh, dd), mat(c)); m.position.y = y ?? hh / 2; grp.add(m); return m; };
     if (st.type === 'eat') { box(3.4, 1, 0.9, col); box(3.5, 0.12, 1.0, 0xf2c14e, 1.05); }
-    else if (st.type === 'game') { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, 0.12, 20), mat(col)); t.position.y = 0.8; grp.add(t); const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, 0.8, 8), mat(0x4a3320)); leg.position.y = 0.4; grp.add(leg); if (st.game === 'ayo') { box(1.5, 0.12, 0.6, 0x7a4a22, 0.92); for (let i = 0; i < 12; i++) { const p = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), mat(0x2b1a0c)); p.position.set(-0.62 + (i % 6) * 0.25, 1.0, i < 6 ? 0.12 : -0.12); grp.add(p); } } else for (let i = 0; i < 4; i++) { const c = box(0.34, 0.03, 0.5, [0xd6402f, 0x2e7dd1, 0xe0a020, 0x2e9b5e][i], 0.88); c.position.x = -0.5 + i * 0.33; c.rotation.y = 0.2 * i - 0.3; } for (const sx of [-1.25, 1.25]) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.5, 10), mat(0x33291e)); s.position.set(sx, 0.25, 0); grp.add(s); } }
+    else if (st.type === 'game') { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, 0.12, 20), mat(col)); t.position.y = 0.8; grp.add(t); const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, 0.8, 8), mat(0x4a3320)); leg.position.y = 0.4; grp.add(leg); if (st.game === 'ludo') { box(1.5, 0.1, 1.5, 0xfaf5e6, 0.91); [0xd6402f, 0x2e9b5e, 0xe0a020, 0x2e7dd1].forEach((c, k) => { const q = box(0.6, 0.05, 0.6, c, 0.97); q.position.x = (k % 2 ? 1 : -1) * 0.45; q.position.z = (k < 2 ? -1 : 1) * 0.45; }); } else for (let i = 0; i < 4; i++) { const c = box(0.34, 0.03, 0.5, [0xd6402f, 0x2e7dd1, 0xe0a020, 0x2e9b5e][i], 0.88); c.position.x = -0.5 + i * 0.33; c.rotation.y = 0.2 * i - 0.3; } for (const sx of [-1.25, 1.25]) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.5, 10), mat(0x33291e)); s.position.set(sx, 0.25, 0); grp.add(s); } }
     else if (st.type === 'board') { box(2.4, 1.5, 0.12, col, 1.6).position.z = -0.1; box(2.2, 1.3, 0.14, 0x0f3b27, 1.6).position.z = -0.08; }
     else if (st.type === 'poster') { box(0.1, 1.4, 1.2, col, 1.6); }
     else if (st.type === 'tv') { box(2.8, 1.5, 0.2, 0x151515, 1.8); box(2.6, 1.3, 0.22, 0x2a65c5, 1.8); box(3.0, 0.5, 0.8, 0x6b4a2b, 0.25); }
@@ -42,7 +42,7 @@ export class Venue {
   }
   people_refresh() {
     this.people.clear(); const d = this.data; const names = new Set(); const put = (u, color, x, z) => { if (names.has(u)) return; names.add(u); const a = makeAvatar(color || '#2e9b5e'); a.scale.setScalar(0.55); a.position.set(x, 0, z); const t = makeNameSprite('@' + u, '#ffffff'); t.scale.set(1.6, 0.4, 1); t.position.y = 2.2; a.add(t); this.people.add(a); };
-    for (const st of d.stations) if (st.type === 'game' && st.match) { const m = st.match; if (m.p1) put(m.p1, null, st.x - 1.25, st.z + 0.5); if (m.p2) put(m.p2, null, st.x + 1.25, st.z + 0.5); }
+    for (const st of d.stations) if (st.type === 'game' && st.match) { const m = st.match; m.players.forEach((u, k) => put(u, null, st.x + [-1.25, 1.25, -0.5, 0.5][k], st.z + (k < 2 ? 0.5 : 1.5))); }
     for (const o of d.occupants) { const hx = hash(o.username); put(o.username, o.color, -3 + (hx % 7) * 1.0, d.room.d / 2 - 1.1 - ((hx >> 4) % 2) * 0.8); }
   }
   chrome() {
@@ -51,7 +51,7 @@ export class Venue {
     this.el.append(head, this.strip, this.panel); this.drawStrip(); this.people_refresh();
   }
   drawStrip() {
-    const d = this.data; this.strip.replaceChildren(...d.stations.map(st => { const m = st.match; const sub = st.type === 'game' ? (m ? (m.status === 'waiting' ? `waiting: @${m.p1}${m.stake ? ' · ₦' + m.stake : ''}` : `${m.p1} vs ${m.p2}`) : 'free table') : st.type === 'car' ? fmtN(st.price || 0) + ' (est.)' : '';
+    const d = this.data; this.strip.replaceChildren(...d.stations.map(st => { const m = st.match; const sub = st.type === 'game' ? (m ? (m.status === 'waiting' ? `waiting ${m.players.length}/${m.max}: @${m.host}${m.stake ? ' · ₦' + m.stake : ''}` : m.players.join(' v ')) : 'free table') : st.type === 'car' ? fmtN(st.price || 0) + ' (est.)' : '';
       return h('button', { class: `vst ${m?.you ? 'mine' : ''}`, 'data-station': st.id, onclick: () => this.pick(st.id) }, `${ICON[st.type] || '•'} ${st.label}`, sub ? h('small', {}, sub) : ''); }));
   }
   price(model) { return this.g.cfg.cars?.[model]?.price ?? this.catalog?.find(c => c.id === model)?.price ?? 0; }
@@ -67,7 +67,7 @@ export class Venue {
   }
   async board(kind = 'all') {
     const ui = this.g.ui; const d = await ui.guard(() => get('/api/scoreboard' + (kind === 'all' ? '' : `?kind=${kind}`))); if (!d) return; const left = Math.max(0, d.endsAt - this.g.serverNow());
-    const tabs = h('div', { class: 'chips' }, ['all', 'whot', 'ayo'].map(k => h('button', { class: `chip ${k === kind ? 'on' : ''}`, onclick: () => this.board(k) }, k === 'all' ? 'All games' : k === 'whot' ? 'Whot' : 'Ayo')));
+    const tabs = h('div', { class: 'chips' }, ['all', 'whot', 'ludo'].map(k => h('button', { class: `chip ${k === kind ? 'on' : ''}`, onclick: () => this.board(k) }, k === 'all' ? 'All games' : k === 'whot' ? 'Whot' : 'Ayo')));
     ui.openSheet('Weekly scoreboard', [tabs, d.rows.length ? h('div', { class: 'list' }, d.rows.map(r => h('div', {}, h('span', {}, `${r.rank}. @${r.username}`), h('span', { class: 'mut' }, `${r.wins}W ${r.draws}D ${r.losses}L · `), h('b', {}, `${r.points} pts`)))) : h('p', { class: 'mut' }, 'Nobody has played this week yet. Be the first!'), h('p', { class: 'mut' }, `${d.scoring} Resets in ${Math.floor(left / 86400000)}d ${Math.floor(left % 86400000 / 3600000)}h.`)]);
   }
   async carSheet(st) {
@@ -78,12 +78,12 @@ export class Venue {
   }
   sitPanel(st) {
     const G = this.data.stakes; let stake = 0; const m = st.match; const info = this.g.cfg; void info;
-    const title = st.game === 'ayo' ? 'Ayo table' : 'Whot bench'; const kids = [h('div', { class: 'row sp' }, h('b', {}, `${st.label}`), h('button', { class: 'btn small ghost', onclick: () => this.panel.classList.add('hidden') }, '✕'))];
+    const title = st.game === 'ludo' ? 'Ludo table (2 to 4 players)' : 'Whot bench'; const kids = [h('div', { class: 'row sp' }, h('b', {}, `${st.label}`), h('button', { class: 'btn small ghost', onclick: () => this.panel.classList.add('hidden') }, '✕'))];
     if (m && m.you) { this.focusMatch(m.id); return; }
-    if (m && m.status === 'active') kids.push(h('p', { class: 'mut' }, `Game in progress: @${m.p1} vs @${m.p2}. Try another table.`));
-    else if (m) kids.push(h('p', {}, `@${m.p1} is waiting for an opponent.`), h('p', { class: 'mut' }, m.stake ? `Stake ₦${m.stake} each (game money). Winner takes ₦${m.stake * 2}.` : 'Friendly game: no stake.'), h('button', { class: 'btn big alt', onclick: () => this.sit(st, 0) }, m.stake ? `Join · stake ${fmtN(m.stake)}` : 'Join the game'));
+    if (m && m.status === 'active') kids.push(h('p', { class: 'mut' }, `Game in progress: ${m.players.map(x => '@' + x).join(', ')}. Try another table.`));
+    else if (m) kids.push(h('p', {}, `${m.players.map(x => '@' + x).join(', ')} ${m.players.length > 1 ? 'are' : 'is'} waiting (${m.players.length}/${m.max}).`), h('p', { class: 'mut' }, m.stake ? `Stake ₦${m.stake} each (game money). Winner takes the whole pot.` : 'Friendly game: no stake.'), h('button', { class: 'btn big alt', onclick: () => this.sit(st, 0) }, m.stake ? `Join · stake ${fmtN(m.stake)}` : 'Join the game'));
     else { const draw = () => chips.replaceChildren(...G.map(s => h('button', { class: `chip ${s === stake ? 'on' : ''}`, onclick: () => { stake = s; draw(); sitBtn.textContent = s ? `Sit and wait · stake ${fmtN(s)}` : 'Sit and wait · friendly'; } }, s ? fmtN(s) : 'Friendly'))); const chips = h('div', { class: 'chips' }); const sitBtn = h('button', { class: 'btn big alt', onclick: () => this.sit(st, stake) }, 'Sit and wait · friendly'); draw();
-      kids.push(h('p', { class: 'mut' }, `${title}: sit down and wait for another player to join. Pick a stake (game money, held safely until the game ends).`), chips, sitBtn); }
+      kids.push(h('p', { class: 'mut' }, `${title}: sit down and wait for others to join (Ludo: host starts when 2 to 4 are seated). Pick a stake (game money, held safely until the game ends).`), chips, sitBtn); }
     kids.push(h('p', { class: 'mut' }, '🎲 Game money only. No cash value, no cash-out.')); this.showPanel(kids);
   }
   showPanel(kids) { this.panel.replaceChildren(...[].concat(kids)); this.panel.classList.remove('hidden'); }
@@ -91,12 +91,12 @@ export class Venue {
   focusMatch(id, view) { this.matchId = id; if (view) this.renderMatch(view); else this.pollGame(); }
   async pollGame() { if (!this.matchId) return; const v = await get(`/api/game?id=${this.matchId}`).catch(() => null); if (v) this.renderMatch(v); }
   renderMatch(v) {
-    this.match = v; if (this.dismissed.has(v.id)) return; this.matchId = v.id; const me = this.g.user?.username; const kids = []; const head = h('div', { class: 'row sp' }, h('b', {}, `${v.kind === 'ayo' ? 'Ayo' : 'Whot'} · ${v.p1} vs ${v.p2 || '…'}`), h('span', { class: 'tag amber' }, v.stake ? `Stake ${fmtN(v.stake)} · pot ${fmtN(v.pot)}` : 'Friendly')); kids.push(head);
-    if (v.status === 'waiting') { kids.push(h('p', {}, 'Waiting for an opponent to sit down… ⏳'), h('p', { class: 'mut' }, 'Your stake is held safely and comes back if nobody joins.'), h('button', { class: 'btn ghost', onclick: () => this.leaveMatch(v) }, 'Leave the table')); }
+    this.match = v; if (this.dismissed.has(v.id)) return; this.matchId = v.id; const me = this.g.user?.username; const kids = []; const head = h('div', { class: 'row sp' }, h('b', {}, `${v.label} · ${v.players.map(x => x.name).join(', ')}`), h('span', { class: 'tag amber' }, v.stake ? `Stake ${fmtN(v.stake)} · pot ${fmtN(v.pot)}` : 'Friendly')); kids.push(head);
+    if (v.status === 'waiting') { kids.push(h('p', {}, `Seated ${v.players.length}/${v.max} · waiting for players… ⏳`), h('div', { class: 'row' }, v.players.map(x => h('span', { class: 'tag' }, '@' + x.name))), h('p', { class: 'mut' }, 'Your stake is held safely and comes back if nobody joins.'), v.canStart ? h('button', { class: 'btn big alt', id: 'ludoStart', onclick: () => this.startMatch(v) }, `▶ Start now with ${v.players.length} players`) : v.max > 2 && v.isHost ? h('p', { class: 'mut' }, 'Need at least 2 players to start.') : '', h('button', { class: 'btn ghost', onclick: () => this.leaveMatch(v) }, 'Leave the table')); }
     else if (v.status === 'active') {
       const mine = v.board?.mine; const left = Math.max(0, Math.ceil((v.deadlineAt - this.g.serverNow()) / 1000)); kids.push(h('div', { class: 'row sp' }, h('span', { class: mine ? 'tag green' : 'tag' }, mine ? '🟢 Your turn' : `⏳ @${v.turn}'s turn`), h('span', { class: 'mut', id: 'gtimer' }, `${left}s`)));
-      kids.push(v.kind === 'ayo' ? this.ayoBoard(v) : this.whotBoard(v)); kids.push(h('div', { class: 'row' }, h('button', { class: 'btn small ghost', onclick: () => this.g.ui.confirm?.call(this.g.ui, 'Resign this game? Your opponent wins the pot.', () => this.leaveMatch(v)) }, '🏳 Resign')));
-    } else { const r = v.result || {}; kids.push(h('div', { class: `banner ${r.youWon ? 'win' : r.draw ? 'draw' : 'lose'}` }, r.cancelled ? `Table closed. ${r.why || ''}` : r.draw ? '🤝 Draw' : r.youWon ? `🏆 You won! ${v.stake ? '+' + fmtN(v.stake * 2) : ''}` : `You lost. ${r.why || ''}`), h('button', { class: 'btn alt', onclick: () => { this.dismissed.add(v.id); this.matchId = null; this.panel.classList.add('hidden'); this.g.net.nudge(); this.refreshVenue(); } }, 'Back to the room')); this.g.refreshMe?.(); }
+      kids.push(v.kind === 'ludo' ? this.ludoBoard(v) : this.whotBoard(v)); kids.push(h('div', { class: 'row' }, h('button', { class: 'btn small ghost', onclick: () => this.g.ui.confirm?.call(this.g.ui, v.kind === 'ludo' ? 'Leave this game? Your tokens leave the board and your stake stays in the pot.' : 'Resign this game? Your opponent wins the pot.', () => this.leaveMatch(v)) }, '🏳 Resign')));
+    } else { const r = v.result || {}; kids.push(h('div', { class: `banner ${r.youWon ? 'win' : r.draw ? 'draw' : 'lose'}` }, r.cancelled ? `Table closed. ${r.why || ''}` : r.draw ? '🤝 Draw' : r.youWon ? `🏆 You won! ${v.stake ? '+' + fmtN(v.pot) : ''}` : `You lost. ${r.why || ''}`), h('button', { class: 'btn alt', onclick: () => { this.dismissed.add(v.id); this.matchId = null; this.panel.classList.add('hidden'); this.g.net.nudge(); this.refreshVenue(); } }, 'Back to the room')); this.g.refreshMe?.(); }
     kids.push(h('p', { class: 'mut' }, '🎲 Game money only.')); this.showPanel(kids); void me;
   }
   card(c, { onclick, disabled, mini } = {}) { const [g, col] = SHAPE[c.s]; return h('button', { class: `wcard ${mini ? 'mini' : ''}`, 'data-card': c.id, disabled: !!disabled, style: `--c:${col}`, onclick }, h('span', { class: 'n' }, c.s === 'whot' ? '20' : c.n), h('span', { class: 'g' }, g)); }
@@ -107,12 +107,22 @@ export class Venue {
   }
   lastText(v) { const l = v.board.last; if (!l) return ''; const who = (l.who === v.you) ? 'You' : 'They'; if (l.effect === 'draw') return `${who} drew a card.`; const fx = { hold: 'Hold on!', suspend: 'Suspension!', pick2: 'Pick two!', pick3: 'Pick three!', market: 'General market!', whot: 'Whot!' }[l.effect]; return `${who} played ${l.card.replace(/[a-z]+/, '')}${fx ? ' · ' + fx : ''}`; }
   pickShape(v, c) { this.shapeBox.replaceChildren(h('b', {}, 'Call a shape: '), ...['circle', 'triangle', 'cross', 'square', 'star'].map(s => h('button', { class: 'chip', style: `color:${SHAPE[s][1]}`, 'data-shape': s, onclick: () => this.move(v, { card: c.id, shape: s }) }, SHAPE[s][0] + ' ' + s))); }
-  ayoBoard(v) {
-    const b = v.board; const base = v.you === 'a' ? 0 : 6; const oppBase = v.you === 'a' ? 6 : 0; const bottom = [0, 1, 2, 3, 4, 5].map(k => base + k); const top = [5, 4, 3, 2, 1, 0].map(k => oppBase + k);
-    const pit = (i, mine) => { const k = i - base; const legal = mine && b.legal.includes(k); return h('button', { class: `pit ${mine ? 'mine' : ''} ${legal ? 'legal' : ''}`, 'data-pit': i, disabled: !legal, onclick: () => this.move(v, { house: k }) }, h('b', {}, b.pits[i])); };
-    const opp = v.you === 'a' ? 'b' : 'a';
-    return h('div', { class: 'ayo' }, h('div', { class: 'row sp' }, h('span', { class: 'mut' }, `@${opp === 'a' ? v.p1 : v.p2} captured: ${b.store[opp]}`), h('span', { class: 'mut' }, b.last ? `Last: house ${b.last.house + 1}${b.last.captured ? ` · captured ${b.last.captured}` : ''}` : '')), h('div', { class: 'pits' }, top.map(i => pit(i, false))), h('div', { class: 'pits' }, bottom.map(i => pit(i, true))), h('div', { class: 'row sp' }, h('b', {}, `You captured: ${b.store[v.you]} (first to 25 wins)`)));
+  ludoBoard(v) {
+    const b = v.board; const COL = ['#d6402f', '#2e9b5e', '#e0a020', '#2e7dd1']; const NAME = ['Red', 'Green', 'Yellow', 'Blue']; const colOf = (seat) => b.corners[seat]; const S = 250, C = S / 2, R = 104, step = 13;
+    const pos = (cell, r = R) => { const a = (cell / 52) * 2 * Math.PI - Math.PI / 2; return [C + r * Math.cos(a), C + r * Math.sin(a)]; };
+    const board = h('div', { class: 'ludo', style: `width:${S}px;height:${S}px` });
+    for (let c = 0; c < 52; c++) { const [x, y] = pos(c); const corner = [0, 13, 26, 39].indexOf(c); board.append(h('i', { class: `lc ${b.safe.includes(c) ? 'safe' : ''}`, style: `left:${x - 6}px;top:${y - 6}px;${corner >= 0 ? `background:${COL[corner]}` : ''}` })); }
+    for (let sd = 0; sd < 4; sd++) for (let k = 1; k <= 5; k++) { const [x, y] = pos(sd * 13, R - k * 15); board.append(h('i', { class: 'lc hc', style: `left:${x - 5}px;top:${y - 5}px;background:${COL[sd]}55` })); }
+    const stack = {}; const place = (seat, i, p) => { let x, y; if (p === -1) { const cx = pos(colOf(seat) * 13, R + 22); [x, y] = [cx[0] + (i % 2) * 10 - 5, cx[1] + Math.floor(i / 2) * 10 - 5]; } else if (p <= 50) { [x, y] = pos(b.cells[seat][i]); } else if (p < 56) { [x, y] = pos(colOf(seat) * 13, R - (p - 50) * 15); } else { [x, y] = [C - 12 + colOf(seat) * 8, C - 4]; } const k = `${Math.round(x)},${Math.round(y)}`; const n = stack[k] = (stack[k] || 0) + 1; return [x + (n - 1) * 4 - 7, y - (n - 1) * 3 - 7]; };
+    b.tokens.forEach((ts, seat) => ts.forEach((p, i) => { const [x, y] = place(seat, i, p); const mine = seat === v.youSeat; board.append(h('b', { class: `ltok ${mine && b.legal.includes(i) ? 'legal' : ''}`, 'data-seat': seat, 'data-tok': i, style: `left:${x}px;top:${y}px;background:${COL[colOf(seat)]}` }, mine ? String(i + 1) : '')); }));
+    const names = h('div', { class: 'row', style: 'flex-wrap:wrap' }, v.players.map(pl => h('span', { class: 'tag', style: `border-left:6px solid ${COL[colOf(pl.seat)]}` }, `${NAME[colOf(pl.seat)]} @${pl.name}${pl.out ? ' (left)' : ''}${pl.you ? ' (you)' : ''}`)));
+    const dieEl = h('div', { class: 'die', id: 'ludoDie' }, b.die ? ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][b.die] : '🎲'); const last = b.last; const lt = last ? `${last.who === v.youSeat ? 'You' : '@' + v.players.find(x => x.seat === last.who)?.name} rolled ${last.die}${last.note ? ' · ' + last.note : ''}${last.captured ? ` · sent ${last.captured} token(s) home!` : ''}${last.home ? ' · token home! 🏠' : ''}` : '';
+    const roll = h('button', { class: 'btn big alt', id: 'ludoRoll', disabled: !b.canRoll, onclick: () => this.move(v, { action: 'roll' }) }, '🎲 Roll the die');
+    const mine = b.tokens[v.youSeat] || []; const where = (p) => (p === -1 ? 'in base' : p === 56 ? 'HOME ✔' : p > 50 ? `home column ${p - 50}/5` : `step ${p}`);
+    const toks = h('div', { class: 'chips' }, mine.map((p, i) => h('button', { class: `chip ${b.legal.includes(i) ? 'on' : ''}`, 'data-token': i, disabled: !b.legal.includes(i), onclick: () => this.move(v, { token: i }) }, `Token ${i + 1}: ${where(p)}`)));
+    return h('div', { class: 'ludowrap' }, names, h('div', { class: 'row' }, board, h('div', {}, dieEl, roll)), h('p', { class: 'mut' }, lt), b.mine && b.die ? h('p', {}, `You rolled ${b.die}. Pick a token to move:`) : '', toks, h('p', { class: 'mut' }, 'Roll a 6 to leave base. A 6 gives another roll. Land on a rival (off the safe ⭐ cells) to send them home.'));
   }
+  async startMatch(v) { const r = await this.g.ui.guard(() => post('/api/game/start', { matchId: v.id })); if (r) this.renderMatch(r); else this.pollGame(); }
   async move(v, mv) { const r = await this.g.ui.guard(() => post('/api/game/move', { matchId: v.id, ...mv })); if (r) { this.renderMatch(r); this.g.ui.sfx('ok'); } else this.pollGame(); }
   async leaveMatch(v) { const r = await this.g.ui.guard(() => post('/api/game/leave', { matchId: v.id })); this.g.ui.closeSheet(); if (r) this.renderMatch(r); else this.pollGame(); this.refreshVenue(); }
   async refreshVenue() { const d = await get(`/api/venue?id=${this.id}`).catch(() => null); if (d && this.open) { this.data = d; this.drawStrip(); this.people_refresh(); } }

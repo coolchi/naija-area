@@ -181,13 +181,17 @@ CREATE INDEX IF NOT EXISTS ix_blocks_blocked ON user_blocks(blocked_id);
 
 -- ---- venues + games (phase 2)
 CREATE TABLE IF NOT EXISTS game_matches (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, venue_id TEXT NOT NULL, station_id TEXT NOT NULL, kind TEXT NOT NULL,   -- whot | ayo
+  id INTEGER PRIMARY KEY AUTOINCREMENT, venue_id TEXT NOT NULL, station_id TEXT NOT NULL, kind TEXT NOT NULL,   -- whot | ludo
   p1 INTEGER NOT NULL, p2 INTEGER, stake INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL,                       -- waiting | active | finished | cancelled
   state TEXT, turn_user INTEGER, winner INTEGER, result TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deadline_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS ix_match_station ON game_matches(venue_id, station_id, status);
 CREATE INDEX IF NOT EXISTS ix_match_p1 ON game_matches(p1, status);
 CREATE INDEX IF NOT EXISTS ix_match_p2 ON game_matches(p2, status);
+CREATE TABLE IF NOT EXISTS game_players (        -- seats at a table (2 for Whot, 2 to 4 for Ludo); out=1 once someone has resigned/timed out of an active game
+  match_id INTEGER NOT NULL, user_id INTEGER NOT NULL, seat INTEGER NOT NULL, out INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (match_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS ix_gp_user ON game_players(user_id);
 CREATE TABLE IF NOT EXISTS game_scores (
   week INTEGER NOT NULL, kind TEXT NOT NULL, user_id INTEGER NOT NULL, wins INTEGER NOT NULL DEFAULT 0, losses INTEGER NOT NULL DEFAULT 0, draws INTEGER NOT NULL DEFAULT 0, points INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (week, kind, user_id)

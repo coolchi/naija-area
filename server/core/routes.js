@@ -73,6 +73,7 @@ route('POST', '/api/venue/act', { auth: 'user' }, (c) => venues.act(c.app, c.uid
 route('POST', '/api/game/sit', { auth: 'user' }, (c) => games.sit(c.app, c.uid, c.body.venueId, c.body.stationId, Number(c.body.stake) || 0));
 route('GET', '/api/game', { auth: 'user' }, (c) => games.getMatch(c.app, c.uid, Number(c.query.id)));
 route('POST', '/api/game/move', { auth: 'user' }, (c) => games.playMove(c.app, c.uid, Number(c.body.matchId), c.body));
+route('POST', '/api/game/start', { auth: 'user' }, (c) => games.start(c.app, c.uid, Number(c.body.matchId)));
 route('POST', '/api/game/leave', { auth: 'user' }, (c) => games.resign(c.app, c.uid, Number(c.body.matchId)));
 route('GET', '/api/scoreboard', { auth: 'user' }, (c) => games.scoreboard(c.app, { kind: c.query.kind, weekOffset: Number(c.query.weekOffset) || 0 }));
 route('GET', '/api/garage', { auth: 'user' }, (c) => cars.garageView(c.app, c.uid));
