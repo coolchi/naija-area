@@ -12,6 +12,7 @@ import { getCreative, handleTap, tickAds } from './core/ads.js';
 import { tickRent, tickInterest } from './core/economy.js';
 import { pruneWorld } from './core/world.js';
 import { tickLand } from './core/social.js';
+import { tickGames } from './core/games.js';
 import { GameError } from './core/util.js';
 import { BALANCE } from './config/balance.js';
 
@@ -105,7 +106,7 @@ export function buildServer(opts = {}) {
   const timers = [];
   function startTimers() {
     timers.push(setInterval(() => { try { tickAds(app); } catch (e) { console.error('tickAds', e); } }, 5000));
-    timers.push(setInterval(() => { try { tickRent(app); tickInterest(app); tickLand(app); pruneWorld(app); } catch (e) { console.error('tick', e); } }, 30000));
+    timers.push(setInterval(() => { try { tickRent(app); tickInterest(app); tickLand(app); tickGames(app); pruneWorld(app); } catch (e) { console.error('tick', e); } }, 30000));
   }
   const close = () => new Promise((resolve) => { timers.forEach(clearInterval); for (const s of sockets.values()) for (const ws of s) ws.terminate(); wss.close(); server.close(() => { try { db.close(); } catch {} resolve(); }); server.closeAllConnections?.(); });
   return { app, db, server, startTimers, close, sockets };

@@ -29,13 +29,13 @@ test('shops: opening hours are enforced on the game clock (Closed till ...) but 
 test('travel: fare comes from distance + mode, only known places, rush hour costs more, ledger charged, others see a moving trail', async () => {
   const s = makeServer(); const u = mkUser(s, { cash: 5000 }); const o = mkUser(s); at(s, u, 0, 0); at(s, o, 20, 0); await ok(s, 'POST', '/api/heartbeat', { uid: u, body: {} });
   const q = await ok(s, 'GET', '/api/travel/quote?place=shop_mart', { uid: u }); const keke = q.modes.find(m => m.id === 'keke'), danfo = q.modes.find(m => m.id === 'danfo');
-  assert.ok(keke.fare > danfo.fare && danfo.fare >= 50); assert.ok(keke.seconds >= 3 && keke.seconds <= 6); assert.ok(['Free road', 'Go-slow (rush hour)'].includes(q.traffic)); assert.equal(q.modes[0].id, 'walk');
+  assert.ok(keke.fare > danfo.fare && danfo.fare >= 50); assert.ok(keke.seconds >= 2 && keke.seconds <= 10); assert.ok(['Free road', 'Go-slow (rush hour)'].includes(q.traffic)); assert.equal(q.modes[0].id, 'walk');
   assert.equal((await call(s, 'GET', '/api/travel/quote?place=nowhere', { uid: u })).status, 404);
   assert.equal((await call(s, 'POST', '/api/travel', { uid: u, body: { placeId: 'shop_mart', mode: 'walk' } })).json.error, 'WALK');
   assert.equal((await call(s, 'POST', '/api/travel', { uid: u, body: { placeId: 'shop_mart', mode: 'jet' } })).json.error, 'BAD_MODE');
   const t = await ok(s, 'POST', '/api/travel', { uid: u, body: { placeId: 'shop_mart', mode: 'keke' } }); assert.equal(t.fare, keke.fare); assert.equal(balanceOf(s.db, cashId(u)), 5000 - keke.fare);
   const pl = s.app.city.placeById.shop_mart; assert.equal(s.app.world.players.get(u).x, pl.x);
-  const hb = await ok(s, 'POST', '/api/heartbeat', { uid: u, body: {} }); assert.equal(hb.teleport.x, pl.x); assert.ok(hb.teleport.travelMs >= 3000);
+  const hb = await ok(s, 'POST', '/api/heartbeat', { uid: u, body: {} }); assert.equal(hb.teleport.x, pl.x); assert.ok(hb.teleport.travelMs >= 2000);
   const poor = mkUser(s, { cash: 0 }); at(s, poor, 0, 0); assert.equal((await call(s, 'POST', '/api/travel', { uid: poor, body: { placeId: 'shop_mart', mode: 'keke' } })).json.error, 'INSUFFICIENT_FUNDS');
   const car = await ok(s, 'POST', '/api/travel', { uid: mkUser(s), body: { placeId: 'plaza', mode: 'car' } }); assert.ok(car.fare < 300);
   const rush = s.app.balance.transport.rushHours[0]; let isR = false; for (let i = 0; i < 400 && !isR; i++) { s.app.clock.advance(5 * 60000); const qq = await ok(s, 'GET', '/api/travel/quote?place=shop_mart', { uid: u }); if (qq.rush) { isR = true; } }

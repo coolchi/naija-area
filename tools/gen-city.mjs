@@ -156,6 +156,22 @@ const plotDefs = [['Ikorodu Gardens', 'Ikorodu', 600, 1500000, 0.02, 'high'], ['
 city.plots = []; const lots = city.zones.filter(z => z.id === 'blk00' || z.id === 'blk30');
 const lotCenters = [[-156, -156], [156, -152], [209, -152], [-30, 141]]; // hand-placed in empty lots
 plotDefs.forEach((d, i) => city.plots.push({ id: `p${i + 1}`, name: d[0], area: d[1], sqm: d[2], price: d[3], growthPerWeek: d[4], risk: d[5], x: lotCenters[i][0], z: lotCenters[i][1], size: i === 3 ? 16 : 26 }));
+// venues: enterable rooms with stations (data-driven). Room coordinates are metres from the room centre (door on the +z wall).
+const kiosks = city.buildings.filter(b => b.kind === 'kiosk').sort((a, b) => a.x - b.x); const kd = (b) => ({ buildingId: b.id, x: +b.x.toFixed(1), z: +(b.z + b.d / 2 + 3).toFixed(1) });
+const canteen = city.shops.find(x => x.id === 'shop_canteen');
+const poster = { id: 'poster', type: 'poster', label: 'Rules poster', x: -3.4, z: 2.2, color: '#f0c419', text: 'GAME MONEY ONLY. Stakes are pretend naira with no cash value and no cash-out. 18+. Be respectful: you can be reported, muted or blocked.' };
+const board = (x, z) => ({ id: 'board', type: 'board', label: 'Weekly scoreboard', x, z, color: '#1f6f4a' });
+city.venues = [
+  { id: 'venue_mamaput', name: 'Mama Put Canteen', blurb: 'Eat, then challenge somebody to Whot.', x: canteen.x, z: canteen.z, shopId: 'shop_canteen', hours: [6, 22], sign: '#c8553d', stations: [
+    { id: 'counter', type: 'eat', label: 'Food counter', x: 0, z: -2.8, color: '#c8553d', shopId: 'shop_canteen' }, { id: 'whot1', type: 'game', game: 'whot', label: 'Whot bench', x: -2, z: 0.4, color: '#8a5a2b' }, board(2.6, -1.2), poster] },
+  { id: 'venue_viewing', name: "Alhaji Joe's Viewing Centre", blurb: 'Watch the match. Play Whot at the back.', ...kd(kiosks[0]), hours: [10, 24], sign: '#2a5f9e', stations: [
+    { id: 'tv', type: 'tv', label: 'Big TV (watch the match)', x: 0, z: -3, color: '#222', mood: 4 }, { id: 'whot1', type: 'game', game: 'whot', label: 'Whot bench 1', x: -2.2, z: 0.6, color: '#8a5a2b' }, { id: 'whot2', type: 'game', game: 'whot', label: 'Whot bench 2', x: 2.2, z: 0.6, color: '#8a5a2b' }, board(3, -1.8), poster] },
+  { id: 'venue_ayo', name: 'Corner Joint (Ayo and Whot)', blurb: 'Ayo tables and a Whot bench. Table talk allowed (clean).', ...kd(kiosks[kiosks.length - 1]), hours: [12, 24], sign: '#7a4ea0', stations: [
+    { id: 'ayo1', type: 'game', game: 'ayo', label: 'Ayo table 1', x: -2, z: -0.6, color: '#6b3f1d' }, { id: 'ayo2', type: 'game', game: 'ayo', label: 'Ayo table 2', x: 2, z: -0.6, color: '#6b3f1d' }, { id: 'whot1', type: 'game', game: 'whot', label: 'Whot bench', x: 0, z: 1.6, color: '#8a5a2b' }, board(0, -3), poster] },
+  { id: 'venue_motors', name: 'Naija Auto Mart (placeholder showroom)', blurb: 'Look at the cars. Prices are ESTIMATES.', ...kd(kiosks[Math.floor(kiosks.length / 2)]), hours: [9, 19], sign: '#b8322a', stations: [
+    { id: 'car_kekere', type: 'car', model: 'kekere', label: 'Kekere Hatch (used)', x: -2.4, z: -1.8, color: '#e9c46a' }, { id: 'car_oga', type: 'car', model: 'oga', label: 'Oga Sedan', x: 0.4, z: -2.2, color: '#457b9d' },
+    { id: 'car_bigboy', type: 'car', model: 'bigboy', label: 'Big Boy SUV', x: 2.8, z: -1.4, color: '#2b2d42' }, { id: 'car_senator', type: 'car', model: 'senator', label: 'Senator Executive', x: 0.4, z: 0.6, color: '#d62828' }] }
+];
 fs.mkdirSync('server/config/cities', { recursive: true });
 fs.writeFileSync('server/config/cities/lagos-mainland.json', JSON.stringify(city, null, 1));
 console.log('buildings', city.buildings.length, 'props', city.properties.length, 'shops', city.shops.length, 'jobs', city.jobs.length, 'boards', city.billboards.length);

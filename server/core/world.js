@@ -6,6 +6,8 @@ import { hiddenFrom, chatMuted } from './safety.js';
 import { dist, getState, refreshNeeds, notify, gameTime, profile, activeShift, jobsFor } from './economy.js';
 import { processEvidence, adsSnapshot } from './ads.js';
 import { knockState } from './social.js';
+import { myMatchView } from './games.js';
+import { venueTick } from './venues.js';
 
 export function createWorld() { return { players: new Map(), chatSeq: 0 }; }
 
@@ -61,7 +63,7 @@ export function heartbeat(app, uid, body, meta = {}) {
   p.lastSeen = now; p.headless = !!meta.headless;
   if (body.mode === 'walk' || body.mode === 'drive') p.mode = body.mode;
   if (typeof body.activity === 'string') p.activity = cleanText(body.activity, 24);
-  applyTrail(app, p, body.trail, now);
+  applyTrail(app, p, body.trail, now); venueTick(app, p);
   if (now - p.lastPersist > 30000) { app.db.prepare('UPDATE player_state SET x=?,z=?,ry=?,mode=?,updated_at=? WHERE user_id=?').run(p.x, p.z, p.ry, p.mode, now, uid); app.db.prepare('UPDATE users SET last_seen=? WHERE id=?').run(now, uid); p.lastPersist = now; }
   // ad evidence (validated server-side; client sends evidence, never counts)
   let adResult = null;
@@ -89,7 +91,7 @@ export function heartbeat(app, uid, body, meta = {}) {
   const chatMax = app.db.prepare('SELECT COALESCE(MAX(id),0) m FROM chat_messages').get().m;
   const me = profile(app, uid);
   const resp = { now, interval, ccu, shed: interval >= 20000, world: gameTime(app, now), me, players, notifs, chat, chatCursor: chatMax,
-    knocks: knockState(app, uid), teleport: p.force || undefined, adsVersion: app.adsVersion, ads: body.adsVersion === app.adsVersion ? undefined : adsSnapshot(app, now), adResult };
+    knocks: knockState(app, uid), game: myMatchView(app, uid), venue: p.venue || null, teleport: p.force || undefined, adsVersion: app.adsVersion, ads: body.adsVersion === app.adsVersion ? undefined : adsSnapshot(app, now), adResult };
   p.force = undefined;
   return resp;
 }

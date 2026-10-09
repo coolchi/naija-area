@@ -18,6 +18,7 @@ export function indexCity(raw) {
   for (const p of c.plots || []) c.places.push({ id: p.id, type: 'plot', name: p.name, x: p.x, z: p.z + p.size / 2 + 3, area: p.area });
   const ap = c.buildings.find(b => b.kind === 'airport'); if (ap) c.places.push({ id: 'airport', type: 'landmark', name: 'Airport Terminal (placeholder)', x: ap.x, z: ap.z + ap.d / 2 + 6, area: 'Ikeja' });
   const pl = (c.landmarks || []).find(l => l.id === 'plaza'); if (pl) c.places.push({ id: 'plaza', type: 'landmark', name: pl.name, x: pl.x, z: pl.z + 14, area: 'Yaba' });
+  for (const v of c.venues || []) c.places.push({ id: v.id, type: 'venue', name: v.name, x: v.x, z: v.z, area: area(v.x, v.z), hours: v.hours });
   c.placeById = Object.fromEntries(c.places.map(p => [p.id, p]));
   return c;
 }

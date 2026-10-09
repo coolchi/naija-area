@@ -2,9 +2,10 @@
 import { bad, cleanText } from './util.js';
 import { screen } from './filter.js';
 import { isBlocked, chatMuted } from './safety.js';
-import { dist, notify, homeOf, gameTime, getState } from './economy.js';
+import { dist, notify, homeOf, gameTime, getState, addMood } from './economy.js';
 import { move, cashId, balanceOf, SYS } from './ledger.js';
 import { ensurePresence, syncPos } from './world.js';
+import { carFor } from './cars.js';
 
 const ACTIVE = 60000;
 export function installSocial(app) {
@@ -80,7 +81,8 @@ export function sendDm(app, uid, toUsername, text) {
 export function isRush(app, now = app.clock.now()) { const h = gameTime(app, now).hour; return app.balance.transport.rushHours.some(([a, b]) => h >= a && h < b); }
 export function travelQuote(app, uid, placeId) {
   const pl = app.city.placeById[placeId]; if (!pl) bad('NO_PLACE', 'Unknown place.', 404); const st = getState(app, uid); const d = dist(st.x, st.z, pl.x, pl.z); const T = app.balance.transport; const rush = isRush(app);
-  const modes = Object.entries(T.modes).map(([id, m]) => { const fare = Math.round((m.base + m.perM * d) * (rush ? T.rushMult : 1)); const sec = Math.max(T.minSec, Math.min(T.maxSec, Math.round(d / m.speed))); return { id, label: m.label, fare, seconds: sec }; });
+  const car = carFor(app, uid); const allModes = { ...T.modes, car: { label: car.label, base: car.base, perM: car.perM, speed: car.speed, mood: car.mood } };
+  const modes = Object.entries(allModes).map(([id, m]) => { const fare = Math.round((m.base + m.perM * d) * (rush ? T.rushMult : 1)); const sec = Math.max(T.minSec, Math.min(T.maxSec, Math.round(d / m.speed))); return { id, label: m.label, fare, seconds: sec, ...(id === 'car' ? { mood: m.mood, owned: car.owned, model: car.model } : {}) }; });
   return { place: { id: pl.id, name: pl.name, type: pl.type, area: pl.area }, distance: Math.round(d), traffic: rush ? 'Go-slow (rush hour)' : 'Free road', rush, modes: [{ id: 'walk', label: 'Walk', fare: 0, seconds: Math.round(d / 5.2) }, ...modes] };
 }
 export function travel(app, uid, placeId, mode, idemKey) {
@@ -94,6 +96,7 @@ export function travel(app, uid, placeId, mode, idemKey) {
     p.mode = mode === 'car' ? 'drive' : 'walk'; const ry = Math.atan2(-(pl.z - from.z), pl.x - from.x);
     p.trail.push({ t: now, x: from.x, z: from.z, ry }, { t: now + m.seconds * 1000, x: pl.x, z: pl.z, ry }); p.x = pl.x; p.z = pl.z; p.ry = ry;
     app.db.prepare('UPDATE player_state SET x=?,z=?,mode=? WHERE user_id=?').run(pl.x, pl.z, p.mode, uid);
+    if (mode === 'car') { const car = carFor(app, uid); p.carModel = car.model; if (car.mood > 0 && now - (p.lastRide || 0) > 180000) { p.lastRide = now; addMood(app, uid, car.mood); } }
     p.force = { x: pl.x, z: pl.z, travelMs: m.seconds * 1000, from };
     return { ok: true, fare: m.fare, seconds: m.seconds, traffic: q.traffic, mode, to: { x: pl.x, z: pl.z }, from, cash: balanceOf(app.db, cashId(uid)) };
   })();

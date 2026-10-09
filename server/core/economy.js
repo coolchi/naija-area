@@ -27,9 +27,11 @@ export function refreshNeeds(app, uid) {
   const s = getState(app, uid); const now = app.clock.now(); const n = app.balance.needs;
   const mins = Math.max(0, (now - s.needs_at) / 60000);
   const energy = clamp(s.energy - mins * n.energyDecayPerMin, n.min, n.max), hunger = clamp(s.hunger - mins * n.hungerDecayPerMin, n.min, n.max);
-  if (mins > 0) app.db.prepare('UPDATE player_state SET energy=?, hunger=?, needs_at=? WHERE user_id=?').run(energy, hunger, now, uid);
-  return { ...s, energy, hunger, needs_at: now };
+  const M = app.balance.mood; const mood = s.mood > M.baseline ? Math.max(M.baseline, s.mood - mins * M.decayPerMin) : Math.min(M.baseline, s.mood + mins * M.decayPerMin);
+  if (mins > 0) app.db.prepare('UPDATE player_state SET energy=?, hunger=?, mood=?, needs_at=? WHERE user_id=?').run(energy, hunger, mood, now, uid);
+  return { ...s, energy, hunger, mood, needs_at: now };
 }
+export function addMood(app, uid, delta) { const st = refreshNeeds(app, uid); const m = clamp(st.mood + delta, 0, 100); app.db.prepare('UPDATE player_state SET mood=? WHERE user_id=?').run(m, uid); return m; }
 const setNeeds = (app, uid, energy, hunger) => app.db.prepare('UPDATE player_state SET energy=?, hunger=?, needs_at=? WHERE user_id=?')
   .run(clamp(energy, 0, 100), clamp(hunger, 0, 100), app.clock.now(), uid);
 
@@ -74,7 +76,7 @@ export function claimShift(app, uid) {
     // the status flip is the lock: only the request that changes the row pays out
     const u = app.db.prepare("UPDATE shifts SET status='claimed', claimed_at=? WHERE id=? AND status='active'").run(now, sh.id);
     if (u.changes !== 1) bad('ALREADY_CLAIMED', 'Already claimed.', 409);
-    const task = app.db.prepare('SELECT bonus_pct FROM work_tasks WHERE shift_id=?').get(sh.id); const bonus = task ? Math.floor(sh.wage * task.bonus_pct / 100) : 0;
+    const task = app.db.prepare('SELECT bonus_pct FROM work_tasks WHERE shift_id=?').get(sh.id); const happy = refreshNeeds(app, uid).mood >= app.balance.mood.happyAt ? app.balance.mood.happyBonusPct : 0; const bonus = (task ? Math.floor(sh.wage * task.bonus_pct / 100) : 0) + Math.floor(sh.wage * happy / 100);
     move(app, { from: SYS.FAUCET_JOBS, to: cashId(uid), amount: sh.wage + bonus, reason: 'job_wage', ref: sh.job_id, userId: uid, idemKey: `shift:${sh.id}` });
     app.db.prepare('UPDATE player_state SET total_shifts=total_shifts+1 WHERE user_id=?').run(uid);
     return { wage: sh.wage + bonus, bonus, cash: balanceOf(app.db, cashId(uid)) };
@@ -337,7 +339,7 @@ export function testTopup(app, uid, amount, idemKey) {
 export function netWorth(app, uid) {
   const cash = balanceOf(app.db, cashId(uid)), sav = balanceOf(app.db, savId(uid)); const h = homeOf(app, uid);
   const prop = h && h.mode === 'own' ? Math.floor(h.paid_price * app.balance.housing.sellBackFraction) : 0;
-  const land = app.plotValue ? app.plotValue(uid) : 0;
+  const land = (app.plotValue ? app.plotValue(uid) : 0) + (app.carValue ? app.carValue(uid) : 0);
   return { cash, savings: sav, property: prop + land, total: cash + sav + prop + land };
 }
 export function leaderboard(app) {
@@ -354,7 +356,7 @@ export function profile(app, uid) {
   const st = refreshNeeds(app, uid); const nw = netWorth(app, uid); const h = homeOf(app, uid);
   const sh = activeShift(app, uid); const u = app.db.prepare('SELECT username,is_guest,color,created_at FROM users WHERE id=?').get(uid);
   return { id: uid, username: u.username, guest: !!u.is_guest, color: u.color, cash: nw.cash, savings: nw.savings, netWorth: nw.total,
-    pos: { x: st.x, z: st.z, ry: st.ry }, energy: Math.round(st.energy * 10) / 10, hunger: Math.round(st.hunger * 10) / 10, totalShifts: st.total_shifts, mode: st.mode,
+    pos: { x: st.x, z: st.z, ry: st.ry }, energy: Math.round(st.energy * 10) / 10, hunger: Math.round(st.hunger * 10) / 10, mood: Math.round(st.mood * 10) / 10, totalShifts: st.total_shifts, mode: st.mode,
     home: h ? propertyView(app, propDef(app, h.property_id), uid) : null,
     shift: sh ? { id: sh.id, jobId: sh.job_id, endsAt: sh.ends_at, startedAt: sh.started_at, wage: sh.wage } : null };
 }

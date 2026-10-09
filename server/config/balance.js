@@ -47,9 +47,26 @@ export const BALANCE = {
   },
   transport: {
     // fare = round((base + perM * distance) * rush). ESTIMATES. 'car' = your own starter car: fuel only.
-    modes: { keke: { label: 'Keke', base: 100, perM: 1.1, speed: 14 }, danfo: { label: 'Danfo', base: 50, perM: 0.35, speed: 9 }, car: { label: 'My car', base: 0, perM: 0.25, speed: 20 } },
-    rushHours: [[7, 10], [16, 19]], rushMult: 1.3, minSec: 3, maxSec: 6
+    modes: { keke: { label: 'Keke', base: 100, perM: 1.1, speed: 14 }, danfo: { label: 'Danfo', base: 50, perM: 0.35, speed: 9 }, car: { label: 'My car', base: 0, perM: 0.25, speed: 20 } /* replaced at runtime by cars.js: borrowed car or your active car */ },
+    rushHours: [[7, 10], [16, 19]], rushMult: 1.3, minSec: 2, maxSec: 10
   },
+  // ---- mood (a third meter): drifts back to baseline; nice things raise it. ESTIMATES.
+  mood: { baseline: 50, decayPerMin: 0.05, happyAt: 75, happyBonusPct: 5, gameWin: 6, gameLoss: 1, gameDraw: 2, tv: 4, love: 5, lovedOwner: 3, hype: 2, greet: 1, sofa: 3, ride: 1 },
+  // ---- venues + table games (GAME MONEY ONLY: no cash value, no cash-out). Stakes/timers/points are ESTIMATES.
+  games: { stakes: [0, 100, 500], turnMs: 90000, waitMs: 5 * 60000, pointsWin: 3, pointsDraw: 1, maxStakedPerPairPerDay: 5, guestsMayStake: false, enterRadius: 16, leaveRadius: 40, sitPerMin: 10 },
+  // ---- cars (fictional models, placeholder ESTIMATE prices). 'borrowed' is what you drive until you buy one. fuel = perM per metre.
+  cars: {
+    borrowed: { name: 'Borrowed car', base: 60, perM: 0.35, speed: 10, mood: 0 },
+    garageSlots: 3, resale: { firstDriveOffFraction: 0.12, perDayDepreciation: 0.01, floorFraction: 0.5 }, // value = paid * max(floor, 1 - firstDriveOff - perDay * ageDays)
+    models: {
+      kekere: { name: 'Kekere Hatch (used)', price: 900000, perM: 0.30, speed: 14, mood: 1, color: '#e9c46a', body: 'hatch' },
+      oga: { name: 'Oga Sedan', price: 2500000, perM: 0.28, speed: 18, mood: 3, color: '#457b9d', body: 'sedan' },
+      bigboy: { name: 'Big Boy SUV', price: 6000000, perM: 0.45, speed: 24, mood: 6, color: '#2b2d42', body: 'suv' },
+      senator: { name: 'Senator Executive', price: 15000000, perM: 0.40, speed: 28, mood: 8, color: '#d62828', body: 'sedan' }
+    }
+  },
+  decor: { price: 500, walls: { cream: ['Cream', '#f1e7cf'], sky: ['Sky blue', '#9fd0ee'], mint: ['Mint', '#a8dcc0'], peach: ['Peach', '#f6c4a4'], lilac: ['Lilac', '#cdb7ea'], sand: ['Sand', '#d9c59a'], white: ['White', '#f6f6f2'], clay: ['Clay', '#c9876a'] },
+    floors: { oak: ['Oak boards', '#b98a56'], tile: ['Cream tile', '#e5ddc7'], slate: ['Slate', '#6c7480'], terracotta: ['Terracotta', '#b5573a'], mosaic: ['Green mosaic', '#4f8f6b'], dark: ['Dark wood', '#5a3d27'] } },
   land: { dayMs: num('NA_LAND_DAY_MS', 24 * 3600 * 1000), sellFraction: 0.95, maxPlots: 3, levyFraction: 0.06, risk: { low: 0.01, medium: 0.04, high: 0.10 } }, // ESTIMATES
   work: { task: { periodMs: 1800, width: 0.22, bonusPct: 25 } }, // timing mini-game: hit the green zone for +25% wage (ESTIMATE)
   bank: {
