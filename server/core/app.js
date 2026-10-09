@@ -5,6 +5,7 @@ import { createWorld } from './world.js';
 import { Limiter } from './util.js';
 import { installSocial } from './social.js';
 import { carValue } from './cars.js';
+import { palette } from './homes.js';
 import { GAME_NAME } from '../config/game.js';
 import { BALANCE } from '../config/balance.js';
 
@@ -17,6 +18,6 @@ export function createApp({ db, platform, cityJson, balance = BALANCE, clock, ga
     db, platform, balance, gameName, filterHeadless, city: indexCity(cityJson), world: createWorld(), limiter: new Limiter(),
     clock: clock || { now: () => Date.now() + offset.ms, advance: (ms) => { offset.ms += ms; } }, adsVersion: 1, pushUser: null
   };
-  installSocial(app); app.carValue = (uid) => carValue(app, uid);
+  installSocial(app); app.carValue = (uid) => carValue(app, uid); app.palette = () => palette(app);
   return app;
 }

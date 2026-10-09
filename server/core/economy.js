@@ -1,6 +1,7 @@
 // Economy v0. ALL amounts live in config/balance.js (ESTIMATES). Everything that moves money goes through ledger.post.
 import { bad, clamp, cleanText, dayKey } from './util.js';
 import { screen } from './filter.js';
+import { decorOf, lovesOf } from './homes.js';
 import { move, post, cashId, savId, balanceOf, SYS } from './ledger.js';
 
 export const dist = (ax, az, bx, bz) => Math.hypot(ax - bx, az - bz);
@@ -141,7 +142,7 @@ export function shopBuy(app, uid, shopId, itemId, qty = 1, idemKey = null, chann
 export function propertyView(app, p, uid) {
   const o = app.db.prepare('SELECT po.*, u.username, u.color FROM property_owner po JOIN users u ON u.id=po.user_id WHERE property_id=?').get(p.id);
   const items = o ? app.db.prepare('SELECT COUNT(*) n FROM property_items WHERE property_id=?').get(p.id).n : 0;
-  return { id: p.id, name: (o && !o.name_hidden && o.custom_name) || p.name, nameHidden: !!o?.name_hidden, hasCustomName: !!o?.custom_name, baseName: p.name, tier: p.tier, tierLabel: p.tierLabel, rent: p.rent, price: p.price, rooms: p.rooms, door: p.door, buildingId: p.buildingId, area: p.area, items,
+  return { loves: o ? lovesOf(app, p.id) : 0, ...(o ? decorOf(app, o) : {}), id: p.id, name: (o && !o.name_hidden && o.custom_name) || p.name, nameHidden: !!o?.name_hidden, hasCustomName: !!o?.custom_name, baseName: p.name, tier: p.tier, tierLabel: p.tierLabel, rent: p.rent, price: p.price, rooms: p.rooms, door: p.door, buildingId: p.buildingId, area: p.area, items,
     status: o ? (o.user_id === uid ? 'yours' : 'taken') : 'available', owner: o ? o.username : null, ownerColor: o ? o.color : null, mode: o ? o.mode : null,
     presence: o ? app.presenceOf?.(o.user_id, p.id) || 'away' : null, maxGuests: app.balance.housing.guestsByTier[p.tier],
     nextRentDue: o && o.user_id === uid ? o.next_rent_due : undefined, missed: o && o.user_id === uid ? o.missed : undefined };
@@ -195,7 +196,8 @@ export function interior(app, uid, propertyId) {
   const placed = app.db.prepare('SELECT item_id id, x, z, rot FROM property_items WHERE property_id=?').all(propertyId);
   const [rw, rd] = app.balance.housing.room[p.tier];
   const base = { id: p.id, name: (!o.name_hidden && o.custom_name) || p.name, owner: o.username, area: p.area, tier: p.tier, tierLabel: p.tierLabel, rooms: p.rooms, room: { w: rw, d: rd, reserved: reservedRects(app, p.tier) }, items: placed.map(i => i.id), placed, maxGuests: app.balance.housing.guestsByTier[p.tier], guests: app.guestCount?.(propertyId) || 0 };
-  return visitor ? { ...base, visitor: true, readOnly: true } : { ...base, visitor: false, catalog: app.balance.housing.furniture, sellFraction: app.balance.housing.furnitureSellFraction };
+  Object.assign(base, decorOf(app, o), { loves: lovesOf(app, propertyId) });
+  return visitor ? { ...base, visitor: true, readOnly: true } : { ...base, visitor: false, palette: app.palette?.(), catalog: app.balance.housing.furniture, sellFraction: app.balance.housing.furnitureSellFraction };
 }
 export function reservedRects(app, tier) { const [w, d] = app.balance.housing.room[tier]; return [{ x: 0, z: 0, w: 2, d: 3, what: 'bed' }, { x: Math.floor(w / 2) - 1, z: d - 2, w: 2, d: 2, what: 'doorway' }]; }
 const footprint = (def, rot) => (rot % 2 ? { w: def.d, d: def.w } : { w: def.w, d: def.d });
