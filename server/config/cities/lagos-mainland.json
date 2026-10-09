@@ -1,0 +1,1868 @@
+{
+ "id": "lagos-mainland",
+ "name": "Mainland District",
+ "country": "NG",
+ "cityName": "Lagos",
+ "_note": "Data-driven city config. More districts/cities (Abuja, Port Harcourt...) = more files like this one. Fictional layout inspired by Lagos mainland.",
+ "bounds": {
+  "minX": -240,
+  "maxX": 240,
+  "minZ": -240,
+  "maxZ": 165
+ },
+ "water": {
+  "minZ": 165,
+  "maxZ": 260,
+  "minX": -300,
+  "maxX": 300
+ },
+ "roads": [
+  {
+   "id": "rx-120",
+   "name": "Okada Road",
+   "x1": -120,
+   "z1": -240,
+   "x2": -120,
+   "z2": 165,
+   "width": 14
+  },
+  {
+   "id": "rx0",
+   "name": "Unity Avenue",
+   "x1": 0,
+   "z1": -240,
+   "x2": 0,
+   "z2": 165,
+   "width": 14
+  },
+  {
+   "id": "rx120",
+   "name": "Bridge Street",
+   "x1": 120,
+   "z1": -240,
+   "x2": 120,
+   "z2": 165,
+   "width": 14
+  },
+  {
+   "id": "rz-120",
+   "name": "Danfo Drive",
+   "x1": -240,
+   "z1": -120,
+   "x2": 240,
+   "z2": -120,
+   "width": 14
+  },
+  {
+   "id": "rz0",
+   "name": "Market Road",
+   "x1": -240,
+   "z1": 0,
+   "x2": 240,
+   "z2": 0,
+   "width": 14
+  },
+  {
+   "id": "rz120",
+   "name": "Lagoon Drive",
+   "x1": -240,
+   "z1": 120,
+   "x2": 240,
+   "z2": 120,
+   "width": 14
+  }
+ ],
+ "buildings": [
+  {
+   "kind": "house",
+   "tier": 1,
+   "x": -209.5,
+   "z": -209.5,
+   "w": 24,
+   "d": 18,
+   "h": 6,
+   "floors": 2,
+   "color": "#b9c7d4",
+   "roof": "#6b4a3a",
+   "face": [
+    0,
+    -1
+   ],
+   "id": "b001",
+   "propertyId": "h01"
+  },
+  {
+   "kind": "house",
+   "tier": 1,
+   "x": -156.5,
+   "z": -209.5,
+   "w": 23,
+   "d": 19,
+   "h": 6,
+   "floors": 2,
+   "color": "#e3c870",
+   "roof": "#8b3a2f",
+   "face": [
+    0,
+    -1
+   ],
+   "id": "b002",
+   "propertyId": "h02"
+  },
+  {
+   "kind": "house",
+   "tier": 2,
+   "x": -209.5,
+   "z": -156.5,
+   "w": 26,
+   "d": 22,
+   "h": 9,
+   "floors": 3,
+   "color": "#b9c7d4",
+   "roof": "#555a63",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b003",
+   "propertyId": "h03"
+  },
+  {
+   "kind": "house",
+   "tier": 1,
+   "x": -209.5,
+   "z": -85,
+   "w": 26,
+   "d": 19,
+   "h": 6,
+   "floors": 2,
+   "color": "#d8a28c",
+   "roof": "#8b3a2f",
+   "face": [
+    0,
+    -1
+   ],
+   "id": "b004",
+   "propertyId": "h04"
+  },
+  {
+   "kind": "house",
+   "tier": 2,
+   "x": -156.5,
+   "z": -85,
+   "w": 26,
+   "d": 26,
+   "h": 9,
+   "floors": 3,
+   "color": "#9fb7b9",
+   "roof": "#3d5a4a",
+   "face": [
+    0,
+    -1
+   ],
+   "id": "b005",
+   "propertyId": "h05"
+  },
+  {
+   "kind": "house",
+   "tier": 1,
+   "x": -209.5,
+   "z": -35,
+   "w": 23,
+   "d": 21,
+   "h": 6,
+   "floors": 2,
+   "color": "#e8d5b0",
+   "roof": "#555a63",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b006",
+   "propertyId": "h06"
+  },
+  {
+   "kind": "house",
+   "tier": 1,
+   "x": -156.5,
+   "z": -35,
+   "w": 23,
+   "d": 21,
+   "h": 6,
+   "floors": 2,
+   "color": "#c9b9d9",
+   "roof": "#6b4a3a",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b007",
+   "propertyId": "h07"
+  },
+  {
+   "kind": "house",
+   "tier": 2,
+   "x": -209.5,
+   "z": 35,
+   "w": 24,
+   "d": 23,
+   "h": 9,
+   "floors": 3,
+   "color": "#a8c3a0",
+   "roof": "#6b4a3a",
+   "face": [
+    0,
+    -1
+   ],
+   "id": "b008",
+   "propertyId": "h08"
+  },
+  {
+   "kind": "house",
+   "tier": 1,
+   "x": -156.5,
+   "z": 35,
+   "w": 26,
+   "d": 19,
+   "h": 6,
+   "floors": 2,
+   "color": "#f0e6d2",
+   "roof": "#555a63",
+   "face": [
+    0,
+    -1
+   ],
+   "id": "b009",
+   "propertyId": "h09"
+  },
+  {
+   "kind": "house",
+   "tier": 3,
+   "x": -209.5,
+   "z": 85,
+   "w": 32,
+   "d": 27,
+   "h": 10,
+   "floors": 3,
+   "color": "#e3c870",
+   "roof": "#8b3a2f",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b010",
+   "propertyId": "h10"
+  },
+  {
+   "kind": "house",
+   "tier": 2,
+   "x": -156.5,
+   "z": 85,
+   "w": 27,
+   "d": 23,
+   "h": 9,
+   "floors": 3,
+   "color": "#b9c7d4",
+   "roof": "#555a63",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b011",
+   "propertyId": "h11"
+  },
+  {
+   "kind": "kiosk",
+   "x": -156.5,
+   "z": 158.8,
+   "w": 10,
+   "d": 8,
+   "h": 4,
+   "floors": 1,
+   "color": "#a8c3a0",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b012"
+  },
+  {
+   "kind": "house",
+   "tier": 2,
+   "x": -85,
+   "z": -209.5,
+   "w": 28,
+   "d": 24,
+   "h": 9,
+   "floors": 3,
+   "color": "#9fb7b9",
+   "roof": "#555a63",
+   "face": [
+    -1,
+    0
+   ],
+   "id": "b013",
+   "propertyId": "h12"
+  },
+  {
+   "kind": "house",
+   "tier": 1,
+   "x": -35,
+   "z": -209.5,
+   "w": 25,
+   "d": 21,
+   "h": 6,
+   "floors": 2,
+   "color": "#a8c3a0",
+   "roof": "#555a63",
+   "face": [
+    1,
+    0
+   ],
+   "id": "b014",
+   "propertyId": "h13"
+  },
+  {
+   "kind": "house",
+   "tier": 1,
+   "x": -85,
+   "z": -156.5,
+   "w": 23,
+   "d": 20,
+   "h": 6,
+   "floors": 2,
+   "color": "#e3c870",
+   "roof": "#555a63",
+   "face": [
+    -1,
+    0
+   ],
+   "id": "b015",
+   "propertyId": "h14"
+  },
+  {
+   "kind": "house",
+   "tier": 3,
+   "x": -35,
+   "z": -156.5,
+   "w": 31,
+   "d": 30,
+   "h": 10,
+   "floors": 3,
+   "color": "#a8c3a0",
+   "roof": "#555a63",
+   "face": [
+    1,
+    0
+   ],
+   "id": "b016",
+   "propertyId": "h15"
+  },
+  {
+   "kind": "market",
+   "x": -85,
+   "z": -35,
+   "w": 38,
+   "d": 36,
+   "h": 4.5,
+   "floors": 1,
+   "color": "#d9a441",
+   "label": "Balogun-style Market",
+   "face": [
+    0,
+    1
+   ],
+   "noCollide": false,
+   "id": "b017"
+  },
+  {
+   "kind": "market",
+   "x": -35,
+   "z": -35,
+   "w": 38,
+   "d": 36,
+   "h": 4.5,
+   "floors": 1,
+   "color": "#d9a441",
+   "label": "Balogun-style Market",
+   "face": [
+    0,
+    1
+   ],
+   "noCollide": false,
+   "id": "b018"
+  },
+  {
+   "kind": "house",
+   "tier": 1,
+   "x": -85,
+   "z": 35,
+   "w": 22,
+   "d": 21,
+   "h": 6,
+   "floors": 2,
+   "color": "#f0e6d2",
+   "roof": "#6b4a3a",
+   "face": [
+    0,
+    -1
+   ],
+   "id": "b019",
+   "propertyId": "h16"
+  },
+  {
+   "kind": "house",
+   "tier": 3,
+   "x": -35,
+   "z": 35,
+   "w": 28,
+   "d": 26,
+   "h": 10,
+   "floors": 3,
+   "color": "#e8d5b0",
+   "roof": "#555a63",
+   "face": [
+    0,
+    -1
+   ],
+   "id": "b020",
+   "propertyId": "h17"
+  },
+  {
+   "kind": "house",
+   "tier": 1,
+   "x": -85,
+   "z": 85,
+   "w": 22,
+   "d": 20,
+   "h": 6,
+   "floors": 2,
+   "color": "#9fb7b9",
+   "roof": "#555a63",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b021",
+   "propertyId": "h18"
+  },
+  {
+   "kind": "office",
+   "x": -35,
+   "z": 85,
+   "w": 26,
+   "d": 18,
+   "h": 5,
+   "floors": 1,
+   "color": "#6aa0d0",
+   "label": "Bus Park",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b022"
+  },
+  {
+   "kind": "kiosk",
+   "x": -85,
+   "z": 158.8,
+   "w": 10,
+   "d": 8,
+   "h": 4,
+   "floors": 1,
+   "color": "#d8a28c",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b023"
+  },
+  {
+   "kind": "kiosk",
+   "x": -35,
+   "z": 158.8,
+   "w": 10,
+   "d": 8,
+   "h": 4,
+   "floors": 1,
+   "color": "#d8a28c",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b024"
+  },
+  {
+   "kind": "tower",
+   "x": 35,
+   "z": -209.5,
+   "w": 32,
+   "d": 30,
+   "h": 46,
+   "floors": 12,
+   "color": "#b0a090",
+   "face": [
+    -1,
+    0
+   ],
+   "id": "b025"
+  },
+  {
+   "kind": "house",
+   "tier": 2,
+   "x": 85,
+   "z": -209.5,
+   "w": 26,
+   "d": 24,
+   "h": 9,
+   "floors": 3,
+   "color": "#c9b9d9",
+   "roof": "#555a63",
+   "face": [
+    1,
+    0
+   ],
+   "id": "b026",
+   "propertyId": "h19"
+  },
+  {
+   "kind": "house",
+   "tier": 1,
+   "x": 35,
+   "z": -156.5,
+   "w": 24,
+   "d": 19,
+   "h": 6,
+   "floors": 2,
+   "color": "#c9b9d9",
+   "roof": "#555a63",
+   "face": [
+    -1,
+    0
+   ],
+   "id": "b027",
+   "propertyId": "h20"
+  },
+  {
+   "kind": "house",
+   "tier": 2,
+   "x": 85,
+   "z": -156.5,
+   "w": 24,
+   "d": 23,
+   "h": 9,
+   "floors": 3,
+   "color": "#d9bfc0",
+   "roof": "#8b3a2f",
+   "face": [
+    1,
+    0
+   ],
+   "id": "b028",
+   "propertyId": "h21"
+  },
+  {
+   "kind": "tower",
+   "x": 35,
+   "z": -85,
+   "w": 32,
+   "d": 30,
+   "h": 53,
+   "floors": 12,
+   "color": "#a3a3b8",
+   "face": [
+    0,
+    -1
+   ],
+   "id": "b029"
+  },
+  {
+   "kind": "shop",
+   "x": 85,
+   "z": -85,
+   "w": 30,
+   "d": 24,
+   "h": 7,
+   "floors": 1,
+   "color": "#efe3c8",
+   "sign": "#2c6fbb",
+   "label": "Corner Mart",
+   "face": [
+    0,
+    -1
+   ],
+   "shopId": "shop_mart",
+   "id": "b030"
+  },
+  {
+   "kind": "shop",
+   "x": 35,
+   "z": -35,
+   "w": 30,
+   "d": 24,
+   "h": 7,
+   "floors": 1,
+   "color": "#efe3c8",
+   "sign": "#c8553d",
+   "label": "Mama Put Canteen",
+   "face": [
+    0,
+    1
+   ],
+   "shopId": "shop_canteen",
+   "id": "b031"
+  },
+  {
+   "kind": "tower",
+   "x": 85,
+   "z": -35,
+   "w": 32,
+   "d": 30,
+   "h": 51,
+   "floors": 12,
+   "color": "#8fa7a0",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b032"
+  },
+  {
+   "kind": "shop",
+   "x": 35,
+   "z": 35,
+   "w": 30,
+   "d": 24,
+   "h": 7,
+   "floors": 1,
+   "color": "#efe3c8",
+   "sign": "#8a3b12",
+   "label": "Suya Spot",
+   "face": [
+    0,
+    -1
+   ],
+   "shopId": "shop_suya",
+   "id": "b033"
+  },
+  {
+   "kind": "tower",
+   "x": 85,
+   "z": 35,
+   "w": 32,
+   "d": 30,
+   "h": 58,
+   "floors": 12,
+   "color": "#b0a090",
+   "face": [
+    0,
+    -1
+   ],
+   "id": "b034"
+  },
+  {
+   "kind": "office",
+   "x": 35,
+   "z": 85,
+   "w": 28,
+   "d": 22,
+   "h": 8,
+   "floors": 2,
+   "color": "#e07b39",
+   "label": "Rider Dispatch Hub",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b035"
+  },
+  {
+   "kind": "house",
+   "tier": 2,
+   "x": 85,
+   "z": 85,
+   "w": 25,
+   "d": 26,
+   "h": 9,
+   "floors": 3,
+   "color": "#a8c3a0",
+   "roof": "#555a63",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b036",
+   "propertyId": "h22"
+  },
+  {
+   "kind": "kiosk",
+   "x": 85,
+   "z": 158.8,
+   "w": 10,
+   "d": 8,
+   "h": 4,
+   "floors": 1,
+   "color": "#e3c870",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b037"
+  },
+  {
+   "kind": "airport",
+   "x": 183,
+   "z": -198,
+   "w": 100,
+   "d": 50,
+   "h": 14,
+   "floors": 3,
+   "color": "#dfe6ee",
+   "label": "Airport Terminal (placeholder)",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b038"
+  },
+  {
+   "kind": "house",
+   "tier": 3,
+   "x": 156.5,
+   "z": -85,
+   "w": 28,
+   "d": 27,
+   "h": 10,
+   "floors": 3,
+   "color": "#b9c7d4",
+   "roof": "#6b4a3a",
+   "face": [
+    0,
+    -1
+   ],
+   "id": "b039",
+   "propertyId": "h23"
+  },
+  {
+   "kind": "house",
+   "tier": 2,
+   "x": 209.5,
+   "z": -85,
+   "w": 26,
+   "d": 26,
+   "h": 9,
+   "floors": 3,
+   "color": "#cfa77a",
+   "roof": "#8b3a2f",
+   "face": [
+    0,
+    -1
+   ],
+   "id": "b040",
+   "propertyId": "h24"
+  },
+  {
+   "kind": "house",
+   "tier": 1,
+   "x": 156.5,
+   "z": -35,
+   "w": 23,
+   "d": 20,
+   "h": 6,
+   "floors": 2,
+   "color": "#d8a28c",
+   "roof": "#555a63",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b041",
+   "propertyId": "h25"
+  },
+  {
+   "kind": "house",
+   "tier": 3,
+   "x": 209.5,
+   "z": -35,
+   "w": 32,
+   "d": 28,
+   "h": 10,
+   "floors": 3,
+   "color": "#a8c3a0",
+   "roof": "#6b4a3a",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b042",
+   "propertyId": "h26"
+  },
+  {
+   "kind": "house",
+   "tier": 1,
+   "x": 156.5,
+   "z": 35,
+   "w": 22,
+   "d": 20,
+   "h": 6,
+   "floors": 2,
+   "color": "#d9bfc0",
+   "roof": "#3d5a4a",
+   "face": [
+    0,
+    -1
+   ],
+   "id": "b043",
+   "propertyId": "h27"
+  },
+  {
+   "kind": "house",
+   "tier": 2,
+   "x": 209.5,
+   "z": 35,
+   "w": 27,
+   "d": 25,
+   "h": 9,
+   "floors": 3,
+   "color": "#d8a28c",
+   "roof": "#6b4a3a",
+   "face": [
+    0,
+    -1
+   ],
+   "id": "b044",
+   "propertyId": "h28"
+  },
+  {
+   "kind": "house",
+   "tier": 1,
+   "x": 156.5,
+   "z": 85,
+   "w": 25,
+   "d": 22,
+   "h": 6,
+   "floors": 2,
+   "color": "#9fb7b9",
+   "roof": "#3d5a4a",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b045",
+   "propertyId": "h29"
+  },
+  {
+   "kind": "office",
+   "x": 209.5,
+   "z": 85,
+   "w": 16,
+   "d": 14,
+   "h": 5,
+   "floors": 1,
+   "color": "#f2c744",
+   "label": "POS & Airtime",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b046"
+  },
+  {
+   "kind": "kiosk",
+   "x": 209.5,
+   "z": 158.8,
+   "w": 10,
+   "d": 8,
+   "h": 4,
+   "floors": 1,
+   "color": "#d8a28c",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b047"
+  }
+ ],
+ "properties": [
+  {
+   "id": "h01",
+   "buildingId": "b001",
+   "name": "Yaba Corner",
+   "tier": 1,
+   "tierLabel": "Face-me-I-face-you room",
+   "rent": 1500,
+   "price": 0,
+   "door": {
+    "x": -209.5,
+    "z": -221.5
+   },
+   "rooms": 1
+  },
+  {
+   "id": "h02",
+   "buildingId": "b002",
+   "name": "Surulere Lodge",
+   "tier": 1,
+   "tierLabel": "Face-me-I-face-you room",
+   "rent": 1500,
+   "price": 0,
+   "door": {
+    "x": -156.5,
+    "z": -222
+   },
+   "rooms": 1
+  },
+  {
+   "id": "h03",
+   "buildingId": "b003",
+   "name": "Mushin Court",
+   "tier": 2,
+   "tierLabel": "Mini-flat",
+   "rent": 4000,
+   "price": 150000,
+   "door": {
+    "x": -209.5,
+    "z": -142.5
+   },
+   "rooms": 2
+  },
+  {
+   "id": "h04",
+   "buildingId": "b004",
+   "name": "Bariga Rooms",
+   "tier": 1,
+   "tierLabel": "Face-me-I-face-you room",
+   "rent": 1500,
+   "price": 0,
+   "door": {
+    "x": -209.5,
+    "z": -97.5
+   },
+   "rooms": 1
+  },
+  {
+   "id": "h05",
+   "buildingId": "b005",
+   "name": "Ikeja View",
+   "tier": 2,
+   "tierLabel": "Mini-flat",
+   "rent": 4000,
+   "price": 150000,
+   "door": {
+    "x": -156.5,
+    "z": -101
+   },
+   "rooms": 2
+  },
+  {
+   "id": "h06",
+   "buildingId": "b006",
+   "name": "Maryland Flats",
+   "tier": 1,
+   "tierLabel": "Face-me-I-face-you room",
+   "rent": 1500,
+   "price": 0,
+   "door": {
+    "x": -209.5,
+    "z": -21.5
+   },
+   "rooms": 1
+  },
+  {
+   "id": "h07",
+   "buildingId": "b007",
+   "name": "Ojuelegba Place",
+   "tier": 1,
+   "tierLabel": "Face-me-I-face-you room",
+   "rent": 1500,
+   "price": 0,
+   "door": {
+    "x": -156.5,
+    "z": -21.5
+   },
+   "rooms": 1
+  },
+  {
+   "id": "h08",
+   "buildingId": "b008",
+   "name": "Gbagada Heights",
+   "tier": 2,
+   "tierLabel": "Mini-flat",
+   "rent": 4000,
+   "price": 150000,
+   "door": {
+    "x": -209.5,
+    "z": 20.5
+   },
+   "rooms": 2
+  },
+  {
+   "id": "h09",
+   "buildingId": "b009",
+   "name": "Lekki Phase",
+   "tier": 1,
+   "tierLabel": "Face-me-I-face-you room",
+   "rent": 1500,
+   "price": 0,
+   "door": {
+    "x": -156.5,
+    "z": 22.5
+   },
+   "rooms": 1
+  },
+  {
+   "id": "h10",
+   "buildingId": "b010",
+   "name": "Ajegunle Rooms",
+   "tier": 3,
+   "tierLabel": "Duplex",
+   "rent": 9000,
+   "price": 450000,
+   "door": {
+    "x": -209.5,
+    "z": 101.5
+   },
+   "rooms": 4
+  },
+  {
+   "id": "h11",
+   "buildingId": "b011",
+   "name": "Festac Duplex",
+   "tier": 2,
+   "tierLabel": "Mini-flat",
+   "rent": 4000,
+   "price": 150000,
+   "door": {
+    "x": -156.5,
+    "z": 99.5
+   },
+   "rooms": 2
+  },
+  {
+   "id": "h12",
+   "buildingId": "b013",
+   "name": "Ilupeju House",
+   "tier": 2,
+   "tierLabel": "Mini-flat",
+   "rent": 4000,
+   "price": 150000,
+   "door": {
+    "x": -102,
+    "z": -209.5
+   },
+   "rooms": 2
+  },
+  {
+   "id": "h13",
+   "buildingId": "b014",
+   "name": "Oshodi Block",
+   "tier": 1,
+   "tierLabel": "Face-me-I-face-you room",
+   "rent": 1500,
+   "price": 0,
+   "door": {
+    "x": -19.5,
+    "z": -209.5
+   },
+   "rooms": 1
+  },
+  {
+   "id": "h14",
+   "buildingId": "b015",
+   "name": "Apapa Terrace",
+   "tier": 1,
+   "tierLabel": "Face-me-I-face-you room",
+   "rent": 1500,
+   "price": 0,
+   "door": {
+    "x": -99.5,
+    "z": -156.5
+   },
+   "rooms": 1
+  },
+  {
+   "id": "h15",
+   "buildingId": "b016",
+   "name": "Ketu Rooms",
+   "tier": 3,
+   "tierLabel": "Duplex",
+   "rent": 9000,
+   "price": 450000,
+   "door": {
+    "x": -16.5,
+    "z": -156.5
+   },
+   "rooms": 4
+  },
+  {
+   "id": "h16",
+   "buildingId": "b019",
+   "name": "Ojota Villa",
+   "tier": 1,
+   "tierLabel": "Face-me-I-face-you room",
+   "rent": 1500,
+   "price": 0,
+   "door": {
+    "x": -85,
+    "z": 21.5
+   },
+   "rooms": 1
+  },
+  {
+   "id": "h17",
+   "buildingId": "b020",
+   "name": "Akoka Flats",
+   "tier": 3,
+   "tierLabel": "Duplex",
+   "rent": 9000,
+   "price": 450000,
+   "door": {
+    "x": -35,
+    "z": 19
+   },
+   "rooms": 4
+  },
+  {
+   "id": "h18",
+   "buildingId": "b021",
+   "name": "Anthony Close",
+   "tier": 1,
+   "tierLabel": "Face-me-I-face-you room",
+   "rent": 1500,
+   "price": 0,
+   "door": {
+    "x": -85,
+    "z": 98
+   },
+   "rooms": 1
+  },
+  {
+   "id": "h19",
+   "buildingId": "b026",
+   "name": "Isale Eko House",
+   "tier": 2,
+   "tierLabel": "Mini-flat",
+   "rent": 4000,
+   "price": 150000,
+   "door": {
+    "x": 101,
+    "z": -209.5
+   },
+   "rooms": 2
+  },
+  {
+   "id": "h20",
+   "buildingId": "b027",
+   "name": "Palmgrove Court",
+   "tier": 1,
+   "tierLabel": "Face-me-I-face-you room",
+   "rent": 1500,
+   "price": 0,
+   "door": {
+    "x": 20,
+    "z": -156.5
+   },
+   "rooms": 1
+  },
+  {
+   "id": "h21",
+   "buildingId": "b028",
+   "name": "Obalende Rooms",
+   "tier": 2,
+   "tierLabel": "Mini-flat",
+   "rent": 4000,
+   "price": 150000,
+   "door": {
+    "x": 100,
+    "z": -156.5
+   },
+   "rooms": 2
+  },
+  {
+   "id": "h22",
+   "buildingId": "b036",
+   "name": "Ebute Metta Lodge",
+   "tier": 2,
+   "tierLabel": "Mini-flat",
+   "rent": 4000,
+   "price": 150000,
+   "door": {
+    "x": 85,
+    "z": 101
+   },
+   "rooms": 2
+  },
+  {
+   "id": "h23",
+   "buildingId": "b039",
+   "name": "Yaba Corner",
+   "tier": 3,
+   "tierLabel": "Duplex",
+   "rent": 9000,
+   "price": 450000,
+   "door": {
+    "x": 156.5,
+    "z": -101.5
+   },
+   "rooms": 4
+  },
+  {
+   "id": "h24",
+   "buildingId": "b040",
+   "name": "Surulere Lodge",
+   "tier": 2,
+   "tierLabel": "Mini-flat",
+   "rent": 4000,
+   "price": 150000,
+   "door": {
+    "x": 209.5,
+    "z": -101
+   },
+   "rooms": 2
+  },
+  {
+   "id": "h25",
+   "buildingId": "b041",
+   "name": "Mushin Court",
+   "tier": 1,
+   "tierLabel": "Face-me-I-face-you room",
+   "rent": 1500,
+   "price": 0,
+   "door": {
+    "x": 156.5,
+    "z": -22
+   },
+   "rooms": 1
+  },
+  {
+   "id": "h26",
+   "buildingId": "b042",
+   "name": "Bariga Rooms",
+   "tier": 3,
+   "tierLabel": "Duplex",
+   "rent": 9000,
+   "price": 450000,
+   "door": {
+    "x": 209.5,
+    "z": -18
+   },
+   "rooms": 4
+  },
+  {
+   "id": "h27",
+   "buildingId": "b043",
+   "name": "Ikeja View",
+   "tier": 1,
+   "tierLabel": "Face-me-I-face-you room",
+   "rent": 1500,
+   "price": 0,
+   "door": {
+    "x": 156.5,
+    "z": 22
+   },
+   "rooms": 1
+  },
+  {
+   "id": "h28",
+   "buildingId": "b044",
+   "name": "Maryland Flats",
+   "tier": 2,
+   "tierLabel": "Mini-flat",
+   "rent": 4000,
+   "price": 150000,
+   "door": {
+    "x": 209.5,
+    "z": 19.5
+   },
+   "rooms": 2
+  },
+  {
+   "id": "h29",
+   "buildingId": "b045",
+   "name": "Ojuelegba Place",
+   "tier": 1,
+   "tierLabel": "Face-me-I-face-you room",
+   "rent": 1500,
+   "price": 0,
+   "door": {
+    "x": 156.5,
+    "z": 99
+   },
+   "rooms": 1
+  }
+ ],
+ "shops": [
+  {
+   "id": "shop_mart",
+   "name": "Corner Mart",
+   "desc": "Provisions, drinks and snacks.",
+   "buildingId": "b030",
+   "x": 85,
+   "z": -100,
+   "items": [
+    {
+     "id": "water",
+     "name": "Sachet water (pure water)",
+     "price": 150,
+     "hunger": 3,
+     "energy": 4
+    },
+    {
+     "id": "pie",
+     "name": "Meat pie",
+     "price": 400,
+     "hunger": 20,
+     "energy": 0
+    },
+    {
+     "id": "energy_drink",
+     "name": "Energy drink",
+     "price": 600,
+     "hunger": 0,
+     "energy": 28
+    }
+   ]
+  },
+  {
+   "id": "shop_canteen",
+   "name": "Mama Put Canteen",
+   "desc": "Jollof, rice and stew. Proper food.",
+   "buildingId": "b031",
+   "x": 35,
+   "z": -20,
+   "items": [
+    {
+     "id": "jollof",
+     "name": "Jollof rice + chicken",
+     "price": 1500,
+     "hunger": 55,
+     "energy": 8
+    },
+    {
+     "id": "amala",
+     "name": "Amala + ewedu",
+     "price": 1100,
+     "hunger": 45,
+     "energy": 6
+    },
+    {
+     "id": "zobo",
+     "name": "Zobo drink",
+     "price": 300,
+     "hunger": 5,
+     "energy": 6
+    }
+   ]
+  },
+  {
+   "id": "shop_suya",
+   "name": "Suya Spot",
+   "desc": "Hot suya off the grill, late.",
+   "buildingId": "b033",
+   "x": 35,
+   "z": 20,
+   "items": [
+    {
+     "id": "suya",
+     "name": "Suya (pepper, no onions)",
+     "price": 900,
+     "hunger": 32,
+     "energy": 3
+    },
+    {
+     "id": "bread",
+     "name": "Agege bread",
+     "price": 350,
+     "hunger": 18,
+     "energy": 0
+    }
+   ]
+  }
+ ],
+ "jobs": [
+  {
+   "id": "job_shop",
+   "x": 77,
+   "z": -100,
+   "label": "Corner Mart (staff entrance)"
+  },
+  {
+   "id": "job_rider",
+   "x": 35,
+   "z": 99,
+   "label": "Rider Dispatch Hub"
+  },
+  {
+   "id": "job_pos",
+   "x": 209.5,
+   "z": 95,
+   "label": "POS kiosk"
+  },
+  {
+   "id": "job_bus",
+   "x": -35,
+   "z": 103,
+   "label": "Bus Park"
+  },
+  {
+   "id": "job_market",
+   "x": -35,
+   "z": -13,
+   "label": "Market stall"
+  }
+ ],
+ "billboards": [
+  {
+   "id": "bb01",
+   "surface": "road_billboard",
+   "tier": "street",
+   "x": -60,
+   "z": -110,
+   "nx": 0,
+   "nz": -1,
+   "w": 12,
+   "h": 6,
+   "y": 9
+  },
+  {
+   "id": "bb02",
+   "surface": "road_billboard",
+   "tier": "street",
+   "x": 60,
+   "z": -110,
+   "nx": 0,
+   "nz": -1,
+   "w": 12,
+   "h": 6,
+   "y": 9
+  },
+  {
+   "id": "bb03",
+   "surface": "road_billboard",
+   "tier": "street",
+   "x": -110,
+   "z": 60,
+   "nx": -1,
+   "nz": 0,
+   "w": 12,
+   "h": 6,
+   "y": 9
+  },
+  {
+   "id": "bb04",
+   "surface": "road_billboard",
+   "tier": "major",
+   "x": 110,
+   "z": -60,
+   "nx": 1,
+   "nz": 0,
+   "w": 12,
+   "h": 6,
+   "y": 9
+  },
+  {
+   "id": "bb05",
+   "surface": "road_billboard",
+   "tier": "major",
+   "x": -60,
+   "z": 10,
+   "nx": 0,
+   "nz": -1,
+   "w": 12,
+   "h": 6,
+   "y": 9
+  },
+  {
+   "id": "bb06",
+   "surface": "road_billboard",
+   "tier": "major",
+   "x": 60,
+   "z": -10,
+   "nx": 0,
+   "nz": 1,
+   "w": 12,
+   "h": 6,
+   "y": 9
+  },
+  {
+   "id": "bb07",
+   "surface": "road_billboard",
+   "tier": "mega",
+   "x": -100,
+   "z": 112,
+   "nx": 0,
+   "nz": 1,
+   "w": 16,
+   "h": 8,
+   "y": 11
+  },
+  {
+   "id": "bb08",
+   "surface": "road_billboard",
+   "tier": "mega",
+   "x": 100,
+   "z": 110,
+   "nx": 0,
+   "nz": -1,
+   "w": 16,
+   "h": 8,
+   "y": 11
+  },
+  {
+   "id": "ap01",
+   "surface": "airport_board",
+   "tier": "standard",
+   "x": 160,
+   "z": -170,
+   "nx": 0,
+   "nz": 1,
+   "w": 12,
+   "h": 6,
+   "y": 9
+  },
+  {
+   "id": "ap02",
+   "surface": "airport_board",
+   "tier": "standard",
+   "x": 205,
+   "z": -170,
+   "nx": 0,
+   "nz": 1,
+   "w": 12,
+   "h": 6,
+   "y": 9
+  },
+  {
+   "id": "lg01",
+   "surface": "lagoon_plot",
+   "tier": "plot6x6",
+   "x": -150,
+   "z": 205,
+   "nx": 0,
+   "nz": -1,
+   "w": 24,
+   "h": 24,
+   "y": 13
+  },
+  {
+   "id": "lg02",
+   "surface": "lagoon_plot",
+   "tier": "plot6x6",
+   "x": -50,
+   "z": 205,
+   "nx": 0,
+   "nz": -1,
+   "w": 24,
+   "h": 24,
+   "y": 13
+  },
+  {
+   "id": "lg03",
+   "surface": "lagoon_plot",
+   "tier": "plot6x6",
+   "x": 50,
+   "z": 205,
+   "nx": 0,
+   "nz": -1,
+   "w": 24,
+   "h": 24,
+   "y": 13
+  },
+  {
+   "id": "lg04",
+   "surface": "lagoon_plot",
+   "tier": "plot6x6",
+   "x": 150,
+   "z": 205,
+   "nx": 0,
+   "nz": -1,
+   "w": 24,
+   "h": 24,
+   "y": 13
+  }
+ ],
+ "spawns": [
+  {
+   "x": -12,
+   "z": -12,
+   "ry": 0
+  },
+  {
+   "x": 12,
+   "z": -12,
+   "ry": 0
+  },
+  {
+   "x": -12,
+   "z": 12,
+   "ry": 0
+  },
+  {
+   "x": 12,
+   "z": 12,
+   "ry": 0
+  },
+  {
+   "x": 0,
+   "z": 22,
+   "ry": 0
+  },
+  {
+   "x": -24,
+   "z": 0,
+   "ry": 0
+  }
+ ],
+ "trafficLoops": [
+  {
+   "id": "big",
+   "pts": [
+    [
+     -116.5,
+     -116.5
+    ],
+    [
+     116.5,
+     -116.5
+    ],
+    [
+     116.5,
+     116.5
+    ],
+    [
+     -116.5,
+     116.5
+    ]
+   ],
+   "npcs": [
+    "danfo",
+    "car",
+    "keke"
+   ]
+  },
+  {
+   "id": "nw",
+   "pts": [
+    [
+     -116.5,
+     -116.5
+    ],
+    [
+     -3.5,
+     -116.5
+    ],
+    [
+     -3.5,
+     -3.5
+    ],
+    [
+     -116.5,
+     -3.5
+    ]
+   ],
+   "npcs": [
+    "car",
+    "okada"
+   ]
+  },
+  {
+   "id": "ne",
+   "pts": [
+    [
+     3.5,
+     -116.5
+    ],
+    [
+     116.5,
+     -116.5
+    ],
+    [
+     116.5,
+     -3.5
+    ],
+    [
+     3.5,
+     -3.5
+    ]
+   ],
+   "npcs": [
+    "danfo",
+    "car"
+   ]
+  },
+  {
+   "id": "se",
+   "pts": [
+    [
+     3.5,
+     3.5
+    ],
+    [
+     116.5,
+     3.5
+    ],
+    [
+     116.5,
+     116.5
+    ],
+    [
+     3.5,
+     116.5
+    ]
+   ],
+   "npcs": [
+    "keke",
+    "car",
+    "okada"
+   ]
+  },
+  {
+   "id": "sw",
+   "pts": [
+    [
+     -116.5,
+     3.5
+    ],
+    [
+     -3.5,
+     3.5
+    ],
+    [
+     -3.5,
+     116.5
+    ],
+    [
+     -116.5,
+     116.5
+    ]
+   ],
+   "npcs": [
+    "danfo",
+    "keke"
+   ]
+  }
+ ],
+ "landmarks": [
+  {
+   "id": "plaza",
+   "kind": "plaza",
+   "x": -10,
+   "z": -10,
+   "name": "Unity Plaza"
+  }
+ ],
+ "zones": [
+  {
+   "id": "blk00",
+   "x0": -236,
+   "x1": -130,
+   "z0": -236,
+   "z1": -130
+  },
+  {
+   "id": "blk01",
+   "x0": -236,
+   "x1": -130,
+   "z0": -110,
+   "z1": -10
+  },
+  {
+   "id": "blk02",
+   "x0": -236,
+   "x1": -130,
+   "z0": 10,
+   "z1": 110
+  },
+  {
+   "id": "blk03",
+   "x0": -236,
+   "x1": -130,
+   "z0": 130,
+   "z1": 163
+  },
+  {
+   "id": "blk10",
+   "x0": -110,
+   "x1": -10,
+   "z0": -236,
+   "z1": -130
+  },
+  {
+   "id": "blk11",
+   "x0": -110,
+   "x1": -10,
+   "z0": -110,
+   "z1": -10
+  },
+  {
+   "id": "blk12",
+   "x0": -110,
+   "x1": -10,
+   "z0": 10,
+   "z1": 110
+  },
+  {
+   "id": "blk13",
+   "x0": -110,
+   "x1": -10,
+   "z0": 130,
+   "z1": 163
+  },
+  {
+   "id": "blk20",
+   "x0": 10,
+   "x1": 110,
+   "z0": -236,
+   "z1": -130
+  },
+  {
+   "id": "blk21",
+   "x0": 10,
+   "x1": 110,
+   "z0": -110,
+   "z1": -10
+  },
+  {
+   "id": "blk22",
+   "x0": 10,
+   "x1": 110,
+   "z0": 10,
+   "z1": 110
+  },
+  {
+   "id": "blk23",
+   "x0": 10,
+   "x1": 110,
+   "z0": 130,
+   "z1": 163
+  },
+  {
+   "id": "blk30",
+   "x0": 130,
+   "x1": 236,
+   "z0": -236,
+   "z1": -130
+  },
+  {
+   "id": "blk31",
+   "x0": 130,
+   "x1": 236,
+   "z0": -110,
+   "z1": -10
+  },
+  {
+   "id": "blk32",
+   "x0": 130,
+   "x1": 236,
+   "z0": 10,
+   "z1": 110
+  },
+  {
+   "id": "blk33",
+   "x0": 130,
+   "x1": 236,
+   "z0": 130,
+   "z1": 163
+  }
+ ]
+}

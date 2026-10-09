@@ -1,0 +1,28 @@
+{
+  "name": "naija-area",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Naija Area v0: browser-based multiplayer city life sim (ad-supported). Test mode only: no real payments.",
+  "scripts": {
+    "start": "node server/index.js",
+    "build": "node tools/build-client.mjs",
+    "build:demo": "node tools/build-demo.mjs",
+    "seed": "node scripts/seed.js",
+    "bots": "node scripts/bots.js",
+    "test": "node --test --test-concurrency=1 tests/",
+    "smoke": "node scripts/e2e-smoke.mjs"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.5.0",
+    "express": "^4.21.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "puppeteer-core": "^24.0.0",
+    "sql.js": "^1.11.0",
+    "three": "^0.170.0"
+  }
+}
