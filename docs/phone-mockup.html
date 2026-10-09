@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Naija Area phone: clickable mockup (design only, not wired to the game)</title>
+<style>
+:root{--green:#0f6b3c;--ink:#14231b;--paper:#fff8e7;--amber:#f2b632;--red:#d6402f;--blue:#2e7dd1}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;gap:28px;background:#1d2a24;font-family:system-ui,"Nunito",sans-serif;color:var(--ink)}
+.note{max-width:260px;color:#cfe3d6;font-size:14px;line-height:1.45}.note b{color:#fff}.note code{background:#0003;padding:1px 5px;border-radius:4px}
+.phone{width:340px;height:660px;background:#0b0f0d;border-radius:42px;padding:12px;box-shadow:0 20px 60px #0008,inset 0 0 0 2px #333;position:relative}
+.screen{width:100%;height:100%;border-radius:32px;overflow:hidden;background:var(--paper);position:relative;display:flex;flex-direction:column}
+.status{height:30px;display:flex;justify-content:space-between;align-items:center;padding:0 18px;font-size:12px;font-weight:700;color:#fff;background:var(--green);flex:none}
+.status.dark{background:#10241a}.status .r{display:flex;gap:6px}
+.view{flex:1;overflow:auto;display:none;flex-direction:column}.view.on{display:flex}
+.wall{background:linear-gradient(160deg,#1a8a52,#0f6b3c 55%,#0a3f26);color:#fff}
+.clock{padding:22px 22px 6px;font-size:44px;font-weight:800;letter-spacing:-1px}.date{padding:0 22px 14px;opacity:.85;font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 6px;padding:10px 14px}
+.app{border:0;background:none;color:inherit;font:inherit;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;position:relative}
+.app i{width:54px;height:54px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:27px;font-style:normal;box-shadow:0 3px 8px #0004}
+.app small{font-size:11px}.badge{position:absolute;top:-4px;right:6px;background:var(--red);color:#fff;border-radius:10px;font-size:11px;padding:1px 6px;font-weight:700}
+.sponsor small:after{content:" · Ad";opacity:.7}
+.dock{margin-top:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:12px 14px;background:#0003;border-radius:22px;margin:auto 10px 10px}
+.bar{height:46px;flex:none;display:flex;justify-content:space-around;align-items:center;background:#0b0f0d}
+.bar button{background:none;border:0;color:#cfe3d6;font-size:18px;cursor:pointer;padding:6px 20px;border-radius:12px}.bar button:hover{background:#fff2}
+.head{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--green);color:#fff;font-weight:800;flex:none}.head .sp{flex:1}.head button{background:#fff2;border:0;color:#fff;border-radius:10px;padding:5px 9px;cursor:pointer;font-size:15px}
+.list{padding:6px 0}.row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #0001;cursor:pointer}.row:hover{background:#0f6b3c12}
+.av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;flex:none;position:relative}
+.dot{position:absolute;right:-1px;bottom:-1px;width:12px;height:12px;border-radius:50%;border:2px solid var(--paper);background:#9aa}.dot.on{background:#2fbf6b}.dot.home{background:var(--amber)}
+.row .t{flex:1;min-width:0}.row .t b{display:block}.row .t span{font-size:12px;color:#556;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.chip{font-size:11px;background:#0f6b3c1f;color:var(--green);padding:2px 8px;border-radius:10px;font-weight:700}
+.msgs{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:8px;background:#efe6cc}
+.b{max-width:80%;padding:8px 11px;border-radius:14px;font-size:14px;line-height:1.3;position:relative}.b.in{background:#fff;align-self:flex-start;border-bottom-left-radius:4px}.b.out{background:#bfe8c8;align-self:flex-end;border-bottom-right-radius:4px}
+.b small{display:block;font-size:10px;color:#667;margin-top:3px;text-align:right}.sys{align-self:center;font-size:12px;color:#556;background:#fff8;padding:3px 10px;border-radius:10px}
+.vn{display:flex;align-items:center;gap:8px;min-width:210px}.vn button{width:34px;height:34px;border-radius:50%;border:0;background:var(--green);color:#fff;cursor:pointer;font-size:14px}
+.wave{display:flex;align-items:center;gap:2px;height:30px;flex:1}.wave s{display:block;width:3px;background:#0f6b3c66;border-radius:2px}.wave s.p{background:var(--green)}
+.vn em{font-style:normal;font-size:11px;color:#556}
+.compose{display:flex;gap:6px;padding:8px;background:var(--paper);flex:none;align-items:center}.compose input{flex:1;border:1px solid #0002;border-radius:18px;padding:9px 12px;font:inherit;font-size:14px;min-width:0}
+.compose button{border:0;border-radius:50%;width:38px;height:38px;font-size:17px;cursor:pointer;background:var(--green);color:#fff}.compose .mic{background:var(--amber);color:#222}
+.rec{display:none;align-items:center;gap:10px;padding:10px 12px;background:#ffe7e3;flex:none;font-size:13px}.rec.on{display:flex}.rec .pulse{width:12px;height:12px;border-radius:50%;background:var(--red);animation:p 1s infinite}@keyframes p{50%{opacity:.25}}
+.rec button{margin-left:auto;border:0;border-radius:12px;padding:6px 10px;cursor:pointer}
+.call{background:linear-gradient(170deg,#12301f,#06130c);color:#fff;align-items:center;text-align:center;padding:50px 20px 30px;gap:6px}
+.call .big{width:110px;height:110px;border-radius:50%;font-size:46px;margin:14px 0 8px;background:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:800;box-shadow:0 0 0 0 #2e7dd188;animation:ring 1.4s infinite}
+.call.active .big{animation:none;box-shadow:0 0 0 6px #2fbf6b66}@keyframes ring{70%{box-shadow:0 0 0 24px #2e7dd100}100%{box-shadow:0 0 0 0 #2e7dd100}}
+.call h2{margin:0;font-size:26px}.call p{margin:2px 0;opacity:.8}.call .acts{margin-top:auto;display:flex;gap:44px}
+.call .acts button{width:68px;height:68px;border-radius:50%;border:0;font-size:28px;cursor:pointer;color:#fff}.call .acts small{display:block;font-size:12px;margin-top:6px;opacity:.85}
+.red{background:var(--red)}.grn{background:#2fbf6b}.gry{background:#ffffff26}
+.tools{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:22px;width:100%}.tools button{background:#ffffff1c;border:0;color:#fff;border-radius:16px;padding:12px 4px;cursor:pointer;font-size:12px}.tools button.on{background:#fff;color:#12301f}.tools i{font-size:22px;display:block;font-style:normal;margin-bottom:3px}
+.set{padding:8px 14px}.set h4{margin:12px 0 4px;font-size:12px;text-transform:uppercase;color:#667;letter-spacing:.5px}
+.sw{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #0001;font-size:14px}.sw input{width:38px;height:22px;accent-color:var(--green)}
+.tag{display:inline-block;background:#f2b63244;border:1px solid #f2b632;color:#7a5600;font-size:11px;padding:2px 8px;border-radius:10px;margin:8px 14px 0;font-weight:700}
+.toast{position:absolute;left:14px;right:14px;top:40px;background:#10241a;color:#fff;border-radius:14px;padding:10px 12px;font-size:13px;display:none;z-index:9;box-shadow:0 6px 20px #0006;cursor:pointer}.toast.on{display:block}
+</style></head><body>
+<div class="note"><b>Naija Area phone</b> · design mockup<br><br>Click around: app icons, the ◀ back and ● home buttons, the 🎤 mic, ▶ on the voice note, the ringing call (Accept / Decline).<br><br>Static HTML, <b>not</b> wired to the game or any server. Placeholder names and numbers are made up.<br><br>Jump to a screen: <code>#home</code> <code>#chats</code> <code>#chat</code> <code>#recording</code> <code>#incoming</code> <code>#incall</code> <code>#contacts</code> <code>#settings</code><br><br>Spec: <code>15_phone_system_spec.md</code></div>
+<div class="phone"><div class="screen" id="screen">
+  <div class="status" id="status"><span id="clk">9:41</span><span class="r"><span>📶</span><span>🔋 82%</span></span></div>
+  <div class="toast" id="toast"></div>
+
+  <section class="view wall on" id="home">
+    <div class="clock">9:41</div><div class="date">Friday · Lagos · ☀️ 29°</div>
+    <div class="grid">
+      <button class="app" data-go="calls"><i style="background:#2fbf6b">📞</i><small>Phone</small><span class="badge" id="bMiss">1</span></button>
+      <button class="app" data-go="chats"><i style="background:#2e7dd1">💬</i><small>Chats</small><span class="badge">3</span></button>
+      <button class="app" data-go="contacts"><i style="background:#8a5ad6">👥</i><small>Friends</small></button>
+      <button class="app" data-go="settings"><i style="background:#667">⚙️</i><small>Settings</small></button>
+      <button class="app" data-go="stub"><i style="background:#f2b632">💰</i><small>Wallet</small></button>
+      <button class="app" data-go="stub"><i style="background:#d6402f">💼</i><small>Jobs</small></button>
+      <button class="app" data-go="stub"><i style="background:#0f9d8a">🏠</i><small>Home</small></button>
+      <button class="app" data-go="stub"><i style="background:#c46a1a">🚗</i><small>Garage</small></button>
+      <button class="app" data-go="stub"><i style="background:#e0a020">🏆</i><small>Ranks</small></button>
+      <button class="app" data-go="stub"><i style="background:#555">🔔</i><small>Alerts</small></button>
+      <button class="app sponsor" data-go="stub"><i style="background:#fff;color:#222;font-size:15px;font-weight:800">BRAND</i><small>Sample Bank</small></button>
+      <button class="app sponsor" data-go="stub"><i style="background:#ffe14d;color:#222;font-size:15px;font-weight:800">FOOD</i><small>Sample Eats</small></button>
+    </div>
+    <div class="dock">
+      <button class="app" data-go="calls"><i style="background:#2fbf6b">📞</i></button>
+      <button class="app" data-go="chats"><i style="background:#2e7dd1">💬</i></button>
+      <button class="app" data-go="contacts"><i style="background:#8a5ad6">👥</i></button>
+      <button class="app" data-go="settings"><i style="background:#667">⚙️</i></button>
+    </div>
+  </section>
+
+  <section class="view" id="calls"><div class="head"><button data-back>◀</button><span class="sp">Phone</span><button data-go="contacts">＋</button></div>
+    <div class="list">
+      <div class="row" data-go="incoming"><div class="av" style="background:#d6402f">T<i class="dot on"></i></div><div class="t"><b>Tunde_Lag</b><span>📞 incoming · now (tap to see the ring screen)</span></div></div>
+      <div class="row"><div class="av" style="background:#8a5ad6">C<i class="dot home"></i></div><div class="t"><b style="color:#d6402f">Chioma_K</b><span>↙ missed call · 8:12</span></div><span class="chip">1</span></div>
+      <div class="row"><div class="av" style="background:#0f9d8a">E</div><div class="t"><b>Emeka_O</b><span>↗ outgoing · 4 min · yesterday</span></div></div>
+      <div class="row"><div class="av" style="background:#c46a1a">B</div><div class="t"><b>Bisi_Lag</b><span>↙ declined · yesterday</span></div></div>
+    </div><span class="tag">Calls need a mic. Not recorded.</span></section>
+
+  <section class="view" id="chats"><div class="head"><button data-back>◀</button><span class="sp">Chats</span><button data-go="contacts">✎</button></div>
+    <div class="list">
+      <div class="row" data-go="chat"><div class="av" style="background:#d6402f">T<i class="dot on"></i></div><div class="t"><b>Tunde_Lag</b><span>🎤 Voice note · 0:07</span></div><span class="chip">2</span></div>
+      <div class="row"><div class="av" style="background:#8a5ad6">C<i class="dot home"></i></div><div class="t"><b>Chioma_K</b><span>You: see you at Mama Put?</span></div></div>
+      <div class="row"><div class="av" style="background:#0f9d8a">E</div><div class="t"><b>Emeka_O</b><span>Ludo tonight 🎲</span></div><span class="chip">1</span></div>
+    </div></section>
+
+  <section class="view" id="chat" style="background:#efe6cc"><div class="head"><button data-back>◀</button><div class="av" style="background:#d6402f;width:32px;height:32px;font-size:14px">T</div><span class="sp">Tunde_Lag <small style="font-weight:400">· online</small></span><button data-go="incall" title="Voice call">📞</button></div>
+    <div class="msgs" id="msgs">
+      <div class="sys">Today</div>
+      <div class="b in">How far! You dey Mama Put?<small>9:30</small></div>
+      <div class="b out">Yes o, I dey come<small>9:31 ✓✓</small></div>
+      <div class="b in"><div class="vn"><button id="play">▶</button><div class="wave" id="wave"></div><em id="vt">0:07</em></div><small>9:38 · tap ⋯ to report</small></div>
+      <div class="b out"><div class="vn"><button>▶</button><div class="wave" data-n="26"></div><em>0:04</em></div><small>9:40 ✓✓</small></div>
+    </div>
+    <div class="rec" id="rec"><span class="pulse"></span><b id="rt">0:03</b> Recording… (max 60 s)<button id="rcancel" style="background:#fff">Cancel</button><button id="rsend" class="grn" style="color:#fff">Send</button></div>
+    <div class="compose" id="compose"><input placeholder="Message" id="txt"><button class="mic" id="mic" title="Record a voice note">🎤</button><button id="send">➤</button></div>
+  </section>
+
+  <section class="view" id="contacts"><div class="head"><button data-back>◀</button><span class="sp">Friends</span><button id="addf">＋ Add</button></div>
+    <h4 style="margin:10px 14px 0;font-size:12px;color:#667">REQUESTS (1)</h4>
+    <div class="row"><div class="av" style="background:#555">Z</div><div class="t"><b>Zainab_S</b><span>wants to be friends</span></div><button class="chip" style="border:0" data-toast="Accepted (mock)">Accept</button><button class="chip" style="border:0;background:#d6402f22;color:#d6402f" data-toast="Declined (mock)">✕</button></div>
+    <h4 style="margin:10px 14px 0;font-size:12px;color:#667">FRIENDS (3)</h4>
+    <div class="row"><div class="av" style="background:#d6402f">T<i class="dot on"></i></div><div class="t"><b>Tunde_Lag</b><span>online</span></div><button class="chip" style="border:0" data-go="chat">💬</button><button class="chip" style="border:0" data-go="incall">📞</button></div>
+    <div class="row"><div class="av" style="background:#8a5ad6">C<i class="dot home"></i></div><div class="t"><b>Chioma_K</b><span>at home</span></div><button class="chip" style="border:0" data-go="chat">💬</button><button class="chip" style="border:0" data-go="incall">📞</button></div>
+    <div class="row"><div class="av" style="background:#0f9d8a">E<i class="dot"></i></div><div class="t"><b>Emeka_O</b><span>last seen 1 h ago</span></div><button class="chip" style="border:0" data-go="chat">💬</button><button class="chip" style="border:0;opacity:.5">📞</button></div>
+  </section>
+
+  <section class="view call" id="incoming"><p>Incoming call · Naija Area</p><div class="big">T</div><h2>Tunde_Lag</h2><p>friend · online</p><p id="ringt">ringing… 25 s</p>
+    <div class="acts"><div><button class="red" data-go="calls" data-toast="Declined (mock). Tunde sees “declined”.">✕</button><small>Decline</small></div><div><button class="grn" data-go="incall">📞</button><small>Accept</small></div></div>
+    <p style="margin-top:14px;font-size:12px">Silent if Do Not Disturb · blocked players never ring</p></section>
+
+  <section class="view call active" id="incall"><p id="cstate">Connected · 00:42</p><div class="big">T</div><h2>Tunde_Lag</h2><p>🟢 Good connection · voice only</p>
+    <div class="tools"><button id="tmute"><i>🎙️</i>Mute</button><button id="tspk"><i>🔊</i>Speaker</button><button data-toast="Reported. A moderator will review this call's metadata (mock)."><i>🚩</i>Report</button></div>
+    <div class="acts"><div><button class="red" data-go="ended">⏹</button><small>End call</small></div></div></section>
+
+  <section class="view call" id="ended"><p>Call ended</p><div class="big" style="animation:none;background:#556">T</div><h2>Tunde_Lag</h2><p>Duration 01:12</p>
+    <div class="acts" style="margin-top:40px"><div><button class="grn" data-go="chat">💬</button><small>Message</small></div><div><button class="gry" data-go="home">⌂</button><small>Close</small></div></div>
+    <p style="margin-top:14px;font-size:12px">Calls are not recorded.</p></section>
+
+  <section class="view" id="settings"><div class="head"><button data-back>◀</button><span class="sp">Settings</span></div>
+    <div class="set"><h4>Interruptions</h4>
+      <label class="sw">Do Not Disturb <input type="checkbox" id="dnd"></label>
+      <label class="sw">Calls from <select><option>Friends only</option><option>Nobody</option></select></label>
+      <label class="sw">Voice notes from <select><option>Friends only</option><option>Nobody</option></select></label>
+      <h4>Privacy</h4><label class="sw">Show when I'm online / at home <input type="checkbox" checked></label>
+      <div class="sw"><span>Muted &amp; blocked players</span><button class="chip" style="border:0" data-toast="Opens today's block list (mock)">3 ›</button></div>
+      <h4>Voice</h4><div class="sw"><span>Microphone</span><span class="chip">Allowed</span></div><div class="sw"><span>Data saver for calls</span><input type="checkbox" checked></div>
+      <p style="font-size:12px;color:#556">18+ only. Calls aren't recorded. Voice notes are kept 30 days (ESTIMATE) and can be reported.</p></div></section>
+
+  <section class="view" id="stub"><div class="head"><button data-back>◀</button><span class="sp">App</span></div><div style="padding:30px;text-align:center;color:#556">Existing phone tabs (Wallet, Jobs, Home, Land, Ranks, Garage, Alerts) become apps here.<br><br>Sponsored apps open a mini-page; they never interrupt a call.</div></section>
+
+  <div class="bar"><button data-back title="Back">◀</button><button data-go="home" title="Home">●</button><button data-go="calls" title="Recent calls">▢</button></div>
+</div></div>
+<script>
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+const stack=['home'];let t0;
+function show(id,push=true){$$('.view').forEach(v=>v.classList.toggle('on',v.id===id));$('#status').classList.toggle('dark',/incoming|incall|ended/.test(id));if(push&&stack[stack.length-1]!==id)stack.push(id);if(id==='home')stack.length=1;
+  clearInterval(t0);if(id==='incoming'){let n=25;$('#ringt').textContent='ringing… 25 s';t0=setInterval(()=>{n--;$('#ringt').textContent='ringing… '+n+' s';if(n<=0){clearInterval(t0);toast('Missed call (mock): the caller sees “no answer”');show('calls')}},1000)}
+  if(id==='incall'){let s=42;t0=setInterval(()=>{s++;$('#cstate').textContent='Connected · 00:'+String(s%60).padStart(2,'0')},1000)}}
+function back(){if(stack.length>1){stack.pop();show(stack[stack.length-1],false)}else show('home')}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('on'),2600)}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-go],[data-back],[data-toast]');if(!b)return;if(b.dataset.toast)toast(b.dataset.toast);if(b.hasAttribute('data-back'))return back();if(b.dataset.go)show(b.dataset.go)});
+const heights=[5,9,14,8,18,22,12,7,16,24,20,10,6,13,19,15,8,11,21,17,9,6,12,16,10,5];
+function wave(el,n,played=0){el.replaceChildren(...heights.slice(0,n).map((h,i)=>{const s=document.createElement('s');s.style.height=h+'px';if(i<played)s.className='p';return s}))}
+wave($('#wave'),26);$$('.wave[data-n]').forEach(w=>wave(w,26));
+let pl=null;$('#play').onclick=()=>{if(pl){clearInterval(pl);pl=null;$('#play').textContent='▶';return}let i=0;$('#play').textContent='⏸';pl=setInterval(()=>{i++;wave($('#wave'),26,i);$('#vt').textContent='0:0'+Math.min(7,Math.floor(i*7/26));if(i>=26){clearInterval(pl);pl=null;$('#play').textContent='▶';wave($('#wave'),26)}},260)};
+let rt=null;function rec(on){$('#rec').classList.toggle('on',on);$('#compose').style.display=on?'none':'flex';clearInterval(rt);if(on){let s=0;$('#rt').textContent='0:00';rt=setInterval(()=>{s++;$('#rt').textContent='0:'+String(s).padStart(2,'0')},1000)}}
+$('#mic').onclick=()=>rec(true);$('#rcancel').onclick=()=>rec(false);
+$('#rsend').onclick=()=>{rec(false);const d=document.createElement('div');d.className='b out';d.innerHTML='<div class="vn"><button>▶</button><div class="wave" data-n="26"></div><em>0:03</em></div><small>now ✓</small>';$('#msgs').append(d);wave($('.wave',d),26);$('#msgs').scrollTop=1e5};
+$('#send').onclick=()=>{const v=$('#txt').value.trim();if(!v)return;const d=document.createElement('div');d.className='b out';d.textContent=v;$('#msgs').append(d);$('#txt').value='';$('#msgs').scrollTop=1e5};
+$('#tmute').onclick=e=>e.currentTarget.classList.toggle('on');$('#tspk').onclick=e=>e.currentTarget.classList.toggle('on');
+$('#dnd').onchange=e=>toast(e.target.checked?'Do Not Disturb on: calls go to “missed”':'Do Not Disturb off');
+$('#addf').onclick=()=>toast('Type a username to send a request (mock)');
+const h=location.hash.slice(1);if(h){const map={recording:'chat'};show(map[h]||h);if(h==='recording')rec(true)}
+</script></body></html>
