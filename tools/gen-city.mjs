@@ -161,13 +161,26 @@ const kiosks = city.buildings.filter(b => b.kind === 'kiosk').sort((a, b) => a.x
 const canteen = city.shops.find(x => x.id === 'shop_canteen');
 const poster = { id: 'poster', type: 'poster', label: 'Rules poster', x: -3.4, z: 2.2, color: '#f0c419', text: 'GAME MONEY ONLY. Stakes are pretend naira with no cash value and no cash-out. 18+. Be respectful: you can be reported, muted or blocked.' };
 const board = (x, z) => ({ id: 'board', type: 'board', label: 'Weekly scoreboard', x, z, color: '#1f6f4a' });
+// named districts (data-driven: the server's area() lookup and the full map both read these; first match wins, so list small/special areas first)
+// housing styles (interior type per property). Prices/rents of the new types are ESTIMATE placeholders.
+{ const seq = { 1: ['faceyou', 'faceyou', 'selfcon'], 2: ['flat2', 'bungalow'], 3: ['duplex', 'mansion', 'duplex', 'mansion', 'duplex'] }; const n = { 1: 0, 2: 0, 3: 0 };
+  for (const p of city.properties) { const st = seq[p.tier][n[p.tier]++ % seq[p.tier].length]; p.style = st;
+    if (st === 'selfcon') { p.tierLabel = 'Self-contain studio'; p.rent = 2200; } if (st === 'bungalow') { p.tierLabel = 'Bungalow'; p.rooms = 3; p.rent = 5200; p.price = 220000; }
+    if (st === 'mansion') { p.tierLabel = 'Mansion'; p.rooms = 6; p.rent = 16000; p.price = 900000; } if (st === 'flat2') p.tierLabel = '2-bedroom flat'; } }
+city.districts = [
+  { id: 'd_lagoon', name: 'Lagoon Front', x0: -240, x1: 240, z0: 125, z1: 165, color: '#9ec9d8' },
+  { id: 'd_yaba', name: 'Yaba', x0: -240, x1: 0, z0: -240, z1: 0, color: '#d9c7a3' },
+  { id: 'd_ikeja', name: 'Ikeja', x0: 0, x1: 240, z0: -240, z1: 0, color: '#c9d4a8' },
+  { id: 'd_surulere', name: 'Surulere', x0: -240, x1: 0, z0: 0, z1: 125, color: '#d8b9a5' },
+  { id: 'd_lekki', name: 'Lekki Phase 1', x0: 0, x1: 240, z0: 0, z1: 125, color: '#cdbfd9' }
+];
 city.venues = [
   { id: 'venue_mamaput', name: 'Mama Put Canteen', blurb: 'Eat, then challenge somebody to Whot or Ayo.', x: canteen.x, z: canteen.z, shopId: 'shop_canteen', hours: [6, 22], sign: '#c8553d', stations: [
-    { id: 'counter', type: 'eat', label: 'Food counter', x: 0, z: -2.8, color: '#c8553d', shopId: 'shop_canteen' }, { id: 'whot1', type: 'game', game: 'whot', label: 'Whot bench', x: -2, z: 0.4, color: '#8a5a2b' }, { id: 'ayo1', type: 'game', game: 'ayo', label: 'Ayo board', x: 1.4, z: 1.8, color: '#6b4226' }, board(2.6, -1.2), poster] },
+    { id: 'counter', type: 'eat', label: 'Food counter', x: 0, z: -2.8, color: '#c8553d', shopId: 'shop_canteen' }, { id: 'whot1', type: 'game', game: 'whot', label: 'Whot bench', x: -2, z: 0.4, color: '#8a5a2b' }, { id: 'ayo1', type: 'game', game: 'ayo', label: 'Ayo board', x: 1.4, z: 1.8, color: '#6b4226' }, { id: 'word1', type: 'casual', game: 'word', label: 'Word of the Day board', x: -3.2, z: -0.9, color: '#c8a23d' }, board(2.6, -1.2), poster] },
   { id: 'venue_viewing', name: "Alhaji Joe's Viewing Centre", blurb: 'Watch the match. Whot and Draughts at the back.', ...kd(kiosks[0]), hours: [10, 24], sign: '#2a5f9e', stations: [
-    { id: 'tv', type: 'tv', label: 'Big TV (watch the match)', x: 0, z: -3, color: '#222', mood: 4 }, { id: 'whot1', type: 'game', game: 'whot', label: 'Whot bench 1', x: -2.2, z: 0.6, color: '#8a5a2b' }, { id: 'whot2', type: 'game', game: 'whot', label: 'Whot bench 2', x: 2.2, z: 0.6, color: '#8a5a2b' }, { id: 'draughts1', type: 'game', game: 'draughts', label: 'Draughts board', x: 0, z: 2.6, color: '#3b3b3b' }, board(3, -1.8), poster] },
+    { id: 'tv', type: 'tv', label: 'Big TV (watch the match)', x: 0, z: -3, color: '#222', mood: 4 }, { id: 'whot1', type: 'game', game: 'whot', label: 'Whot bench 1', x: -2.2, z: 0.6, color: '#8a5a2b' }, { id: 'whot2', type: 'game', game: 'whot', label: 'Whot bench 2', x: 2.2, z: 0.6, color: '#8a5a2b' }, { id: 'draughts1', type: 'game', game: 'draughts', label: 'Draughts board', x: 0, z: 2.6, color: '#3b3b3b' }, { id: 'merge1', type: 'casual', game: 'merge', label: 'Merge Am (tile puzzle)', x: -3.4, z: -1.5, color: '#2a9d8f' }, board(3, -1.8), poster] },
   { id: 'venue_joint', name: 'Corner Joint (Ludo, Whot, Dominoes)', blurb: 'Ludo and Dominoes for up to four, plus a Whot bench. Table talk allowed (clean).', ...kd(kiosks[kiosks.length - 1]), hours: [12, 24], sign: '#7a4ea0', stations: [
-    { id: 'ludo1', type: 'game', game: 'ludo', label: 'Ludo table 1', x: -2.2, z: -0.6, color: '#2e7dd1' }, { id: 'ludo2', type: 'game', game: 'ludo', label: 'Ludo table 2', x: 2.2, z: -0.6, color: '#d6402f' }, { id: 'whot1', type: 'game', game: 'whot', label: 'Whot bench', x: 0, z: 1.6, color: '#8a5a2b' }, { id: 'domino1', type: 'game', game: 'dominoes', label: 'Dominoes table', x: 2.9, z: 2.0, color: '#1f4e3d' }, board(0, -3), poster] },
+    { id: 'ludo1', type: 'game', game: 'ludo', label: 'Ludo table 1', x: -2.2, z: -0.6, color: '#2e7dd1' }, { id: 'ludo2', type: 'game', game: 'ludo', label: 'Ludo table 2', x: 2.2, z: -0.6, color: '#d6402f' }, { id: 'whot1', type: 'game', game: 'whot', label: 'Whot bench', x: 0, z: 1.6, color: '#8a5a2b' }, { id: 'domino1', type: 'game', game: 'dominoes', label: 'Dominoes table', x: 2.9, z: 2.0, color: '#1f4e3d' }, { id: 'memory1', type: 'casual', game: 'memory', label: 'Pair Am (memory cards)', x: -3.4, z: 0.9, color: '#e76f51' }, board(0, -3), poster] },
   { id: 'venue_meco', name: 'Meco', blurb: 'Car repair and service. Fees are ESTIMATES.', ...kd(kiosks[1]), hours: [8, 18], sign: '#e07b00', stations: [
     { id: 'check', type: 'check', label: 'Check my car', x: -2.2, z: -1.6, color: '#3a7ca5' }, { id: 'service', type: 'service', label: 'Service (fee)', x: 2.2, z: -1.6, color: '#e07b00' },
     { id: 'poster', type: 'poster', label: 'Price board', x: 0, z: 2.6, color: '#f0c419', text: 'Meco: placeholder service fees are ESTIMATES. A service resets your car condition and gives a short perk (cheaper fuel per metre, a little extra mood on rides). Game money only.' }] },

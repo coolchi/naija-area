@@ -1,6 +1,7 @@
 // Economy v0. ALL amounts live in config/balance.js (ESTIMATES). Everything that moves money goes through ledger.post.
 import { bad, clamp, cleanText, dayKey } from './util.js';
 import { screen } from './filter.js';
+import { typeOf, maxGuestsOf, layoutOf, reservedRects, plotStage } from './housing.js';
 import { decorOf, lovesOf } from './homes.js';
 import { move, post, cashId, savId, balanceOf, SYS } from './ledger.js';
 
@@ -144,7 +145,7 @@ export function propertyView(app, p, uid) {
   const items = o ? app.db.prepare('SELECT COUNT(*) n FROM property_items WHERE property_id=?').get(p.id).n : 0;
   return { loves: o ? lovesOf(app, p.id) : 0, ...(o ? decorOf(app, o) : {}), id: p.id, name: (o && !o.name_hidden && o.custom_name) || p.name, nameHidden: !!o?.name_hidden, hasCustomName: !!o?.custom_name, baseName: p.name, tier: p.tier, tierLabel: p.tierLabel, rent: p.rent, price: p.price, rooms: p.rooms, door: p.door, buildingId: p.buildingId, area: p.area, items,
     status: o ? (o.user_id === uid ? 'yours' : 'taken') : 'available', owner: o ? o.username : null, ownerColor: o ? o.color : null, mode: o ? o.mode : null,
-    presence: o ? app.presenceOf?.(o.user_id, p.id) || 'away' : null, maxGuests: app.balance.housing.guestsByTier[p.tier],
+    presence: o ? app.presenceOf?.(o.user_id, p.id) || 'away' : null, maxGuests: maxGuestsOf(app, p), type: typeOf(app, p).id, typeLabel: typeOf(app, p).label,
     nextRentDue: o && o.user_id === uid ? o.next_rent_due : undefined, missed: o && o.user_id === uid ? o.missed : undefined };
 }
 export function listProperties(app, uid) { return app.city.properties.map(p => propertyView(app, p, uid)); }
@@ -194,19 +195,19 @@ export function interior(app, uid, propertyId) {
   const visitor = o && o.user_id !== uid && app.hasVisitPermit?.(uid, propertyId);
   if (!o || (o.user_id !== uid && !visitor)) bad('FORBIDDEN', 'Only the person who lives here can go inside (or guests they let in).', 403);
   const placed = app.db.prepare('SELECT item_id id, x, z, rot FROM property_items WHERE property_id=?').all(propertyId);
-  const [rw, rd] = app.balance.housing.room[p.tier];
-  const base = { id: p.id, name: (!o.name_hidden && o.custom_name) || p.name, owner: o.username, area: p.area, tier: p.tier, tierLabel: p.tierLabel, rooms: p.rooms, room: { w: rw, d: rd, reserved: reservedRects(app, p.tier) }, items: placed.map(i => i.id), placed, maxGuests: app.balance.housing.guestsByTier[p.tier], guests: app.guestCount?.(propertyId) || 0 };
+  const lay = layoutOf(app, p); const [rw, rd] = [lay.w, lay.d];
+  const base = { id: p.id, name: (!o.name_hidden && o.custom_name) || p.name, owner: o.username, area: p.area, tier: p.tier, tierLabel: p.tierLabel, rooms: p.rooms, room: lay, items: placed.map(i => i.id), placed, maxGuests: maxGuestsOf(app, p), guests: app.guestCount?.(propertyId) || 0 };
   Object.assign(base, decorOf(app, o), { loves: lovesOf(app, propertyId) });
   return visitor ? { ...base, visitor: true, readOnly: true } : { ...base, visitor: false, palette: app.palette?.(), catalog: app.balance.housing.furniture, sellFraction: app.balance.housing.furnitureSellFraction };
 }
-export function reservedRects(app, tier) { const [w, d] = app.balance.housing.room[tier]; return [{ x: 0, z: 0, w: 2, d: 3, what: 'bed' }, { x: Math.floor(w / 2) - 1, z: d - 2, w: 2, d: 2, what: 'doorway' }]; }
+export { reservedRects };
 const footprint = (def, rot) => (rot % 2 ? { w: def.d, d: def.w } : { w: def.w, d: def.d });
 const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.z < b.z + b.d && b.z < a.z + a.d;
 /** buy-mode placement: grid snap (integers), rotate (0-3), inside room, not on bed/doorway/other objects ('Something is in the way') */
 export function placeFurniture(app, uid, itemId, x, z, rot = 0, idemKey = null) {
   const h = homeOf(app, uid); if (!h) bad('NO_HOME', 'You have no home.', 404);
   const def = app.balance.housing.furniture.find(f => f.id === itemId); if (!def) bad('NO_ITEM', 'Unknown item.', 404);
-  const p = propDef(app, h.property_id); const [rw, rd] = app.balance.housing.room[p.tier];
+  const p = propDef(app, h.property_id); const [rw, rd] = typeOf(app, p).grid;
   if (!Number.isInteger(rot) || rot < 0 || rot > 3) bad('BAD_ROT', 'rot must be 0-3.');
   return app.db.transaction(() => {
     const owned = app.db.prepare('SELECT 1 FROM property_items WHERE property_id=? AND item_id=?').get(h.property_id, itemId);
@@ -214,7 +215,7 @@ export function placeFurniture(app, uid, itemId, x, z, rot = 0, idemKey = null) 
     const test = (x0, z0) => {
       const f = footprint(def, rot); const r = { x: x0, z: z0, w: f.w, d: f.d };
       if (x0 < 0 || z0 < 0 || x0 + f.w > rw || z0 + f.d > rd) return 'OUT';
-      for (const rs of reservedRects(app, p.tier)) if (overlap(r, rs)) return 'BLOCKED';
+      for (const rs of reservedRects(app, p)) if (overlap(r, rs)) return 'BLOCKED';
       for (const o of others) { const od = app.balance.housing.furniture.find(q => q.id === o.id); if (od.layer === 'floor' && def.layer === 'floor' || (od.layer !== 'floor' && def.layer !== 'floor')) { const of = footprint(od, o.rot); if (overlap(r, { x: o.x, z: o.z, w: of.w, d: of.d })) return 'BLOCKED'; } }
       return null;
     };

@@ -896,7 +896,8 @@
     "x": -209.5,
     "z": -221.5
    },
-   "rooms": 1
+   "rooms": 1,
+   "style": "faceyou"
   },
   {
    "id": "h02",
@@ -910,49 +911,53 @@
     "x": -156.5,
     "z": -222
    },
-   "rooms": 1
+   "rooms": 1,
+   "style": "faceyou"
   },
   {
    "id": "h03",
    "buildingId": "b003",
    "name": "Mushin Court",
    "tier": 2,
-   "tierLabel": "Mini-flat",
+   "tierLabel": "2-bedroom flat",
    "rent": 4000,
    "price": 150000,
    "door": {
     "x": -209.5,
     "z": -142.5
    },
-   "rooms": 2
+   "rooms": 2,
+   "style": "flat2"
   },
   {
    "id": "h04",
    "buildingId": "b004",
    "name": "Bariga Rooms",
    "tier": 1,
-   "tierLabel": "Face-me-I-face-you room",
-   "rent": 1500,
+   "tierLabel": "Self-contain studio",
+   "rent": 2200,
    "price": 0,
    "door": {
     "x": -209.5,
     "z": -97.5
    },
-   "rooms": 1
+   "rooms": 1,
+   "style": "selfcon"
   },
   {
    "id": "h05",
    "buildingId": "b005",
    "name": "Ikeja View",
    "tier": 2,
-   "tierLabel": "Mini-flat",
-   "rent": 4000,
-   "price": 150000,
+   "tierLabel": "Bungalow",
+   "rent": 5200,
+   "price": 220000,
    "door": {
     "x": -156.5,
     "z": -101
    },
-   "rooms": 2
+   "rooms": 3,
+   "style": "bungalow"
   },
   {
    "id": "h06",
@@ -966,7 +971,8 @@
     "x": -209.5,
     "z": -21.5
    },
-   "rooms": 1
+   "rooms": 1,
+   "style": "faceyou"
   },
   {
    "id": "h07",
@@ -980,35 +986,38 @@
     "x": -156.5,
     "z": -21.5
    },
-   "rooms": 1
+   "rooms": 1,
+   "style": "faceyou"
   },
   {
    "id": "h08",
    "buildingId": "b008",
    "name": "Gbagada Heights",
    "tier": 2,
-   "tierLabel": "Mini-flat",
+   "tierLabel": "2-bedroom flat",
    "rent": 4000,
    "price": 150000,
    "door": {
     "x": -209.5,
     "z": 20.5
    },
-   "rooms": 2
+   "rooms": 2,
+   "style": "flat2"
   },
   {
    "id": "h09",
    "buildingId": "b009",
    "name": "Lekki Phase",
    "tier": 1,
-   "tierLabel": "Face-me-I-face-you room",
-   "rent": 1500,
+   "tierLabel": "Self-contain studio",
+   "rent": 2200,
    "price": 0,
    "door": {
     "x": -156.5,
     "z": 22.5
    },
-   "rooms": 1
+   "rooms": 1,
+   "style": "selfcon"
   },
   {
    "id": "h10",
@@ -1022,35 +1031,38 @@
     "x": -209.5,
     "z": 101.5
    },
-   "rooms": 4
+   "rooms": 4,
+   "style": "duplex"
   },
   {
    "id": "h11",
    "buildingId": "b011",
    "name": "Festac Duplex",
    "tier": 2,
-   "tierLabel": "Mini-flat",
-   "rent": 4000,
-   "price": 150000,
+   "tierLabel": "Bungalow",
+   "rent": 5200,
+   "price": 220000,
    "door": {
     "x": -156.5,
     "z": 99.5
    },
-   "rooms": 2
+   "rooms": 3,
+   "style": "bungalow"
   },
   {
    "id": "h12",
    "buildingId": "b013",
    "name": "Ilupeju House",
    "tier": 2,
-   "tierLabel": "Mini-flat",
+   "tierLabel": "2-bedroom flat",
    "rent": 4000,
    "price": 150000,
    "door": {
     "x": -102,
     "z": -209.5
    },
-   "rooms": 2
+   "rooms": 2,
+   "style": "flat2"
   },
   {
    "id": "h13",
@@ -1064,7 +1076,8 @@
     "x": -19.5,
     "z": -209.5
    },
-   "rooms": 1
+   "rooms": 1,
+   "style": "faceyou"
   },
   {
    "id": "h14",
@@ -1078,35 +1091,38 @@
     "x": -99.5,
     "z": -156.5
    },
-   "rooms": 1
+   "rooms": 1,
+   "style": "faceyou"
   },
   {
    "id": "h15",
    "buildingId": "b016",
    "name": "Ketu Rooms",
    "tier": 3,
-   "tierLabel": "Duplex",
-   "rent": 9000,
-   "price": 450000,
+   "tierLabel": "Mansion",
+   "rent": 16000,
+   "price": 900000,
    "door": {
     "x": -16.5,
     "z": -156.5
    },
-   "rooms": 4
+   "rooms": 6,
+   "style": "mansion"
   },
   {
    "id": "h16",
    "buildingId": "b019",
    "name": "Ojota Villa",
    "tier": 1,
-   "tierLabel": "Face-me-I-face-you room",
-   "rent": 1500,
+   "tierLabel": "Self-contain studio",
+   "rent": 2200,
    "price": 0,
    "door": {
     "x": -85,
     "z": 21.5
    },
-   "rooms": 1
+   "rooms": 1,
+   "style": "selfcon"
   },
   {
    "id": "h17",
@@ -1120,7 +1136,8 @@
     "x": -35,
     "z": 19
    },
-   "rooms": 4
+   "rooms": 4,
+   "style": "duplex"
   },
   {
    "id": "h18",
@@ -1134,21 +1151,23 @@
     "x": -85,
     "z": 98
    },
-   "rooms": 1
+   "rooms": 1,
+   "style": "faceyou"
   },
   {
    "id": "h19",
    "buildingId": "b026",
    "name": "Isale Eko House",
    "tier": 2,
-   "tierLabel": "Mini-flat",
-   "rent": 4000,
-   "price": 150000,
+   "tierLabel": "Bungalow",
+   "rent": 5200,
+   "price": 220000,
    "door": {
     "x": 101,
     "z": -209.5
    },
-   "rooms": 2
+   "rooms": 3,
+   "style": "bungalow"
   },
   {
    "id": "h20",
@@ -1162,77 +1181,83 @@
     "x": 20,
     "z": -156.5
    },
-   "rooms": 1
+   "rooms": 1,
+   "style": "faceyou"
   },
   {
    "id": "h21",
    "buildingId": "b028",
    "name": "Obalende Rooms",
    "tier": 2,
-   "tierLabel": "Mini-flat",
+   "tierLabel": "2-bedroom flat",
    "rent": 4000,
    "price": 150000,
    "door": {
     "x": 100,
     "z": -156.5
    },
-   "rooms": 2
+   "rooms": 2,
+   "style": "flat2"
   },
   {
    "id": "h22",
    "buildingId": "b036",
    "name": "Ebute Metta Lodge",
    "tier": 2,
-   "tierLabel": "Mini-flat",
-   "rent": 4000,
-   "price": 150000,
+   "tierLabel": "Bungalow",
+   "rent": 5200,
+   "price": 220000,
    "door": {
     "x": 85,
     "z": 101
    },
-   "rooms": 2
+   "rooms": 3,
+   "style": "bungalow"
   },
   {
    "id": "h23",
    "buildingId": "b039",
    "name": "Yaba Corner",
    "tier": 3,
-   "tierLabel": "Duplex",
-   "rent": 9000,
-   "price": 450000,
+   "tierLabel": "Mansion",
+   "rent": 16000,
+   "price": 900000,
    "door": {
     "x": 156.5,
     "z": -101.5
    },
-   "rooms": 4
+   "rooms": 6,
+   "style": "mansion"
   },
   {
    "id": "h24",
    "buildingId": "b040",
    "name": "Surulere Lodge",
    "tier": 2,
-   "tierLabel": "Mini-flat",
+   "tierLabel": "2-bedroom flat",
    "rent": 4000,
    "price": 150000,
    "door": {
     "x": 209.5,
     "z": -101
    },
-   "rooms": 2
+   "rooms": 2,
+   "style": "flat2"
   },
   {
    "id": "h25",
    "buildingId": "b041",
    "name": "Mushin Court",
    "tier": 1,
-   "tierLabel": "Face-me-I-face-you room",
-   "rent": 1500,
+   "tierLabel": "Self-contain studio",
+   "rent": 2200,
    "price": 0,
    "door": {
     "x": 156.5,
     "z": -22
    },
-   "rooms": 1
+   "rooms": 1,
+   "style": "selfcon"
   },
   {
    "id": "h26",
@@ -1246,7 +1271,8 @@
     "x": 209.5,
     "z": -18
    },
-   "rooms": 4
+   "rooms": 4,
+   "style": "duplex"
   },
   {
    "id": "h27",
@@ -1260,21 +1286,23 @@
     "x": 156.5,
     "z": 22
    },
-   "rooms": 1
+   "rooms": 1,
+   "style": "faceyou"
   },
   {
    "id": "h28",
    "buildingId": "b044",
    "name": "Maryland Flats",
    "tier": 2,
-   "tierLabel": "Mini-flat",
-   "rent": 4000,
-   "price": 150000,
+   "tierLabel": "Bungalow",
+   "rent": 5200,
+   "price": 220000,
    "door": {
     "x": 209.5,
     "z": 19.5
    },
-   "rooms": 2
+   "rooms": 3,
+   "style": "bungalow"
   },
   {
    "id": "h29",
@@ -1288,7 +1316,8 @@
     "x": 156.5,
     "z": 99
    },
-   "rooms": 1
+   "rooms": 1,
+   "style": "faceyou"
   }
  ],
  "shops": [
@@ -1964,6 +1993,53 @@
    "size": 16
   }
  ],
+ "districts": [
+  {
+   "id": "d_lagoon",
+   "name": "Lagoon Front",
+   "x0": -240,
+   "x1": 240,
+   "z0": 125,
+   "z1": 165,
+   "color": "#9ec9d8"
+  },
+  {
+   "id": "d_yaba",
+   "name": "Yaba",
+   "x0": -240,
+   "x1": 0,
+   "z0": -240,
+   "z1": 0,
+   "color": "#d9c7a3"
+  },
+  {
+   "id": "d_ikeja",
+   "name": "Ikeja",
+   "x0": 0,
+   "x1": 240,
+   "z0": -240,
+   "z1": 0,
+   "color": "#c9d4a8"
+  },
+  {
+   "id": "d_surulere",
+   "name": "Surulere",
+   "x0": -240,
+   "x1": 0,
+   "z0": 0,
+   "z1": 125,
+   "color": "#d8b9a5"
+  },
+  {
+   "id": "d_lekki",
+   "name": "Lekki Phase 1",
+   "x0": 0,
+   "x1": 240,
+   "z0": 0,
+   "z1": 125,
+   "color": "#cdbfd9"
+  }
+ ],
  "venues": [
   {
    "id": "venue_mamaput",
@@ -2004,6 +2080,15 @@
      "x": 1.4,
      "z": 1.8,
      "color": "#6b4226"
+    },
+    {
+     "id": "word1",
+     "type": "casual",
+     "game": "word",
+     "label": "Word of the Day board",
+     "x": -3.2,
+     "z": -0.9,
+     "color": "#c8a23d"
     },
     {
      "id": "board",
@@ -2074,6 +2159,15 @@
      "color": "#3b3b3b"
     },
     {
+     "id": "merge1",
+     "type": "casual",
+     "game": "merge",
+     "label": "Merge Am (tile puzzle)",
+     "x": -3.4,
+     "z": -1.5,
+     "color": "#2a9d8f"
+    },
+    {
      "id": "board",
      "type": "board",
      "label": "Weekly scoreboard",
@@ -2140,6 +2234,15 @@
      "x": 2.9,
      "z": 2,
      "color": "#1f4e3d"
+    },
+    {
+     "id": "memory1",
+     "type": "casual",
+     "game": "memory",
+     "label": "Pair Am (memory cards)",
+     "x": -3.4,
+     "z": 0.9,
+     "color": "#e76f51"
     },
     {
      "id": "board",

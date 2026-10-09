@@ -210,6 +210,14 @@ CREATE TABLE IF NOT EXISTS room_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT, property_id TEXT NOT NULL, user_id INTEGER NOT NULL, username TEXT NOT NULL, kind TEXT NOT NULL, text TEXT, created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_room_events ON room_events(property_id, id);
+
+-- casual break games (single player). A run is a server-created seed/board; the reward is decided by the server from a replayed move log or server-side flips.
+CREATE TABLE IF NOT EXISTS casual_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, kind TEXT NOT NULL, seed INTEGER NOT NULL, state TEXT, status TEXT NOT NULL DEFAULT 'open',  -- open | done | abandoned
+  score INTEGER NOT NULL DEFAULT 0, reward INTEGER NOT NULL DEFAULT 0, day TEXT NOT NULL, started_at INTEGER NOT NULL, finished_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS ix_casual_user ON casual_runs(user_id, kind, id);
+CREATE TABLE IF NOT EXISTS casual_daily (user_id INTEGER NOT NULL, day TEXT NOT NULL, earned INTEGER NOT NULL DEFAULT 0, plays INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day));
 `;
 
 /** Add columns to databases created by earlier versions (CREATE TABLE IF NOT EXISTS never alters an existing table). Idempotent. */

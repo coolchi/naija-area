@@ -67,6 +67,7 @@ export class Venue {
     else if (st.type === 'board') this.board();
     else if (st.type === 'car') this.carSheet(st);
     else if (st.type === 'check' || st.type === 'service') this.mechanicSheet(st);
+    else if (st.type === 'casual') ui.playCasual(st.game);
     else if (st.type === 'game') this.sitPanel(st);
   }
   async board(kind = 'all') {

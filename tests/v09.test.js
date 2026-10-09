@@ -85,13 +85,14 @@ test('buy mode: grid snap, rotation, overlap -> "Something is in the way", doorw
   assert.equal((await F({ itemId: 'fridge', x: 3, z: 0 })).json.error, 'BLOCKED');       // on top of the sofa
   assert.match((await F({ itemId: 'fridge', x: 3, z: 0 })).json.message, /Something is in the way/);
   assert.equal((await F({ itemId: 'fridge', x: 0, z: 0 })).json.error, 'BLOCKED');       // on the bed
-  assert.equal((await F({ itemId: 'fridge', x: 2, z: 4 })).json.error, 'BLOCKED');       // doorway (room 6x6: door cells x2-3,z4-5)
+  assert.equal((await F({ itemId: 'fridge', x: 2, z: 3 })).json.error, 'BLOCKED');       // doorway (face-me-I-face-you room 6x5: door cells x2-3,z3-4)
+  assert.equal((await F({ itemId: 'fridge', x: 5, z: 1 })).json.error, 'BLOCKED');       // wardrobe (a built-in fixture)
   assert.equal((await F({ itemId: 'tv', x: 5, z: 0 })).json.error, 'OUT_OF_ROOM');       // 2 wide at x=5 sticks out
   assert.equal((await F({ itemId: 'tv', x: 0.5, z: 0 })).json.error, 'BAD_CELL');
-  assert.equal((await F({ itemId: 'tv', x: 5, z: 0, rot: 1 })).status, 200);             // rotated: 1 wide x 2 deep fits
-  assert.equal((await F({ itemId: 'tv', x: 5, z: 0, rot: 9 })).json.error, 'BAD_ROT');
+  assert.equal((await F({ itemId: 'tv', x: 5, z: 2, rot: 1 })).status, 200);             // rotated: 1 wide x 2 deep fits (below the wardrobe)
+  assert.equal((await F({ itemId: 'tv', x: 5, z: 2, rot: 9 })).json.error, 'BAD_ROT');
   const cash = balanceOf(s.db, cashId(u)); const mv = await F({ itemId: 'sofa', x: 2, z: 2, rot: 0 }); assert.equal(mv.status, 200); assert.equal(mv.json.charged, 0); assert.equal(balanceOf(s.db, cashId(u)), cash); // move is free
-  assert.equal((await F({ itemId: 'rug', x: 2, z: 2 })).status, 200);                    // floor layer may sit under objects
+  assert.equal((await F({ itemId: 'rug', x: 3, z: 0 })).status, 200);                    // floor layer may sit under objects
   const sell = await ok(s, 'POST', '/api/property/furniture/sell', { uid: u, body: { itemId: 'sofa' } }); assert.equal(sell.refund, 2250);
   assert.equal((await call(s, 'POST', '/api/property/furniture/sell', { uid: u, body: { itemId: 'sofa' } })).json.error, 'NOT_PLACED');
   const inter = await ok(s, 'GET', `/api/property/${p.id}/interior`, { uid: u }); assert.equal(inter.room.w, 6); assert.ok(inter.placed.find(i => i.id === 'tv').rot === 1);

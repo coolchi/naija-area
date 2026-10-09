@@ -6,7 +6,8 @@ export function indexCity(raw) {
   c.jobLoc = Object.fromEntries(c.jobs.map(j => [j.id, j]));
   c.billboardById = Object.fromEntries(c.billboards.map(b => [b.id, b]));
   c.buildingById = Object.fromEntries(c.buildings.map(b => [b.id, b]));
-  const area = (x, z) => (z > 125 ? 'Lagoon Front' : x < 0 && z < 0 ? 'Yaba' : x >= 0 && z < 0 ? 'Ikeja' : x < 0 ? 'Surulere' : 'Lekki Phase 1');
+  const legacyArea = (x, z) => (z > 125 ? 'Lagoon Front' : x < 0 && z < 0 ? 'Yaba' : x >= 0 && z < 0 ? 'Ikeja' : x < 0 ? 'Surulere' : 'Lekki Phase 1');
+  const area = (x, z) => (c.districts?.length ? (c.districts.find(d => x >= d.x0 && x < d.x1 && z >= d.z0 && z < d.z1)?.name || legacyArea(x, z)) : legacyArea(x, z)); // districts are data (city JSON); the old rule is only a fallback
   c.area = area;
   for (const p of c.properties) p.area = area(p.door.x, p.door.z);
   c.plotById = Object.fromEntries((c.plots || []).map(p => [p.id, p]));

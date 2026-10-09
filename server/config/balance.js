@@ -28,6 +28,26 @@ export const BALANCE = {
     graceMissedPeriods: 2,         // evicted after this many missed rent ticks
     sellBackFraction: 0.7,         // ESTIMATE
     maxNameLen: 24, minNameLen: 3, knockTimeoutMs: 95000, knockDeclineCooldownMs: 60000, visitPermitMs: 10 * 60000, guestsByTier: { 1: 2, 2: 4, 3: 6 }, room: { 1: [6, 6], 2: [8, 8], 3: [10, 10] }, furnitureSellFraction: 0.5,
+    // ---- per-type interiors (ALL sizes, guest caps and layouts are ESTIMATE placeholders). Grid in cells (1 cell = 1.4 m on screen); z=0 is the back wall, the door is on the front wall (z = d).
+    // fixtures: built-in pieces (rendered by the client from primitives). blocks:true = those cells are reserved: Buy mode cannot place furniture there (server-checked). The doorway cells in front of the door are always reserved.
+    // door: { x, w } = door position (cells) and width on the front wall. windows: { wall: 'back'|'left'|'right', at, w } in cells along that wall. wall/floor = default decor palette ids (the owner can repaint).
+    types: {
+      faceyou: { label: 'Face-me-I-face-you room', tier: 1, grid: [6, 5], maxGuests: 2, wall: 'sky', floor: 'tile', door: { x: 2, w: 2 }, windows: [{ wall: 'back', at: 3, w: 1 }], corridor: { depth: 2, doors: 4 },
+        fixtures: [{ kind: 'bed', x: 0, z: 0, w: 2, d: 3, blocks: true, what: 'bed' }, { kind: 'wardrobe', x: 5, z: 0, w: 1, d: 2, blocks: true, what: 'wardrobe' }, { kind: 'curtain', x: 2, z: 0, w: 2, d: 1, blocks: false }, { kind: 'bucket', x: 4, z: 3, w: 1, d: 1, blocks: false }] },
+      selfcon: { label: 'Self-contain studio', tier: 1, grid: [6, 7], maxGuests: 2, wall: 'white', floor: 'tile', door: { x: 2, w: 2 }, windows: [{ wall: 'back', at: 1, w: 1.4 }, { wall: 'right', at: 4, w: 1.2 }],
+        fixtures: [{ kind: 'bed', x: 0, z: 0, w: 2, d: 3, blocks: true, what: 'bed' }, { kind: 'ensuite', x: 4, z: 0, w: 2, d: 2, blocks: true, what: 'bathroom' }, { kind: 'kitchenette', x: 2, z: 0, w: 2, d: 1, blocks: true, what: 'kitchenette' }] },
+      flat2: { label: '2-bedroom flat', tier: 2, grid: [8, 8], maxGuests: 4, wall: 'peach', floor: 'oak', door: { x: 3, w: 2 }, windows: [{ wall: 'back', at: 1.5, w: 1.4 }, { wall: 'back', at: 6.5, w: 1.4 }, { wall: 'left', at: 5, w: 1.4 }],
+        fixtures: [{ kind: 'bed', x: 0, z: 0, w: 2, d: 3, blocks: true, what: 'bed' }, { kind: 'bed', x: 6, z: 0, w: 2, d: 3, blocks: true, what: 'bed' }, { kind: 'partition', x: 3, z: 0, w: 2, d: 1, blocks: true, what: 'wall' }, { kind: 'kitchenette', x: 0, z: 5, w: 1, d: 3, blocks: true, what: 'kitchen', side: 'left' }] },
+      bungalow: { label: 'Bungalow', tier: 2, rooms: 3, grid: [9, 8], maxGuests: 5, wall: 'sand', floor: 'terracotta', door: { x: 4, w: 2 }, veranda: true, windows: [{ wall: 'back', at: 1.5, w: 1.4 }, { wall: 'back', at: 7.5, w: 1.4 }, { wall: 'right', at: 4, w: 1.4 }],
+        fixtures: [{ kind: 'bed', x: 0, z: 0, w: 2, d: 3, blocks: true, what: 'bed' }, { kind: 'bed', x: 7, z: 0, w: 2, d: 3, blocks: true, what: 'bed' }, { kind: 'kitchenette', x: 3, z: 0, w: 3, d: 1, blocks: true, what: 'kitchen' }] },
+      duplex: { label: 'Duplex', tier: 3, grid: [10, 10], maxGuests: 6, wall: 'cream', floor: 'dark', door: { x: 4, w: 2 }, windows: [{ wall: 'back', at: 3, w: 1.6 }, { wall: 'back', at: 6, w: 1.6 }, { wall: 'left', at: 5, w: 1.6 }],
+        fixtures: [{ kind: 'stairs', x: 8, z: 0, w: 2, d: 4, blocks: true, what: 'stairs' }, { kind: 'bed', x: 0, z: 0, w: 2, d: 3, blocks: true, what: 'bed' }, { kind: 'kitchenette', x: 0, z: 5, w: 1, d: 4, blocks: true, what: 'kitchen', side: 'left' }, { kind: 'landing', x: 6, z: 0, w: 4, d: 4, blocks: false }] },
+      mansion: { label: 'Mansion', tier: 3, grid: [12, 12], maxGuests: 8, wall: 'white', floor: 'mosaic', door: { x: 5, w: 3 }, windows: [{ wall: 'back', at: 3, w: 1.8 }, { wall: 'back', at: 7, w: 1.8 }, { wall: 'left', at: 4, w: 1.8 }, { wall: 'right', at: 4, w: 1.8 }],
+        fixtures: [{ kind: 'stairs', x: 9, z: 0, w: 3, d: 4, blocks: true, what: 'stairs', grand: true }, { kind: 'bed', x: 0, z: 0, w: 3, d: 3, blocks: true, what: 'bed', king: true }, { kind: 'pillar', x: 4, z: 5, w: 1, d: 1, blocks: true, what: 'pillar' }, { kind: 'pillar', x: 7, z: 5, w: 1, d: 1, blocks: true, what: 'pillar' }, { kind: 'bar', x: 0, z: 8, w: 1, d: 4, blocks: true, what: 'bar', side: 'left' }, { kind: 'chandelier', x: 5, z: 5, w: 2, d: 2, blocks: false }] }
+    },
+    defaultTypeByTier: { 1: 'faceyou', 2: 'flat2', 3: 'duplex' },
+    // what a bought plot looks like as it is built on (staged placeholder, ESTIMATE days after purchase)
+    plotStages: [{ id: 'pegged', label: 'Pegged and fenced', icon: '🪧', afterDays: 0 }, { id: 'foundation', label: 'Foundation dug', icon: '⛏️', afterDays: 3 }, { id: 'blocks', label: 'Blockwork going up', icon: '🧱', afterDays: 7 }, { id: 'roofed', label: 'Roofed and painted', icon: '🏠', afterDays: 14 }],
     // w x d in grid cells; layer 'floor' items (rug) may sit under others. ESTIMATE prices.
     furniture: [
       { id: 'tv',     name: 'Flat-screen TV', price: 6000, w: 2, d: 1, layer: 'object', cat: 'fun' },
@@ -54,6 +74,11 @@ export const BALANCE = {
   mood: { baseline: 50, decayPerMin: 0.05, happyAt: 75, happyBonusPct: 5, gameWin: 6, gameLoss: 1, gameDraw: 2, tv: 4, love: 5, lovedOwner: 3, hype: 2, greet: 1, sofa: 3, ride: 1 },
   // ---- venues + table games (GAME MONEY ONLY: no cash value, no cash-out). Stakes/timers/points are ESTIMATES.
   games: { stakes: [0, 100, 500], turnMs: 90000, waitMs: 5 * 60000, pointsWin: 3, pointsDraw: 1, maxStakedPerPairPerDay: 5, guestsMayStake: false, enterRadius: 16, leaveRadius: 40, sitPerMin: 10 },
+  // ---- casual break games (single player). ALL reward numbers are ESTIMATE placeholders, game money only, no cash-out. dailyCap is the most a player can EARN per day across all casual games.
+  casual: { dailyCap: 300, startPerMin: 8, minAccountAgeMs: num('NA_CASUAL_MIN_AGE_MS', 5 * 60 * 1000), staleRunMs: 6 * 3600000,
+    merge: { size: 4, scorePerNaira: 120, perRunCap: 60, minMoves: 20, maxMoves: 4000, minMsPerMove: 150 },
+    memory: { pairs: 8, perRunCap: 40, perExtraMove: 4, floor: 5, minMsPerFlip: 250, maxMs: 30 * 60000 },
+    word: { length: 5, maxGuesses: 6, rewards: [60, 50, 40, 30, 20, 10] } },
   // ---- cars (fictional models, placeholder ESTIMATE prices). 'borrowed' is what you drive until you buy one. fuel = perM per metre.
   cars: {
     borrowed: { name: 'Borrowed car', base: 60, perM: 0.35, speed: 10, mood: 0 },

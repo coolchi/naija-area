@@ -1,4 +1,6 @@
 import { get, post, fmtN, h, $, $$, ApiError } from './api.js';
+import * as casualUi from './casual.js';
+import { CityMap } from './map.js';
 
 // ---- pidgin toasts (tone: playful, never about real money) ----
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -17,7 +19,7 @@ export const say = (k, ...a) => LINES[k](...a);
 
 export class UI {
   constructor(game) {
-    this.g = game; this.sheetOpen = false; this.onClose = null; this.mm = $('#minimap').getContext('2d'); this.chatOn = false; this.sfxOn = true; this.actx = null;
+    this.g = game; this.sheetOpen = false; this.onClose = null; this.mm = $('#minimap').getContext('2d'); $('#minimap').style.cursor = 'pointer'; $('#minimap').title = 'Open the full map (M)'; $('#minimap').addEventListener('click', () => this.openMap()); this.chatOn = false; this.sfxOn = true; this.actx = null;
     $('#sheetX').onclick = () => this.closeSheet(); $('#sheetWrap').addEventListener('pointerdown', (e) => { if (e.target.id === 'sheetWrap') this.closeSheet(); });
     $('#phoneBtn').onclick = () => this.phone(); $('#muteBtn').onclick = () => { this.sfxOn = !this.sfxOn; $('#muteBtn').textContent = this.sfxOn ? '🔊' : '🔇'; };
     $('#carBtn').onclick = () => game.toggleCar();
@@ -26,7 +28,7 @@ export class UI {
       if (e.target.closest('input,textarea')) { if (e.key === 'Escape') { this.hideChat(); e.target.blur(); } return; }
       if (e.key === 'Escape') { if (this.sheetOpen) this.closeSheet(); }
       if (!game.playing) return; const k = e.key.toLowerCase();
-      if (k === 't' || k === 'enter') { e.preventDefault(); this.showChat(); } else if (k === 'p') this.phone(); else if (k === 'c') game.toggleCar(); else if (k === 'f' || k === ' ') { if (!this.sheetOpen) game.doAction(); }
+      if (k === 't' || k === 'enter') { e.preventDefault(); this.showChat(); } else if (k === 'p') this.phone(); else if (k === 'm') this.openMap(); else if (k === 'c') game.toggleCar(); else if (k === 'f' || k === ' ') { if (!this.sheetOpen) game.doAction(); }
     });
     $('#actionBtn').onclick = () => game.doAction();
   }
@@ -213,7 +215,7 @@ export class UI {
 
   // ---------- phone ----------
   phone(tab = 'wallet') {
-    const g = this.g; const tabs = [['wallet', '💰 Wallet'], ['jobs', '💼 Jobs'], ['home', '🏠 Home'], ['land', '🌍 Land'], ['ranks', '🏆 Ranks'], ['garage', '🚗 Garage'], ['alerts', '🔔 Alerts'], ['more', '⚙️ More']]; const body = h('div', {}); let cur = tab;
+    const g = this.g; const tabs = [['wallet', '💰 Wallet'], ['jobs', '💼 Jobs'], ['home', '🏠 Home'], ['land', '🌍 Land'], ['ranks', '🏆 Ranks'], ['garage', '🚗 Garage'], ['games', '🎮 Games'], ['map', '🗺 Map'], ['alerts', '🔔 Alerts'], ['more', '⚙️ More']]; const body = h('div', {}); let cur = tab;
     const bar = h('div', { class: 'tabrow' }); const drawTabs = () => bar.replaceChildren(...tabs.map(([id, l]) => h('button', { class: id === cur ? 'on' : '', onclick: () => { cur = id; drawTabs(); render(); } }, l)));
     const render = async () => { body.replaceChildren(h('p', { class: 'mut' }, 'Loading…')); const fn = this['tab_' + cur]; const el = await fn.call(this); body.replaceChildren(...[].concat(el)); };
     drawTabs(); this.openSheet('Phone', [bar, body]); render();
@@ -235,6 +237,10 @@ export class UI {
   }
   async tab_land() { const d = await this.guard(() => get('/api/plots')); if (!d) return []; return [h('div', { class: 'list' }, d.plots.map(p => h('div', {}, h('div', {}, h('b', {}, p.name), h('div', { class: 'mut' }, `${p.area} · ${fmtN(p.price)} · risk ${p.risk} · ${p.status}`)), h('button', { class: 'btn small ghost', onclick: () => this.place(p.id) }, 'View'))))]; }
   async tab_ranks() { const d = await this.guard(() => get('/api/leaderboard')); if (!d) return []; return [h('p', { class: 'mut' }, 'Net worth = cash + savings + property (70%) + land (95%). Bots are hidden.'), h('div', { class: 'list' }, d.rows.map(r => h('div', {}, h('span', {}, `#${r.rank} ${r.name}${r.guest ? ' (guest)' : ''}`), h('b', {}, fmtN(r.netWorth)))))]; }
+  openMap(focusId) { this.bigmap = this.bigmap || new CityMap(this.g); if (this.sheetOpen) this.closeSheet(); this.bigmap.isOpen ? this.bigmap.close() : this.bigmap.open(focusId); }
+  async tab_map() { this.openMap(); return []; }
+  async tab_games() { return casualUi.hub(this); }
+  playCasual(id) { casualUi.play(this, id); }
   async tab_garage() {
     const d = await this.guard(() => get('/api/garage')); if (!d) return []; const g = this.g; const motors = g.city.places.find(p => p.id === 'venue_motors');
     const cars = d.cars.length ? h('div', { class: 'list' }, d.cars.map(c => h('div', {}, h('span', {}, `${c.active ? '✅ ' : ''}${c.name}`, h('small', { class: 'mut' }, ` · worth ${fmtN(c.value)} (paid ${fmtN(c.paid)}) · ${c.ageDays}d old · ${c.conditionLabel} ${c.condition}%`)), h('span', { class: 'row' }, c.active ? '' : h('button', { class: 'btn small', onclick: async () => { await this.guard(() => post('/api/garage/use', { carId: c.id })); this.phone('garage'); } }, 'Use'), h('button', { class: 'btn small ghost', onclick: () => this.confirm(`Sell ${c.name} for about ${fmtN(c.value)}?`, async () => { const r = await this.guard(() => post('/api/garage/sell', { carId: c.id, idemKey: crypto.randomUUID?.() })); if (r) { this.toast(`Sold for ${fmtN(r.value)}.`, 'money'); g.refreshMe(); } this.phone('garage'); }) }, 'Sell'))))) : h('p', { class: 'mut' }, 'No car of your own yet. You are using a borrowed car: higher cost per trip, slower, no mood perk.');

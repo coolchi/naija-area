@@ -3,7 +3,7 @@
 // balance and a CHECK constraint forbids negative user balances; idempotency keys make retries safe.
 import { bad, GameError } from './util.js';
 
-export const SYS = { FAUCET_JOBS: 'sys:faucet_jobs', FAUCET_INTEREST: 'sys:faucet_interest', FAUCET_START: 'sys:faucet_start', FAUCET_TESTTOPUP: 'sys:faucet_test_topup',
+export const SYS = { FAUCET_CASUAL: 'sys:faucet_casual', FAUCET_JOBS: 'sys:faucet_jobs', FAUCET_INTEREST: 'sys:faucet_interest', FAUCET_START: 'sys:faucet_start', FAUCET_TESTTOPUP: 'sys:faucet_test_topup',
   SINK_RENT: 'sys:sink_rent', SINK_SHOPS: 'sys:sink_shops', SINK_PROPERTY: 'sys:sink_property', SINK_FURNITURE: 'sys:sink_furniture', SINK_FEES: 'sys:sink_fees', SINK_TRANSPORT: 'sys:sink_transport', SINK_DELIVERY: 'sys:sink_delivery', FAUCET_LAND: 'sys:faucet_land', ADS_REVENUE_TEST: 'sys:ads_revenue_test', ESCROW_GAMES: 'sys:escrow_games', SINK_CARS: 'sys:sink_cars', SINK_DECOR: 'sys:sink_decor', FAUCET_CARS: 'sys:faucet_car_resale' };
 
 export function ensureSystemAccounts(db) {

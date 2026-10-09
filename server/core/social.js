@@ -1,5 +1,6 @@
 // House presence, the visitor knock flow, DMs, travel (fare + timed commute) and land plots.
 import { bad, cleanText } from './util.js';
+import { maxGuestsOf, plotStage } from './housing.js';
 import { screen } from './filter.js';
 import { isBlocked, chatMuted } from './safety.js';
 import { dist, notify, homeOf, gameTime, getState, addMood } from './economy.js';
@@ -36,7 +37,7 @@ export function knock(app, uid, propertyId) {
   if (app.db.prepare("SELECT 1 FROM knocks WHERE visitor_id=? AND status='pending'").get(uid)) bad('ALREADY_KNOCKING', 'You are already knocking somewhere.', 409);
   const dec = app.db.prepare("SELECT decided_at FROM knocks WHERE visitor_id=? AND property_id=? AND status='declined' ORDER BY id DESC LIMIT 1").get(uid, propertyId);
   if (dec && now - dec.decided_at < H.knockDeclineCooldownMs) bad('COOLDOWN', `They are not receiving visitors right now. Knock again in ${Math.ceil((H.knockDeclineCooldownMs - (now - dec.decided_at)) / 1000)}s.`, 429, { retryIn: Math.ceil((H.knockDeclineCooldownMs - (now - dec.decided_at)) / 1000) });
-  if (app.guestCount(propertyId) >= H.guestsByTier[p.tier]) bad('FULL', 'The house is full right now.', 409);
+  if (app.guestCount(propertyId) >= maxGuestsOf(app, p)) bad('FULL', 'The house is full right now.', 409);
   if (app.db.prepare("SELECT COUNT(*) n FROM knocks WHERE owner_id=? AND status='pending'").get(o.user_id).n >= 3) bad('BUSY', 'Too many people at the door.', 409);
   const r = app.db.prepare("INSERT INTO knocks(property_id,visitor_id,owner_id,status,created_at,expires_at) VALUES (?,?,?,'pending',?,?)").run(propertyId, uid, o.user_id, now, now + H.knockTimeoutMs);
   const me = app.db.prepare('SELECT username FROM users WHERE id=?').get(uid).username;
@@ -47,7 +48,7 @@ export function respondKnock(app, uid, knockId, accept) {
   expireKnocks(app); const k = app.db.prepare('SELECT * FROM knocks WHERE id=?').get(knockId);
   if (!k || k.owner_id !== uid) bad('NO_KNOCK', 'No such knock.', 404); if (k.status !== 'pending') bad('KNOCK_CLOSED', `That knock is ${k.status}.`, 409);
   const now = app.clock.now(); const p = app.city.propertyById[k.property_id];
-  if (accept && app.guestCount(k.property_id) >= app.balance.housing.guestsByTier[p.tier]) bad('FULL', 'Your house is at its guest limit.', 409);
+  if (accept && app.guestCount(k.property_id) >= maxGuestsOf(app, p)) bad('FULL', 'Your house is at its guest limit.', 409);
   app.db.prepare('UPDATE knocks SET status=?, decided_at=? WHERE id=? AND status=\'pending\'').run(accept ? 'accepted' : 'declined', now, knockId);
   const me = app.db.prepare('SELECT username FROM users WHERE id=?').get(uid).username;
   notify(app, k.visitor_id, accept ? 'knock_in' : 'knock_no', accept ? `@${me} opened the door. Come in!` : `@${me} isn't receiving visitors right now.`);
@@ -107,7 +108,7 @@ const growthFactor = (app, plot, boughtAt, now) => Math.pow(1 + plot.growthPerWe
 export function plotsView(app, uid) {
   const now = app.clock.now(); const rows = app.db.prepare('SELECT lp.*, u.username FROM land_plots lp JOIN users u ON u.id=lp.user_id').all(); const by = Object.fromEntries(rows.map(r => [r.plot_id, r]));
   return (app.city.plots || []).map(p => { const o = by[p.id]; const value = o ? Math.floor(o.paid_price * growthFactor(app, p, o.bought_at, now)) : null;
-    return { id: p.id, name: p.name, area: p.area, sqm: p.sqm, price: p.price, growthPerWeekPct: Math.round(p.growthPerWeek * 1000) / 10, risk: p.risk, status: o ? (o.user_id === uid ? 'yours' : 'taken') : 'available', owner: o?.username || null, value: o?.user_id === uid ? value : null, sellValue: o?.user_id === uid ? Math.floor(value * app.balance.land.sellFraction) : null, x: p.x, z: p.z, size: p.size }; });
+    return { id: p.id, name: p.name, area: p.area, sqm: p.sqm, price: p.price, growthPerWeekPct: Math.round(p.growthPerWeek * 1000) / 10, risk: p.risk, status: o ? (o.user_id === uid ? 'yours' : 'taken') : 'available', owner: o?.username || null, value: o?.user_id === uid ? value : null, sellValue: o?.user_id === uid ? Math.floor(value * app.balance.land.sellFraction) : null, x: p.x, z: p.z, size: p.size, stage: o ? plotStage(app, o.bought_at, now) : null }; });
 }
 export function buyPlot(app, uid, plotId, idemKey) {
   const p = app.city.plotById?.[plotId]; if (!p) bad('NO_PLOT', 'Unknown plot.', 404); const st = getState(app, uid);

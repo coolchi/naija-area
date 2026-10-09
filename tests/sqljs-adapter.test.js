@@ -39,3 +39,12 @@ test('sql.js adapter: a play session through the real route table (shop, travel,
   const adv = ads.getOrCreateAdvertiser(app, { email: 'x@example.com', brand: 'Demo Brand' }); const up = ads.uploadCreative(app, adv.id, png(), 'image/png'); const c = ads.getCreative(app, up.creativeId); assert.ok(c.data.length > 100); assert.equal(c.mime, 'image/png');
   assert.equal(checkInvariants(db).ok, true);
 });
+test('sql.js adapter: casual games (word of the day, tile-merge replay, memory) and the new table games run on the demo database too', async () => {
+  const { app, db } = await mk(); const u = auth.newPlayer(app, { username: 'demo_casual', isGuest: true, ageConfirmed: true, cash: 1000 }); app.balance.casual.minAccountAgeMs = 0;
+  const { wordOfDay } = await import('../server/core/casual.js'); const { ANSWERS } = await import('../server/config/words.js'); const day = new Date(app.clock.now()).toISOString().slice(0, 10);
+  const r = await call(app, 'POST', '/api/casual/word/guess', { uid: u, body: { word: wordOfDay(app, day) } }); assert.equal(r.status, 200); assert.equal(r.json.status, 'won'); assert.ok(r.json.reward > 0); assert.ok(ANSWERS.length > 100);
+  const M = await import('../server/core/casual/merge.js'); const st = await call(app, 'POST', '/api/casual/merge/start', { uid: u }); const g = M.newGame(st.json.seed); let log = ''; for (let i = 0; i < 400 && !g.over; i++) for (const d of 'LDRU') if (M.step(g, d)) { log += d; break; }
+  app.clock.advance(log.length * 200); const sub = await call(app, 'POST', '/api/casual/merge/submit', { uid: u, body: { runId: st.json.runId, moves: log } }); assert.equal(sub.status, 200); assert.equal(sub.json.score, g.score);
+  const mem = await call(app, 'POST', '/api/casual/memory/start', { uid: u }); assert.equal(mem.json.cards, 16); assert.equal(checkInvariants(db).ok, true);
+  for (const kind of ['dominoes', 'draughts', 'ayo']) assert.ok(app.city.venues.some(v => v.stations.some(s => s.game === kind)), kind);
+});
