@@ -61,7 +61,7 @@ export class UI {
   }
   // ---------- HUD ----------
   hud(u) {
-    $('#cash').textContent = fmtN(u.cash); $('#sav').textContent = '🏦 ' + fmtN(u.savings); $('#energyBar').style.width = u.energy + '%'; $('#hungerBar').style.width = u.hunger + '%';
+    $('#cash').textContent = fmtN(u.cash); $('#sav').textContent = '🏦 ' + fmtN(u.savings); $('#energyBar').style.width = u.energy + '%'; $('#hungerBar').style.width = u.hunger + '%'; $('#moodBar').style.width = (u.mood ?? 60) + '%'; $('#moodBar').style.background = (u.mood ?? 60) >= this.g.cfg.moodHappyAt ? '#f7c948' : '#e58fb3';
     $('#energyBar').style.background = u.energy < 20 ? '#d6402f' : '#35c46b'; $('#hungerBar').style.background = u.hunger < 20 ? '#d6402f' : '#f29a2e';
     const sb = $('#shiftbar'); if (u.shift) { const j = this.g.cfg.jobs?.find(x => x.id === u.shift.jobId); const left = Math.max(0, u.shift.endsAt - this.g.serverNow()); sb.classList.remove('hidden'); sb.textContent = left > 0 ? `💼 ${j?.name || 'Shift'} · ${Math.ceil(left / 1000)}s left` : `💼 ${j?.name || 'Shift'} done: collect your pay!`; } else sb.classList.add('hidden');
   }
@@ -107,10 +107,15 @@ export class UI {
     const r = await this.guard(() => post('/api/travel', { placeId: pl.id, mode: mode.id, pos: g.pos() })); if (!r) return; this.closeSheet(); g.update(r.user); g.runCommute(r, pl, q);
   }
   fillPlaceInfo(el, pl, q) {
-    if (pl.type === 'shop') this.shopBlock(el, pl.id); else if (pl.type === 'job') this.jobBlock(el, pl.id); else if (pl.type === 'house') this.houseBlock(el, pl.id); else if (pl.type === 'plot') this.plotBlock(el, pl.id);
+    if (pl.type === 'shop') this.shopBlock(el, pl.id); else if (pl.type === 'job') this.jobBlock(el, pl.id); else if (pl.type === 'house') this.houseBlock(el, pl.id); else if (pl.type === 'plot') this.plotBlock(el, pl.id); else if (pl.type === 'venue') this.venueBlock(el, pl);
     else el.replaceChildren(h('p', { class: 'mut' }, pl.id === 'airport' ? 'Fast travel to other cities (Abuja, Port Harcourt) comes later. The airport also hosts premium ad boards.' : 'A public landmark. Wave to the neighbours.'));
   }
 
+  venueBlock(el, pl) {
+    const near = dist2(this.g.pos(), pl) < 16 + 4; const hrs = pl.hours ? `Open ${pl.hours[0]}:00 to ${pl.hours[1]}:00` : '';
+    el.replaceChildren(h('p', { class: 'mut' }, hrs), h('p', {}, pl.id === 'venue_motors' ? 'Look at the cars, compare running costs and buy one. Placeholder prices are ESTIMATES.' : 'Step inside to eat, chat, and play Whot or Ayo against other players. 🎲 Game money only.'),
+      h('button', { class: 'btn big alt', disabled: !near, id: 'venueEnter', onclick: () => { this.closeSheet(); this.g.venue.show(pl.id); } }, near ? 'Go inside' : 'Walk to the door first'));
+  }
   // ----- shops with price channels
   async shopBlock(el, shopId) {
     const d = await this.guard(() => get('/api/shops')); if (!d) return; const s = d.shops.find(x => x.id === shopId); if (!s) return; this.g.shops = d.shops; let channel = 'local';
@@ -208,7 +213,7 @@ export class UI {
 
   // ---------- phone ----------
   phone(tab = 'wallet') {
-    const g = this.g; const tabs = [['wallet', '💰 Wallet'], ['jobs', '💼 Jobs'], ['home', '🏠 Home'], ['land', '🌍 Land'], ['ranks', '🏆 Ranks'], ['alerts', '🔔 Alerts'], ['more', '⚙️ More']]; const body = h('div', {}); let cur = tab;
+    const g = this.g; const tabs = [['wallet', '💰 Wallet'], ['jobs', '💼 Jobs'], ['home', '🏠 Home'], ['land', '🌍 Land'], ['ranks', '🏆 Ranks'], ['garage', '🚗 Garage'], ['alerts', '🔔 Alerts'], ['more', '⚙️ More']]; const body = h('div', {}); let cur = tab;
     const bar = h('div', { class: 'tabrow' }); const drawTabs = () => bar.replaceChildren(...tabs.map(([id, l]) => h('button', { class: id === cur ? 'on' : '', onclick: () => { cur = id; drawTabs(); render(); } }, l)));
     const render = async () => { body.replaceChildren(h('p', { class: 'mut' }, 'Loading…')); const fn = this['tab_' + cur]; const el = await fn.call(this); body.replaceChildren(...[].concat(el)); };
     drawTabs(); this.openSheet('Phone', [bar, body]); render();
@@ -230,10 +235,16 @@ export class UI {
   }
   async tab_land() { const d = await this.guard(() => get('/api/plots')); if (!d) return []; return [h('div', { class: 'list' }, d.plots.map(p => h('div', {}, h('div', {}, h('b', {}, p.name), h('div', { class: 'mut' }, `${p.area} · ${fmtN(p.price)} · risk ${p.risk} · ${p.status}`)), h('button', { class: 'btn small ghost', onclick: () => this.place(p.id) }, 'View'))))]; }
   async tab_ranks() { const d = await this.guard(() => get('/api/leaderboard')); if (!d) return []; return [h('p', { class: 'mut' }, 'Net worth = cash + savings + property (70%) + land (95%). Bots are hidden.'), h('div', { class: 'list' }, d.rows.map(r => h('div', {}, h('span', {}, `#${r.rank} ${r.name}${r.guest ? ' (guest)' : ''}`), h('b', {}, fmtN(r.netWorth)))))]; }
+  async tab_garage() {
+    const d = await this.guard(() => get('/api/garage')); if (!d) return []; const g = this.g; const motors = g.city.places.find(p => p.id === 'venue_motors');
+    const cars = d.cars.length ? h('div', { class: 'list' }, d.cars.map(c => h('div', {}, h('span', {}, `${c.active ? '✅ ' : ''}${c.name}`, h('small', { class: 'mut' }, ` · worth ${fmtN(c.value)} (paid ${fmtN(c.paid)}) · ${c.ageDays}d old`)), h('span', { class: 'row' }, c.active ? '' : h('button', { class: 'btn small', onclick: async () => { await this.guard(() => post('/api/garage/use', { carId: c.id })); this.phone('garage'); } }, 'Use'), h('button', { class: 'btn small ghost', onclick: () => this.confirm(`Sell ${c.name} for about ${fmtN(c.value)}?`, async () => { const r = await this.guard(() => post('/api/garage/sell', { carId: c.id, idemKey: crypto.randomUUID?.() })); if (r) { this.toast(`Sold for ${fmtN(r.value)}.`, 'money'); g.refreshMe(); } this.phone('garage'); }) }, 'Sell'))))) : h('p', { class: 'mut' }, 'No car of your own yet. You are using a borrowed car: higher cost per trip, slower, no mood perk.');
+    return [h('div', { class: 'row sp' }, h('b', {}, `Garage (${d.cars.length}/${d.slots})`), h('span', { class: 'mut' }, `Driving: ${d.active.label}`)), cars, h('p', { class: 'mut' }, `Resale: about ${Math.round((1 - d.resale.firstDriveOffFraction) * 100)}% on day one, then about ${Math.round(d.resale.perDayDepreciation * 100)}% less per day, never below ${Math.round(d.resale.floorFraction * 100)}%. All figures are ESTIMATES.`), motors ? h('button', { class: 'btn alt', onclick: () => { this.closeSheet(); this.place(motors.id); } }, '🏪 Visit Naija Auto Mart') : ''];
+  }
   async tab_alerts() { const d = await this.guard(() => get('/api/notifications')); this.g.markRead(); if (!d) return []; return [h('div', { class: 'list' }, d.rows.map(n => h('div', {}, h('span', {}, n.text), h('span', { class: 'mut' }, new Date(n.created_at).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' })))))]; }
   async tab_more() {
     const g = this.g; const bl = await this.guard(() => get('/api/social/blocks')); const blocked = h('div', { class: 'list' }, (bl?.rows || []).map(r => h('div', {}, h('span', {}, `@${r.username} · ${r.kind}`), h('button', { class: 'btn small ghost', onclick: async () => { await this.setBlock(r.username, null); this.phone('more'); } }, 'Undo')))); return [h('b', {}, 'Muted and blocked'), (bl?.rows || []).length ? blocked : h('p', { class: 'mut' }, 'Nobody. Tap a chat line or the ⋯ on a house card to mute, block or report.'), h('div', { class: 'row' }, h('a', { class: 'btn ghost', href: '/advertise', target: '_blank', rel: 'noopener' }, 'Advertise'), h('a', { class: 'btn ghost', href: '/methodology', target: '_blank', rel: 'noopener' }, 'How ads are counted'), h('a', { class: 'btn ghost', href: '/stats.html', target: '_blank', rel: 'noopener' }, 'Stats')),
       h('p', { class: 'mut' }, `${g.cfg.name} v0 · test build. In-game ₦ is fictional with no cash-out. 18+.`), h('div', { class: 'row' }, h('button', { class: 'btn red', onclick: () => g.logout() }, 'Log out'))];
   }
 }
-const typeLabel = (t) => ({ shop: 'Shop', job: 'Work', house: 'House', plot: 'Land plot', landmark: 'Landmark' }[t] || t);
+const dist2 = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+const typeLabel = (t) => ({ venue: 'Place to hang out', shop: 'Shop', job: 'Work', house: 'House', plot: 'Land plot', landmark: 'Landmark' }[t] || t);

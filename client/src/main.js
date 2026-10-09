@@ -2,11 +2,12 @@ import * as THREE from 'three';
 import { get, post, $, $$, h, ApiError } from './api.js';
 import { buildWorld } from './world.js';
 import { Controller } from './player.js';
-import { Traffic, Walkers, Ghosts } from './entities.js';
+import { Traffic, Walkers, Ghosts, makeNameSprite } from './entities.js';
 import { AdsClient } from './ads-client.js';
 import { UI, say } from './ui.js';
 import { Net } from './net.js';
 import { Interior } from './interior.js';
+import { Venue } from './venue.js';
 import { glowTexture } from './textures.js';
 
 const TIPS = ['Tap any building or sign to see it on the map and travel there.', 'Take a shift at the Corner Mart: the quick task gives +25% if you stop the bar in the green.', 'Knock at a house when its owner is home. They can let you in.', 'Land plots grow in value, but omo-onile may come for a levy.', 'Delivery costs more but works from anywhere.', 'Press C to hop in your car. Press T to chat.'];
@@ -28,7 +29,7 @@ class Game {
       this.world = buildWorld(city); this.scene = this.world.scene; this.decorate();
       this.progress(60, 'Putting traffic on the road…'); await new Promise(r => setTimeout(r, 30));
       this.traffic = new Traffic(this.scene, city.trafficLoops); this.walkers = new Walkers(this.scene, city.zones); this.ghosts = new Ghosts(this.scene);
-      this.ads = new AdsClient(this.world, city, () => this.serverNow()); this.ui = new UI(this); this.net = new Net(this); this.interior = new Interior(this);
+      this.ads = new AdsClient(this.world, city, () => this.serverNow()); this.ui = new UI(this); this.net = new Net(this); this.interior = new Interior(this); this.venue = new Venue(this);
       this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root);
       addEventListener('resize', () => this.resize()); this.resize(); this.bindAuth(); this.progress(85, TIPS[Math.floor(Math.random() * TIPS.length)]);
       const me = await get('/api/me').catch(() => null); this.progress(100, 'Ready!'); await new Promise(r => setTimeout(r, 250));
@@ -46,6 +47,7 @@ class Game {
       const flag = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.6), new THREE.MeshBasicMaterial({ color: 0x35c46b, side: THREE.DoubleSide })); flag.position.set(p.x + 1.3, 3.2, p.z + p.size / 2 - 1); g.add(flag); this.plotMeshes[p.id] = { sq, flag }; sc.add(g);
     }
     const m = this.city.shops.find(s => s.id === 'shop_market'); if (m) { const awn = new THREE.Mesh(new THREE.BoxGeometry(7, 0.25, 4), new THREE.MeshLambertMaterial({ color: 0xd64a2f })); awn.position.set(m.x, 3, m.z); const tb = new THREE.Mesh(new THREE.BoxGeometry(6, 1.1, 2), new THREE.MeshLambertMaterial({ color: 0x8b6b3d })); tb.position.set(m.x, 0.55, m.z + 0.5); const crates = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.3, 1.2), new THREE.MeshLambertMaterial({ color: 0xe7b84a })); crates.position.set(m.x, 1.25, m.z + 0.5); sc.add(awn, tb, crates); for (const dx of [-3.2, 3.2]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 3), new THREE.MeshLambertMaterial({ color: 0x555555 })); p.position.set(m.x + dx, 1.5, m.z - 1.5); sc.add(p); } }
+    for (const v of this.city.venues || []) { const sp = makeNameSprite(v.name, v.sign || '#333'); sp.scale.set(8, 2, 1); sp.position.set(v.x, 8.5, v.z); sc.add(sp); const mk = new THREE.Mesh(new THREE.RingGeometry(1.4, 1.9, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffc20e, side: THREE.DoubleSide })); mk.position.set(v.x, 0.15, v.z); sc.add(mk); }
     this.dest = new THREE.Mesh(new THREE.RingGeometry(1.2, 1.7, 28).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xb44cff, side: THREE.DoubleSide })); this.dest.visible = false; sc.add(this.dest);
   }
   resize() { const w = innerWidth, hh = innerHeight; this.renderer.setSize(w, hh, false); this.camera.aspect = w / hh; this.camera.updateProjectionMatrix(); this.size = { w, h: hh }; }
@@ -66,6 +68,7 @@ class Game {
   }
   async refreshProps() { const d = await get('/api/properties').catch(() => null); if (d) { this.props = d.properties; this.world.setMarkers(d.properties); } }
   refreshPlots() { for (const p of this.plots) { const m = this.plotMeshes[p.id]; if (m) m.flag.material.color.setHex(p.status === 'available' ? 0x35c46b : p.status === 'yours' ? 0xffc20e : 0x8a8f98); } }
+  async refreshMe() { const r = await get('/api/me').catch(() => null); if (r?.user) this.update(r.user); }
   update(u) { if (!u) return; this.user = u; this.ui.hud(u); }
   sessionLost() { if (!this.playing) return; this.playing = false; this.net.stop(); $('#hud').classList.add('hidden'); this.ui.closeSheet(); $('#auth').classList.remove('hidden'); $('#authErr').textContent = 'Your session ended. Please sign in again.'; }
   async logout() { await post('/api/auth/logout').catch(() => {}); this.playing = false; this.net.stop(); location.reload(); }
@@ -121,7 +124,7 @@ class Game {
     let last = t0; this.lastSample = 0; const frame = (now) => {
       requestAnimationFrame(frame); const dt = Math.min(0.1, (now - last) / 1000); last = now;
       if (!this.playing) { this.idleCam(now); this.renderer.render(this.scene, this.camera); return; }
-      if (this.interior.open) return;
+      if (this.interior.open || this.venue.open) return;
       const sec = this.serverNow() / 1000; this.traffic.update(sec); this.walkers.update(sec); this.ghosts.update(this.serverNow() - 1100); this.world.animate(dt * 1000);
       if (!this.stepCommute(now)) this.ctrl.update(dt); else this.ctrl.placeCamera(this.camera, dt);
       if (!this.commute) { this.ctrl.placeCamera(this.camera, dt); if (now - this.lastSample > 250) { this.lastSample = now; this.net.sample({ t: this.serverNow(), x: this.ctrl.x, z: this.ctrl.z, ry: this.ctrl.ry }); } }

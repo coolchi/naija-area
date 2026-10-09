@@ -100,7 +100,8 @@ function finish(app, m, winner, why) {
   const now = app.clock.now(); const G = app.balance.games; const M = app.balance.mood;
   const u = app.db.prepare("UPDATE game_matches SET status='finished', winner=?, result=?, turn_user=NULL, updated_at=? WHERE id=? AND status='active'").run(winner, why, now, m.id); if (u.changes !== 1) return;
   if (m.stake > 0) { if (winner) escrowOut(app, m, winner, m.stake * 2, 'game_win'); else { escrowOut(app, m, m.p1, m.stake, 'game_refund'); escrowOut(app, m, m.p2, m.stake, 'game_refund'); } }
-  const w = weekOf(now); const bump = (uid, col, pts) => { app.db.prepare('INSERT INTO game_scores(week,kind,user_id) VALUES (?,?,?) ON CONFLICT(week,kind,user_id) DO NOTHING').run(w, m.kind, uid); app.db.prepare(`UPDATE game_scores SET ${col}=${col}+1, points=points+? WHERE week=? AND kind=? AND user_id=?`).run(pts, w, m.kind, uid); };
+  const practice = app.db.prepare('SELECT COUNT(*) n FROM users WHERE id IN (?,?) AND is_bot=1').get(m.p1, m.p2).n > 0; // practice games never touch the weekly board
+  const w = weekOf(now); const bump = (uid, col, pts) => { if (practice) return; app.db.prepare('INSERT INTO game_scores(week,kind,user_id) VALUES (?,?,?) ON CONFLICT(week,kind,user_id) DO NOTHING').run(w, m.kind, uid); app.db.prepare(`UPDATE game_scores SET ${col}=${col}+1, points=points+? WHERE week=? AND kind=? AND user_id=?`).run(pts, w, m.kind, uid); };
   for (const uid of [m.p1, m.p2]) {
     if (!winner) { bump(uid, 'draws', G.pointsDraw); addMood(app, uid, M.gameDraw); notify(app, uid, 'game', `Draw! ${m.stake ? `Your ₦${m.stake} came back.` : ''}`.trim()); }
     else if (uid === winner) { bump(uid, 'wins', G.pointsWin); addMood(app, uid, M.gameWin); notify(app, uid, 'game', `You won! ${m.stake ? `+₦${m.stake * 2} (game money).` : '+3 points on the weekly board.'}`); }

@@ -1,0 +1,132 @@
+// Venue rooms (Mama Put, viewing centre, Ayo joint, car showroom): a small 3D room with tappable stations + a game panel for Whot and Ayo.
+// GAME MONEY ONLY. The server owns every rule; this file only draws what the server sends and forwards taps.
+import * as THREE from 'three';
+import { get, post, fmtN, h, $ } from './api.js';
+import { makeAvatar, makePlayerCar, makeNameSprite } from './entities.js';
+
+const SHAPE = { circle: ['●', '#d6402f'], triangle: ['▲', '#2e7dd1'], cross: ['✚', '#2e9b5e'], square: ['■', '#8a5ad1'], star: ['★', '#e0a020'], whot: ['W', '#222'] };
+const hash = (s) => { let x = 7; for (const c of String(s)) x = (x * 31 + c.charCodeAt(0)) >>> 0; return x; };
+const ICON = { eat: '🍲', game: '🎲', board: '🏆', poster: '📜', tv: '📺', car: '🚗' };
+
+export class Venue {
+  constructor(game) { this.g = game; this.el = $('#venue'); this.open = false; this.shotId = null; }
+  async show(venueId) {
+    const g = this.g; const data = await g.ui.guard(() => post('/api/venue/enter', { venueId, pos: g.pos() })); if (!data) return false;
+    this.data = data; this.id = venueId; this.open = true; g.busy = true; g.ctrl.frozen = true; this.matchId = null; this.match = null; this.dismissed = this.dismissed || new Set();
+    this.el.classList.remove('hidden'); this.el.replaceChildren(); this.build(); this.chrome(); this.loop(); this.poll(); return true;
+  }
+  build() {
+    const d = this.data; const R = d.room; this.canvas = h('canvas'); this.el.append(this.canvas);
+    this.r = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true }); this.r.setPixelRatio(Math.min(devicePixelRatio, 2)); this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x1d2b25);
+    this.cam = new THREE.PerspectiveCamera(42, 1, 0.1, 100); this.yaw = Math.PI / 5; this.pitch = 0.82; this.dist = 15;
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x887766, 1.0)); const sun = new THREE.DirectionalLight(0xfff0d0, 1.0); sun.position.set(5, 10, 6); this.scene.add(sun);
+    const sign = new THREE.Color(d.sign || '#555'); const fl = new THREE.Mesh(new THREE.BoxGeometry(R.w, 0.2, R.d), new THREE.MeshLambertMaterial({ color: 0xcdbb98 })); fl.position.y = -0.1; this.scene.add(fl);
+    const wallM = new THREE.MeshLambertMaterial({ color: 0xf1e7cf }); const back = new THREE.Mesh(new THREE.BoxGeometry(R.w, 3.2, 0.2), wallM); back.position.set(0, 1.6, -R.d / 2); const left = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3.2, R.d), wallM); left.position.set(-R.w / 2, 1.6, 0);
+    const band = new THREE.Mesh(new THREE.BoxGeometry(R.w, 0.5, 0.22), new THREE.MeshLambertMaterial({ color: sign })); band.position.set(0, 2.9, -R.d / 2 + 0.02); this.scene.add(back, left, band);
+    const door = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.04, 0.2), new THREE.MeshBasicMaterial({ color: 0xffc20e })); door.position.set(0, 0.04, R.d / 2); this.scene.add(door);
+    this.stations = new THREE.Group(); this.scene.add(this.stations); this.people = new THREE.Group(); this.scene.add(this.people); this.meshes = {};
+    for (const st of d.stations) this.addStation(st);
+    this.bind(); this.resize(); this.onResize = () => this.resize(); addEventListener('resize', this.onResize);
+  }
+  addStation(st) {
+    const grp = new THREE.Group(); const col = new THREE.Color(st.color || '#888'); const mat = (c) => new THREE.MeshLambertMaterial({ color: c });
+    const box = (w, hh, dd, c, y) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, hh, dd), mat(c)); m.position.y = y ?? hh / 2; grp.add(m); return m; };
+    if (st.type === 'eat') { box(3.4, 1, 0.9, col); box(3.5, 0.12, 1.0, 0xf2c14e, 1.05); }
+    else if (st.type === 'game') { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, 0.12, 20), mat(col)); t.position.y = 0.8; grp.add(t); const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, 0.8, 8), mat(0x4a3320)); leg.position.y = 0.4; grp.add(leg); if (st.game === 'ayo') { box(1.5, 0.12, 0.6, 0x7a4a22, 0.92); for (let i = 0; i < 12; i++) { const p = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), mat(0x2b1a0c)); p.position.set(-0.62 + (i % 6) * 0.25, 1.0, i < 6 ? 0.12 : -0.12); grp.add(p); } } else for (let i = 0; i < 4; i++) { const c = box(0.34, 0.03, 0.5, [0xd6402f, 0x2e7dd1, 0xe0a020, 0x2e9b5e][i], 0.88); c.position.x = -0.5 + i * 0.33; c.rotation.y = 0.2 * i - 0.3; } for (const sx of [-1.25, 1.25]) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.5, 10), mat(0x33291e)); s.position.set(sx, 0.25, 0); grp.add(s); } }
+    else if (st.type === 'board') { box(2.4, 1.5, 0.12, col, 1.6).position.z = -0.1; box(2.2, 1.3, 0.14, 0x0f3b27, 1.6).position.z = -0.08; }
+    else if (st.type === 'poster') { box(0.1, 1.4, 1.2, col, 1.6); }
+    else if (st.type === 'tv') { box(2.8, 1.5, 0.2, 0x151515, 1.8); box(2.6, 1.3, 0.22, 0x2a65c5, 1.8); box(3.0, 0.5, 0.8, 0x6b4a2b, 0.25); }
+    else if (st.type === 'car') { const c = makePlayerCar(st.color || '#888'); c.scale.setScalar(0.38); c.rotation.y = Math.PI / 6; grp.add(c); box(1.8, 0.06, 1.0, 0xdddddd, 0.03); }
+    const sp = makeNameSprite(`${ICON[st.type] || ''} ${st.label}`.slice(0, 26), st.type === 'game' ? '#8a5a2b' : '#1f6f4a'); sp.scale.set(2.8, 0.7, 1); sp.position.y = st.type === 'car' ? 1.8 : st.type === 'tv' ? 3.0 : st.type === 'board' ? 2.8 : 2.1; grp.add(sp);
+    grp.position.set(st.x, 0, st.z); if (st.type === 'poster') grp.rotation.y = 0; grp.traverse(o => { o.userData.stationId = st.id; }); this.stations.add(grp); this.meshes[st.id] = grp;
+  }
+  people_refresh() {
+    this.people.clear(); const d = this.data; const names = new Set(); const put = (u, color, x, z) => { if (names.has(u)) return; names.add(u); const a = makeAvatar(color || '#2e9b5e'); a.scale.setScalar(0.55); a.position.set(x, 0, z); const t = makeNameSprite('@' + u, '#222'); t.scale.set(1.6, 0.4, 1); t.position.y = 2.2; a.add(t); this.people.add(a); };
+    for (const st of d.stations) if (st.type === 'game' && st.match) { const m = st.match; if (m.p1) put(m.p1, null, st.x - 1.25, st.z + 0.5); if (m.p2) put(m.p2, null, st.x + 1.25, st.z + 0.5); }
+    for (const o of d.occupants) { const hx = hash(o.username); put(o.username, o.color, -3 + (hx % 7) * 1.0, d.room.d / 2 - 1.1 - ((hx >> 4) % 2) * 0.8); }
+  }
+  chrome() {
+    const d = this.data; this.strip = h('div', { class: 'vstrip' }); this.panel = h('div', { class: 'vpanel hidden' });
+    const head = h('div', { class: 'ihead' }, h('div', {}, h('h3', {}, d.name), h('div', { style: 'font-size:13px' }, `${d.blurb} · open ${d.hours[0]}:00 to ${d.hours[1]}:00`), h('div', { class: 'tag amber', style: 'display:inline-block;margin-top:4px' }, '🎲 Game money only · 18+')), h('div', { class: 'row' }, h('button', { class: 'btn small red', id: 'venueLeave', onclick: () => this.leave() }, 'Leave')));
+    this.el.append(head, this.strip, this.panel); this.drawStrip(); this.people_refresh();
+  }
+  drawStrip() {
+    const d = this.data; this.strip.replaceChildren(...d.stations.map(st => { const m = st.match; const sub = st.type === 'game' ? (m ? (m.status === 'waiting' ? `waiting: @${m.p1}${m.stake ? ' · ₦' + m.stake : ''}` : `${m.p1} vs ${m.p2}`) : 'free table') : st.type === 'car' ? fmtN(this.price(st.model)) + ' (est.)' : '';
+      return h('button', { class: `vst ${m?.you ? 'mine' : ''}`, 'data-station': st.id, onclick: () => this.station(st) }, `${ICON[st.type] || '•'} ${st.label}`, sub ? h('small', {}, sub) : ''); }));
+  }
+  price(model) { return this.g.cfg.cars?.[model]?.price ?? this.catalog?.find(c => c.id === model)?.price ?? 0; }
+  async station(st) {
+    const ui = this.g.ui;
+    if (st.type === 'eat') { const body = h('div'); ui.openSheet(st.label, body); ui.shopBlock(body, st.shopId); }
+    else if (st.type === 'poster') ui.openSheet(st.label, [h('p', {}, st.text), h('p', { class: 'mut' }, 'Reports, mutes and blocks work here too: tap a name in the chat.')]);
+    else if (st.type === 'tv') { const r = await ui.guard(() => post('/api/venue/act', { venueId: this.id, stationId: st.id })); if (r) { ui.toast(r.text); this.g.net.nudge(); } }
+    else if (st.type === 'board') this.board();
+    else if (st.type === 'car') this.carSheet(st);
+    else if (st.type === 'game') this.sitPanel(st);
+  }
+  async board(kind = 'all') {
+    const ui = this.g.ui; const d = await ui.guard(() => get('/api/scoreboard' + (kind === 'all' ? '' : `?kind=${kind}`))); if (!d) return; const left = Math.max(0, d.endsAt - this.g.serverNow());
+    const tabs = h('div', { class: 'chips' }, ['all', 'whot', 'ayo'].map(k => h('button', { class: `chip ${k === kind ? 'on' : ''}`, onclick: () => this.board(k) }, k === 'all' ? 'All games' : k === 'whot' ? 'Whot' : 'Ayo')));
+    ui.openSheet('Weekly scoreboard', [tabs, d.rows.length ? h('div', { class: 'list' }, d.rows.map(r => h('div', {}, h('span', {}, `${r.rank}. @${r.username}`), h('span', { class: 'mut' }, `${r.wins}W ${r.draws}D ${r.losses}L · `), h('b', {}, `${r.points} pts`)))) : h('p', { class: 'mut' }, 'Nobody has played this week yet. Be the first!'), h('p', { class: 'mut' }, `${d.scoring} Resets in ${Math.floor(left / 86400000)}d ${Math.floor(left % 86400000 / 3600000)}h.`)]);
+  }
+  async carSheet(st) {
+    const ui = this.g.ui; const gar = await ui.guard(() => get('/api/garage')); if (!gar) return; this.catalog = gar.catalogue; const m = gar.catalogue.find(c => c.id === st.model); const cur = gar.active; const owned = gar.cars.some(c => c.model === st.model);
+    const row = (l, v) => h('div', { class: 'row sp' }, h('span', { class: 'mut' }, l), h('b', {}, v));
+    ui.openSheet(m.name, [h('div', { class: 'tag amber' }, 'Placeholder model · price is an ESTIMATE'), row('Price', fmtN(m.price)), row('Fuel per 100 m', '₦' + (m.perM * 100).toFixed(0) + ` (borrowed: ₦${(gar.borrowed.perM * 100).toFixed(0)} + ₦${gar.borrowed.base} tip)`), row('Speed', `${m.speed} (borrowed ${gar.borrowed.speed})`), row('Mood on a nice ride', `+${m.mood}`), row('Resale', `about ${Math.round((1 - gar.resale.firstDriveOffFraction) * 100)}% right after purchase, then about ${Math.round(gar.resale.perDayDepreciation * 100)}% less per day (never below ${Math.round(gar.resale.floorFraction * 100)}%)`), row('Your car now', cur.label),
+      h('button', { class: 'btn big alt', disabled: gar.cars.length >= gar.slots, onclick: async () => { const r = await ui.guard(() => post('/api/garage/buy', { model: m.id, idemKey: crypto.randomUUID?.() })); if (r) { ui.closeSheet(); ui.toast(`Congrats! ${m.name} is in your garage 🚗`, 'money'); this.g.refreshMe?.(); } } }, owned ? 'Buy another' : `Buy · ${fmtN(m.price)}`), gar.cars.length >= gar.slots ? h('p', { class: 'mut' }, 'Garage full: sell a car in Phone → Garage.') : '']);
+  }
+  sitPanel(st) {
+    const G = this.data.stakes; let stake = 0; const m = st.match; const info = this.g.cfg; void info;
+    const title = st.game === 'ayo' ? 'Ayo table' : 'Whot bench'; const kids = [h('div', { class: 'row sp' }, h('b', {}, `${st.label}`), h('button', { class: 'btn small ghost', onclick: () => this.panel.classList.add('hidden') }, '✕'))];
+    if (m && m.you) { this.focusMatch(m.id); return; }
+    if (m && m.status === 'active') kids.push(h('p', { class: 'mut' }, `Game in progress: @${m.p1} vs @${m.p2}. Try another table.`));
+    else if (m) kids.push(h('p', {}, `@${m.p1} is waiting for an opponent.`), h('p', { class: 'mut' }, m.stake ? `Stake ₦${m.stake} each (game money). Winner takes ₦${m.stake * 2}.` : 'Friendly game: no stake.'), h('button', { class: 'btn big alt', onclick: () => this.sit(st, 0) }, m.stake ? `Join · stake ${fmtN(m.stake)}` : 'Join the game'));
+    else { const draw = () => chips.replaceChildren(...G.map(s => h('button', { class: `chip ${s === stake ? 'on' : ''}`, onclick: () => { stake = s; draw(); sitBtn.textContent = s ? `Sit and wait · stake ${fmtN(s)}` : 'Sit and wait · friendly'; } }, s ? fmtN(s) : 'Friendly'))); const chips = h('div', { class: 'chips' }); const sitBtn = h('button', { class: 'btn big alt', onclick: () => this.sit(st, stake) }, 'Sit and wait · friendly'); draw();
+      kids.push(h('p', { class: 'mut' }, `${title}: sit down and wait for another player to join. Pick a stake (game money, held safely until the game ends).`), chips, sitBtn); }
+    kids.push(h('p', { class: 'mut' }, '🎲 Game money only. No cash value, no cash-out.')); this.showPanel(kids);
+  }
+  showPanel(kids) { this.panel.replaceChildren(...[].concat(kids)); this.panel.classList.remove('hidden'); }
+  async sit(st, stake) { const r = await this.g.ui.guard(() => post('/api/game/sit', { venueId: this.id, stationId: st.id, stake })); if (!r) return; this.focusMatch(r.id, r); this.g.net.nudge(); }
+  focusMatch(id, view) { this.matchId = id; if (view) this.renderMatch(view); else this.pollGame(); }
+  async pollGame() { if (!this.matchId) return; const v = await get(`/api/game?id=${this.matchId}`).catch(() => null); if (v) this.renderMatch(v); }
+  renderMatch(v) {
+    this.match = v; if (this.dismissed.has(v.id)) return; this.matchId = v.id; const me = this.g.user?.username; const kids = []; const head = h('div', { class: 'row sp' }, h('b', {}, `${v.kind === 'ayo' ? 'Ayo' : 'Whot'} · ${v.p1} vs ${v.p2 || '…'}`), h('span', { class: 'tag amber' }, v.stake ? `Stake ${fmtN(v.stake)} · pot ${fmtN(v.pot)}` : 'Friendly')); kids.push(head);
+    if (v.status === 'waiting') { kids.push(h('p', {}, 'Waiting for an opponent to sit down… ⏳'), h('p', { class: 'mut' }, 'Your stake is held safely and comes back if nobody joins.'), h('button', { class: 'btn ghost', onclick: () => this.leaveMatch(v) }, 'Leave the table')); }
+    else if (v.status === 'active') {
+      const mine = v.board?.mine; const left = Math.max(0, Math.ceil((v.deadlineAt - this.g.serverNow()) / 1000)); kids.push(h('div', { class: 'row sp' }, h('span', { class: mine ? 'tag green' : 'tag' }, mine ? '🟢 Your turn' : `⏳ @${v.turn}'s turn`), h('span', { class: 'mut', id: 'gtimer' }, `${left}s`)));
+      kids.push(v.kind === 'ayo' ? this.ayoBoard(v) : this.whotBoard(v)); kids.push(h('div', { class: 'row' }, h('button', { class: 'btn small ghost', onclick: () => this.g.ui.confirm?.call(this.g.ui, 'Resign this game? Your opponent wins the pot.', () => this.leaveMatch(v)) }, '🏳 Resign')));
+    } else { const r = v.result || {}; kids.push(h('div', { class: `banner ${r.youWon ? 'win' : r.draw ? 'draw' : 'lose'}` }, r.cancelled ? `Table closed. ${r.why || ''}` : r.draw ? '🤝 Draw' : r.youWon ? `🏆 You won! ${v.stake ? '+' + fmtN(v.stake * 2) : ''}` : `You lost. ${r.why || ''}`), h('button', { class: 'btn alt', onclick: () => { this.dismissed.add(v.id); this.matchId = null; this.panel.classList.add('hidden'); this.g.net.nudge(); this.refreshVenue(); } }, 'Back to the room')); this.g.refreshMe?.(); }
+    kids.push(h('p', { class: 'mut' }, '🎲 Game money only.')); this.showPanel(kids); void me;
+  }
+  card(c, { onclick, disabled, mini } = {}) { const [g, col] = SHAPE[c.s]; return h('button', { class: `wcard ${mini ? 'mini' : ''}`, 'data-card': c.id, disabled: !!disabled, style: `--c:${col}`, onclick }, h('span', { class: 'n' }, c.s === 'whot' ? '20' : c.n), h('span', { class: 'g' }, g)); }
+  whotBoard(v) {
+    const b = v.board; const wrap = h('div', { class: 'whot' }); const top = h('div', { class: 'row' }, h('div', {}, h('small', { class: 'mut' }, 'Top card'), this.card(b.top, { disabled: true })), h('div', {}, h('small', { class: 'mut' }, 'Shape to match'), h('div', { class: 'shape', style: `color:${SHAPE[b.shape][1]}` }, SHAPE[b.shape][0])), h('div', { class: 'mut' }, `Opponent: ${b.oppCount} cards`, h('br'), `Market: ${b.market}`), b.last ? h('div', { class: 'mut' }, this.lastText(v)) : '');
+    const hand = h('div', { class: 'hand' }, b.hand.map(c => this.card(c, { disabled: !b.mine || !b.playable.includes(c.id), onclick: () => (c.s === 'whot' ? this.pickShape(v, c) : this.move(v, { card: c.id })) })));
+    const draw = h('button', { class: 'btn small', id: 'whotDraw', disabled: !b.mine, onclick: () => this.move(v, { action: 'draw' }) }, '🃏 Draw one card'); wrap.append(top, hand, draw); this.shapeBox = h('div', { class: 'chips' }); wrap.append(this.shapeBox); return wrap;
+  }
+  lastText(v) { const l = v.board.last; if (!l) return ''; const who = (l.who === v.you) ? 'You' : 'They'; if (l.effect === 'draw') return `${who} drew a card.`; const fx = { hold: 'Hold on!', suspend: 'Suspension!', pick2: 'Pick two!', pick3: 'Pick three!', market: 'General market!', whot: 'Whot!' }[l.effect]; return `${who} played ${l.card.replace(/[a-z]+/, '')}${fx ? ' · ' + fx : ''}`; }
+  pickShape(v, c) { this.shapeBox.replaceChildren(h('b', {}, 'Call a shape: '), ...['circle', 'triangle', 'cross', 'square', 'star'].map(s => h('button', { class: 'chip', style: `color:${SHAPE[s][1]}`, 'data-shape': s, onclick: () => this.move(v, { card: c.id, shape: s }) }, SHAPE[s][0] + ' ' + s))); }
+  ayoBoard(v) {
+    const b = v.board; const base = v.you === 'a' ? 0 : 6; const oppBase = v.you === 'a' ? 6 : 0; const bottom = [0, 1, 2, 3, 4, 5].map(k => base + k); const top = [5, 4, 3, 2, 1, 0].map(k => oppBase + k);
+    const pit = (i, mine) => { const k = i - base; const legal = mine && b.legal.includes(k); return h('button', { class: `pit ${mine ? 'mine' : ''} ${legal ? 'legal' : ''}`, 'data-pit': i, disabled: !legal, onclick: () => this.move(v, { house: k }) }, h('b', {}, b.pits[i])); };
+    const opp = v.you === 'a' ? 'b' : 'a';
+    return h('div', { class: 'ayo' }, h('div', { class: 'row sp' }, h('span', { class: 'mut' }, `@${opp === 'a' ? v.p1 : v.p2} captured: ${b.store[opp]}`), h('span', { class: 'mut' }, b.last ? `Last: house ${b.last.house + 1}${b.last.captured ? ` · captured ${b.last.captured}` : ''}` : '')), h('div', { class: 'pits' }, top.map(i => pit(i, false))), h('div', { class: 'pits' }, bottom.map(i => pit(i, true))), h('div', { class: 'row sp' }, h('b', {}, `You captured: ${b.store[v.you]} (first to 25 wins)`)));
+  }
+  async move(v, mv) { const r = await this.g.ui.guard(() => post('/api/game/move', { matchId: v.id, ...mv })); if (r) { this.renderMatch(r); this.g.ui.sfx('ok'); } else this.pollGame(); }
+  async leaveMatch(v) { const r = await this.g.ui.guard(() => post('/api/game/leave', { matchId: v.id })); this.g.ui.closeSheet(); if (r) this.renderMatch(r); else this.pollGame(); this.refreshVenue(); }
+  async refreshVenue() { const d = await get(`/api/venue?id=${this.id}`).catch(() => null); if (d && this.open) { this.data = d; this.drawStrip(); this.people_refresh(); } }
+  poll() { clearInterval(this.pt); this.pt = setInterval(async () => { if (!this.open) return; await this.refreshVenue(); if (this.matchId) await this.pollGame(); else { const mine = this.data.stations.find(s => s.match?.you); if (mine && !this.dismissed.has(mine.match.id)) this.focusMatch(mine.match.id); } const t = $('#gtimer'); if (t && this.match?.status === 'active') t.textContent = `${Math.max(0, Math.ceil((this.match.deadlineAt - this.g.serverNow()) / 1000))}s`; }, 1500); }
+  tap(ev) { const rc = this.canvas.getBoundingClientRect(); const v = new THREE.Vector2(((ev.clientX - rc.left) / rc.width) * 2 - 1, -((ev.clientY - rc.top) / rc.height) * 2 + 1); const ray = new THREE.Raycaster(); ray.setFromCamera(v, this.cam); const hit = ray.intersectObjects(this.stations.children, true)[0]; if (hit) { const id = hit.object.userData.stationId; const st = this.data.stations.find(s => s.id === id); if (st) this.station(st); } }
+  bind() {
+    let drag = null; const cv = this.canvas; cv.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, moved: 0, id: e.pointerId }; cv.setPointerCapture(e.pointerId); });
+    cv.addEventListener('pointermove', (e) => { if (drag && drag.id === e.pointerId) { const dx = e.clientX - drag.x; drag.x = e.clientX; drag.moved += Math.abs(dx); this.yaw = Math.max(Math.PI / 5 - 0.7, Math.min(Math.PI / 5 + 0.7, this.yaw - dx * 0.006)); } });
+    cv.addEventListener('pointerup', (e) => { if (drag && drag.moved < 8) this.tap(e); drag = null; }); cv.addEventListener('wheel', (e) => { this.dist = Math.max(9, Math.min(24, this.dist + e.deltaY * 0.02)); e.preventDefault(); }, { passive: false });
+    this.onKey = (e) => { if (this.open && e.key === 'Escape' && !this.g.ui.sheetOpen) this.leave(); }; addEventListener('keydown', this.onKey);
+  }
+  resize() { const w = this.el.clientWidth, hh = this.el.clientHeight; this.r.setSize(w, hh, false); this.cam.aspect = w / hh; this.cam.updateProjectionMatrix(); }
+  loop() { if (!this.open) return; this.cam.position.set(Math.sin(this.yaw) * Math.cos(this.pitch) * this.dist, Math.sin(this.pitch) * this.dist, Math.cos(this.yaw) * Math.cos(this.pitch) * this.dist); this.cam.lookAt(0, 0.6, 0.3); this.r.render(this.scene, this.cam); this.raf = requestAnimationFrame(() => this.loop()); }
+  async leave() {
+    if (!this.open) return; const r = await this.g.ui.guard(() => post('/api/venue/leave')); if (!r) return; this.open = false; clearInterval(this.pt); cancelAnimationFrame(this.raf); removeEventListener('keydown', this.onKey); removeEventListener('resize', this.onResize);
+    this.r.dispose(); this.el.classList.add('hidden'); this.el.replaceChildren(); this.g.busy = false; this.g.ctrl.frozen = false; this.g.net.nudge(); $('#game').focus();
+  }
+}
