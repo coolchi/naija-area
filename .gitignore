@@ -2,3 +2,4 @@ node_modules/
 data/
 *.log
 demo-static/vendor-tmp/
+public/game.js.map

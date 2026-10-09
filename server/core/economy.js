@@ -136,10 +136,10 @@ export function shopBuy(app, uid, shopId, itemId, qty = 1, idemKey = null, chann
 
 // ---- HOUSING ------------------------------------------------------------
 export function propertyView(app, p, uid) {
-  const o = app.db.prepare('SELECT po.*, u.username FROM property_owner po JOIN users u ON u.id=po.user_id WHERE property_id=?').get(p.id);
+  const o = app.db.prepare('SELECT po.*, u.username, u.color FROM property_owner po JOIN users u ON u.id=po.user_id WHERE property_id=?').get(p.id);
   const items = o ? app.db.prepare('SELECT COUNT(*) n FROM property_items WHERE property_id=?').get(p.id).n : 0;
   return { id: p.id, name: o?.custom_name || p.name, baseName: p.name, tier: p.tier, tierLabel: p.tierLabel, rent: p.rent, price: p.price, rooms: p.rooms, door: p.door, buildingId: p.buildingId, area: p.area, items,
-    status: o ? (o.user_id === uid ? 'yours' : 'taken') : 'available', owner: o ? o.username : null, mode: o ? o.mode : null,
+    status: o ? (o.user_id === uid ? 'yours' : 'taken') : 'available', owner: o ? o.username : null, ownerColor: o ? o.color : null, mode: o ? o.mode : null,
     presence: o ? app.presenceOf?.(o.user_id, p.id) || 'away' : null, maxGuests: app.balance.housing.guestsByTier[p.tier],
     nextRentDue: o && o.user_id === uid ? o.next_rent_due : undefined, missed: o && o.user_id === uid ? o.missed : undefined };
 }
@@ -353,7 +353,7 @@ export function profile(app, uid) {
   const st = refreshNeeds(app, uid); const nw = netWorth(app, uid); const h = homeOf(app, uid);
   const sh = activeShift(app, uid); const u = app.db.prepare('SELECT username,is_guest,color,created_at FROM users WHERE id=?').get(uid);
   return { id: uid, username: u.username, guest: !!u.is_guest, color: u.color, cash: nw.cash, savings: nw.savings, netWorth: nw.total,
-    energy: Math.round(st.energy * 10) / 10, hunger: Math.round(st.hunger * 10) / 10, totalShifts: st.total_shifts, mode: st.mode,
+    pos: { x: st.x, z: st.z, ry: st.ry }, energy: Math.round(st.energy * 10) / 10, hunger: Math.round(st.hunger * 10) / 10, totalShifts: st.total_shifts, mode: st.mode,
     home: h ? propertyView(app, propDef(app, h.property_id), uid) : null,
     shift: sh ? { id: sh.id, jobId: sh.job_id, endsAt: sh.ends_at, startedAt: sh.started_at, wage: sh.wage } : null };
 }

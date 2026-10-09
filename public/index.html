@@ -1,1 +1,67 @@
-<h1>hi</h1>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#008751">
+<title>Naija Area</title>
+<link rel="icon" href="/assets/favicon-192.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<canvas id="game" tabindex="0"></canvas>
+
+<div id="loading" class="screen">
+  <img class="logo" src="/assets/logo.svg" alt="Naija Area">
+  <div class="tagline" id="tagline">Hustle. House. Hype.</div>
+  <div class="bar"><i id="loadBar"></i></div>
+  <div class="tip" id="loadTip">Loading the district…</div>
+  <div class="testbadge">TEST BUILD · no real money · 18+ only</div>
+</div>
+
+<div id="auth" class="screen hidden">
+  <img class="logo small" src="/assets/logo.svg" alt="Naija Area">
+  <div class="card authcard">
+    <div class="tabs" id="authTabs"><button data-t="guest" class="on">Play now</button><button data-t="signup">Sign up</button><button data-t="login">Log in</button></div>
+    <form id="authForm" autocomplete="on">
+      <label class="field" id="fUser"><span>Username</span><input name="username" autocomplete="username" maxlength="20" placeholder="e.g. tunde_lagos"></label>
+      <label class="field" id="fPass"><span>Password</span><input name="password" type="password" autocomplete="current-password" maxlength="72" placeholder="8+ characters"></label>
+      <label class="check"><input type="checkbox" name="age18" id="age18"> <span>I confirm I am <b>18 or older</b>. <small>(Self-declaration for this test build; real age checks come later.)</small></span></label>
+      <div class="err" id="authErr"></div>
+      <button class="btn big" id="authGo" type="submit">Play as guest</button>
+    </form>
+    <div class="fine">Test mode: all ₦ in this game is pretend money with no cash value. <a href="/terms" target="_blank" rel="noopener">Terms &amp; privacy (draft)</a> · <a href="/advertise" target="_blank" rel="noopener">Advertise here</a></div>
+  </div>
+</div>
+
+<div id="hud" class="hidden">
+  <div id="stats">
+    <div class="pill cash" id="cash">₦0</div>
+    <div class="pill sav" id="sav" title="Savings">🏦 ₦0</div>
+    <div class="bars"><div class="bar2" title="Energy"><span>⚡</span><i id="energyBar"></i></div><div class="bar2" title="Hunger"><span>🍲</span><i id="hungerBar"></i></div></div>
+  </div>
+  <div id="clock" class="pill">🌞 6:00 AM · Day 1</div>
+  <div id="right">
+    <canvas id="minimap" width="300" height="300"></canvas>
+    <button class="round" id="phoneBtn" aria-label="Phone">📱<b id="phoneBadge" class="hidden">0</b></button>
+    <button class="round small" id="muteBtn" aria-label="Sound">🔊</button>
+  </div>
+  <div id="loc" class="pill">—</div>
+  <div id="waypoint" class="pill hidden"></div>
+  <div id="shiftbar" class="pill hidden"></div>
+  <div id="chatlog"></div>
+  <form id="chatForm"><input id="chatInput" maxlength="140" placeholder="Say something nearby… (T)" autocomplete="off"><button class="btn small">Send</button></form>
+  <button id="actionBtn" class="btn big hidden">Action</button>
+  <button id="carBtn" class="round" aria-label="Car">🚗</button>
+  <div id="joy"><i id="joyKnob"></i></div>
+  <div id="conn" class="hidden">Reconnecting…</div>
+</div>
+
+<div id="commute" class="hidden"><div><div class="big" id="commuteTitle">On the road…</div><div class="bar"><i id="commuteBar"></i></div><div id="commuteSub"></div></div></div>
+<div id="sheetWrap" class="hidden"><div id="sheet"><div class="grab"></div><div class="sheethead"><h2 id="sheetTitle"></h2><button class="x" id="sheetX" aria-label="Close">✕</button></div><div id="sheetBody"></div></div></div>
+<div id="interior" class="hidden"></div>
+<div id="toasts"></div>
+<noscript><p style="color:#fff;padding:2em">Naija Area needs JavaScript and WebGL.</p></noscript>
+<script src="/game.js"></script>
+</body>
+</html>

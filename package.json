@@ -7,7 +7,6 @@
   "scripts": {
     "start": "node server/index.js",
     "build": "node tools/build-client.mjs",
-    "build:demo": "node tools/build-demo.mjs",
     "seed": "node scripts/seed.js",
     "bots": "node scripts/bots.js",
     "test": "node --test --test-concurrency=1 tests/",
