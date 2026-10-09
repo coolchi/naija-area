@@ -199,7 +199,8 @@ CREATE TABLE IF NOT EXISTS game_scores (
 
 -- ---- cars + homes social (phase 2)
 CREATE TABLE IF NOT EXISTS player_cars (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, model TEXT NOT NULL, paid INTEGER NOT NULL, bought_at INTEGER NOT NULL, active INTEGER NOT NULL DEFAULT 0
+  id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, model TEXT NOT NULL, paid INTEGER NOT NULL, bought_at INTEGER NOT NULL, active INTEGER NOT NULL DEFAULT 0,
+  serviced_at INTEGER, serviced_until INTEGER                 -- Meco: last service time (condition resets) and when the short service perk ends
 );
 CREATE INDEX IF NOT EXISTS ix_cars_user ON player_cars(user_id);
 CREATE TABLE IF NOT EXISTS house_loves (
@@ -219,4 +220,5 @@ export function migrate(db) {
   add('users', 'chat_muted_until', 'INTEGER NOT NULL DEFAULT 0');
   add('property_owner', 'name_hidden', 'INTEGER NOT NULL DEFAULT 0'); add('property_owner', 'wall_color', "TEXT NOT NULL DEFAULT 'cream'"); add('property_owner', 'floor_color', "TEXT NOT NULL DEFAULT 'oak'");
   add('player_state', 'mood', 'REAL NOT NULL DEFAULT 60');
+  add('player_cars', 'serviced_at', 'INTEGER'); add('player_cars', 'serviced_until', 'INTEGER');
 }

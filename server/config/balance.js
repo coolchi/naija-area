@@ -57,6 +57,9 @@ export const BALANCE = {
   // ---- cars (fictional models, placeholder ESTIMATE prices). 'borrowed' is what you drive until you buy one. fuel = perM per metre.
   cars: {
     borrowed: { name: 'Borrowed car', base: 60, perM: 0.35, speed: 10, mood: 0 },
+    // Meco mechanic (ALL ESTIMATE placeholders). Condition falls with days since the last service (or purchase) down to a floor; a rough car (below roughBelow)
+    // gives a smaller mood bump on rides. A service resets condition and gives a SHORT perk: cheaper fuel per metre and a small extra mood bump for perkMs.
+    meco: { serviceFee: 20000, perkMs: 3 * 3600000, fareDiscount: 0.10, perkMood: 1, wearPerDay: 4, wearFloor: 40, roughBelow: 60, roughMoodPenalty: 2 },
     garageSlots: 3, resale: { firstDriveOffFraction: 0.12, perDayDepreciation: 0.01, floorFraction: 0.5 }, // value = paid * max(floor, 1 - firstDriveOff - perDay * ageDays)
     models: {
       kekere: { name: 'Kekere Hatch (used)', price: 900000, perM: 0.30, speed: 14, mood: 1, color: '#e9c46a', body: 'hatch' },

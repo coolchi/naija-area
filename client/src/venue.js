@@ -6,7 +6,7 @@ import { makeAvatar, makePlayerCar, makeNameSprite } from './entities.js';
 
 const SHAPE = { circle: ['●', '#d6402f'], triangle: ['▲', '#2e7dd1'], cross: ['✚', '#2e9b5e'], square: ['■', '#8a5ad1'], star: ['★', '#e0a020'], whot: ['W', '#222'] };
 const hash = (s) => { let x = 7; for (const c of String(s)) x = (x * 31 + c.charCodeAt(0)) >>> 0; return x; };
-const ICON = { eat: '🍲', game: '🎲', board: '🏆', poster: '📜', tv: '📺', car: '🚗' };
+const ICON = { eat: '🍲', game: '🎲', board: '🏆', poster: '📜', tv: '📺', car: '🚗', check: '🔍', service: '🔧' };
 
 export class Venue {
   constructor(game) { this.g = game; this.el = $('#venue'); this.open = false; this.shotId = null; }
@@ -36,6 +36,8 @@ export class Venue {
     else if (st.type === 'board') { box(2.4, 1.5, 0.12, col, 1.6).position.z = -0.1; box(2.2, 1.3, 0.14, 0x0f3b27, 1.6).position.z = -0.08; }
     else if (st.type === 'poster') { box(0.1, 1.4, 1.2, col, 1.6); }
     else if (st.type === 'tv') { box(2.8, 1.5, 0.2, 0x151515, 1.8); box(2.6, 1.3, 0.22, 0x2a65c5, 1.8); box(3.0, 0.5, 0.8, 0x6b4a2b, 0.25); }
+    else if (st.type === 'check') { const c = makePlayerCar(st.color || '#3a7ca5'); c.scale.setScalar(0.34); c.position.y = 0.55; grp.add(c); box(2.0, 0.5, 1.1, 0x555a60, 0.25); box(0.2, 0.4, 0.2, 0xe0a020, 0.7).position.x = 1.15; }
+    else if (st.type === 'service') { box(2.0, 0.9, 0.7, 0x6b6f75, 0.45); box(1.7, 0.08, 0.6, 0xe07b00, 0.94); for (let i = 0; i < 3; i++) box(0.25, 0.25, 0.25, [0xd6402f, 0x2e7dd1, 0xe0a020][i], 1.1).position.x = -0.6 + i * 0.6; }
     else if (st.type === 'car') { const c = makePlayerCar(st.color || '#888'); c.scale.setScalar(0.38); c.rotation.y = Math.PI / 6; grp.add(c); box(1.8, 0.06, 1.0, 0xdddddd, 0.03); }
     const sp = makeNameSprite(`${ICON[st.type] || ''} ${st.label}`.slice(0, 26), '#fff3c4'); sp.scale.set(2.8, 0.7, 1); sp.position.y = st.type === 'car' ? 1.8 : st.type === 'tv' ? 3.0 : st.type === 'board' ? 2.8 : 2.1; grp.add(sp);
     grp.position.set(st.x, 0, st.z); if (st.type === 'poster') grp.rotation.y = 0; grp.traverse(o => { o.userData.stationId = st.id; }); this.stations.add(grp); this.meshes[st.id] = grp;
@@ -63,12 +65,22 @@ export class Venue {
     else if (st.type === 'tv') { const r = await ui.guard(() => post('/api/venue/act', { venueId: this.id, stationId: st.id })); if (r) { ui.toast(r.text); this.g.net.nudge(); } }
     else if (st.type === 'board') this.board();
     else if (st.type === 'car') this.carSheet(st);
+    else if (st.type === 'check' || st.type === 'service') this.mechanicSheet(st);
     else if (st.type === 'game') this.sitPanel(st);
   }
   async board(kind = 'all') {
     const ui = this.g.ui; const d = await ui.guard(() => get('/api/scoreboard' + (kind === 'all' ? '' : `?kind=${kind}`))); if (!d) return; const left = Math.max(0, d.endsAt - this.g.serverNow());
-    const tabs = h('div', { class: 'chips' }, ['all', 'whot', 'ludo'].map(k => h('button', { class: `chip ${k === kind ? 'on' : ''}`, onclick: () => this.board(k) }, k === 'all' ? 'All games' : k === 'whot' ? 'Whot' : 'Ayo')));
+    const tabs = h('div', { class: 'chips' }, ['all', 'whot', 'ludo'].map(k => h('button', { class: `chip ${k === kind ? 'on' : ''}`, onclick: () => this.board(k) }, k === 'all' ? 'All games' : k === 'whot' ? 'Whot' : 'Ludo')));
     ui.openSheet('Weekly scoreboard', [tabs, d.rows.length ? h('div', { class: 'list' }, d.rows.map(r => h('div', {}, h('span', {}, `${r.rank}. @${r.username}`), h('span', { class: 'mut' }, `${r.wins}W ${r.draws}D ${r.losses}L · `), h('b', {}, `${r.points} pts`)))) : h('p', { class: 'mut' }, 'Nobody has played this week yet. Be the first!'), h('p', { class: 'mut' }, `${d.scoring} Resets in ${Math.floor(left / 86400000)}d ${Math.floor(left % 86400000 / 3600000)}h.`)]);
+  }
+  async mechanicSheet(st) {
+    const ui = this.g.ui; const d = await ui.guard(() => get('/api/mechanic')); if (!d) return; const bar = (pct) => h('div', { class: 'cbar' }, h('i', { style: `width:${pct}%` }));
+    const list = d.cars.length ? h('div', { class: 'list' }, d.cars.map(c => h('div', { 'data-car': c.id }, h('span', {}, `${c.active ? '✅ ' : ''}${c.name}`, h('small', { class: 'mut' }, ` · ${c.label}${c.perkUntil ? ' · perk on' : ''}`)), h('span', { style: 'min-width:90px' }, bar(c.condition), h('small', { class: 'mut' }, ` ${c.condition}%`))))) : h('p', { class: 'mut' }, 'Your garage is empty. Meco only works on cars you own.');
+    if (st.type === 'check') { ui.openSheet('Check my car', [h('p', {}, d.text), list, h('p', { class: 'mut' }, `Condition drops a little each day. Below ${d.roughBelow}% a car is rough and rides give less mood. Service fee: ${fmtN(d.fee)} (ESTIMATE).`)]); return; }
+    const act = d.active; const fresh = !!act?.perkUntil;
+    ui.openSheet('Service', [h('div', { class: 'tag amber' }, 'Placeholder fee · ESTIMATE'), act ? h('p', {}, `${act.name}: ${act.label} (${act.condition}%)`) : h('p', { class: 'mut' }, 'You need your own active car. Borrowed cars are not serviced here.'),
+      h('p', { class: 'mut' }, `Service resets condition and gives about ${d.perk.minutes} minutes of cheaper fuel (${d.perk.farePctOff}% off) and +${d.perk.extraMood} mood on rides.`),
+      h('button', { class: 'btn big alt', id: 'mecoService', disabled: !act || fresh, onclick: async () => { const r = await ui.guard(() => post('/api/mechanic/service', { idemKey: crypto.randomUUID?.() })); if (r) { ui.closeSheet(); ui.toast(r.text, 'money'); this.g.refreshMe?.(); } } }, fresh ? 'Already serviced' : `Service · ${fmtN(d.fee)}`)]);
   }
   async carSheet(st) {
     const ui = this.g.ui; const gar = await ui.guard(() => get('/api/garage')); if (!gar) return; this.catalog = gar.catalogue; const m = gar.catalogue.find(c => c.id === st.model); const cur = gar.active; const owned = gar.cars.some(c => c.model === st.model);
