@@ -59,3 +59,9 @@ See `docs/LOADTEST.md`: a separate server process, real HTTP guests and heartbea
 - `server/core/cities.js`: `cityOf(app, uid)` is the one way server code asks "which city is this player in". `app.city` is only the default city; `app.cities` has all; `app.all` has merged by-id lookups (house, venue, bus stop, car park, plot, billboard ids are unique across cities). New code that lists things for a player must use `cityOf`.
 - `server/core/flight.js`: tickets and flights in the `flights` table, advanced lazily from the heartbeat; arrival calls `enterCity`.
 - The client builds the world for one city only and reloads when the server says the player's city changed.
+
+
+## Districts, creeks and bridges (added 10 Oct 2026)
+- A Lagos district is just another city config (`kind: 'district'`). `links` in a config are road gates to other cities; `cities.useLink` charges the fare and calls `enterCity`. Links to cities that are not loaded are dropped at start-up.
+- Water that is not the district edge is a `creek` (a rectangle with `gaps` where roads cross it on bridges). The client cuts the ground plane around creeks (`subtractRects`), draws water and bank walls, and adds colliders for everything except the gaps. `bridges` (`beam` or `cable`) draw decks, piers and the pylon; `lamps.js` lights their decks.
+- District files are generated (`tools/lib/districts.mjs`), so change the spec, not the JSON.

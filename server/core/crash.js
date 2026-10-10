@@ -41,7 +41,7 @@ export function healthOf(app, uid) {
 const setHealth = (app, uid, h) => app.db.prepare('UPDATE player_state SET health=?, health_at=? WHERE user_id=?').run(clamp(h, 0, app.balance.crash.maxHealth), app.clock.now(), uid);
 export const healthView = (app, uid) => { const { health, cooldownUntil } = healthOf(app, uid); return { health: Math.round(health * 10) / 10, max: app.balance.crash.maxHealth, hurt: health < 40, cooldownUntil }; };
 const activeCar = (app, uid) => app.db.prepare('SELECT * FROM player_cars WHERE user_id=? AND active=1').get(uid);
-const log = (app, row) => app.db.prepare('INSERT INTO crash_events(user_id,at,token,state,hit,reason,roll,vtype,mode,x,z,expires_at) VALUES (@user_id,@at,@token,@state,@hit,@reason,@roll,@vtype,@mode,@x,@z,@expires_at)').run({ token: null, hit: 0, reason: null, roll: null, vtype: null, mode: null, x: null, z: null, expires_at: null, ...row });
+const log = (app, row) => app.db.prepare('INSERT INTO crash_events(user_id,at,token,state,hit,reason,roll,vtype,mode,x,z,expires_at) VALUES (@user_id,@at,@token,@state,@hit,@reason,@roll,@vtype,@mode,@x,@z,@expires_at)').run(Object.fromEntries(Object.entries({ token: null, hit: 0, reason: null, roll: null, vtype: null, mode: null, x: null, z: null, expires_at: null, ...row }).map(([k, v]) => [k, v === undefined ? null : typeof v === 'object' && v !== null ? String(v) : v]))); // one demo run (sql.js) once failed with an unbound object here and could not be reproduced: values are coerced to plain types
 
 /** step 1: the client says a vehicle is about to yield to the player. Returns whether this encounter is a hit (token) and why not otherwise. */
 export function roll(app, uid, body = {}) {

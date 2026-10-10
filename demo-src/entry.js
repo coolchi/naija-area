@@ -7,6 +7,10 @@ import { createApp } from '../server/core/app.js';
 import { dispatch } from '../server/core/routes.js';
 import { BALANCE } from '../server/config/balance.js';
 import city from '../server/config/cities/lagos-mainland.json';
+import island from '../server/config/cities/lagos-island.json';
+import viIkoyi from '../server/config/cities/lagos-vi-ikoyi.json';
+import bridge from '../server/config/cities/lagos-bridge.json';
+import lekki from '../server/config/cities/lagos-lekki.json';
 import * as ads from '../server/core/ads.js';
 import { tickRent, tickInterest } from '../server/core/economy.js';
 import { tickLand } from '../server/core/social.js';
@@ -33,7 +37,7 @@ async function makeBanner(w, hh, col, text) { // placeholder creative drawn on a
 }
 async function boot() {
   const SQL = await initSqlJs(); const db = wrapSqlJs(SQL); db.pragma('foreign_keys = ON');
-  app = createApp({ db, platform, cityJson: city, balance: structuredClone(BALANCE) }); app.devRoutes = true; app.balance.shops.enforceHours = false; // demo: shops and venues are always open so it can be tried at any hour app.adminPassword = 'admin-demo';
+  app = createApp({ db, platform, cityJson: city, extraCities: [island, viIkoyi, bridge, lekki], balance: structuredClone(BALANCE) }); app.devRoutes = true; app.balance.shops.enforceHours = false; // demo: shops and venues are always open so it can be tried at any hour app.adminPassword = 'admin-demo';
   const brands = [['Mama Tee Foods (demo)', 'Fresh jollof, hot every day', '0,135,81', 'road_billboard', 'major'], ['Naija Data (demo)', 'Data that no dey finish', '200,120,0', 'road_billboard', 'street'], ['Lagoon Realty (demo)', 'Your plot, your future', '40,90,160', 'lagoon_plot', 'plot6x6']];
   for (const [brand, headline, col, surface, tier] of brands) {
     const a = ads.getOrCreateAdvertiser(app, { email: brand.split(' ')[0].toLowerCase() + '@example.com', brand }); const img = await makeBanner(surface === 'lagoon_plot' ? 768 : 1024, surface === 'lagoon_plot' ? 768 : 512, col, brand.replace(' (demo)', ''));
