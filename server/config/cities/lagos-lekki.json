@@ -11,15 +11,27 @@
   "minX": -240,
   "maxX": 260,
   "minZ": -200,
-  "maxZ": 170
+  "maxZ": 290
  },
  "water": {
   "minX": -300,
   "maxX": 320,
-  "minZ": 170,
-  "maxZ": 270
+  "minZ": 290,
+  "maxZ": 390
  },
- "creeks": [],
+ "creeks": [
+  {
+   "id": "lk_bay",
+   "name": "Tarkwa Bay channel",
+   "x0": -240,
+   "x1": 260,
+   "z0": 178,
+   "z1": 216,
+   "gaps": [],
+   "y": -3.6,
+   "axis": "x"
+  }
+ ],
  "bridges": [],
  "roads": [
   {
@@ -2102,23 +2114,30 @@
    "id": "tarkwa",
    "kind": "beach",
    "name": "Tarkwa Bay",
-   "x": -80,
-   "z": 240,
-   "cx": -80,
-   "cz": 240,
+   "x": -30,
+   "z": 252,
+   "cx": -30,
+   "cz": 252,
    "w": 150,
-   "d": 50,
+   "d": 60,
    "huts": 4,
-   "island": true,
-   "note": "Reached by boat in real life. The boat service is a later item; for now it is a view."
+   "note": "Reached by boat only (the channel has no bridge)."
   },
   {
    "id": "tarkwa_jetty",
    "kind": "jetty",
-   "name": "Tarkwa Bay jetty (boat service coming)",
+   "name": "Lekki jetty",
    "x": -80,
-   "z": 150,
-   "z2": 205
+   "z": 152,
+   "z2": 182
+  },
+  {
+   "id": "tarkwa_jetty2",
+   "kind": "jetty",
+   "name": "Tarkwa Bay jetty",
+   "x": 10,
+   "z": 216,
+   "z2": 196
   }
  ],
  "zones": [
@@ -2261,6 +2280,13 @@
    "x1": 256,
    "z0": 100,
    "z1": 166
+  },
+  {
+   "id": "lk_tz",
+   "x0": -100,
+   "x1": 60,
+   "z0": 224,
+   "z1": 280
   }
  ],
  "plots": [],
@@ -2298,8 +2324,17 @@
    "x0": -240,
    "x1": 80,
    "z0": 90,
-   "z1": 170,
+   "z1": 178,
    "color": "#e3e6c8"
+  },
+  {
+   "id": "d_tarkwa",
+   "name": "Tarkwa Bay island",
+   "x0": -240,
+   "x1": 260,
+   "z0": 216,
+   "z1": 290,
+   "color": "#f1e2b0"
   }
  ],
  "venues": [
@@ -2661,5 +2696,69 @@
     "ry": 3.14
    }
   }
- ]
+ ],
+ "boat": {
+  "stops": [
+   {
+    "id": "lk_jetty",
+    "name": "Lekki jetty",
+    "x": -80,
+    "z": 162,
+    "r": 14,
+    "berth": {
+     "x": -80,
+     "z": 192
+    },
+    "out": [
+     1,
+     0
+    ],
+    "arrive": {
+     "x": -80,
+     "z": 160,
+     "ry": 0
+    }
+   },
+   {
+    "id": "lk_tarkwa",
+    "name": "Tarkwa Bay jetty",
+    "x": 10,
+    "z": 226,
+    "r": 14,
+    "berth": {
+     "x": 10,
+     "z": 204
+    },
+    "out": [
+     1,
+     0
+    ],
+    "arrive": {
+     "x": 10,
+     "z": 226,
+     "ry": 0
+    }
+   }
+  ],
+  "routes": [
+   {
+    "from": "lk_jetty",
+    "to": "lk_tarkwa",
+    "fare": 600,
+    "crossMs": 24000
+   },
+   {
+    "from": "lk_tarkwa",
+    "to": "lk_jetty",
+    "fare": 600,
+    "crossMs": 24000
+   },
+   {
+    "from": "lk_jetty",
+    "to": "isl_marina",
+    "fare": 900,
+    "crossMs": 30000
+   }
+  ]
+ }
 }

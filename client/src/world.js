@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Builder, mulberry32 } from '../sample/builder.js';
 import { wallTextures, roadTexture, groundTexture, waterTexture, tex2 } from './textures.js';
 import { roadPts, isCurved, offsetPoly, polyLen } from './roadgeom.js';
-import { strut, subtractRects, creekVisual, creekColliders, drawExtraBuilding, drawBeach, drawJetty, drawLink, drawBeamBridge, drawCableBridge, drawStadium } from './landmarks3d.js';
+import { strut, subtractRects, creekVisual, creekColliders, drawExtraBuilding, drawBeach, drawJetty, drawLink, drawBeamBridge, drawCableBridge, drawStadium, drawHill, drawWall, drawDyePits } from './landmarks3d.js';
 import { lampPositions, lampLevel, lampsOn, LAMP } from './lamps.js';
 
 const lerpC = (a, b, t) => new THREE.Color(a).lerp(new THREE.Color(b), t);
@@ -156,7 +156,7 @@ export function buildWorld(city) {
       for (const z of [v.z0, v.z1]) if (Math.abs(z) < 1000 && v.z0 === c.z0 && v.z1 === c.z1) plain.box(w, -wy + 0.6, 0.7, (v.x0 + v.x1) / 2, wy - 0.2, z, 0xa9a396, { noAO: true });
       for (const r of creekColliders(c)) colliders.push(r); }
     for (const br of city.bridges || []) { if (br.type === 'cable') cableSegs.push(...drawCableBridge(br, ex)); else drawBeamBridge(br, ex); }
-    for (const l of city.landmarks) { if (l.kind === 'beach') drawBeach(l, ex); else if (l.kind === 'jetty') drawJetty(l, ex); }
+    for (const l of city.landmarks) { if (l.kind === 'beach') drawBeach(l, ex); else if (l.kind === 'jetty') drawJetty(l, ex); else if (l.kind === 'hill') drawHill(l, ex); else if (l.kind === 'wall') drawWall(l, ex); else if (l.kind === 'dyepits') drawDyePits(l, ex); }
     for (const l of city.links || []) drawLink(l, ex, city.bounds); }
   if (cableSegs.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(cableSegs, 3)); const cab = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xf2f2ee })); cab.frustumCulled = false; root.add(cab); }
   // ---- water (lagoon)

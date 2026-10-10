@@ -1,5 +1,6 @@
 // Transport-agnostic route table. Express adapts it (server/index.js); the static demo adapts it to an in-browser fetch mock.
 import * as flight from './flight.js';
+import * as boat from './boat.js';
 import { viewScores, buyTicket } from './stadium.js';
 import { cityOf, publicCity, cityList, onlineByCity, useLink } from './cities.js';
 import { GameError, bad, cleanText } from './util.js';
@@ -117,6 +118,10 @@ route('GET', '/api/scoreboard', { auth: 'user' }, (c) => games.scoreboard(c.app,
 route('GET', '/api/garage', { auth: 'user' }, (c) => cars.garageView(c.app, c.uid));
 route('POST', '/api/garage/buy', { auth: 'user' }, (c) => cars.buyCar(c.app, c.uid, c.body.model, c.body.idemKey));
 route('POST', '/api/garage/use', { auth: 'user' }, (c) => cars.setActive(c.app, c.uid, Number(c.body.carId)));
+route('GET', '/api/boat', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, undefined); return boat.view(c.app, c.uid); });
+route('POST', '/api/boat/call', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); flight.assertNotFlying(c.app, c.uid); return boat.call(c.app, c.uid, String(c.body.to || ''), c.body.idem); });
+route('POST', '/api/boat/board', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return boat.board(c.app, c.uid, c.body.idem); });
+route('POST', '/api/boat/cancel', { auth: 'user' }, (c) => boat.cancel(c.app, c.uid));
 route('GET', '/api/flights', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, undefined); return flight.view(c.app, c.uid); });
 route('POST', '/api/flights/buy', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return flight.buy(c.app, c.uid, String(c.body.to || ''), c.body.departAt, c.body.idem); });
 route('POST', '/api/flights/cancel', { auth: 'user' }, (c) => flight.cancel(c.app, c.uid));

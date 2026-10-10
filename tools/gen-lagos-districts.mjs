@@ -75,6 +75,9 @@ const marketStall = (api, pre, x, z, nm) => { const s = clone(MARKET_SHOP); Obje
       const cb = a.venueBuilding('office', 'Marina Canteen', 100, -100, 26, 18, 6, [0, 1], '#c8553d'); const ms = eatery(a, 'isl', 'Marina Canteen', cb); const v = a.venue('isl_venue_canteen', cb, { name: 'Marina Canteen', blurb: 'Eat, then challenge somebody to Whot or Ayo.', hours: [6, 22], sign: '#c8553d', shopId: ms.id, stations: clone(MAMAPUT.stations).map(s => (s.shopId ? { ...s, shopId: ms.id } : s)), room: clone(MAMAPUT.room) }); void v;
     },
     extraLoops: [] });
+  // boat jetty (10 Oct 2026): Marina jetty with a ferry to the Lekki jetty. Fares and times are ESTIMATE placeholders.
+  api.city.landmarks.push({ id: 'isl_jetty', kind: 'jetty', name: 'Marina jetty', x: 100, z: 160, z2: 186 });
+  api.city.boat = { stops: [{ id: 'isl_marina', name: 'Marina jetty', x: 100, z: 163, r: 14, berth: { x: 100, z: 192 }, out: [1, 0], arrive: { x: 100, z: 163, ry: 0 } }], routes: [{ from: 'isl_marina', to: 'lk_jetty', fare: 900, crossMs: 30000 }] };
   write(api.city);
 }
 
@@ -144,10 +147,18 @@ const marketStall = (api, pre, x, z, nm) => { const s = clone(MARKET_SHOP); Obje
       clinic(a, 'lk', -200, 40, [1, 0]); const pos = a.add({ kind: 'kiosk', x: -60, z: 40, w: 10, d: 8, h: 4, floors: 1, color: '#4aa3ff', face: [0, -1] }); a.job('job_pos', pos.x, pos.z + 7, 'POS kiosk');
       a.city.landmarks.push({ id: 'plaza', kind: 'plaza', name: 'Lekki Phase 1 Roundabout Garden', x: 20, z: -58, cx: 20, cz: -55, size: 44 });
       a.city.landmarks.push({ id: 'eleko', kind: 'beach', name: 'Eleko Beach', x: 170, z: 135, cx: 170, cz: 135, w: 150, d: 66, huts: 6 });
-      a.city.landmarks.push({ id: 'tarkwa', kind: 'beach', name: 'Tarkwa Bay', x: -80, z: 240, cx: -80, cz: 240, w: 150, d: 50, huts: 4, island: true, note: 'Reached by boat in real life. The boat service is a later item; for now it is a view.' });
-      a.city.landmarks.push({ id: 'tarkwa_jetty', kind: 'jetty', name: 'Tarkwa Bay jetty (boat service coming)', x: -80, z: 150, z2: 205 });
+      a.city.landmarks.push({ id: 'tarkwa', kind: 'beach', name: 'Tarkwa Bay', x: -30, z: 252, cx: -30, cz: 252, w: 150, d: 60, huts: 4, note: 'Reached by boat only (the channel has no bridge).' });
+      a.city.landmarks.push({ id: 'tarkwa_jetty', kind: 'jetty', name: 'Lekki jetty', x: -80, z: 152, z2: 182 });
+      a.city.landmarks.push({ id: 'tarkwa_jetty2', kind: 'jetty', name: 'Tarkwa Bay jetty', x: 10, z: 216, z2: 196 });
       for (const [lm] of [[0]]) void lm;
     }, extraLoops: [] });
+  // Tarkwa Bay island (10 Oct 2026): the district grows south past a boat-only channel. Roads stay on the old land; the channel has no gaps, so you need a boat.
+  const NB = { ...B, maxZ: 290 }; api.city.bounds = NB; api.city.water = WATER(NB);
+  api.city.creeks = [{ id: 'lk_bay', name: 'Tarkwa Bay channel', x0: NB.minX, x1: NB.maxX, z0: 178, z1: 216, gaps: [], y: -3.6, axis: 'x' }];
+  for (const d of api.city.districts) if (d.id === 'd_lkjetty') d.z1 = 178; api.city.districts.push({ id: 'd_tarkwa', name: 'Tarkwa Bay island', x0: NB.minX, x1: NB.maxX, z0: 216, z1: 290, color: '#f1e2b0' });
+  api.city.zones.push({ id: 'lk_tz', x0: -100, x1: 60, z0: 224, z1: 280 });
+  api.city.boat = { stops: [{ id: 'lk_jetty', name: 'Lekki jetty', x: -80, z: 162, r: 14, berth: { x: -80, z: 192 }, out: [1, 0], arrive: { x: -80, z: 160, ry: 0 } }, { id: 'lk_tarkwa', name: 'Tarkwa Bay jetty', x: 10, z: 226, r: 14, berth: { x: 10, z: 204 }, out: [1, 0], arrive: { x: 10, z: 226, ry: 0 } }],
+    routes: [{ from: 'lk_jetty', to: 'lk_tarkwa', fare: 600, crossMs: 24000 }, { from: 'lk_tarkwa', to: 'lk_jetty', fare: 600, crossMs: 24000 }, { from: 'lk_jetty', to: 'isl_marina', fare: 900, crossMs: 30000 }] };
   write(api.city);
 }
 

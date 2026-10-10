@@ -68,3 +68,6 @@ See `docs/LOADTEST.md`: a separate server process, real HTTP guests and heartbea
 
 ## Stadium and live scores (added 10 Oct 2026)
 `core/scores.js` is the only code that talks to a score provider. `tickScores` runs from one 30 s timer, counts calls per UTC day in `scores_cache` (survives restarts), stops before the daily cap and stores a normalized copy; `scoresView` only reads it and falls back to the last good copy and then a clock-driven fictional league. `core/stadium.js` holds the ticket (ledger, `stadium_tickets`) and seat rules; the venue is data in the Lekki city JSON (`kind: 'stadium'`) and its building is drawn by `client/src/landmarks3d.js: drawStadium` (merged boxes plus one instanced crowd). Details and limits in `docs/STADIUM.md`.
+
+## Boats (added 10 Oct 2026)
+`core/boat.js` mirrors flights: trips live in `boat_trips`, advance lazily from the heartbeat and every boat endpoint, the fare is charged at boarding, and `assertNotFlying` also refuses while aboard. Jetties and routes are data (`city.boat`); `app.boatStops` maps every jetty across loaded cities so a route can end in another district. The client draws the boat (one mesh) and follows pure motion maths in `boatpath.js`. Details in `docs/BOATS.md`.

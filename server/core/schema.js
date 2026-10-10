@@ -220,6 +220,7 @@ CREATE TABLE IF NOT EXISTS casual_runs (
 CREATE INDEX IF NOT EXISTS ix_casual_user ON casual_runs(user_id, kind, id);
 -- stadium: one row of cached live-score data (the call counter lives here so a restart cannot reset the daily cap) and match-day tickets
 CREATE TABLE IF NOT EXISTS scores_cache (id INTEGER PRIMARY KEY CHECK (id = 1), day TEXT NOT NULL, calls INTEGER NOT NULL DEFAULT 0, payload TEXT, source TEXT, good_at INTEGER NOT NULL DEFAULT 0, tried_at INTEGER NOT NULL DEFAULT 0, next_at INTEGER NOT NULL DEFAULT 0, error TEXT, error_code TEXT);
+CREATE TABLE IF NOT EXISTS boat_trips (user_id INTEGER PRIMARY KEY, from_stop TEXT NOT NULL, to_stop TEXT NOT NULL, state TEXT NOT NULL, fare INTEGER NOT NULL, cross_ms INTEGER NOT NULL, called_at INTEGER NOT NULL, boat_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, arrive_at INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS stadium_tickets (user_id INTEGER NOT NULL, venue_id TEXT NOT NULL, day TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (user_id, venue_id, day));
 CREATE TABLE IF NOT EXISTS casual_daily (user_id INTEGER NOT NULL, day TEXT NOT NULL, earned INTEGER NOT NULL DEFAULT 0, plays INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day));
 `;
@@ -231,7 +232,7 @@ export function migrate(db) {
   add('property_items', 'x', 'INTEGER NOT NULL DEFAULT 0'); add('property_items', 'z', 'INTEGER NOT NULL DEFAULT 0'); add('property_items', 'rot', 'INTEGER NOT NULL DEFAULT 0');
   add('player_state', 'city_id', "TEXT NOT NULL DEFAULT 'lagos-mainland'"); add('chat_messages', 'city_id', "TEXT NOT NULL DEFAULT 'lagos-mainland'"); add('ad_campaigns', 'city_id', "TEXT NOT NULL DEFAULT 'lagos-mainland'");
   db.exec(`CREATE TABLE IF NOT EXISTS flights (user_id INTEGER PRIMARY KEY, from_city TEXT NOT NULL, to_city TEXT NOT NULL, state TEXT NOT NULL, fare INTEGER NOT NULL, departs_at INTEGER NOT NULL, arrive_at INTEGER NOT NULL, created_at INTEGER NOT NULL)`);
-  add('player_state', 'last_flight_at', 'INTEGER NOT NULL DEFAULT 0');
+  add('player_state', 'last_flight_at', 'INTEGER NOT NULL DEFAULT 0'); add('player_state', 'last_boat_at', 'INTEGER NOT NULL DEFAULT 0');
   add('users', 'chat_muted_until', 'INTEGER NOT NULL DEFAULT 0');
   add('property_owner', 'name_hidden', 'INTEGER NOT NULL DEFAULT 0'); add('property_owner', 'wall_color', "TEXT NOT NULL DEFAULT 'cream'"); add('property_owner', 'floor_color', "TEXT NOT NULL DEFAULT 'oak'");
   add('player_state', 'mood', 'REAL NOT NULL DEFAULT 60'); add('player_state', 'hair', 'TEXT'); add('player_state', 'hair_at', 'INTEGER NOT NULL DEFAULT 0');

@@ -17,8 +17,10 @@ export function createApp({ db, platform, cityJson, extraCities = [], balance = 
   for (const raw of [cityJson, ...extraCities]) { const problems = validateCity(raw); if (problems.length) throw new Error(`City config ${raw.id || '?'} is not valid: ${problems.slice(0, 5).join('; ')}`); }
   const city = indexCity(cityJson); const cities = { [city.id]: city }; for (const raw of extraCities) { const c = indexCity(raw); cities[c.id] = c; }
   for (const c of Object.values(cities)) if (c.links) c.links = c.links.filter(l => cities[l.to]); // a link to a city that is not loaded is simply not offered
+  const boatStops = {}; for (const c of Object.values(cities)) for (const s of c.boat?.stops || []) boatStops[s.id] = { ...s, city: c.id }; // every jetty, by id, across all loaded cities
+  for (const c of Object.values(cities)) if (c.boat) c.boat.routes = (c.boat.routes || []).filter(r => boatStops[r.from]?.city === c.id && boatStops[r.to]); // a route to a jetty that is not loaded is simply not offered
   const app = {
-    db, platform, balance, gameName, filterHeadless, city, cities, defaultCityId: city.id, all: mergeCities(Object.values(cities)), world: createWorld(), limiter: new Limiter(),
+    db, platform, boatStops, balance, gameName, filterHeadless, city, cities, defaultCityId: city.id, all: mergeCities(Object.values(cities)), world: createWorld(), limiter: new Limiter(),
     clock: clock || { now: () => Date.now() + offset.ms, advance: (ms) => { offset.ms += ms; } }, adsVersion: 1, pushUser: null
   };
   installSocial(app); app.carValue = (uid) => carValue(app, uid); app.palette = () => palette(app);

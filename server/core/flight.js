@@ -16,7 +16,7 @@ export const airportOf = (city) => city.airport || null;
 const row = (app, uid) => app.db.prepare('SELECT * FROM flights WHERE user_id=?').get(uid);
 const atGate = (ap, p, cfg) => Math.hypot(p.x - ap.door.x, p.z - ap.door.z) <= cfg.gateRadiusM;
 export const isFlying = (app, uid) => row(app, uid)?.state === 'flying';
-export const assertNotFlying = (app, uid) => { if (isFlying(app, uid)) bad('FLYING', 'You are in the air. Enjoy the view.', 409); };
+export const assertNotFlying = (app, uid) => { if (isFlying(app, uid)) bad('FLYING', 'You are in the air. Enjoy the view.', 409); if (app.db.prepare("SELECT 1 FROM boat_trips WHERE user_id=? AND state='crossing'").get(uid)) bad('ABOARD', 'You are on the water. Enjoy the breeze.', 409); };
 
 /** advance this player's ticket/flight to now (lazy; called from the heartbeat and from every flight endpoint) */
 export function tick(app, uid) {

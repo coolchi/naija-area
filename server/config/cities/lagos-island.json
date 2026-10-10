@@ -2662,6 +2662,14 @@
     "x": -185,
     "z": 45
    }
+  },
+  {
+   "id": "isl_jetty",
+   "kind": "jetty",
+   "name": "Marina jetty",
+   "x": 100,
+   "z": 160,
+   "z2": 186
   }
  ],
  "zones": [
@@ -3093,5 +3101,37 @@
     "ry": 0
    }
   }
- ]
+ ],
+ "boat": {
+  "stops": [
+   {
+    "id": "isl_marina",
+    "name": "Marina jetty",
+    "x": 100,
+    "z": 163,
+    "r": 14,
+    "berth": {
+     "x": 100,
+     "z": 192
+    },
+    "out": [
+     1,
+     0
+    ],
+    "arrive": {
+     "x": 100,
+     "z": 163,
+     "ry": 0
+    }
+   }
+  ],
+  "routes": [
+   {
+    "from": "isl_marina",
+    "to": "lk_jetty",
+    "fare": 900,
+    "crossMs": 30000
+   }
+  ]
+ }
 }

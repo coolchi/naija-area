@@ -134,3 +134,27 @@ export function drawStadium(b, ctx) {
     const pal = [0xe0a020, 0xd6402f, 0x2e7dd1, 0xf1f1ea, 0x1b6e3a, 0x8a5ad1, 0x222222, 0xf4a6c0]; spots.forEach((s, i) => { m.makeTranslation(cx + s.x, s.y + 0.65, cz + s.z); im.setMatrixAt(i, m); im.setColorAt(i, col.setHex(pal[Math.floor(rnd() * pal.length)])); }); im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; root.add(im); }
   void walls;
 }
+
+// ---- Kano scenery (10 Oct 2026): all generic shapes, placeholders for review by a Kano contributor ----------------------------------------------
+/** Dala Hill: a rounded rocky hill seen over the northern edge (scenery only: it stands outside the walkable area). Stacked cones so it reads as a hill, not a pyramid. */
+export function drawHill(l, ctx) {
+  const { plain } = ctx; const layers = 6; for (let i = 0; i < layers; i++) { const k = i / layers; plain.cyl(l.r * (1 - k * 0.78) * 0.62, l.r * (1 - k * 0.78), l.h / layers, 14, l.cx, l.h / layers * i - 2, l.cz, i % 2 ? 0x9b8f78 : 0xa89a7f, { noAO: true }); }
+  for (let i = 0; i < 9; i++) { const a = i * 2.4; plain.sphere(5 + (i % 3) * 2, l.cx + Math.cos(a) * l.r * 0.5, 3 + (i % 4) * 2, l.cz + Math.sin(a) * l.r * 0.4, 0x8d8068, { noAO: true, sy: 0.7 }); }
+}
+/** a straight mud-brick city wall with battlements and gate towers (visual only, along an edge of the district). Gaps are left at the road lines in `gates`. */
+export function wallSegments(l) { // pure: the solid stretches of the wall, so a test can check the gates are open. Returns [{a,b}] along the wall's axis
+  const a0 = l.axis === 'z' ? l.z0 : l.x0, a1 = l.axis === 'z' ? l.z1 : l.x1; const out = []; let p = a0; for (const g of [...(l.gates || [])].sort((x, y) => x - y)) { if (g - 9 > p) out.push({ a: p, b: g - 9 }); p = Math.max(p, g + 9); } if (a1 > p) out.push({ a: p, b: a1 }); return out;
+}
+export function drawWall(l, ctx) {
+  const { plain } = ctx; const col = 0xc7a97c; const alongZ = l.axis === 'z';
+  const box = (a, b, y, h, t, c) => { const len = b - a, mid = (a + b) / 2; if (alongZ) plain.box(t, h, len, l.x, y, mid, c, { noAO: true }); else plain.box(len, h, t, mid, y, l.z, c, { noAO: true }); };
+  for (const s of wallSegments(l)) { box(s.a, s.b, 0, l.h, l.t, col); for (let a = s.a + 1.5; a < s.b - 1; a += 4) { if (alongZ) plain.box(l.t + 0.2, 1.1, 2, l.x, l.h, a, 0xb89a6c, { noAO: true }); else plain.box(2, 1.1, l.t + 0.2, a, l.h, l.z, 0xb89a6c, { noAO: true }); } }
+  for (const g of l.gates || []) for (const s of [-1, 1]) { const a = g + s * 10.5; if (alongZ) plain.box(l.t + 3, l.h + 4, 4, l.x, 0, a, 0xb89a6c, { noAO: true }); else plain.box(4, l.h + 4, l.t + 3, a, 0, l.z, 0xb89a6c, { noAO: true }); }
+}
+/** a yard of round dye pits with coloured liquid, low rims, drying cloth lines */
+export function dyePitSpots(l) { const out = []; const cols = Math.ceil(Math.sqrt(l.n * l.w / l.d)), rows = Math.ceil(l.n / cols); for (let i = 0; i < l.n; i++) { const c = i % cols, r = Math.floor(i / cols); out.push({ x: l.cx - l.w / 2 + (c + 0.5) * l.w / cols, z: l.cz - l.d / 2 + (r + 0.5) * l.d / rows, r: Math.min(l.w / cols, l.d / rows) * 0.34 }); } return out; }
+export function drawDyePits(l, ctx) {
+  const { plain } = ctx; plain.box(l.w + 6, 0.12, l.d + 6, l.cx, 0.02, l.cz, 0xcdbb98, { noAO: true }); const liquids = [0x1f3f8f, 0x2e4a8a, 0x6a3a8a, 0x8a5a2b, 0x2f7a5a, 0x1b2f6a];
+  dyePitSpots(l).forEach((p, i) => { plain.cyl(p.r + 0.35, p.r + 0.35, 0.5, 14, p.x, 0.02, p.z, 0x9c8a68, { noAO: true }); plain.cyl(p.r, p.r, 0.12, 14, p.x, 0.43, p.z, liquids[i % liquids.length], { noAO: true }); });
+  for (const s of [-1, 1]) for (let i = 0; i < 4; i++) { const x = l.cx - l.w / 2 + 4 + i * (l.w - 8) / 3; plain.box(0.2, 3.2, 0.2, x, 0, l.cz + s * (l.d / 2 + 2), 0x6b4a2b, { noAO: true }); plain.box(0.2, 3.2, 0.2, x + 5, 0, l.cz + s * (l.d / 2 + 2), 0x6b4a2b, { noAO: true }); plain.box(5, 1.8, 0.05, x + 2.5, 1.2, l.cz + s * (l.d / 2 + 2), [0x1f3f8f, 0xefe6d2, 0x6a3a8a, 0x2e4a8a][i], { noAO: true }); }
+}
