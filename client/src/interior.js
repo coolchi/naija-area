@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { get, post, fmtN, h, $ } from './api.js';
 import { say } from './ui.js';
 import { houseShell } from './rooms.js';
+import * as PR from './props.js';
 
 const CELL = 1.4; const COLORS = { tv: 0x222831, sofa: 0xb5543a, fridge: 0xe8eef2, rug: 0xd9a441, plant: 0x2f9e5a, table: 0x9c6b3c, gen: 0xc0392b, bed: 0x4a6fa5 };
 const footprint = (def, rot) => (rot % 2 ? { w: def.d, d: def.w } : { w: def.w, d: def.d });
@@ -20,9 +21,9 @@ export class Interior {
     this.r = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true }); this.r.setPixelRatio(Math.min(devicePixelRatio, 2)); this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x1d2b25);
     this.cam = new THREE.PerspectiveCamera(42, 1, 0.1, 200); this.yaw = Math.PI / 4; this.pitch = 0.78; this.dist = Math.max(W, D) * CELL * 1.7; this.center = new THREE.Vector3(W * CELL / 2, 0, D * CELL / 2);
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x887766, 1.0)); const sun = new THREE.DirectionalLight(0xfff0d0, 1.1); sun.position.set(6, 12, 4); this.scene.add(sun);
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(W * CELL, 0.2, D * CELL), this.floorMat = new THREE.MeshLambertMaterial({ color: d.floor?.hex || '#b98a56' })); floor.position.set(W * CELL / 2, -0.1, D * CELL / 2); this.scene.add(floor);
-    const grid = new THREE.GridHelper(Math.max(W, D) * CELL, Math.max(W, D), 0x8c7a55, 0xa89870); grid.scale.set(W / Math.max(W, D), 1, D / Math.max(W, D)); grid.position.set(W * CELL / 2, 0.01, D * CELL / 2); this.grid = grid; this.scene.add(grid);
-    const wallM = this.wallMat = new THREE.MeshLambertMaterial({ color: d.wall?.hex || '#f1e7cf' }); const back = new THREE.Mesh(new THREE.BoxGeometry(W * CELL, 3.4, 0.2), wallM); back.position.set(W * CELL / 2, 1.7, -0.1); const left = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3.4, D * CELL), wallM); left.position.set(-0.1, 1.7, D * CELL / 2); this.scene.add(back, left);
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(W * CELL, 0.2, D * CELL), this.floorMat = new THREE.MeshLambertMaterial({ color: d.floor?.hex || '#b98a56', map: (/wood|plank|parquet/i.test(d.floor?.id || '') ? PR.surfaces().planks : PR.surfaces().tile)(W * CELL / 1.6, D * CELL / 1.6) })); floor.position.set(W * CELL / 2, -0.1, D * CELL / 2); this.scene.add(floor);
+    const grid = new THREE.GridHelper(Math.max(W, D) * CELL, Math.max(W, D), 0x8c7a55, 0xa89870); grid.scale.set(W / Math.max(W, D), 1, D / Math.max(W, D)); grid.position.set(W * CELL / 2, 0.01, D * CELL / 2); this.grid = grid; grid.visible = false; this.scene.add(grid);
+    const wallM = this.wallMat = new THREE.MeshLambertMaterial({ color: d.wall?.hex || '#f1e7cf', map: PR.surfaces().stucco(W * CELL / 2.4, 1.4) }); const back = new THREE.Mesh(new THREE.BoxGeometry(W * CELL, 3.4, 0.2), wallM); back.position.set(W * CELL / 2, 1.7, -0.1); const left = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3.4, D * CELL), wallM); left.position.set(-0.1, 1.7, D * CELL / 2); this.scene.add(back, left);
     const stripe = new THREE.Mesh(new THREE.BoxGeometry(W * CELL, 0.5, 0.22), new THREE.MeshLambertMaterial({ color: 0x008751 })); stripe.position.set(W * CELL / 2, 0.25, -0.1); this.scene.add(stripe);
     this.anim = []; this.t0 = performance.now(); houseShell(this.scene, d.room, CELL, this.anim);
     for (const r of d.room.reserved.filter(r => r.what === 'doorway')) { const m = new THREE.Mesh(new THREE.BoxGeometry(r.w * CELL - 0.1, r.what === 'bed' ? 0.7 : 0.02, r.d * CELL - 0.1), new THREE.MeshLambertMaterial({ color: r.what === 'bed' ? COLORS.bed : 0xe2d9bf, transparent: r.what !== 'bed', opacity: r.what === 'bed' ? 1 : 0.6 })); m.position.set((r.x + r.w / 2) * CELL, r.what === 'bed' ? 0.35 : 0.02, (r.z + r.d / 2) * CELL); this.scene.add(m); if (r.what === 'bed') { const pil = new THREE.Mesh(new THREE.BoxGeometry(r.w * CELL - 0.4, 0.2, 0.5), new THREE.MeshLambertMaterial({ color: 0xffffff })); pil.position.set((r.x + r.w / 2) * CELL, 0.8, (r.z + 0.4) * CELL); this.scene.add(pil); } }
@@ -31,12 +32,12 @@ export class Interior {
     this.rebuildItems(); this.bindInput(); this.resize(); this.onResize = () => this.resize(); addEventListener('resize', this.onResize);
   }
   meshFor(id, rot) {
-    const def = this.catalog[id]; const f = footprint(def, rot); const hgt = { tv: 1.1, sofa: 0.9, fridge: 2.0, rug: 0.04, plant: 1.2, table: 0.8, gen: 0.8 }[id] || 1; const grp = new THREE.Group();
-    const base = new THREE.Mesh(new THREE.BoxGeometry(f.w * CELL - 0.12, hgt, f.d * CELL - 0.12), new THREE.MeshLambertMaterial({ color: COLORS[id] || 0x999999 })); base.position.y = hgt / 2; grp.add(base);
-    if (id === 'sofa') { const bk = new THREE.Mesh(new THREE.BoxGeometry(rot % 2 ? 0.3 : f.w * CELL - 0.12, 0.7, rot % 2 ? f.d * CELL - 0.12 : 0.3), new THREE.MeshLambertMaterial({ color: 0x8e3d27 })); bk.position.set(rot === 1 ? -(f.w * CELL / 2 - 0.2) : rot === 3 ? (f.w * CELL / 2 - 0.2) : 0, 1.0, rot === 0 ? -(f.d * CELL / 2 - 0.2) : rot === 2 ? (f.d * CELL / 2 - 0.2) : 0); grp.add(bk); }
-    if (id === 'tv') { const sc = new THREE.Mesh(new THREE.BoxGeometry(f.w * CELL - 0.3, hgt - 0.3, f.d * CELL - 0.3), new THREE.MeshBasicMaterial({ color: 0x356cbd })); sc.position.y = hgt / 2 + 0.05; sc.scale.multiplyScalar(0.98); grp.add(sc); base.scale.set(1, 0.9, 1); }
-    if (id === 'plant') { const l = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), new THREE.MeshLambertMaterial({ color: 0x35c46b })); l.position.y = 1.45; grp.add(l); base.scale.set(0.5, 0.6, 0.5); base.position.y = 0.3; }
-    grp.position.set(0, 0, 0); return grp;
+    // detailed props (client/src/props.js), built for the rot-0 footprint and turned; all shapes come from shared cached geometry
+    const def = this.catalog[id]; const w = def.w * CELL - 0.15, d = def.d * CELL - 0.15; const grp = new THREE.Group(); let p;
+    if (id === 'tv') p = PR.tvUnit(Math.min(w, 1.9)); else if (id === 'sofa') p = PR.sofa(w, Math.min(d, 1.0), { c: 0x1f6f7a, cushion: 0xf2b705 }); else if (id === 'fridge') p = PR.fridge(Math.min(w, 0.85), Math.min(d, 0.8), 1.95);
+    else if (id === 'rug') p = PR.rug(w, d); else if (id === 'plant') p = PR.plant({ h: 1.15 }); else if (id === 'table') p = PR.diningSet(w, d); else if (id === 'gen') p = PR.generator(Math.min(w, 1.0), Math.min(d, 0.85));
+    else { const hgt = 1; p = new THREE.Mesh(new THREE.BoxGeometry(w, hgt, d), new THREE.MeshLambertMaterial({ color: COLORS[id] || 0x999999 })); p.position.y = hgt / 2; }
+    const c = new THREE.Group(); c.add(p); c.rotation.y = rot * Math.PI / 2; grp.add(c); return grp;
   }
   rebuildItems() { this.items.clear(); this.meshes = {}; for (const p of this.placed) { if (this.sel && this.sel.id === p.id && this.sel.fromPlaced) continue; this.addItem(p); } }
   addItem(p) { const f = footprint(this.catalog[p.id], p.rot); const m = this.meshFor(p.id, p.rot); m.position.set((p.x + f.w / 2) * CELL, 0, (p.z + f.d / 2) * CELL); m.userData = { id: p.id }; this.items.add(m); this.meshes[p.id] = m; }
@@ -72,7 +73,7 @@ export class Interior {
     }; draw(); box.classList.remove('hidden');
   }
   preview(w, f) { const pal = this.data.palette; const wc = pal.walls.find(c => c.id === w), fc = pal.floors.find(c => c.id === f); if (wc) this.wallMat.color.set(wc.hex); if (fc) this.floorMat.color.set(fc.hex); }
-  toggleBuy(on = !this.buy) { this.buy = on; this.sel = null; this.ghost.visible = false; this.rebuildItems(); $('#buyToggle').textContent = on ? '✅ Done' : '🛋 Buy mode'; this.tool.classList.toggle('hidden', !on); if (on) this.drawTool(); }
+  toggleBuy(on = !this.buy) { this.buy = on; this.sel = null; this.ghost.visible = false; this.rebuildItems(); $('#buyToggle').textContent = on ? '✅ Done' : '🛋 Buy mode'; this.tool.classList.toggle('hidden', !on); if (this.grid) this.grid.visible = on; if (on) this.drawTool(); }
   drawTool() {
     const sel = this.sel; const items = Object.values(this.catalog); const owned = new Set(this.placed.map(p => p.id));
     const kids = [];

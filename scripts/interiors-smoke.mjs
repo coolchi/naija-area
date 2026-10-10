@@ -1,6 +1,7 @@
 // End-to-end smoke test: real server (in-memory DB) + headless Chrome (software GL). Screenshots land in ./shots.
 // Usage: npm run build && node scripts/interiors-smoke.mjs   (set CHROME=/path/to/chrome if not at /usr/bin/google-chrome)
 import puppeteer from 'puppeteer-core'; import fs from 'node:fs'; import assert from 'node:assert/strict';
+import { PERF } from '../server/config/perf-budget.js';
 import { buildServer } from '../server/createServer.js';
 const CHROME = process.env.CHROME || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find(p => fs.existsSync(p));
 if (!CHROME) { console.error('No Chrome found. Set CHROME=/path/to/chrome'); process.exit(2); }
@@ -17,6 +18,7 @@ const tp = async (page, x, z) => { await page.evaluate((x, z) => fetch('/api/dev
 
 let failed = false;
 const SHOTS = 'screenshots';
+const measure = async (page, what, label) => { const r = await page.evaluate((w) => { const i = window.__game[w].r.info; return { calls: i.render.calls, tris: i.render.triangles, geos: i.memory.geometries, tex: i.memory.textures }; }, what); console.log(`    measured ${label}: ${r.calls} draw calls, ${r.tris} triangles, ${r.geos} geometries, ${r.tex} textures (limits ${PERF.interior.drawCalls} / ${PERF.interior.triangles})`); assert.ok(r.calls <= PERF.interior.drawCalls, `draw calls ${r.calls} over budget in ${label}`); assert.ok(r.tris <= PERF.interior.triangles, `triangles ${r.tris} over budget in ${label}`); };
 const snap = async (page, name) => { await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
 try {
   console.log('Naija Area interiors smoke (houses by type, every venue, clubs, salons, garage)');
@@ -33,14 +35,18 @@ try {
     await g(page, (id) => window.__game.interior.show(id), prop.id); await page.waitForSelector('#interior:not(.hidden) canvas', { timeout: 15000 }); await sleep(900);
     const lay = await g(page, () => ({ type: window.__game.interior.data.room.type, w: window.__game.interior.data.room.w, d: window.__game.interior.data.room.d }));
     assert.equal(lay.type, t); const T = s.app.balance.housing.types[t]; assert.deepEqual([lay.w, lay.d], T.grid);
-    await snap(page, `interior-${t}`); ok(`house type ${t}: ${lay.w}x${lay.d} opened (owner), screenshot interior-${t}.png`);
-    await g(page, () => window.__game.interior.leave()); await sleep(500);
+    await snap(page, `interior-${t}`); await measure(page, 'interior', `house ${t}`); ok(`house type ${t}: ${lay.w}x${lay.d} opened (owner), screenshot interior-${t}.png`);
+        if (t === 'mansion') { const t0 = 'faceyou'; const prop0 = s.app.city.properties.find(p => p.style === t0); s.app.db.prepare('DELETE FROM property_owner WHERE user_id=?').run(myId); s.app.db.prepare('DELETE FROM property_owner WHERE property_id=?').run(prop0.id); s.app.db.prepare('INSERT INTO property_owner(property_id,user_id,mode,custom_name,next_rent_due,missed,since,paid_price) VALUES (?,?,?,?,?,0,?,?)').run(prop0.id, myId, 'rent', null, Date.now() + 864e5, Date.now(), 0); await g(page, () => window.__game.interior.leave()); await sleep(300); await g(page, (id) => window.__game.interior.show(id), prop0.id); await page.waitForSelector('#interior:not(.hidden) canvas', { timeout: 15000 }); await sleep(500); s.app.db.prepare('DELETE FROM property_items').run(); // furnish through the real API (server-side placement checks), then re-open for a "lived in" screenshot
+      const placed = await g(page, async () => { const I = window.__game.interior; let n = 0; for (const id of ['sofa', 'tv', 'fridge', 'table', 'rug', 'plant', 'gen']) { let spot = null; for (let z = 0; z < I.data.room.d && !spot; z++) for (let x = 0; x < I.data.room.w && !spot; x++) for (const rot of [0, 1]) if (I.canPlace(id, x, z, rot)) { spot = { x, z, rot }; break; } if (!spot) continue; I.sel = { id }; I.rot = spot.rot; const before = I.placed.length; await I.place(spot.x, spot.z); if (I.placed.length > before) n++; await new Promise(r => setTimeout(r, 700)); } return n; });
+      assert.ok(placed >= 4, 'placed some furniture: ' + placed ); await g(page, () => window.__game.interior.leave()); await sleep(400); await g(page, (id) => window.__game.interior.show(id), prop0.id); await page.waitForSelector('#interior:not(.hidden) canvas', { timeout: 15000 }); await sleep(900); await snap(page, `interior-faceyou-furnished`); await measure(page, 'interior', `house faceyou furnished`); ok(`faceyou: ${placed} furniture items placed through the API, screenshot interior-faceyou-furnished.png`);
+    }
+await g(page, () => window.__game.interior.leave()); await sleep(500);
   }
   // ---- venues: walk to the door, enter, screenshot
   const names = { venue_mamaput: 'interior-venue-mamaput', venue_viewing: 'interior-venue-viewing', venue_joint: 'interior-venue-joint', venue_meco: 'interior-venue-meco', venue_motors: 'interior-venue-motors', venue_club1: 'club-club1', venue_club2: 'club-club2', venue_salon1: 'salon-salon1', venue_salon2: 'salon-salon2' };
   for (const v of s.app.city.venues) {
     await tp(page, v.x, v.z + 1); await g(page, (id) => window.__game.ui.place(id), v.id); await page.waitForSelector('#venueEnter:not([disabled])', { timeout: 10000 }); await page.evaluate(() => document.querySelector('#venueEnter').click());
-    await page.waitForSelector('#venue:not(.hidden) canvas', { timeout: 15000 }); await sleep(1200); await snap(page, names[v.id]); ok(`${v.name}: entered, screenshot ${names[v.id]}.png`);
+    await page.waitForSelector('#venue:not(.hidden) canvas', { timeout: 15000 }); await sleep(1200); await snap(page, names[v.id]); await measure(page, 'venue', v.name); ok(`${v.name}: entered, screenshot ${names[v.id]}.png`);
     if (v.kind === 'club') { await page.evaluate(() => document.querySelector('[data-station=dance]').click()); await sleep(700); await page.evaluate(() => document.querySelector('[data-station=songs]').click()); await page.waitForFunction(() => document.querySelector('#songSlots'), { timeout: 6000 }); await snap(page, `club-${v.id.slice(6)}-songs`); await g(page, () => window.__game.ui.closeSheet()); ok('club: dance + song board'); }
     if (v.kind === 'salon') { const first = v.id === 'venue_salon1'; const c0 = balanceOf(s.app.db, cashId(myId)); await page.evaluate(() => document.querySelector('[data-station=chair1]').click()); await page.waitForSelector('[data-style=trim]', { timeout: 6000 }); await snap(page, `salon-${v.id.slice(6)}-menu`); if (first) { await page.evaluate(() => document.querySelector('[data-style=trim]').click()); await sleep(900); assert.equal(c0 - balanceOf(s.app.db, cashId(myId)), s.app.balance.leisure.salon.styles[0].fee); ok('salon: haircut charged through the ledger'); } else await g(page, () => window.__game.ui.closeSheet()); }
     await page.evaluate(() => document.querySelector('#venueLeave').click()); await sleep(500);
@@ -49,7 +55,7 @@ try {
   { const mv = s.app.city.venues.find(x => x.id === 'venue_motors'); await tp(page, mv.x, mv.z + 1); await g(page, () => window.__game.ui.place('venue_motors')); await page.waitForSelector('#venueEnter:not([disabled])'); await page.evaluate(() => document.querySelector('#venueEnter').click()); await page.waitForSelector('#venue:not(.hidden) canvas'); await sleep(600);
     for (const m of ['kekere', 'oga']) { const model = Object.keys(s.app.balance.cars.models)[m === 'kekere' ? 0 : 1]; const r = await g(page, async (model) => { const x = await fetch('/api/garage/buy', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model, idemKey: 'k' + model }) }); return x.status; }, model); assert.equal(r, 200); }
     await page.evaluate(() => document.querySelector('#venueLeave').click()); await sleep(400);
-    await g(page, () => window.__game.garage.show()); await page.waitForSelector('#garageView canvas', { timeout: 10000 }); await sleep(1200); await snap(page, 'garage-own'); const n = await g(page, () => window.__game.garage.slotCars.length); assert.equal(n, 2); ok('own garage opened with 2 cars in their slots'); await g(page, () => window.__game.garage.close()); }
+    await g(page, () => window.__game.garage.show()); await page.waitForSelector('#garageView canvas', { timeout: 10000 }); await sleep(1200); await snap(page, 'garage-own'); await measure(page, 'garage', 'own garage'); const n = await g(page, () => window.__game.garage.slotCars.length); assert.equal(n, 2); ok('own garage opened with 2 cars in their slots'); await g(page, () => window.__game.garage.close()); }
   const real = errors.filter(e => !/WebGL|GPU stall|swiftshader/i.test(e)); assert.equal(real.length, 0, 'console errors: ' + real.join(' || ')); ok('no console/page errors');
   console.log('INTERIORS SMOKE PASSED');
 } catch (e) { failed = true; console.error('INTERIORS SMOKE FAILED:', e.message); try { let i = 0; for (const pg of await browser.pages()) await pg.screenshot({ path: `${SHOTS}/fail-int-${i++}.png` }); } catch {} }

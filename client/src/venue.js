@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { get, post, fmtN, h, $ } from './api.js';
 import { makeAvatar, makePlayerCar, makeNameSprite } from './entities.js';
 import { venueShell, decorate, stationModel } from './rooms.js';
+import * as PR from './props.js';
 
 const SHAPE = { circle: ['●', '#d6402f'], triangle: ['▲', '#2e7dd1'], cross: ['✚', '#2e9b5e'], square: ['■', '#8a5ad1'], star: ['★', '#e0a020'], whot: ['W', '#222'] };
 const hash = (s) => { let x = 7; for (const c of String(s)) x = (x * 31 + c.charCodeAt(0)) >>> 0; return x; };
@@ -31,13 +32,13 @@ export class Venue {
     const grp = new THREE.Group(); const col = new THREE.Color(st.color || '#888'); const mat = (c) => new THREE.MeshLambertMaterial({ color: c });
     const box = (w, hh, dd, c, y) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, hh, dd), mat(c)); m.position.y = y ?? hh / 2; grp.add(m); return m; };
     if (stationModel(st, grp, this.anim)) { /* club / salon pieces live in rooms.js */ }
-    else if (st.type === 'eat') { box(3.4, 1, 0.9, col); box(3.5, 0.12, 1.0, 0xf2c14e, 1.05); }
-    else if (st.type === 'game') { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, 0.12, 20), mat(col)); t.position.y = 0.8; grp.add(t); const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, 0.8, 8), mat(0x4a3320)); leg.position.y = 0.4; grp.add(leg); if (st.game === 'ludo') { box(1.5, 0.1, 1.5, 0xfaf5e6, 0.91); [0xd6402f, 0x2e9b5e, 0xe0a020, 0x2e7dd1].forEach((c, k) => { const q = box(0.6, 0.05, 0.6, c, 0.97); q.position.x = (k % 2 ? 1 : -1) * 0.45; q.position.z = (k < 2 ? -1 : 1) * 0.45; }); } else for (let i = 0; i < 4; i++) { const c = box(0.34, 0.03, 0.5, [0xd6402f, 0x2e7dd1, 0xe0a020, 0x2e9b5e][i], 0.88); c.position.x = -0.5 + i * 0.33; c.rotation.y = 0.2 * i - 0.3; } for (const sx of [-1.25, 1.25]) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.5, 10), mat(0x33291e)); s.position.set(sx, 0.25, 0); grp.add(s); } }
+    else if (st.type === 'eat') { grp.add(PR.foodCounter(3.4, { c: col.getHex() })); }
+    else if (st.type === 'game') { grp.add(PR.gameTable(0.95, { c: col.getHex() })); if (st.game === 'ludo') { box(1.5, 0.1, 1.5, 0xfaf5e6, 0.91); [0xd6402f, 0x2e9b5e, 0xe0a020, 0x2e7dd1].forEach((c, k) => { const q = box(0.6, 0.05, 0.6, c, 0.97); q.position.x = (k % 2 ? 1 : -1) * 0.45; q.position.z = (k < 2 ? -1 : 1) * 0.45; }); } else for (let i = 0; i < 4; i++) { const c = box(0.34, 0.03, 0.5, [0xd6402f, 0x2e7dd1, 0xe0a020, 0x2e9b5e][i], 0.88); c.position.x = -0.5 + i * 0.33; c.rotation.y = 0.2 * i - 0.3; } for (const sx of [-1.25, 1.25]) { const s = PR.stool({ c: 0x8a3f28 }); s.position.set(sx, 0, 0); grp.add(s); } }
     else if (st.type === 'board') { box(2.4, 1.5, 0.12, col, 1.6).position.z = -0.1; box(2.2, 1.3, 0.14, 0x0f3b27, 1.6).position.z = -0.08; }
     else if (st.type === 'poster') { box(0.1, 1.4, 1.2, col, 1.6); }
-    else if (st.type === 'tv') { box(2.8, 1.5, 0.2, 0x151515, 1.8); box(2.6, 1.3, 0.22, 0x2a65c5, 1.8); box(3.0, 0.5, 0.8, 0x6b4a2b, 0.25); }
+    else if (st.type === 'tv') { const u = PR.tvUnit(3.0); grp.add(u); const t = PR.tv(2.7, { wall: true }); t.position.set(0, 1.0, -0.3); grp.add(t); }
     else if (st.type === 'check') { const c = makePlayerCar(st.color || '#3a7ca5'); c.scale.setScalar(0.34); c.position.y = 0.55; grp.add(c); box(2.0, 0.5, 1.1, 0x555a60, 0.25); box(0.2, 0.4, 0.2, 0xe0a020, 0.7).position.x = 1.15; }
-    else if (st.type === 'service') { box(2.0, 0.9, 0.7, 0x6b6f75, 0.45); box(1.7, 0.08, 0.6, 0xe07b00, 0.94); for (let i = 0; i < 3; i++) box(0.25, 0.25, 0.25, [0xd6402f, 0x2e7dd1, 0xe0a020][i], 1.1).position.x = -0.6 + i * 0.6; }
+    else if (st.type === 'service') { grp.add(PR.workbench(2.0)); const tc = PR.toolCart(); tc.position.set(1.4, 0, 0.1); grp.add(tc); for (let i = 0; i < 3; i++) box(0.25, 0.25, 0.25, [0xd6402f, 0x2e7dd1, 0xe0a020][i], 1.1).position.x = -0.6 + i * 0.6; }
     else if (st.type === 'car') { const c = makePlayerCar(st.color || '#888'); c.scale.setScalar(0.38); c.rotation.y = Math.PI / 6; grp.add(c); box(1.8, 0.06, 1.0, 0xdddddd, 0.03); }
     const sp = makeNameSprite(`${ICON[st.type] || ''} ${st.label}`.slice(0, 26), '#fff3c4'); sp.scale.set(2.8, 0.7, 1); sp.position.y = st.type === 'dj' ? 2.3 : st.type === 'songs' ? 3.3 : st.type === 'dance' ? 1.2 : st.type === 'style' ? 2.5 : st.type === 'car' ? 1.8 : st.type === 'tv' ? 3.0 : st.type === 'board' ? 2.8 : 2.1; grp.add(sp);
     grp.position.set(st.x, 0, st.z); if (st.type === 'poster') grp.rotation.y = 0; grp.traverse(o => { o.userData.stationId = st.id; }); this.stations.add(grp); this.meshes[st.id] = grp;
