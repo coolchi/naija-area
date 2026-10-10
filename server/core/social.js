@@ -86,9 +86,10 @@ export function travelQuote(app, uid, placeId) {
   const modes = Object.entries(allModes).map(([id, m]) => { const fare = Math.round((m.base + m.perM * d) * (rush ? T.rushMult : 1)); const sec = Math.max(T.minSec, Math.min(T.maxSec, Math.round(d / m.speed))); return { id, label: m.label, fare, seconds: sec, ...(id === 'car' ? { mood: m.mood, owned: car.owned, model: car.model } : {}) }; });
   return { place: { id: pl.id, name: pl.name, type: pl.type, area: pl.area }, distance: Math.round(d), traffic: rush ? 'Go-slow (rush hour)' : 'Free road', rush, modes: [{ id: 'walk', label: 'Walk', fare: 0, seconds: Math.round(d / 5.2) }, ...modes] };
 }
-export function travel(app, uid, placeId, mode, idemKey) {
+export function travel(app, uid, placeId, mode, idemKey, override = null) {
+  if (mode === 'ride' && !override) bad('BAD_MODE', 'Call a ride from the phone.');
   if (mode === 'walk') bad('WALK', 'Walking needs no ticket: just set a waypoint and go.');
-  const q = travelQuote(app, uid, placeId); const m = q.modes.find(x => x.id === mode); if (!m) bad('BAD_MODE', 'Pick keke, danfo or car.');
+  const q = travelQuote(app, uid, placeId); const m = override || q.modes.find(x => x.id === mode); if (!m) bad('BAD_MODE', 'Pick keke, danfo or car.');
   if (app.db.prepare("SELECT 1 FROM shifts WHERE user_id=? AND status='active' AND 0").get(uid)) bad('BUSY', 'Busy.');
   const pl = app.city.placeById[placeId]; const now = app.clock.now();
   return app.db.transaction(() => {

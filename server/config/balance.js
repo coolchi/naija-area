@@ -140,6 +140,7 @@ export const BALANCE = {
     activeWindowMs: 60000, nearbyRadius: 260, maxNearby: 60, trailKeep: 20
   },
   // Crash rules (10 Oct 2026). EVERY number is a placeholder ESTIMATE. The server decides hits with a seeded RNG; ambient cars are never charged.
+  ride: { enabled: true, name: 'Oya Ride', base: 300, perM: 1.6, rushMult: 1.4, speed: 13, minTripSec: 6, maxTripSec: 40, minDistanceM: 40, driverMinM: 140, driverMaxM: 300, driverSpeed: 11, rushEtaMult: 1.3, waitMs: 120000, cancelFee: 100, boardRangeM: 14, requestsPerMin: 6, _note: 'ESTIMATE placeholders. Generic in-game service name, no real brand.' },
   bus: { enabled: true, waitMinMs: 10000, waitMaxMs: 24000, rushMult: 1.5, callExpireMs: 90000, rangeM: 12, callsPerMin: 4, _note: 'ESTIMATE placeholders: wait times; the fare is the normal danfo fare (transport.modes.danfo)' },
   parking: { enabled: true, takeRangeM: 9, lotPadM: 1, maxParkedMs: 3 * 24 * 3600 * 1000, _note: 'ESTIMATE placeholders: lot fees live in the city JSON (carParks[].fee)' },
   crash: {

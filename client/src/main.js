@@ -5,6 +5,7 @@ import { Controller } from './player.js';
 import { Nav } from './nav.js';
 import { ParkingClient } from './parking-client.js';
 import { BusStops } from './bus-client.js';
+import { RideClient } from './ride-client.js';
 import { lampsOn } from './lamps.js';
 import { setPlayerHeadlamps } from './headlamps.js';
 import { CrashClient } from './crash.js';
@@ -48,7 +49,7 @@ class Game {
       this.progress(60, 'Putting traffic on the road…'); await new Promise(r => setTimeout(r, 30));
       this.traffic = new Traffic(this.scene, city.trafficLoops, city.busStops || []); this.traffic.onHorn = (c, car) => this.horn(c, car); this.walkers = new Walkers(this.scene, city.zones); this.ghosts = new Ghosts(this.scene);
       this.ads = new AdsClient(this.world, city, () => this.serverNow()); this.ui = new UI(this); this.net = new Net(this); this.interior = new Interior(this); this.venue = new Venue(this); this.garage = new GarageView(this);
-      this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root); this.nav = new Nav(this); this.parking = new ParkingClient(this); this.bus = new BusStops(this); this.crash = new CrashClient(this); this.traffic.crash = this.crash;
+      this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root); this.nav = new Nav(this); this.parking = new ParkingClient(this); this.bus = new BusStops(this); this.rideSvc = new RideClient(this); this.crash = new CrashClient(this); this.traffic.crash = this.crash;
       addEventListener('resize', () => this.resize()); this.resize(); this.bindAuth(); this.progress(85, TIPS[Math.floor(Math.random() * TIPS.length)]);
       const me = await get('/api/me').catch(() => null); this.progress(100, 'Ready!'); await new Promise(r => setTimeout(r, 250));
       this.loop(performance.now()); $('#loading').classList.add('hidden');
@@ -81,7 +82,7 @@ class Game {
   async enter(user) {
     this.playing = true; this.user = user; $('#hud').classList.remove('hidden'); this.cfg.jobs = (await get('/api/jobs').catch(() => ({ jobs: [] }))).jobs; this.ctrl.setLook(user.color, user.username);
     const spawns = this.city.spawns; const s = spawns[user.id % spawns.length]; const p = user.pos && (user.pos.x || user.pos.z) ? user.pos : null; this.ctrl.teleport(p?.x ?? s.x, p?.z ?? s.z); this.ctrl.ry = s.ry || 0; this.ctrl.camYaw = this.ctrl.ry; this.camera.position.set(this.ctrl.x - 10, 12, this.ctrl.z + 12);
-    this.update(user); this.parking.load(); this.net.start(); this.phone2 = new PhoneSys(this); this.phone2.start(); this.refreshProps(); get('/api/plots').then(d => { this.plots = d.plots; this.refreshPlots(); }).catch(() => {});
+    this.update(user); this.parking.load(); this.rideSvc.load(); this.net.start(); this.phone2 = new PhoneSys(this); this.phone2.start(); this.refreshProps(); get('/api/plots').then(d => { this.plots = d.plots; this.refreshPlots(); }).catch(() => {});
     this.ui.toast(user.guest ? `Welcome, ${user.username}! You are playing as a guest.` : `Welcome back, ${user.username}!`); if (!localStorage.getItem('na_tip') && !matchMedia('(pointer: coarse)').matches) { localStorage.setItem('na_tip', '1'); setTimeout(() => { if (!this.ui.sheetOpen) this.ui.toast('Tip: tap a building or the ground near a sign to open its sheet.'); }, 1800); }
   }
   async refreshProps() { const d = await get('/api/properties').catch(() => null); if (d) { this.props = d.properties; this.world.setMarkers(d.properties); } }
@@ -128,7 +129,7 @@ class Game {
   runCommute(r, pl, q) {
     this.nav?.cancel('stopped', true);
     this.busy = true; this.ctrl.frozen = true; this.commute = { t0: performance.now(), dur: r.seconds * 1000, from: r.from, to: r.to, mode: r.mode }; $('#commute').classList.remove('hidden');
-    $('#commuteTitle').textContent = `${{ keke: '🛺 Keke', danfo: '🚌 Danfo', car: '🚗 Your car' }[r.mode]} to ${pl.name}`; $('#commuteSub').textContent = `${q.traffic}${r.fare ? ' · ' + this.fmt(r.fare) : ''}`; this.ui.sfx('horn'); this.ui.toast(say('travel', r.fare)); this.ctrl.mode = r.mode === 'car' ? 'drive' : 'walk'; this.ctrl.applyMode();
+    $('#commuteTitle').textContent = `${{ keke: '🛺 Keke', danfo: '🚌 Danfo', car: '🚗 Your car', ride: '🚕 Oya Ride' }[r.mode]} to ${pl.name}`; $('#commuteSub').textContent = `${q.traffic}${r.fare ? ' · ' + this.fmt(r.fare) : ''}`; this.ui.sfx('horn'); this.ui.toast(say('travel', r.fare)); this.ctrl.mode = r.mode === 'car' ? 'drive' : 'walk'; this.ctrl.applyMode();
     const dx = r.to.x - r.from.x, dz = r.to.z - r.from.z; this.ctrl.ry = Math.atan2(-dz, dx); this.ctrl.camYaw = this.ctrl.ry; this.net.trail.length = 0;
   }
   fmt(n) { return '₦' + Math.round(n).toLocaleString('en-NG'); }
@@ -149,7 +150,7 @@ class Game {
       if (!this.commute) { this.ctrl.placeCamera(this.camera, dt); if (now - this.lastSample > 250) { this.lastSample = now; this.net.sample({ t: this.serverNow(), x: this.ctrl.x, z: this.ctrl.z, ry: this.ctrl.ry }); } }
       if (this.ctrl.lastTap && !this.ui.sheetOpen && !this.busy) { const tp = this.ctrl.lastTap; this.ctrl.lastTap = null; if (now - tp.t < 400) this.tapPlace(tp.x, tp.y); }
       this.ads.update(this.camera, this.size, this.ctrl, dt * 1000);
-      this.nav?.tick(dt); this.parking?.tick(dt * 1000); this.bus?.tick(dt * 1000, now); this.hudStep(now); this.renderer.render(this.scene, this.camera);
+      this.nav?.tick(dt); this.parking?.tick(dt * 1000); this.bus?.tick(dt * 1000, now); this.rideSvc?.tick(dt * 1000); this.hudStep(now); this.renderer.render(this.scene, this.camera);
     }; requestAnimationFrame(frame);
   }
   idleCam(now) { const a = now / 9000; this.camera.position.set(Math.cos(a) * 70, 38, Math.sin(a) * 70 - 20); this.camera.lookAt(0, 4, -20); this.camera.updateMatrixWorld(); }

@@ -4,7 +4,7 @@ import { get, post, h, fmtN } from '../api.js';
 import { pickMime } from './phone2.js';
 
 const DOT = { online: '#2e9b5e', home: '#2a7de1', in_call: '#e0a020', dnd: '#d6402f', offline: '#aaa' };
-const APPS = [['calls', '📞', 'Phone'], ['messages', '💬', 'Messages'], ['contacts', '👥', 'Contacts'], ['wallet', '💰', 'Wallet'], ['jobs', '💼', 'Jobs'], ['home', '🏠', 'Home'], ['land', '🌍', 'Land'], ['garage', '🚗', 'Garage'], ['games', '🎮', 'Games'], ['map', '🗺', 'Map'], ['ranks', '🏆', 'Ranks'], ['alerts', '🔔', 'Alerts'], ['more', '⚙️', 'Settings']];
+const APPS = [['calls', '📞', 'Phone'], ['messages', '💬', 'Messages'], ['contacts', '👥', 'Contacts'], ['wallet', '💰', 'Wallet'], ['jobs', '💼', 'Jobs'], ['home', '🏠', 'Home'], ['land', '🌍', 'Land'], ['garage', '🚗', 'Garage'], ['ride', '🚕', 'Oya Ride'], ['games', '🎮', 'Games'], ['map', '🗺', 'Map'], ['ranks', '🏆', 'Ranks'], ['alerts', '🔔', 'Alerts'], ['more', '⚙️', 'Settings']];
 const dot = (s) => h('i', { class: 'pdot', title: s, style: `background:${DOT[s] || '#aaa'}` });
 const fmtT = (ms) => new Date(ms).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' });
 const dur = (ms) => `${Math.floor(ms / 60000)}:${String(Math.round(ms / 1000) % 60).padStart(2, '0')}`;
@@ -22,12 +22,23 @@ export class PhoneShell {
   back() { if (!this.stack.length) { if (this.cur !== 'home') return this.go('home', true); return this.ui.closeSheet(); } this.cur = this.stack.pop(); this.draw(); }
   async draw() {
     this.drawStatus(); clearInterval(this.chatTimer); const app = this.cur; this.screen.replaceChildren(h('p', { class: 'mut' }, 'Loading…')); let el;
-    if (app === 'home') el = this.homeScreen(); else if (app === 'contacts') el = await this.contacts(); else if (app === 'messages') el = await this.messages(); else if (app === 'calls') el = await this.calls(); else if (app === 'settings') el = await this.settings();
+    if (app === 'home') el = this.homeScreen(); else if (app === 'contacts') el = await this.contacts(); else if (app === 'messages') el = await this.messages(); else if (app === 'calls') el = await this.calls(); else if (app === 'settings') el = await this.settings(); else if (app === 'ride') el = await this.ride();
     else if (app.startsWith('chat:')) el = await this.chat(app.slice(5)); else if (app === 'map') { this.ui.closeSheet(); return this.ui.openMap(); } else if (app === 'more') el = [...await this.settings(), ...[].concat(await this.ui.tab_more())];
     else if (this.ui['tab_' + app]) el = await this.ui['tab_' + app](); else el = [h('p', {}, 'Nothing here yet.')];
     if (this.cur === app) { const apptitle = (APPS.find(a => a[0] === app) || [])[2] || (app.startsWith('chat:') ? '@' + app.slice(5) : ''); this.screen.replaceChildren(...(app === 'home' ? [] : [h('div', { class: 'ptitle' }, apptitle)]), ...[].concat(el)); this.nav.querySelector('#phBack').disabled = app === 'home' && !this.stack.length && false; }
   }
   onEvent(e) { if (!this.screen?.isConnected) return; if (e.kind === 'message' && this.cur === 'messages') this.draw(); else if (e.kind === 'message' && this.cur === `chat:${e.m.from}`) this.chatPoll?.(); else if (e.kind === 'friends' && (this.cur === 'contacts' || this.cur === 'home')) this.draw(); else if (e.kind === 'read' && this.cur?.startsWith('chat:')) this.chatPoll?.(); else if (e.kind === 'call-ended' && this.cur === 'calls') this.draw(); }
+  // ---------- Oya Ride (generic in-game ride-hailing)
+  async ride() {
+    const g = this.g, R = g.rideSvc; if (!R) return [h('p', {}, 'Oya Ride is not available.')]; await R.load(); const r = R.ride;
+    if (r) { return [h('div', { class: 'card' }, h('b', {}, r.state === 'arriving' ? `🚕 ${r.driver.name} is on the way` : `🚕 ${r.driver.name} has arrived`), h('div', { class: 'mut' }, `${r.driver.car} · ${r.driver.plate}`), h('div', {}, `To ${r.placeName}`), h('div', {}, `Fare ₦${r.fare.toLocaleString('en-NG')} (ESTIMATE) · paid when you get in`),
+      h('div', { class: 'mut' }, r.state === 'arriving' ? 'Wait where you are. Your driver will pull up beside you.' : 'Walk to your driver and tap "Get in" at the bottom of the screen.'), h('button', { class: 'btn ghost', onclick: async () => { await R.cancel(); this.draw(); } }, r.state === 'arrived' ? 'Cancel (small fee)' : 'Cancel ride'))]; }
+    const ok = new Set(['venue', 'shop', 'landmark', 'busstop']); const homes = new Set((g.user?.homes || []).map(x => x.id || x)); const list = g.city.places.filter(p => ok.has(p.type) || homes.has(p.id)); const out = [h('p', { class: 'mut' }, 'Pick where you are going. Fares are estimates; you pay when you get in.')];
+    const box = h('div', { class: 'col' }); const input = h('input', { class: 'sheet-input', id: 'rideSearch', placeholder: 'Search a place…' }); const detail = h('div', { id: 'rideDetail' });
+    const draw = (q) => { box.replaceChildren(...list.filter(p => !q || p.name.toLowerCase().includes(q.toLowerCase())).slice(0, 30).map(p => h('button', { class: 'btn ghost ride-dest', 'data-place': p.id, onclick: () => pick(p) }, `${p.name}${p.area ? ' · ' + p.area : ''}`))); };
+    const pick = async (p) => { detail.replaceChildren(h('p', { class: 'mut' }, 'Getting a price…')); try { const q = await get('/api/ride/quote?place=' + encodeURIComponent(p.id)); detail.replaceChildren(h('div', { class: 'card' }, h('b', {}, q.place.name), h('div', {}, `About ${q.distance} m · fare ₦${q.fare.toLocaleString('en-NG')}${q.rush ? ' (rush hour)' : ''} (ESTIMATE)`), h('div', { class: 'mut' }, `Driver arrives in about ${Math.round(q.etaMs / 1000)} s`), h('button', { class: 'btn big', id: 'rideGo', onclick: async () => { try { await R.request(p.id); this.ui.closeSheet(); } catch (e) { this.ui.error(e); } } }, `Request ride · ₦${q.fare.toLocaleString('en-NG')}`))); } catch (e) { detail.replaceChildren(h('p', { class: 'mut' }, e.message || 'Could not get a price.')); } };
+    input.oninput = () => draw(input.value); draw(''); out.push(input, detail, box); return out;
+  }
   homeScreen() {
     const b = this.p?.badges || {}; const badge = { messages: b.msgs, contacts: b.reqs, calls: b.missed, alerts: this.g.unread };
     return [h('div', { class: 'pgrid' }, APPS.map(([id, icon, label]) => h('button', { class: 'papp', 'data-app': id, onclick: () => { if (id === 'calls') this.p.badges.missed = 0; this.go(id); } }, h('span', { class: 'pico' }, icon, badge[id] ? h('b', { class: 'pbadge' }, String(badge[id])) : ''), h('span', { class: 'plab' }, label))),
