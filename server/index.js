@@ -2,6 +2,9 @@ import { buildServer } from './createServer.js';
 import { startPracticeBot } from './core/practice-bot.js';
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || '127.0.0.1'; // localhost only by default. Do NOT expose publicly without TLS/proxy review.
+import { checkConfig, formatReport } from './lib/config-check.js';
+// configuration check first: in production any error stops the start, warnings are printed (node scripts/check-config.mjs does the same without starting)
+{ const r = checkConfig(process.env); if (r.errors.length || r.warnings.length) console.warn(formatReport(r)); if (!r.ok && r.production) { console.error('Refusing to start in production with the configuration errors above.'); process.exit(1); } }
 const s = buildServer();
 s.startTimers();
 if (process.env.PRACTICE_BOT !== '0' && process.env.NODE_ENV !== 'production') startPracticeBot(s.app); // labelled friendly-games-only bot so one person can try the tables

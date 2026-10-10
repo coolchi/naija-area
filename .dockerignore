@@ -1,0 +1,12 @@
+.git
+node_modules
+data
+screenshots
+demo-static
+*.log
+tests
+docs/*.png
+public/game.js.map
+.env
+.env.*
+deploy/*.env

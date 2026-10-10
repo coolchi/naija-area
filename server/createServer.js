@@ -72,7 +72,7 @@ export function buildServer(opts = {}) {
   const sockets = new Map();
   app.pushUser = (uid, msg) => { const s = sockets.get(uid); if (s) for (const ws of s) if (ws.readyState === 1) ws.send(JSON.stringify(msg)); };
 
-  const ex = express(); ex.disable('x-powered-by'); ex.set('trust proxy', env.NA_TRUST_PROXY === '1');
+  const ex = express(); ex.disable('x-powered-by'); ex.set('trust proxy', /^\d+$/.test(env.NA_TRUST_PROXY || '') ? Number(env.NA_TRUST_PROXY) : false); // NA_TRUST_PROXY=N: believe the last N proxies (1 = one proxy in front). A number, not `true`, so a player cannot fake their address with their own X-Forwarded-For header.
   ex.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'same-origin'); res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; font-src 'self'; media-src 'self' data: blob: https://*.streamguys1.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
@@ -127,8 +127,12 @@ export function buildServer(opts = {}) {
     try { const url = handleTap(app, req.params.token, { headless: /headless/i.test(req.headers['user-agent'] || '') }); res.redirect(302, url); }
     catch (e) { if (e instanceof GameError) return res.status(e.status).type('text/plain').send(e.message); console.error(e); res.status(500).end(); }
   });
+  // ---- health for load balancers, Docker, uptime monitors (no login, no secrets, never cached). /healthz = the process is up. /readyz = it can also reach its database.
+  const startedAt = Date.now(); let version = null; try { version = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version; } catch { /* no package.json next to the app */ }
+  ex.get('/healthz', (req, res) => { res.setHeader('Cache-Control', 'no-store'); res.type('text/plain').send('ok'); });
+  ex.get('/readyz', (req, res) => { res.setHeader('Cache-Control', 'no-store'); try { db.prepare('SELECT 1 AS ok').get(); res.json({ ok: true, db: databaseUrl ? 'postgres' : 'sqlite', uptimeSec: Math.round((Date.now() - startedAt) / 1000), version }); } catch (e) { console.error('readyz: database check failed:', e.message); res.status(503).json({ ok: false, db: databaseUrl ? 'postgres' : 'sqlite', error: 'DATABASE_UNAVAILABLE' }); } });
   const pub = opts.publicDir || path.join(ROOT, 'public');
-  const pages = { '/advertise': 'advertise.html', '/advertiser': 'advertiser.html', '/admin': 'admin.html', '/methodology': 'methodology.html', '/play': 'index.html', '/terms': 'terms.html' };
+  const pages = { '/advertise': 'advertise.html', '/advertiser': 'advertiser.html', '/admin': 'admin.html', '/methodology': 'methodology.html', '/play': 'index.html', '/terms': 'terms.html', '/privacy': 'privacy.html', '/refunds': 'refunds.html', '/contact': 'contact.html' };
   for (const [u, f] of Object.entries(pages)) ex.get(u, (req, res) => res.sendFile(path.join(pub, f)));
   ex.use(express.static(pub, { index: 'index.html', maxAge: '5m', extensions: ['html'] }));
   ex.use((req, res) => res.status(404).type('text/plain').send('Not found'));
@@ -155,5 +159,5 @@ export function buildServer(opts = {}) {
     timers.push(setInterval(() => { try { tickRent(app); tickInterest(app); tickLand(app); tickGames(app); pruneWorld(app); tickVoice(app); } catch (e) { console.error('tick', e); } }, 30000));
   }
   const close = () => new Promise((resolve) => { timers.forEach(clearInterval); for (const s of sockets.values()) for (const ws of s) ws.terminate(); wss.close(); server.close(() => { try { db.close(); } catch {} resolve(); }); server.closeAllConnections?.(); });
-  return { app, db, server, startTimers, close, sockets };
+  return { app, db, server, startTimers, close, sockets, ex };
 }

@@ -1,0 +1,11 @@
+# One backup run (launch PREPARATION, NOT INSTALLED). Started by naija-area-backup.timer.
+[Unit]
+Description=Naija Area database backup
+[Service]
+Type=oneshot
+User=naija
+Group=naija
+EnvironmentFile=/etc/naija-area/naija-area.env
+WorkingDirectory=/opt/naija-area
+# SQLite: online backup (safe while the game runs) + integrity check + keep the newest 14.  Postgres installs use deploy/backup-postgres.sh instead.
+ExecStart=/usr/bin/node scripts/backup-sqlite.mjs /var/lib/naija-area/naija-area.db /var/backups/naija-area --keep 14

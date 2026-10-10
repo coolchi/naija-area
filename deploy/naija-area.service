@@ -1,0 +1,38 @@
+# systemd unit for a plain Linux server (launch PREPARATION, NOT INSTALLED OR RUN; `systemd-analyze verify` was not available where this was written).
+# Install: copy the app to /opt/naija-area, `npm ci --omit=dev`, create the user, copy this file to /etc/systemd/system/, put the filled-in env file at /etc/naija-area/naija-area.env (mode 0640, owner root:naija).
+#   useradd --system --home /var/lib/naija-area --shell /usr/sbin/nologin naija ; mkdir -p /var/lib/naija-area && chown naija: /var/lib/naija-area
+#   systemctl daemon-reload && systemctl enable --now naija-area
+[Unit]
+Description=Naija Area game server
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=naija
+Group=naija
+WorkingDirectory=/opt/naija-area
+EnvironmentFile=/etc/naija-area/naija-area.env
+ExecStart=/usr/bin/node server/index.js
+Restart=on-failure
+RestartSec=3
+# exactly one instance: the world and the money ledger live in this process
+# --- hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/naija-area
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

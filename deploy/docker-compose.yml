@@ -1,0 +1,36 @@
+# Naija Area on one machine (launch PREPARATION, NOT RUN: no Docker on the machine this was written on).
+#   cp deploy/env.production.example deploy/naija-area.env     # then fill it in; this file is git-ignored by name
+#   docker compose -f deploy/docker-compose.yml --file deploy/naija-area.env up -d --build
+# Profiles:  (none) = app with a SQLite file in a volume;  postgres = also a local Postgres;  tunnel = also a Cloudflare Tunnel (needs CLOUDFLARE_TUNNEL_TOKEN in the env file).
+# Run exactly ONE app instance: the world and the money ledger live in one process (docs/POSTGRES.md).
+name: naija-area
+services:
+  app:
+    build: { context: .., dockerfile: deploy/Dockerfile }
+    image: naija-area:local
+    restart: unless-stopped
+    env_file: [naija-area.env]
+    environment: { HOST: 0.0.0.0, PORT: "3000", NA_DATA_DIR: /data, NA_TRUST_PROXY: "1" }
+    volumes: ["app-data:/data"]
+    ports: ["127.0.0.1:3000:3000"]        # only this machine (the proxy or the tunnel) can reach it
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    deploy: { replicas: 1 }
+  postgres:
+    profiles: [postgres]
+    image: postgres:17
+    restart: unless-stopped
+    environment: { POSTGRES_DB: naija, POSTGRES_USER: naija, POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the env file}" }
+    volumes: ["pg-data:/var/lib/postgresql/data"]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U naija -d naija"], interval: 10s, timeout: 5s, retries: 5 }
+    # no published port: only the app container reaches it. With this profile set NA_DATABASE_URL=postgres://naija:<password>@postgres:5432/naija in the env file.
+  cloudflared:
+    profiles: [tunnel]
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment: { TUNNEL_TOKEN: "${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN}" }
+    # the tunnel's public hostname is configured in the Cloudflare dashboard to point at http://app:3000
+volumes: { app-data: {}, pg-data: {} }

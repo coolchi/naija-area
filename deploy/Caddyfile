@@ -1,0 +1,18 @@
+# Caddy reverse proxy in front of the app, when Cloudflare proxies the domain to this machine (launch PREPARATION, NOT RUN; `caddy validate` was not available).
+# Replace play.example.com with the real domain. Caddy gets and renews the certificate itself; in Cloudflare set SSL/TLS mode to "Full (strict)".
+play.example.com {
+	encode zstd gzip
+	# Cloudflare tells us the real visitor address in CF-Connecting-IP; pass it on as X-Forwarded-For so the app's per-IP limits see players, not Cloudflare.
+	# (Only safe when the machine accepts web traffic ONLY from Cloudflare's address ranges: restrict it in the firewall.)
+	request_body { max_size 2MB }
+	reverse_proxy 127.0.0.1:3000 {
+		header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+		header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+		health_uri /readyz
+		health_interval 15s
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+}

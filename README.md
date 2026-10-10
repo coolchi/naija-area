@@ -61,3 +61,6 @@ Jetties in Lekki and on Lagos Island: call a boat, board (fare through the ledge
 
 ## Status honesty
 Tested here: unit/API tests and headless-Chrome smokes on one Linux box. Not tested: real phones, real mobile networks, real two-person voice calls, public hosting, real payments (none exist), real age checks. See `docs/LOADTEST.md` for what the measured load numbers do and do not mean.
+
+## Launch preparation (item 30; nothing deployed)
+`docs/LAUNCH.md` is the public-launch checklist (hosting options, Cloudflare, env vars and secrets, backups, monitoring, admin hardening, legal placeholders, NDPA/age/payments dependencies, moderation staffing, load-test plan, decisions needed). `deploy/` holds safe, secret-free templates: Dockerfile, docker-compose, systemd units, Caddy and nginx examples, an environment template. Health: `GET /healthz` (alive) and `GET /readyz` (database answers, 503 if not). Check a configuration without starting: `node scripts/check-config.mjs --file deploy/naija-area.env --production`. In production the server refuses to start on a configuration error. SQLite backup: `node scripts/backup-sqlite.mjs <db> <folder> --keep 14`. The Docker, systemd and proxy files were never built or run.

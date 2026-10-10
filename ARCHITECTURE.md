@@ -81,3 +81,6 @@ All client side. `radio.js` holds the four stations, the schedule (idents and tr
 
 ## Break games (added 10 Oct 2026)
 Chop Am (`server/core/casual/match3.js`) and Clear the Go-Slow (`casual/danfo.js`, levels in `server/config/danfo-levels.js` made by `tools/gen-danfo-levels.mjs` with a BFS solver) follow the Merge Am pattern: pure engines shared by client and server, the server issues the seed or level and replays the submitted move log, pays through the ledger inside the daily casual cap. Table football (`server/core/games/football.js`) is a normal table-game engine (newGame/play/view/bot/forfeit): turn-based, deterministic ball simulation on the server, defender's rods hidden in `view()` until the shot. No schema change.
+
+## Launch preparation
+Start-up passes through `server/lib/config-check.js` (pure: env in, errors/warnings out; fatal in production, see `server/index.js`). `/healthz` and `/readyz` live in `createServer.js` next to the static routes. `NA_TRUST_PROXY=N` trusts the last N proxies (a number, not `true`) so the per-IP rate limits cannot be dodged with a faked `X-Forwarded-For`. Legal pages `/privacy`, `/refunds`, `/contact` are placeholders. Details and the unverified list: `docs/LAUNCH.md`.
