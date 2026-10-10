@@ -181,3 +181,9 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 /* Table football */
 .fball{width:min(52vw,170px,27vh);display:block;margin:4px auto;background:#2f7d3a;border:3px solid #123;border-radius:8px}
 .fpick{display:flex;gap:5px;align-items:center;margin:4px 0}.fpick b{min-width:68px;font-size:13px}.fpick .chip{padding:4px 9px;min-width:34px}
+
+/* Track C: chess, word duel, Omo Onile, Suwe, word search, crossword */
+.cgrid{display:grid;grid-template-columns:repeat(8,1fr);width:min(90vw,344px,52vh);aspect-ratio:1;border:3px solid #3b2a1a;border-radius:6px;overflow:hidden;margin:6px auto}
+.ccell{border:0;padding:0;display:flex;align-items:center;justify-content:center;position:relative;font-size:clamp(18px,6.4vw,30px);line-height:1}.ccell.lt{background:#ecd9b0}.ccell.dk{background:#a77a52}
+.ccell.sel{outline:3px solid #f0c419;outline-offset:-3px}.ccell.dest::after{content:"";position:absolute;width:30%;height:30%;border-radius:50%;background:#2e9b5e;opacity:.75}.ccell.lastmv{box-shadow:inset 0 0 0 100px #f0c41955}.ccell.incheck{box-shadow:inset 0 0 0 100px #e6394688}.ccell.can{cursor:pointer}
+.cp.cw{color:#fff;text-shadow:0 0 2px #000,0 0 2px #000,0 1px 3px #000}.cp.cb{color:#1c1c1c;text-shadow:0 0 1px #fff8}.ctray{min-height:20px;font-size:14px;text-align:center}
