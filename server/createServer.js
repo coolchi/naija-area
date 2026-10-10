@@ -15,6 +15,7 @@ import { dispatch } from './core/routes.js';
 import { getCreative, handleTap, tickAds } from './core/ads.js';
 import { tickScores } from './core/scores.js';
 import { tickRent, tickInterest } from './core/economy.js';
+import { tickSeasons } from './core/seasons.js';
 import { pruneWorld } from './core/world.js';
 import { tickLand } from './core/social.js';
 import { tickGames } from './core/games.js';
@@ -173,7 +174,7 @@ export function buildServer(opts = {}) {
     timers.push(setInterval(() => { tickPayments(app).catch((e) => console.error('tickPayments', e)); }, 15000)); // asks the provider about payments whose webhook never came; sends recorded refunds
     timers.push(setInterval(() => { try { tickCalls(app); } catch (e) { console.error('tickCalls', e); } }, 1000));
     timers.push(setInterval(() => { try { tickAds(app); } catch (e) { console.error('tickAds', e); } }, 5000));
-    timers.push(setInterval(() => { try { tickRent(app); tickInterest(app); tickLand(app); tickGames(app); pruneWorld(app); tickVoice(app); } catch (e) { console.error('tick', e); } }, 30000));
+    timers.push(setInterval(() => { try { tickRent(app); tickInterest(app); tickLand(app); tickGames(app); pruneWorld(app); tickVoice(app); tickSeasons(app); } catch (e) { console.error('tick', e); } }, 30000));
   }
   const close = () => new Promise((resolve) => { timers.forEach(clearInterval); clearInterval(loopTimer); loop.disable(); for (const s of sockets.values()) for (const ws of s) ws.terminate(); wss.close(); server.close(() => { try { db.close(); } catch {} resolve(); }); server.closeAllConnections?.(); });
   return { app, db, server, startTimers, close, sockets, ex };

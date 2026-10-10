@@ -78,3 +78,34 @@ export const ACHIEVEMENTS = {
     { id: 'crowned',     icon: '👑', name: 'Crowned',             desc: 'Own a crown.',                               metric: { k: 'wear_crown' },                          target: 1,   title: 'Crowned' }
   ]
 };
+
+// ---- 9) seasons: a few weeks of ranking, three boards, a badge and a small prize for the top three, then a fresh start (ALL NUMBERS ARE ESTIMATES)
+// A season is whole weeks starting on a Monday (00:00 UTC, the same week the table-game scores use). Season 1 starts on `startsAt`; the next follows straight after, for ever.
+// Boards (what is counted, always from records the SERVER keeps, never reported by the client):
+//   earned  = game money PAID IN by the listed reasons during the season (jobs, break-game rewards, sports prizes). Table-game pots are not counted (they only move stakes between players),
+//             and neither are missions, rent, interest, resale or transfers, so it rewards playing, not trading.
+//   wins    = table games won against other players during the season (practice games with a bot do not count).
+//   dressed = the shop price of what the player is WEARING when the season is settled (a snapshot at the end; a live number during the season).
+// Prizes go to the top three of each board who reach that board's `min` (so an empty board pays nobody). Guests, bots and players with an active ban are left out.
+// Game money prizes are paid by the ledger from the missions faucet with reason `season_prize` and are NOT counted against the daily and weekly mission caps (CAPS).
+export const SEASONS = {
+  enabled: true,
+  startsAt: '2026-10-12',          // a Monday; season 1 starts here (UTC)
+  weeks: 4,                        // ESTIMATE: season length in whole weeks
+  topShown: 10,                    // rows shown per board
+  rankDepth: 500,                  // how far down the server works out "your rank" (below that it says "outside the top 500")
+  cacheMs: 30000,                  // standings are cached this long
+  settleChecksMs: 60000,           // the server looks for a finished season this often
+  boards: [
+    { id: 'money',   icon: '💰', name: 'Money Maker',  titleWord: 'Money Maker',  desc: 'Most game money earned from jobs, break games and sports prizes this season.', unit: '₦', metric: 'earned', reasons: ['job_wage', 'casual_reward', 'sports_prize'], min: 5000 },
+    { id: 'games',   icon: '🏆', name: 'Table Champ',  titleWord: 'Table Champ',  desc: 'Most table games won against other players this season.',                         unit: 'wins', metric: 'wins', min: 3 },
+    { id: 'dressed', icon: '💎', name: 'Best Dressed', titleWord: 'Best Dressed', desc: 'The priciest jewelry and caps you are wearing when the season ends.',             unit: '₦', metric: 'dressed', min: 1 }
+  ],
+  // by rank. `cash` in game money (ESTIMATES; a delivery shift pays about ₦1,800). Rank 1 also gets the crown and a title for the next season (e.g. "S1 Money Maker").
+  prizes: [
+    { rank: 1, badge: 'crown',  icon: '👑', label: 'Crown',  cash: 20000 },
+    { rank: 2, badge: 'silver', icon: '🥈', label: 'Silver', cash: 10000 },
+    { rank: 3, badge: 'bronze', icon: '🥉', label: 'Bronze', cash: 5000 }
+  ],
+  maxSettlePerCheck: 6             // if the server was off for ages, it settles at most this many finished seasons per check
+};

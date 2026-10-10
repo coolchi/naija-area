@@ -4,6 +4,7 @@ import { bad } from './util.js';
 import { notify } from './economy.js';
 import { ACHIEVEMENTS } from '../config/progress.js';
 import { measure } from './progress-metrics.js';
+import { crownTitles } from './seasons.js';
 
 const list = () => ACHIEVEMENTS.list; const byId = (id) => list().find(a => a.id === id);
 const eligible = (app, uid) => { const u = app.db.prepare('SELECT is_bot FROM users WHERE id=?').get(uid); return !!u && !u.is_bot && ACHIEVEMENTS.enabled; };
@@ -23,20 +24,21 @@ export function evaluate(app, uid, { force = false } = {}) {
 export function titleOf(app, uid) {
   const c = cache(app), hit = c.get(uid), now = app.clock.now(); if (hit && now - hit.at < 60000) return hit.text;
   const sel = app.db.prepare('SELECT title_id FROM player_titles WHERE user_id=?').get(uid); const have = new Map(earnedRows(app, uid).map(r => [r.id, r.earned_at])); let text = '';
-  if (sel) { const a = byId(sel.title_id); if (a?.title && have.has(a.id)) text = a.title; }
-  else { for (const a of list()) if (a.title && have.has(a.id)) text = a.title; }
+  const crowns = crownTitles(app, uid);   // season winners: "S1 Money Maker"
+  if (sel) { if (sel.title_id.startsWith('season:')) text = crowns.find(c => c.id === sel.title_id)?.text || ''; else { const a = byId(sel.title_id); if (a?.title && have.has(a.id)) text = a.title; } }
+  else { for (const a of list()) if (a.title && have.has(a.id)) text = a.title; const win = crowns.find(c => c.latest); if (win) text = win.text; }   // the latest season's crown outranks the rest
   c.set(uid, { text, at: now }); return text;
 }
 export function view(app, uid) {
   if (!eligible(app, uid)) return { enabled: false }; evaluate(app, uid, { force: true }); const have = new Map(earnedRows(app, uid).map(r => [r.id, r.earned_at])); const sel = app.db.prepare('SELECT title_id FROM player_titles WHERE user_id=?').get(uid);
   const rows = list().map(a => { const raw = have.has(a.id) ? a.target : measure(app, uid, a.metric); return { id: a.id, icon: a.icon, name: a.name, desc: a.desc, target: a.target, progress: Math.min(a.target, raw), earned: have.has(a.id), earnedAt: have.get(a.id) || null, title: a.title || null }; });
-  return { enabled: true, achievements: rows, earnedCount: rows.filter(r => r.earned).length, total: rows.length, titles: rows.filter(r => r.earned && r.title).map(r => ({ id: r.id, text: r.title })), selected: sel ? sel.title_id : null, showing: titleOf(app, uid) };
+  return { enabled: true, achievements: rows, earnedCount: rows.filter(r => r.earned).length, total: rows.length, titles: [...rows.filter(r => r.earned && r.title).map(r => ({ id: r.id, text: r.title })), ...crownTitles(app, uid).map(c => ({ id: c.id, text: c.text }))], selected: sel ? sel.title_id : null, showing: titleOf(app, uid) };
 }
 /** choose the title to show: an earned achievement id, or '' for none, or null to go back to automatic */
 export function selectTitle(app, uid, id) {
   if (!eligible(app, uid)) bad('OFF', 'Titles are off.', 409); const now = app.clock.now();
   if (id === null || id === 'auto') app.db.prepare('DELETE FROM player_titles WHERE user_id=?').run(uid);
-  else { if (id !== '') { const a = byId(id); if (!a?.title) bad('NO_TITLE', 'That achievement has no title.'); if (!earnedRows(app, uid).some(r => r.id === id)) bad('NOT_EARNED', 'You have not earned that yet.', 409); }
+  else { if (typeof id === 'string' && id.startsWith('season:')) { if (!crownTitles(app, uid).some(c => c.id === id)) bad('NOT_EARNED', 'You have not won that title.', 409); } else if (id !== '') { const a = byId(id); if (!a?.title) bad('NO_TITLE', 'That achievement has no title.'); if (!earnedRows(app, uid).some(r => r.id === id)) bad('NOT_EARNED', 'You have not earned that yet.', 409); }
     const had = app.db.prepare('SELECT 1 FROM player_titles WHERE user_id=?').get(uid); if (had) app.db.prepare('UPDATE player_titles SET title_id=?, updated_at=? WHERE user_id=?').run(id, now, uid); else app.db.prepare('INSERT INTO player_titles(user_id,title_id,updated_at) VALUES (?,?,?)').run(uid, id, now); }
   invalidate(app, uid); return view(app, uid);
 }

@@ -30,6 +30,10 @@ CREATE INDEX IF NOT EXISTS ix_sanctions_user ON sanctions(user_id, id);
 CREATE INDEX IF NOT EXISTS ix_sanctions_kind ON sanctions(kind, lifted_at);` },
   { n: 9, name: 'guardian', sql: `
 CREATE TABLE IF NOT EXISTS guardian_settings (user_id INTEGER PRIMARY KEY, chat_mode TEXT NOT NULL DEFAULT 'all', max_stake INTEGER, transfers_off INTEGER NOT NULL DEFAULT 0, topup_daily_ngn INTEGER, play_limit_min INTEGER, curfew_start INTEGER, curfew_end INTEGER, break_every_min INTEGER, pin_hash TEXT, pin_fails INTEGER NOT NULL DEFAULT 0, pin_locked_until INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS guardian_play (user_id INTEGER NOT NULL, day INTEGER NOT NULL, ms INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day));` }
+CREATE TABLE IF NOT EXISTS guardian_play (user_id INTEGER NOT NULL, day INTEGER NOT NULL, ms INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day));` },
+  { n: 10, name: 'seasons', sql: `
+CREATE TABLE IF NOT EXISTS season_awards (season INTEGER NOT NULL, board TEXT NOT NULL, user_id INTEGER NOT NULL, place INTEGER NOT NULL, score INTEGER NOT NULL, prize INTEGER NOT NULL DEFAULT 0, awarded_at INTEGER NOT NULL, PRIMARY KEY (season, board, user_id));
+CREATE INDEX IF NOT EXISTS ix_season_awards_user ON season_awards(user_id, season);
+CREATE TABLE IF NOT EXISTS season_settled (season INTEGER PRIMARY KEY, settled_at INTEGER NOT NULL);` }
 ];
 export function applyLater(db) { for (const c of LATER) db.exec(c.sql); }

@@ -29,10 +29,12 @@ import * as account from './account.js';
 import * as tutorial from './tutorial.js';
 import * as missions from './missions.js';
 import * as achievements from './achievements.js';
+import * as seasons from './seasons.js';
 import * as moderation from './moderation.js';
 import * as guardian from './guardian.js';
 import * as emotes from './emotes.js';
 import { MOD as moderationOptions } from '../config/moderation.js';
+account.registerPlayerData('seasons', seasons.exportMine, seasons.deleteMine);   // season badges: in the download, erased on closing
 account.registerPlayerData('guardian', guardian.exportMine, guardian.deleteMine);   // safety settings: in the download, erased on closing
 import './gamedata.js';   // registers what the table games and the word/board games hold about a player with the account download/closing module (docs/ACCOUNT_DATA.md)
 import { checkAdminLogin } from './admin-guard.js';
@@ -142,6 +144,7 @@ route('GET', '/api/missions', { auth: 'user' }, (c) => missions.view(c.app, c.ui
 route('POST', '/api/missions/claim', { auth: 'user' }, (c) => missions.claim(c.app, c.uid, String(c.body.id || '')));
 route('POST', '/api/missions/streak', { auth: 'user' }, (c) => missions.claimStreak(c.app, c.uid));
 // achievements and titles
+route('GET', '/api/seasons', { auth: 'user' }, (c) => seasons.view(c.app, c.uid));
 route('GET', '/api/achievements', { auth: 'user' }, (c) => achievements.view(c.app, c.uid));
 route('POST', '/api/achievements/title', { auth: 'user' }, (c) => achievements.selectTitle(c.app, c.uid, c.body.id === undefined ? 'auto' : c.body.id === null ? null : String(c.body.id)));
 // moderator tools (admin back end)
