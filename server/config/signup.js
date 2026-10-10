@@ -1,8 +1,9 @@
 // SIGN-UP CHOICES, APPLY-TO-JOIN and OFFICE IDEAS: every list and limit in one place (Sherif can change them without touching code).
 //
 // ASSUMPTIONS (10 Oct 2026; not confirmed with Sherif, all easy to change here):
-//  1. "Choose your city" = the city you START in and live in (Lagos, Kano, Shagamu, Abeokuta, Ijebu Ode, Abule). It can be chosen once at set-up; after that you move by
-//     plane, boat or road like everyone else. Lagos is one city with five districts: you start on the Mainland.
+//  1. "Choose your city" = the city you want to START playing from (CONFIRMED by Sherif 10 Oct 2026). It decides your spawn point. Open now: Lagos, Kano, Shagamu, Abeokuta,
+//     Ijebu Ode, Abule; a city that is not open yet is shown as such, you start in Lagos and the wish is stored (see START_CLOSED / WISHLIST_CITIES below). Chosen once at set-up
+//     (a wish for a closed city can be changed later); after that you move by plane, boat or road. Lagos is one city with five districts: you start on the Mainland.
 //  2. "City of interest" (its own screen) = ANOTHER city you want to visit or watch later. It is not binding; it is shown on your profile and on the airport board, and
 //     the admin backend counts it. It can be changed any time. It cannot be the same as your own city.
 //  3. "Interests" = pick 1 to 5 topics from the list below. They are stored and counted for the admin backend; nothing in the game changes because of them yet.
@@ -27,6 +28,21 @@ export const INTEREST_OPTIONS = [
   { id: 'building', label: 'Building and designing', emoji: '🛠️' }
 ];
 export const SIGNUP_RULES = { minInterests: 1, maxInterests: 5 };
+
+// START CITY (clarified by Sherif 10 Oct 2026): the "city" chosen at sign-up is the city the player wants to START playing from. It decides the spawn point (the first spawn point of
+// that city's entry district). A city that is not open yet cannot be started in: the player is told so on the screen, starts in Lagos, and the wish is still stored (and counted in
+// the admin backend) so we can see where people want us to go next.
+//  * A city is OPEN when it is built and enabled in config/cities/index.json AND not listed in START_CLOSED.
+//  * START_CLOSED: built cities you want to hold back from new players for now (their ids as the player sees them, e.g. 'kano'). Empty = every built city is open.
+//  * WISHLIST_CITIES: cities that do not exist in the game yet but players may ask for. They show as "not open yet". Add or remove freely.
+//  * FALLBACK_CITY: where a player who picks a closed city starts (the default city, Lagos).
+export const START_CLOSED = [];
+export const FALLBACK_CITY = 'lagos';
+export const WISHLIST_CITIES = [
+  { id: 'abuja', name: 'Abuja', state: 'FCT' }, { id: 'port-harcourt', name: 'Port Harcourt', state: 'Rivers' }, { id: 'ibadan', name: 'Ibadan', state: 'Oyo' },
+  { id: 'enugu', name: 'Enugu', state: 'Enugu' }, { id: 'benin-city', name: 'Benin City', state: 'Edo' }, { id: 'kaduna', name: 'Kaduna', state: 'Kaduna' },
+  { id: 'calabar', name: 'Calabar', state: 'Cross River' }, { id: 'jos', name: 'Jos', state: 'Plateau' }
+];
 
 // apply-to-join (contributor team)
 export const APPLY_ROLES = [
