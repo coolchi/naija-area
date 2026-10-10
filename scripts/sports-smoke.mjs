@@ -1,0 +1,53 @@
+// Sports hall smoke (10 Oct 2026): the City Sports Hall room, a full ping pong match and a full tennis match against the bot through the UI, a coming-soon table, and the room cost.
+// Usage: npm run build && node scripts/sports-smoke.mjs   (screenshots go to ./screenshots/sports-*.png)
+import puppeteer from 'puppeteer-core'; import fs from 'node:fs'; import assert from 'node:assert/strict';
+import { buildServer } from '../server/createServer.js'; import { enterCity } from '../server/core/cities.js';
+const CHROME = process.env.CHROME || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find(p => fs.existsSync(p));
+if (!CHROME) { console.error('No Chrome found. Set CHROME=/path/to/chrome'); process.exit(2); }
+fs.mkdirSync('screenshots', { recursive: true });
+const s = buildServer({ dbPath: ':memory:', quiet: true, adminPassword: 'smoke-admin', dev: true }); s.startTimers(); s.app.balance.shops.enforceHours = false; s.app.balance.casual.minAccountAgeMs = 0;
+await new Promise(r => s.server.listen(0, '127.0.0.1', r)); const base = `http://127.0.0.1:${s.server.address().port}`;
+const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--window-size=1280,760'] });
+const errors = []; const ok = (m) => console.log(`  ✓ ${m}`); const sleep = (ms) => new Promise(r => setTimeout(r, ms)); const g = (page, fn, ...a) => page.evaluate(fn, ...a);
+const snap = async (page, name) => { await page.screenshot({ path: `screenshots/sports-${name}.png` }); };
+async function newPage(w = 1280, h = 760) { const p = await browser.newPage(); await p.setViewport({ width: w, height: h }); p.on('pageerror', e => errors.push('pageerror: ' + e.message + ' ' + String(e.stack || '').split('\n').slice(0, 4).join(' | '))); p.on('console', m => { if (m.type() === 'error') errors.push(m.text()); }); p.on('response', r => { if (r.status() >= 400) errors.push(`HTTP ${r.status()} ${r.request().method()} ${r.url().replace(base, '')}`); }); await p.evaluateOnNewDocument(() => { localStorage.setItem('na_tour_done', '1'); document.addEventListener('DOMContentLoaded', () => { const st = document.createElement('style'); st.textContent = 'body.shot > *:not(canvas) { visibility: hidden !important; }'; document.head.append(st); }); }); return p; }
+const settle = async (page, id) => { await page.waitForFunction((id) => window.__game?.city?.id === id && window.__game.playing, { timeout: 60000 }, id); await sleep(2200); };
+const setClock = (minutes) => { const c = s.app.balance.worldClock; c.startRealMs = Date.now() - (minutes / c.gameMinutesPerRealMinute) * 60000; };
+const tp = async (page, x, z) => { await page.evaluate((x, z) => fetch('/api/dev/teleport', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ x, z }) }).then(() => window.__game.net.nudge()), x, z); await sleep(900); };
+/** free camera for scenic shots: camera at `from`, looking at `to`; the HUD is hidden unless hud is true. Also moves the avatar next to the target so streaming and presence follow. */
+const cam = async (page, from, to, hud = false) => { await g(page, (from, to, hud) => { const G = window.__game; document.body.classList.toggle('shot', !hud); G.ctrl.placeCamera = (camera) => { camera.position.set(from[0], from[1], from[2]); camera.lookAt(to[0], to[1], to[2]); camera.updateMatrixWorld(); camera.matrixWorldInverse.copy(camera.matrixWorld).invert(); }; const c = G.ctrl; c.x = to[0]; c.z = to[2]; c.root.position.set(to[0], 0, to[2]); c.avatar.visible = false; }, from, to, hud); await sleep(1600); };
+const stats = (page) => g(page, () => { const r = window.__game.renderer.info; return { calls: r.render.calls, tris: r.render.triangles, colliders: window.__game.world.colliders.length, cars: window.__game.traffic.cars.length }; });
+let failed = false; const perf = {};
+try {
+  console.log('Naija Area sports hall smoke');
+  s.app.balance.rate.actionsPerMin = 100000; // the smoke clicks much faster than a person
+  const page = await newPage(); await page.goto(base, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('#auth:not(.hidden)', { timeout: 60000 }); await page.click('#age18'); await page.click('#authGo'); await page.waitForSelector('#hud:not(.hidden)', { timeout: 20000 }); await sleep(2500);
+  const uid = (await g(page, () => fetch('/api/me').then(r => r.json()))).user.id; await g(page, () => fetch('/api/dev/cash', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ amount: 50000 }) }));
+  setClock(15 * 60); const lk = s.app.cities['lagos-lekki']; const v = lk.venueById.lk_venue_sports; assert.ok(v, 'the City Sports Hall exists'); enterCity(s.app, uid, 'lagos-lekki', { x: v.x - 4, z: v.z + 12, ry: 0 }); await settle(page, 'lagos-lekki');
+  await tp(page, v.x, v.z + 1); await g(page, (id) => window.__game.ui.place(id), v.id); await page.waitForSelector('#venueEnter:not([disabled])', { timeout: 10000 }); await page.evaluate(() => document.querySelector('#venueEnter').click()); await sleep(2500);
+  assert.ok(await g(page, () => window.__game.venue?.open), 'the hall opened'); await snap(page, 'room'); ok('City Sports Hall opens from the normal Enter flow');
+  const cost = await g(page, () => { const r = window.__game.venue.r.info.render; return { calls: r.calls, tris: r.triangles }; }); console.log('  hall room cost (software GL):', JSON.stringify(cost));
+  const { PERF } = await import('../server/config/perf-budget.js'); assert.ok(cost.calls <= PERF.interior.drawCalls, `draw calls ${cost.calls} within ${PERF.interior.drawCalls}`); assert.ok(cost.tris <= PERF.interior.triangles, `triangles ${cost.tris} within ${PERF.interior.triangles}`); ok(`room cost within the interior budget (${cost.calls} calls, ${cost.tris} triangles)`);
+  const tap = async (id) => { await page.evaluate((id) => document.querySelector(`[data-station="${id}"]`).click(), id); await sleep(700); };
+  // a coming-soon table says so and cannot be sat at
+  const data = await g(page, () => fetch(`/api/venue?id=${window.__game.venue.id}`).then(r => r.json())); const soon = data.stations.find(x => x.soon);
+  if (soon) { await tap(soon.id); assert.match(await g(page, () => document.querySelector('.vpanel').textContent), /Coming soon/); const r = await g(page, (id, st) => fetch('/api/game/sit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ venueId: id, stationId: st, stake: 0 }) }).then(r => r.json()), data.id, soon.id); assert.equal(r.error, 'COMING_SOON'); ok(`"${soon.label}" shows coming soon and the server refuses a seat`); }
+  const playOne = async (stationId, level, tag) => {
+    await tap(stationId); await page.waitForSelector(`[data-level="${level}"]`, { timeout: 8000 }); await snap(page, `${tag}-sit`); await page.evaluate((l) => document.querySelector(`[data-level="${l}"]`).click(), level);
+    await page.waitForSelector('#rlHit', { timeout: 8000 }); await sleep(900); await snap(page, `${tag}-start`);
+    let turns = 0, shots = 0, last = 0; const t0 = Date.now();
+    while (turns < 900) {
+      const st = await page.evaluate(() => { if (document.querySelector('.banner')) return 'over'; const hit = document.querySelector('#rlHit'); if (!hit || hit.disabled) return 'wait'; const pick = (sel) => { const a = [...document.querySelectorAll(sel)].filter(b => !b.disabled); if (a.length) a[(Math.random() * a.length) | 0].click(); };
+        pick('.rl-shot'); pick('.rl-cell.aim'); pick('.rl-cell.cv'); document.querySelector('#rlHit').click(); return 'hit'; });
+      if (st === 'over') break; if (st === 'hit') { turns++; if (turns === 3 || turns === 9 || turns === 20) { await sleep(330); await snap(page, `${tag}-rally-${turns}`); } } else await sleep(60); await sleep(80); last = Date.now() - t0; void shots;
+    }
+    const banner = await g(page, () => document.querySelector('.banner')?.textContent || ''); assert.ok(banner, `${tag}: the match ended (${turns} turns, ${last} ms)`); await snap(page, `${tag}-end`); ok(`${tag}: a full match vs the ${level} bot played through the UI in ${turns} turns: "${banner.trim()}"`);
+    await page.evaluate(() => [...document.querySelectorAll('.vpanel .btn')].find(b => /Back to the room/.test(b.textContent))?.click()); await sleep(5200);
+    const left = await g(page, (id) => { const sl = window.__game.venue.sportsStage.slots.get(id); return JSON.stringify({ show: sl.ath.map(a => a.show), q: sl.queue.length, cur: sl.cur?.type, end: sl.endAfter, mine: sl.mine, watch: sl.watch, status: sl.status }); }, stationId); assert.ok(!/true/.test(JSON.parse(left).show.join()), `${tag}: the athletes leave the court after the match ${left}`);
+  };
+  await playOne('pp1', 'club', 'pingpong'); await playOne('tennis1', 'rookie', 'tennis');
+  const me = await g(page, () => fetch('/api/me').then(r => r.json())); assert.ok(me.user.cash > 0); const inv = s.app.db.prepare('SELECT COALESCE(SUM(amount),0) a FROM ledger_entries').get?.(); void inv;
+  const real = errors.filter(e => !/GPU/i.test(e) && !/HTTP 401 GET \/api\/me/.test(e) && !/status of 401/.test(e) && !/status of 409/.test(e) && !/HTTP 409 POST \/api\/game\/sit/.test(e)); assert.equal(real.length, 0, 'no page errors: ' + real.slice(0, 3).join(' || '));
+} catch (e) { failed = true; console.error('SPORTS SMOKE FAILED:', e.message, errors.slice(0, 5)); try { await snap((await browser.pages()).at(-1), 'fail'); } catch { /* ignore */ } }
+await browser.close(); await s.close(); process.exit(failed ? 1 : 0);
