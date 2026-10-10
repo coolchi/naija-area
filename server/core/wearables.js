@@ -13,7 +13,7 @@ const MOOD_BUY = 4;
 
 /** the public catalogue (the client needs it to draw what other players wear) */
 export function catalogue(app) {
-  const C = cfgOf(app); return { slots: C.SLOTS.map(s => ({ id: s, label: C.SLOT_LABEL[s] })), items: C.WEARABLES.map(w => ({ id: w.id, shop: w.shop, slot: w.slot, name: w.name, price: w.price, size: w.size, kind: w.kind, mat: w.mat, gems: w.gems || null, shine: w.shine || 0, crown: !!w.crown })), materials: C.MATERIALS, maxSize: C.MAX_SIZE, rules: { uniqueCrowns: !!C.WEAR_RULES.uniqueCrowns, resale: C.WEAR_RULES.resale }, shops: C.WEAR_RULES.shops };
+  const C = cfgOf(app); return { slots: C.SLOTS.map(s => ({ id: s, label: C.SLOT_LABEL[s] })), items: C.WEARABLES.map(w => ({ id: w.id, shop: w.shop, slot: w.slot, name: w.name, price: w.price, size: w.size, kind: w.kind, mat: w.mat, gems: w.gems || null, shine: w.shine || 0, crown: !!w.crown, limited: !!w.limited })), materials: C.MATERIALS, maxSize: C.MAX_SIZE, rules: { uniqueCrowns: !!C.WEAR_RULES.uniqueCrowns, resale: C.WEAR_RULES.resale }, shops: C.WEAR_RULES.shops };
 }
 export const equippedIds = (app, uid) => app.db.prepare('SELECT slot, item_id FROM wearables_equipped WHERE user_id=?').all(uid);
 /** compact list of item ids a player is wearing, cached on the presence record (null when nothing) */

@@ -20,6 +20,7 @@
     "smoke:life": "node scripts/life-smoke.mjs",
     "smoke:wordboard": "node scripts/wordboard-smoke.mjs",
     "smoke:physx": "node scripts/physx-smoke.mjs",
+    "smoke:festival": "node scripts/festival-smoke.mjs",
     "smoke:signup": "node scripts/signup-smoke.mjs",
     "smoke:admin": "node scripts/admin-smoke.mjs",
     "build:demo": "node tools/build-demo.mjs"

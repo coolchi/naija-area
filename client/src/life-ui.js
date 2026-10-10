@@ -76,6 +76,7 @@ addLifeSection({ id: 'clubs', label: '👥 Clubs', async draw(ui, redraw) {
 
 // ---------------- weather and events (night market, street owambe, festivals)
 const ago = (ms) => { const m = Math.round(ms / 60000); return m < 1 ? 'soon' : m < 60 ? `in ${m} min` : `in ${Math.round(m / 60)} h`; };
+const agoDays = (ms) => { const d = Math.round(ms / 86400000); return d < 1 ? ago(ms) : d === 1 ? 'tomorrow' : `in ${d} days`; };
 addLifeSection({ id: 'events', label: '🌧 Events', async draw(ui, redraw) {
   const [w, e] = await Promise.all([ui.guard(() => get('/api/weather')), ui.guard(() => get('/api/events'))]); if (!w || !e) return [];
   const icon = { clear: '☀️', cloudy: '⛅', rain: '🌧', storm: '⛈' }; const act = (path, body) => async (x) => { if (x?.target) x.target.disabled = true; const r = await ui.guard(() => post('/api/events/' + path, body)); if (r) { ui.toast(r.text || 'Done', r.charged ? 'money' : undefined); ui.g.refreshMe?.(); } redraw(); };
@@ -83,9 +84,9 @@ addLifeSection({ id: 'events', label: '🌧 Events', async draw(ui, redraw) {
     w.flood ? h('div', { class: 'tag amber' }, `Flooding: ${w.zones.map(z => z.name).join(', ') || 'none in this city'}. Slow down: driving speed ${Math.round(w.speedScale.drive * 100)}%, walking ${Math.round(w.speedScale.walk * 100)}%.`) : h('div', { class: 'mut' }, 'The roads are dry.'),
     w.fareMult > 1 ? h('div', { class: 'mut' }, `Rain: Oya Ride fares are ${Math.round((w.fareMult - 1) * 100)}% higher.`) : '', h('small', { class: 'mut' }, w.note))];
   for (const ev of e.events) {
-    out.push(h('div', { class: 'card', 'data-event': ev.id }, h('div', { class: 'row sp' }, h('b', {}, `${ev.icon} ${ev.name}`), h('span', { class: 'tag ' + (ev.active ? 'amber' : '') }, ev.active ? `ON${ev.endsInMs ? ' · ends ' + ago(ev.endsInMs) : ''}` : 'not on now')), h('div', { class: 'mut' }, ev.blurb), h('small', { class: 'mut' }, ev.window),
-      ...(ev.active ? [...(ev.shop || []).map(i => h('div', { class: 'row sp' }, h('span', {}, `${i.name} · ₦${fmtN(i.price)} · ${i.left}/${i.stock} left · you ${i.bought}/${i.limit}`), h('button', { class: 'btn small', 'data-ev-buy': i.id, disabled: i.left <= 0 || i.bought >= i.limit || e.cash < i.price, onclick: act('buy', { event: ev.id, item: i.id }) }, 'Buy'))),
-        ...(ev.claim ? [h('button', { class: 'btn small', 'data-ev-claim': ev.id, disabled: ev.claim.claimed, onclick: act('claim', { event: ev.id }) }, ev.claim.claimed ? 'Joined tonight' : `${ev.claim.label} (+₦${fmtN(ev.claim.cash)})`)] : [])] : [])));
+    out.push(h('div', { class: 'card', 'data-event': ev.id }, h('div', { class: 'row sp' }, h('b', {}, `${ev.icon} ${ev.name}`), h('span', { class: 'tag ' + (ev.active ? 'amber' : '') }, ev.active ? `ON${ev.endsInMs ? ' · ends ' + ago(ev.endsInMs) : ''}` : ev.startsInMs ? `starts ${agoDays(ev.startsInMs)}` : 'not on now')), h('div', { class: 'mut' }, ev.blurb), h('small', { class: 'mut' }, ev.window),
+      ...(ev.active ? [...(ev.shop || []).map(i => h('div', { class: 'row sp' }, h('span', {}, `${i.limited ? '⭐ ' : ''}${i.name} · ₦${fmtN(i.price)} · ${i.left}/${i.stock} left${i.limited ? ' (limited edition, yours for good)' : ''} · you ${i.bought}/${i.limit}`), h('button', { class: 'btn small', 'data-ev-buy': i.id, disabled: i.left <= 0 || i.bought >= i.limit || e.cash < i.price, onclick: act('buy', { event: ev.id, item: i.id }) }, 'Buy'))),
+        ...(ev.claim ? [h('button', { class: 'btn small', 'data-ev-claim': ev.id, disabled: ev.claim.claimed, onclick: act('claim', { event: ev.id }) }, ev.claim.claimed ? (ev.claim.perDay ? 'Collected today' : 'Joined tonight') : `${ev.claim.label} (+₦${fmtN(ev.claim.cash)})`)] : [])] : [])));
   }
   out.push(h('p', { class: 'mut' }, e.note)); return out;
 } });

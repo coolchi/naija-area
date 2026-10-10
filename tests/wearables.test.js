@@ -20,7 +20,7 @@ test('the two shops are real venues on the Mainland promenade with generic names
 });
 test('catalogue rules: size never shrinks as price grows inside a slot, every step of the jewelry ladder is visibly bigger, sizes are capped, crowns are the dearest, caps start at N50,000', () => {
   for (const slot of SLOTS) {
-    const items = WEARABLES.filter(w => w.slot === slot).sort((a, b) => a.price - b.price); assert.ok(items.length >= 4, slot);
+    const items = WEARABLES.filter(w => w.slot === slot && w.shop !== 'event').sort((a, b) => a.price - b.price); assert.ok(items.length >= 4, slot); // limited festival items sit outside the status ladder (docs/FESTIVALS.md)
     for (let i = 1; i < items.length; i++) { assert.ok(items[i].size >= items[i - 1].size, `${slot}: ${items[i].id} is not smaller than ${items[i - 1].id}`); if (items[i].shop === 'jewelry') assert.ok(items[i].size - items[i - 1].size >= 0.25, `${slot} step is visible`); }
     for (const w of items) assert.ok(w.size <= MAX_SIZE[slot] && w.size >= 1, `${w.id} within the cap`);
   }
@@ -31,7 +31,7 @@ test('catalogue rules: size never shrinks as price grows inside a slot, every st
 });
 test('the DRAWN size follows the price: surface area of the model grows with the price inside every slot (readable ladder), and each piece stays cheap to draw', () => {
   const cat = indexCatalogue({ items: WEARABLES, materials: MATERIALS });
-  for (const slot of SLOTS) { const items = WEARABLES.filter(w => w.slot === slot).sort((a, b) => a.price - b.price); let last = 0; for (const it of items) { const a = itemArea(it, cat); assert.ok(a > last, `${slot}: ${it.id} (${a.toFixed(3)}) is bigger than the cheaper piece before it (${last.toFixed(3)})`); last = a; assert.ok(itemTriangles(it, cat) <= 520, `${it.id} triangle budget`); } }
+  for (const slot of SLOTS) { const items = WEARABLES.filter(w => w.slot === slot && w.shop !== 'event').sort((a, b) => a.price - b.price); let last = 0; for (const it of items) { const a = itemArea(it, cat); assert.ok(a > last, `${slot}: ${it.id} (${a.toFixed(3)}) is bigger than the cheaper piece before it (${last.toFixed(3)})`); last = a; assert.ok(itemTriangles(it, cat) <= 520, `${it.id} triangle budget`); } }
 });
 test('buying: through the ledger with an audit row, you leave wearing it, retries are safe, no double buy', async () => {
   const s = makeServer(); const u = await inShop(s, J, 1000000); const before = balanceOf(s.db, cashId(u)); const it = wearableById.neck_thin;

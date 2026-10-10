@@ -118,7 +118,7 @@ class Game {
   onHeartbeat(r) {
     this.air?.setTicket(r.flight); this.boats?.setTrip(r.boat);
     if (r.city && this.city?.id && r.city !== this.city.id && !this.cityChanging) { this.cityChanging = true; this.ui.toast('Arriving in a new city…'); setTimeout(() => location.reload(), 700); return; }
-    this.update(r.me); this.worldTime = r.world; this.ui.clock(r.world); this.world.setTime(r.world.minutesOfDay); this.weather?.apply(r.wx); this.weather?.afterTime(); this.throws?.ingest(r.th); if (r.bonk) this.throws?.onBonk(r.bonk); this.ghosts.ingest(r.players, this.serverNow()); this.ads.setSnapshot(r.ads);
+    this.update(r.me); this.worldTime = r.world; this.ui.clock(r.world); this.world.setTime(r.world.minutesOfDay); this.weather?.apply(r.wx); this.weather?.afterTime(); this.festBadge(r.fest); this.throws?.ingest(r.th); if (r.bonk) this.throws?.onBonk(r.bonk); this.ghosts.ingest(r.players, this.serverNow()); this.ads.setSnapshot(r.ads);
     for (const c of r.chat || []) this.ui.addChat(c.u, c.t, c.id); for (const n of r.notifs || []) { if (!['knock', 'dm', 'knock_in', 'knock_no'].includes(n.kind) || true) { this.unread = (this.unread || 0) + 1; this.ui.toast(n.text, ['omo_onile'].includes(n.kind) ? 'bad' : n.kind === 'dm' ? '' : 'money'); } } this.ui.badge(this.unread || 0);
     this.lastKnocks = r.knocks; for (const k of r.knocks?.incoming || []) this.ui.hostKnock(k);
     if (r.teleport && !r.teleport.travelMs && !this.commute) { this.ctrl.teleport(r.teleport.x, r.teleport.z); }
@@ -143,6 +143,8 @@ class Game {
     if (!this.playing || this.busy) return; if (this.ui.sheetOpen) return; const n = this.nearBoard || null; const np = this.nearest(this.actionRange || 18); if (np) this.ui.place(np.place.id); else if (n) this.ui.board(n);
   }
   setWaypoint(x, z, label) { this.waypoint = { x, z, label }; this.dest.visible = true; this.dest.position.set(x, 0.3, z); }
+  /** festivals on right now (heartbeat field fest): a small badge, and one toast per festival per page load */
+  festBadge(list) { const el = document.getElementById('festBadge'); if (!el) return; const key = (list || []).map(f => f.id).join(','); if (key === this._fest) return; this._fest = key; el.classList.toggle('hidden', !key); el.textContent = (list || []).map(f => `${f.icon} ${f.name}`).join(' · '); el.dataset.fest = key; this._festSeen ||= new Set(); for (const f of list || []) if (!this._festSeen.has(f.id)) { this._festSeen.add(f.id); this.ui.toast(`${f.icon} ${f.name} is on! See the Events tab on your phone.`); } }
   /** Track G item 5: props and pedestrians as solids, pushable crates, ball throwing, jump buttons. Numbers: server/config/physx.js */
   setupPhysx(city) {
     const X = this.physx = { ...PHYSX, ...(this.cfg.physx || {}) }; this.propSolids = propIndex(this.world.lamps, this.world.palmSpots, X.solids); const props = [], peds = [], none = { props, peds };
