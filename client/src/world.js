@@ -118,6 +118,12 @@ export function buildWorld(city) {
     } else if (b.kind === 'office' || b.kind === 'kiosk') {
       walls.box(b.w, b.h, b.d, b.x, 0, b.z, b.color); plain.box(b.w + 0.6, 0.3, b.d + 0.6, b.x, b.h, b.z, 0x6b6d70);
       if (b.label) { const [sx, sz] = frontPos(b, 0.12); addSign(b.label, '#0b6b3a', sx, b.h - 1.3, sz, Math.min(b.w - 1, 14), 2.2, b.face); }
+      if (b.tag === 'office') { // the Naija Area office: green-white awning over the door, a flagpole with the green-white-green flag, a front step
+        const fx = b.face[0], fz = b.face[1]; const ax = b.x + fx * (b.w / 2 + 1.3), az = b.z + fz * (b.d / 2 + 1.3); const along = fz !== 0;
+        for (let i = 0; i < 4; i++) plain.box(along ? 2 : 2.8, 0.26, along ? 2.8 : 2, ax + (along ? (i - 1.5) * 2 : 0), 3.3, az + (along ? 0 : (i - 1.5) * 2), i % 2 ? 0xf4f4f0 : 0x00a859, { noAO: true });
+        plain.box(along ? 9 : 2.2, 0.3, along ? 2.2 : 9, b.x + fx * (b.w / 2 + 1.1), 0, b.z + fz * (b.d / 2 + 1.1), 0xc9c6bb, { noAO: true });
+        const px = b.x - b.w / 2 + 1, pz = b.z - b.d / 2 + 1; plain.box(0.2, 5, 0.2, px, b.h, pz, 0xdddddd, { noAO: true }); for (const [k, c] of [[-0.5, 0x00a859], [0, 0xffffff], [0.5, 0x00a859]]) plain.box(0.1, 1.2, 0.5, px, b.h + 3.6, pz + k, c, { noAO: true });
+      }
     } else if (b.kind === 'stadium') {
       drawStadium(b, { plain, walls, addSign, frontPos, root, rnd: mulberry32(7) });
     } else if (b.kind === 'hotel' || b.kind === 'landmark' || b.kind === 'hut') {

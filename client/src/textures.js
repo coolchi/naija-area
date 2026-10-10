@@ -40,6 +40,7 @@ export function glowTexture() {
 }
 export function nameTag(text, color = '#ffffff') {
   const c = cv(256, 64), g = c.getContext('2d'); g.font = '700 30px Nunito, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (let size = 30; size > 15 && g.measureText(text).width > 218; size -= 2) g.font = `700 ${size}px Nunito, system-ui, sans-serif`; // long labels shrink to fit the tag instead of being cut off
   const w = Math.min(244, g.measureText(text).width + 24); g.fillStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.roundRect(128 - w / 2, 10, w, 44, 14); g.fill();
   g.fillStyle = color; g.fillText(text, 128, 33);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;

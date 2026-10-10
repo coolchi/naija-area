@@ -1743,6 +1743,24 @@
    ],
    "id": "b055",
    "tag": "caps"
+  },
+  {
+   "kind": "office",
+   "x": -70,
+   "z": 64,
+   "w": 24,
+   "d": 16,
+   "h": 7,
+   "floors": 2,
+   "color": "#f4f1e8",
+   "sign": "#00a859",
+   "label": "Naija Area Office",
+   "face": [
+    0,
+    -1
+   ],
+   "id": "b056",
+   "tag": "office"
   }
  ],
  "properties": [
@@ -6040,6 +6058,170 @@
       "r": 0.8,
       "yaw": 1.5707963267948966,
       "seed": 5
+     }
+    ],
+    "detailV2": true
+   }
+  },
+  {
+   "id": "venue_office",
+   "name": "Naija Area Office",
+   "blurb": "Apply to join the contributor team, or drop an idea in the idea box. Everyone is welcome.",
+   "buildingId": "b056",
+   "x": -70,
+   "z": 52.5,
+   "hours": [
+    8,
+    20
+   ],
+   "sign": "#00a859",
+   "kind": "office",
+   "stations": [
+    {
+     "id": "reception",
+     "type": "office",
+     "label": "Reception",
+     "x": -2.4,
+     "z": -2.4,
+     "color": "#00a859",
+     "focus": "apply"
+    },
+    {
+     "id": "ideabox",
+     "type": "office",
+     "label": "Idea box",
+     "x": 2.6,
+     "z": -2.4,
+     "color": "#ffc20e",
+     "focus": "ideas"
+    },
+    {
+     "id": "poster",
+     "type": "poster",
+     "label": "Notice board",
+     "x": -4.2,
+     "z": 2.4,
+     "color": "#f0c419",
+     "text": "Naija Area is built with help from its players. Apply at reception to join the contributor team (testers, designers, developers, artists, local knowledge, community helpers). Have an idea? Put it in the idea box: we read every one. You need an account (not a guest) so we can find you again. Personal details stay private and you can ask us to delete them."
+    }
+   ],
+   "room": {
+    "w": 10,
+    "d": 8,
+    "wall": "#f2efe6",
+    "trim": "#00a859",
+    "floor": {
+     "style": "checker",
+     "a": "#e8e3d3",
+     "b": "#c9d8cf"
+    },
+    "windows": [
+     {
+      "wall": "left",
+      "at": 0,
+      "w": 2.6,
+      "big": true
+     }
+    ],
+    "mood": "bright",
+    "decor": [
+     {
+      "k": "ideaBoard",
+      "x": 0.2,
+      "z": -3.9
+     },
+     {
+      "k": "flag",
+      "x": -3.6,
+      "z": -3.9,
+      "y": 2.2
+     },
+     {
+      "k": "clock",
+      "x": 3.9,
+      "z": -3.9,
+      "y": 2.5
+     },
+     {
+      "k": "art",
+      "x": -4.4,
+      "z": -0.6,
+      "w": 1.2,
+      "h": 0.8,
+      "kind": "bars",
+      "y": 1.8
+     },
+     {
+      "k": "plant",
+      "x": -4.4,
+      "z": -3.4
+     },
+     {
+      "k": "plant",
+      "x": 4.4,
+      "z": 3.4
+     },
+     {
+      "k": "desk",
+      "x": 3.2,
+      "z": 2.2
+     },
+     {
+      "k": "table",
+      "x": 0.6,
+      "z": 1.4,
+      "c": "#ffffff"
+     },
+     {
+      "k": "chair",
+      "x": -0.6,
+      "z": 1.4,
+      "ry": 1.2,
+      "c": "#2a9d8f"
+     },
+     {
+      "k": "chair",
+      "x": 1.8,
+      "z": 1.4,
+      "ry": -1.2,
+      "c": "#2a9d8f"
+     },
+     {
+      "k": "sofa",
+      "x": -3.4,
+      "z": 3,
+      "c": "#2a9d8f",
+      "rot": 1
+     },
+     {
+      "k": "coffeeTable",
+      "x": -2,
+      "z": 3
+     },
+     {
+      "k": "waterDispenser",
+      "x": 4.4,
+      "z": -1
+     },
+     {
+      "k": "floorLamp",
+      "x": 1.8,
+      "z": 3.5
+     },
+     {
+      "k": "shelf",
+      "x": -1.6,
+      "z": -3.6,
+      "c": "#8a5a2b"
+     },
+     {
+      "k": "crowd",
+      "x": 0.4,
+      "z": 0.4,
+      "n": 2,
+      "r": 0.9,
+      "yaw": 1.5707963267948966,
+      "seed": 9
      }
     ],
     "detailV2": true

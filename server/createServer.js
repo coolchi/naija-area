@@ -1,3 +1,6 @@
+import { adminSettings, ipAllowed } from './core/admin-guard.js';
+import { newMetrics, observe, renderMetrics, metricsAllowed } from './core/metrics.js';
+import { monitorEventLoopDelay } from 'node:perf_hooks';
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -69,6 +72,10 @@ export function buildServer(opts = {}) {
   // admin password: env var; a fixed default exists ONLY outside production, with a loud warning
   app.adminPassword = opts.adminPassword ?? env.ADMIN_PASSWORD ?? (prod ? null : 'admin-dev-only');
   if (!env.ADMIN_PASSWORD && !prod && !opts.quiet) console.warn('[admin] ADMIN_PASSWORD not set: using the DEV-ONLY default "admin-dev-only". Never do this in production.');
+  app.adminCfg = adminSettings({ ...env, ...(opts.adminEnv || {}) }, { prod });
+  if (app.adminCfg.secretInvalid) throw new Error('ADMIN_TOTP_SECRET is not valid base32 (at least 16 characters). Create one with: node tools/admin-totp.mjs');
+  if (prod && app.adminCfg.optOut && !app.adminCfg.secret && !opts.quiet) console.warn('[admin] NA_ADMIN_2FA=off in production: the admin login is password-only. Do not launch like this.');
+  app.metrics = newMetrics(); app.metricsToken = opts.metricsToken ?? env.NA_METRICS_TOKEN ?? null; const loop = monitorEventLoopDelay({ resolution: 20 }); loop.enable(); app.metrics.loop = loop; const loopTimer = setInterval(() => loop.reset(), 60000); loopTimer.unref?.();
   const sockets = new Map();
   app.pushUser = (uid, msg) => { const s = sockets.get(uid); if (s) for (const ws of s) if (ws.readyState === 1) ws.send(JSON.stringify(msg)); };
 
@@ -77,6 +84,12 @@ export function buildServer(opts = {}) {
     res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'same-origin'); res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; font-src 'self'; media-src 'self' data: blob: https://*.streamguys1.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
     next();
+  });
+  // admin surfaces: optional IP allow-list (NA_ADMIN_ALLOW_IPS), never cached, never indexed. A blocked address gets a plain 404 so the page is not even confirmed to exist.
+  ex.use((req, res, next) => {
+    if (!/^\/(admin(\.html)?|js\/admin[\w-]*\.js|api\/admin(\/|$))/.test(req.path)) return next();
+    if (!ipAllowed(app.adminCfg.allow, req.ip)) return res.status(404).type('text/plain').send('Not found');
+    res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); next();
   });
   // ---- cookies (HMAC signed; no external cookie lib)
   const parseCookies = (h) => Object.fromEntries(String(h || '').split(';').map(s => s.trim().split(/=(.*)/s).slice(0, 2)).filter(a => a[0]));
@@ -104,8 +117,9 @@ export function buildServer(opts = {}) {
       }
       const cookies = parseCookies(req.headers.cookie); let uid = readSession(cookies.na_s);
       if (uid && !db.prepare('SELECT 1 FROM users WHERE id=?').get(uid)) uid = null;
-      const isRaw = Buffer.isBuffer(req.body);
+      const isRaw = Buffer.isBuffer(req.body); const t0 = performance.now();
       const r = await dispatch(app, { method: req.method, path: req.path.startsWith('/api') ? req.path : '/api' + req.path, query: req.query, body: isRaw ? {} : (req.body || {}), raw: isRaw ? req.body : undefined, headers: req.headers, ip: req.ip, ua: req.headers['user-agent'], uid, isAdmin: readAdmin(cookies.na_a) });
+      observe(app, r.status, performance.now() - t0);
       if (r.session === 'clear') res.append('Set-Cookie', `na_s=; Max-Age=0; ${cookieAttrs}`); else if (r.session) res.append('Set-Cookie', `na_s=${mkSession(r.session)}; Max-Age=${14 * 86400}; ${cookieAttrs}`);
       if (r.admin === 'clear') res.append('Set-Cookie', `na_a=; Max-Age=0; ${cookieAttrs}`); else if (r.admin) res.append('Set-Cookie', `na_a=${mkAdmin()}; Max-Age=${8 * 3600}; ${cookieAttrs}`);
       res.setHeader('Cache-Control', 'no-store'); res.status(r.status).json(r.json);
@@ -131,6 +145,7 @@ export function buildServer(opts = {}) {
   const startedAt = Date.now(); let version = null; try { version = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version; } catch { /* no package.json next to the app */ }
   ex.get('/healthz', (req, res) => { res.setHeader('Cache-Control', 'no-store'); res.type('text/plain').send('ok'); });
   ex.get('/readyz', (req, res) => { res.setHeader('Cache-Control', 'no-store'); try { db.prepare('SELECT 1 AS ok').get(); res.json({ ok: true, db: databaseUrl ? 'postgres' : 'sqlite', uptimeSec: Math.round((Date.now() - startedAt) / 1000), version }); } catch (e) { console.error('readyz: database check failed:', e.message); res.status(503).json({ ok: false, db: databaseUrl ? 'postgres' : 'sqlite', error: 'DATABASE_UNAVAILABLE' }); } });
+  ex.get('/metrics', (req, res) => { res.setHeader('Cache-Control', 'no-store'); if (!metricsAllowed(app, { authHeader: req.headers.authorization, isAdmin: readAdmin(parseCookies(req.headers.cookie).na_a), token: app.metricsToken })) return res.status(404).type('text/plain').send('Not found'); res.type('text/plain; version=0.0.4').send(renderMetrics(app, { version, wsClients: [...sockets.values()].reduce((n, x) => n + x.size, 0) })); });
   const pub = opts.publicDir || path.join(ROOT, 'public');
   const pages = { '/advertise': 'advertise.html', '/advertiser': 'advertiser.html', '/admin': 'admin.html', '/methodology': 'methodology.html', '/play': 'index.html', '/terms': 'terms.html', '/privacy': 'privacy.html', '/refunds': 'refunds.html', '/contact': 'contact.html' };
   for (const [u, f] of Object.entries(pages)) ex.get(u, (req, res) => res.sendFile(path.join(pub, f)));
@@ -158,6 +173,6 @@ export function buildServer(opts = {}) {
     timers.push(setInterval(() => { try { tickAds(app); } catch (e) { console.error('tickAds', e); } }, 5000));
     timers.push(setInterval(() => { try { tickRent(app); tickInterest(app); tickLand(app); tickGames(app); pruneWorld(app); tickVoice(app); } catch (e) { console.error('tick', e); } }, 30000));
   }
-  const close = () => new Promise((resolve) => { timers.forEach(clearInterval); for (const s of sockets.values()) for (const ws of s) ws.terminate(); wss.close(); server.close(() => { try { db.close(); } catch {} resolve(); }); server.closeAllConnections?.(); });
+  const close = () => new Promise((resolve) => { timers.forEach(clearInterval); clearInterval(loopTimer); loop.disable(); for (const s of sockets.values()) for (const ws of s) ws.terminate(); wss.close(); server.close(() => { try { db.close(); } catch {} resolve(); }); server.closeAllConnections?.(); });
   return { app, db, server, startTimers, close, sockets, ex };
 }

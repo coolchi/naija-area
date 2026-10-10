@@ -17,6 +17,12 @@ export function checkConfig(env = process.env, { production = env.NODE_ENV === '
   if (!has(env.ADMIN_PASSWORD)) prodOnlyError(true, 'ADMIN_PASSWORD is not set: the admin area stays disabled in production (set a long unique password).');
   else if (isPlaceholder(env.ADMIN_PASSWORD) || String(env.ADMIN_PASSWORD).length < 12) prodOnlyError(true, 'ADMIN_PASSWORD is a placeholder or shorter than 12 characters.');
   else if (has(env.SESSION_SECRET) && env.ADMIN_PASSWORD === env.SESSION_SECRET) E('ADMIN_PASSWORD must differ from SESSION_SECRET.');
+  // admin second factor, allow-list and metrics (10 Oct 2026)
+  { const off = String(env.NA_ADMIN_2FA || '').toLowerCase() === 'off'; const t = String(env.ADMIN_TOTP_SECRET || '').replace(/\s/g, '').toUpperCase();
+    if (has(t) && !/^[A-Z2-7]{16,}$/.test(t)) E('ADMIN_TOTP_SECRET is not valid base32 (16+ characters A-Z, 2-7). Create one with: node tools/admin-totp.mjs');
+    else if (!has(t)) { if (production && !off) E('ADMIN_TOTP_SECRET is not set: in production the admin login needs a second factor (node tools/admin-totp.mjs creates a secret). NA_ADMIN_2FA=off is the explicit, discouraged opt-out.'); else if (production && off) W('NA_ADMIN_2FA=off: the admin login is password-only. Do not launch like this.'); else W('ADMIN_TOTP_SECRET is not set: the admin login is password-only here (an error in production unless NA_ADMIN_2FA=off).'); }
+    if (has(env.NA_ADMIN_ALLOW_IPS)) { const bad = String(env.NA_ADMIN_ALLOW_IPS).split(',').map(x => x.trim()).filter(Boolean).filter(x => !/^(\d{1,3}(\.\d{1,3}){3}(\/\d{1,2})?|[0-9a-fA-F:]+)$/.test(x)); if (bad.length) E(`NA_ADMIN_ALLOW_IPS has entries that are not an IP or an IPv4 range: ${bad.join(', ')}`); else I('NA_ADMIN_ALLOW_IPS: /admin and /api/admin answer only to the listed addresses.'); } else if (production) W('NA_ADMIN_ALLOW_IPS is empty: /admin is reachable by anyone who finds it (use it, or Cloudflare Access, in front).');
+    if (has(env.NA_METRICS_TOKEN) && (isPlaceholder(env.NA_METRICS_TOKEN) || String(env.NA_METRICS_TOKEN).length < 24)) prodOnlyError(true, 'NA_METRICS_TOKEN is a placeholder or shorter than 24 characters.'); }
 
   // ---- modes that must never reach production
   if (env.NA_DEV === '1') (production ? E : W)('NA_DEV=1 turns on dev routes (teleport, time travel). Never set it in production.');

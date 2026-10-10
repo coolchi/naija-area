@@ -22,6 +22,10 @@ import * as ride from './ride.js';
 import * as crash from './crash.js';
 import * as homes from './homes.js';
 import * as wear from './wearables.js';
+import * as signup from './signup.js';
+import * as office from './office.js';
+import * as account from './account.js';
+import { checkAdminLogin } from './admin-guard.js';
 import { history, checkInvariants, moneySupply, balanceOf, cashId } from './ledger.js';
 import { RATE_CARD, AD_POLICY } from '../config/ratecard.js';
 import { GAME_NAME, GAME_TAGLINE, MIN_AGE } from '../config/game.js';
@@ -52,11 +56,12 @@ route('GET', '/api/stats', (c) => {
 route('GET', '/api/ads/ratecard', (c) => ({ ...RATE_CARD, maxUnits: Object.fromEntries(Object.entries(RATE_CARD.surfaces).flatMap(([s, v]) => Object.keys(v.tiers).map(t => [`${s}:${t}`, ads.maxUnits(c.app, s, t)]))), policy: { restricted: AD_POLICY.restrictedKeywords, prohibited: AD_POLICY.prohibitedKeywords }, test_mode: true }));
 
 // ---- auth
-route('POST', '/api/auth/signup', { rate: 'auth' }, async (c) => { const uid = await auth.signup(c.app, c.body, c.ipHash); c.out.session = uid; return { ok: true, user: eco.profile(c.app, uid) }; });
-route('POST', '/api/auth/login', { rate: 'auth' }, async (c) => { const uid = await auth.login(c.app, c.body); c.out.session = uid; return { ok: true, user: eco.profile(c.app, uid) }; });
-route('POST', '/api/auth/guest', { rate: 'auth' }, (c) => { const uid = auth.guest(c.app, c.body, c.ipHash); c.out.session = uid; return { ok: true, user: eco.profile(c.app, uid) }; });
+const meView = (app, uid) => ({ ...eco.profile(app, uid), signup: signup.signupView(app, uid) }); // the profile plus whether the sign-up choices still need doing
+route('POST', '/api/auth/signup', { rate: 'auth' }, async (c) => { const uid = await auth.signup(c.app, c.body, c.ipHash); c.out.session = uid; return { ok: true, user: meView(c.app, uid) }; });
+route('POST', '/api/auth/login', { rate: 'auth' }, async (c) => { const uid = await auth.login(c.app, c.body); c.out.session = uid; return { ok: true, user: meView(c.app, uid) }; });
+route('POST', '/api/auth/guest', { rate: 'auth' }, (c) => { const uid = auth.guest(c.app, c.body, c.ipHash); c.out.session = uid; return { ok: true, user: meView(c.app, uid) }; });
 route('POST', '/api/auth/logout', (c) => { if (c.uid) world.leaveWorld(c.app, c.uid); c.out.session = 'clear'; return { ok: true }; });
-route('GET', '/api/me', { auth: 'user' }, (c) => ({ user: eco.profile(c.app, c.uid) }));
+route('GET', '/api/me', { auth: 'user' }, (c) => ({ user: meView(c.app, c.uid) }));
 
 // ---- world
 route('POST', '/api/heartbeat', { auth: 'user' }, (c) => world.heartbeat(c.app, c.uid, c.body || {}, { headless: c.headless }));
@@ -117,6 +122,23 @@ route('POST', '/api/wearables/buy', { auth: 'user' }, (c) => wear.buy(c.app, c.u
 route('POST', '/api/wearables/equip', { auth: 'user' }, (c) => wear.equip(c.app, c.uid, c.body.itemId));
 route('POST', '/api/wearables/unequip', { auth: 'user' }, (c) => wear.unequip(c.app, c.uid, c.body.slot));
 route('POST', '/api/wearables/sell', { auth: 'user' }, (c) => wear.sell(c.app, c.uid, c.body.itemId, c.body.idem));
+// your data: download everything we hold, or close the account (erases and anonymises; see docs/ACCOUNT_DATA.md)
+route('GET', '/api/account/export', { auth: 'user' }, (c) => { if (!c.app.limiter.hit(`export:${c.uid}`, 5, 3600000, c.app.clock.now())) bad('RATE_LIMIT', 'You can download your data 5 times an hour.', 429); return account.exportData(c.app, c.uid); });
+route('POST', '/api/account/delete', { auth: 'user' }, async (c) => { if (!c.app.limiter.hit(`delete:${c.uid}`, 5, 3600000, c.app.clock.now())) bad('RATE_LIMIT', 'Too many attempts. Try again later.', 429); const r = await account.deleteAccount(c.app, c.uid, c.body); c.out.session = 'clear'; return r; });
+// sign-up choices (city, city of interest, interests) and the Naija Area office (apply to join, share ideas)
+route('GET', '/api/signup/options', { auth: 'user' }, (c) => signup.options(c.app, c.uid));
+route('POST', '/api/signup/profile', { auth: 'user' }, (c) => ({ ...signup.save(c.app, c.uid, c.body), user: meView(c.app, c.uid) }));
+route('GET', '/api/office', { auth: 'user' }, (c) => office.info(c.app, c.uid));
+route('POST', '/api/office/apply', { auth: 'user' }, (c) => office.apply(c.app, c.uid, c.body));
+route('POST', '/api/office/withdraw', { auth: 'user' }, (c) => office.withdraw(c.app, c.uid));
+route('POST', '/api/office/idea', { auth: 'user' }, (c) => office.shareIdea(c.app, c.uid, c.body));
+route('GET', '/api/admin/applications', { auth: 'admin' }, (c) => ({ rows: office.adminApplications(c.app, c.query.status ? String(c.query.status).split(',') : null), summary: office.officeSummary(c.app) }));
+route('POST', '/api/admin/applications/:id/status', { auth: 'admin' }, (c) => office.adminSetApplication(c.app, Number(c.params.id), String(c.body.status || ''), c.body.note));
+route('GET', '/api/admin/ideas', { auth: 'admin' }, (c) => ({ rows: office.adminIdeas(c.app, c.query.status ? String(c.query.status).split(',') : null), summary: office.officeSummary(c.app) }));
+route('POST', '/api/admin/ideas/:id/status', { auth: 'admin' }, (c) => office.adminSetIdea(c.app, Number(c.params.id), String(c.body.status || ''), c.body.note));
+route('GET', '/api/admin/ideas/export', { auth: 'admin' }, (c) => ({ rows: office.pipelineExport(c.app) }));
+route('POST', '/api/admin/ideas/exported', { auth: 'admin' }, (c) => office.markExported(c.app, c.body.ids));
+route('GET', '/api/admin/signups', { auth: 'admin' }, (c) => signup.stats(c.app));
 route('GET', '/api/salon', { auth: 'user' }, (c) => leisure.salonMenu(c.app, c.uid, String(c.query.venueId || '')));
 route('POST', '/api/salon/style', { auth: 'user' }, (c) => leisure.salonStyle(c.app, c.uid, c.body.venueId, c.body.stationId, c.body.styleId, c.body.idem));
 route('POST', '/api/game/sit', { auth: 'user' }, (c) => games.sit(c.app, c.uid, c.body.venueId, c.body.stationId, Number(c.body.stake) || 0));
@@ -207,7 +229,7 @@ ageRoutes(route); // real age checks (provider interface, pass/fail + date only)
 paymentRoutes(route); // payments (TEST MODE): top-up, webhook, ad checkout, refunds, reconciliation
 
 // ---- admin
-route('POST', '/api/admin/login', { rate: 'auth' }, (c) => { if (!c.app.adminPassword) bad('ADMIN_DISABLED', 'Admin is disabled: set ADMIN_PASSWORD.', 503); if (!c.app.platform.safeEqual(String(c.body.password || ''), c.app.adminPassword)) bad('BAD_LOGIN', 'Wrong password.', 401); c.out.admin = true; return { ok: true }; });
+route('POST', '/api/admin/login', { rate: 'auth' }, (c) => { if (!c.app.adminPassword) bad('ADMIN_DISABLED', 'Admin is disabled: set ADMIN_PASSWORD.', 503); const passwordOk = c.app.platform.safeEqual(String(c.body.password || ''), c.app.adminPassword); checkAdminLogin(c.app, { passwordOk, code: c.body.code, ip: c.ip }); c.out.admin = true; return { ok: true, twoFactor: !!c.app.adminCfg?.secret }; }); // password (+ a one-time 6-digit code when ADMIN_TOTP_SECRET is set), lock-out after 5 failures
 route('POST', '/api/admin/logout', (c) => { c.out.admin = 'clear'; return { ok: true }; });
 route('GET', '/api/admin/queue', { auth: 'admin' }, (c) => ({ rows: ads.adminQueue(c.app, c.query.status ? String(c.query.status).split(',') : ['human_review']) }));
 route('POST', '/api/admin/campaigns/:id/decision', { auth: 'admin' }, (c) => { const st = ads.decide(c.app, Number(c.params.id), c.body.decision, 'admin', c.body.reason); c.app.db.prepare('INSERT INTO audit_log(actor,action,detail,created_at) VALUES (?,?,?,?)').run('admin', 'ad_' + c.body.decision, `campaign ${c.params.id}: ${c.body.reason || ''}`, c.app.clock.now()); return { ok: true, status: st }; });
@@ -238,6 +260,7 @@ export async function dispatch(app, req) {
   const m = match(req.method, req.path);
   if (!m) return { status: 404, json: { error: 'NOT_FOUND', message: 'Unknown endpoint.' } };
   const { r, params } = m; const now = app.clock.now();
+  if (req.uid && (app.deletedUsers ||= account.loadDeleted(app)).has(req.uid)) req = { ...req, uid: null }; // a closed account's old session cookie is dead
   const ctx = { app, uid: req.uid, body: req.body || {}, query: req.query || {}, params, headers: req.headers || {}, raw: req.raw, ip: req.ip, ipHash: req.ip ? app.platform.sha256(String(req.ip)).slice(0, 16) : null, headless: /headless/i.test(req.ua || ''), out: {} };
   try {
     if (r.auth === 'user' && !req.uid) throw new GameError('LOGIN_REQUIRED', 'Please log in.', 401);

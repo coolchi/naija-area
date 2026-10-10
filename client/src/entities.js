@@ -10,6 +10,7 @@ import { Builder, mulberry32 } from '../sample/builder.js';
 import { danfoGeo, kekeGeo, okadaGeo, carGeo } from '../sample/vehicles.js';
 import { nameTag, glowTexture } from './textures.js';
 import { applyWear, wearLod } from './wear-models.js';
+import { avatarLook } from './avatar-look.js';
 
 const vcMat = new THREE.MeshLambertMaterial({ vertexColors: true });
 const shadowTex = glowTexture();
@@ -23,16 +24,21 @@ export const fwd = (t) => [Math.cos(t), -Math.sin(t)];
 let avatarGeoCache = new Map();
 function avatarGeo(hex) {
   if (avatarGeoCache.has(hex)) return avatarGeoCache.get(hex);
-  const b = new Builder(3, 0.02);
-  b.box(0.42, 0.9, 0.36, 0, 0.0, 0.17, 0x2c3e66, { noAO: true }); b.box(0.42, 0.9, 0.36, 0, 0.0, -0.17, 0x2c3e66, { noAO: true }); // legs (overlap, simple)
-  b.box(0.5, 0.85, 0.82, 0, 0.85, 0, hex, { noAO: true });
-  b.box(0.3, 0.8, 0.18, 0, 0.9, 0.5, hex, { noAO: true }); b.box(0.3, 0.8, 0.18, 0, 0.9, -0.5, hex, { noAO: true });
-  b.sphere(0.27, 0, 2.0, 0, 0x8d5524, { noAO: true }); b.box(0.48, 0.14, 0.52, -0.02, 2.14, 0, 0x1a1a1a, { noAO: true });
-  // extra detail for real players: neck, shoes, belt, hands, eyes (a few extra boxes, cached per colour so the cost is paid once)
-  b.box(0.16, 0.14, 0.2, 0, 1.76, 0, 0x7a4a2a, { noAO: true }); b.box(0.5, 0.1, 0.86, 0, 0.82, 0, 0x2a1c12, { noAO: true });
-  b.box(0.5, 0.12, 0.2, 0.06, -0.02, 0.17, 0x1a1a1a, { noAO: true }); b.box(0.5, 0.12, 0.2, 0.06, -0.02, -0.17, 0x1a1a1a, { noAO: true });
-  b.box(0.2, 0.16, 0.2, 0, 0.78, 0.5, 0x8d5524, { noAO: true }); b.box(0.2, 0.16, 0.2, 0, 0.78, -0.5, 0x8d5524, { noAO: true });
-  b.box(0.05, 0.07, 0.07, 0.26, 2.04, 0.1, 0x111111, { noAO: true, jit: 0 }); b.box(0.05, 0.07, 0.07, 0.26, 2.04, -0.1, 0x111111, { noAO: true, jit: 0 });
+  const L = avatarLook(hex); const skinDark = new THREE.Color(L.skin).multiplyScalar(0.8).getHex(); const b = new Builder(3, 0.02);
+  for (const z of [0.2, -0.2]) { b.box(0.4, 0.9, 0.3, 0, 0.0, z, L.trousers, { noAO: true }); b.box(0.5, 0.12, 0.26, 0.06, -0.02, z, 0x1a1a1a, { noAO: true }); } // two separate legs with a gap, shoes
+  b.box(0.5, 0.85, 0.82, 0, 0.85, 0, hex, { noAO: true }); b.box(0.52, 0.12, 0.86, 0, 0.82, 0, 0x2a1c12, { noAO: true }); // torso, belt
+  b.box(0.54, 0.16, 0.9, 0, 1.62, 0, hex, { noAO: true }); // shoulders: a touch wider than the chest, so the body is not one slab
+  for (const z of [0.52, -0.52]) { b.box(0.28, 0.82, 0.18, 0, 0.88, z, hex, { noAO: true }); b.box(0.2, 0.16, 0.2, 0, 0.78, z, L.skin, { noAO: true }); } // arms (sleeves) and hands, clear of the torso
+  b.box(0.16, 0.14, 0.2, 0, 1.76, 0, skinDark, { noAO: true }); // neck
+  b.sphere(0.27, 0, 2.0, 0, L.skin, { noAO: true }); b.box(0.06, 0.09, 0.06, 0.27, 1.95, 0, skinDark, { noAO: true, jit: 0 }); // head, nose
+  b.box(0.05, 0.07, 0.07, 0.26, 2.04, 0.1, 0x111111, { noAO: true, jit: 0 }); b.box(0.05, 0.07, 0.07, 0.26, 2.04, -0.1, 0x111111, { noAO: true, jit: 0 }); // eyes
+  b.box(0.04, 0.025, 0.14, 0.265, 1.88, 0, 0x5a2a22, { noAO: true, jit: 0 }); // mouth
+  // hair (kept low so caps and crowns from the jewelry/cap stores sit on top without clipping): 0 close crop, 1 flat top, 2 rounded, 3 braids, 4 headwrap (gele) in the shirt colour
+  if (L.style === 0) b.sphere(0.285, -0.05, 2.04, 0, L.hair, { noAO: true });
+  else if (L.style === 1) b.box(0.46, 0.2, 0.5, -0.03, 2.1, 0, L.hair, { noAO: true });
+  else if (L.style === 2) { b.sphere(0.3, -0.06, 2.06, 0, L.hair, { noAO: true }); b.sphere(0.2, -0.16, 2.0, 0, L.hair, { noAO: true }); }
+  else if (L.style === 3) { b.sphere(0.285, -0.05, 2.04, 0, L.hair, { noAO: true }); for (const z of [-0.18, -0.06, 0.06, 0.18]) b.box(0.07, 0.4, 0.07, -0.26, 1.7, z, L.hair, { noAO: true, jit: 0 }); }
+  else { b.box(0.48, 0.2, 0.5, -0.02, 2.12, 0, hex, { noAO: true }); b.box(0.28, 0.16, 0.3, -0.04, 2.3, 0, hex, { noAO: true }); }
   const g = b.build(); avatarGeoCache.set(hex, g); return g;
 }
 export function makeAvatar(colorHex) {

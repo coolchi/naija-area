@@ -4,9 +4,11 @@ import * as THREE from 'three';
 import { get, post, fmtN, h, $ } from './api.js';
 import { makeAvatar, makePlayerCar, makeNameSprite } from './entities.js';
 import { venueShell, decorate, stationModel } from './rooms.js';
+import { declutter, shortLabel } from './labels.js';
 import * as PR from './props.js';
 import { boards2 } from './boards2.js';
 import { wearSheet } from './wear-ui.js';
+import { officeSheet } from './office-ui.js';
 import { applyWear } from './wear-models.js';
 import { stateLabel, scoreText, kickoffText, sourceLine, groupByLeague } from './scores-view.js';
 
@@ -30,6 +32,7 @@ export class Venue {
     this.anim = []; this.t0 = performance.now(); this.lights = { hemi: this.hemi, sun: this.sun }; venueShell(this.scene, R, d.room, d.sign, this.anim, this.lights); const decor = new THREE.Group(); this.scene.add(decor); decorate(decor, d.room?.decor, R, this.anim);
     this.stations = new THREE.Group(); this.scene.add(this.stations); this.people = new THREE.Group(); this.scene.add(this.people); this.meshes = {};
     for (const st of d.stations) this.addStation(st);
+    { const ids = d.stations.filter(st => this.meshes[st.id]?.userData.label); const ys = declutter(ids.map(st => ({ x: st.x, z: st.z, y: this.meshes[st.id].userData.label.position.y }))); ids.forEach((st, i) => { this.meshes[st.id].userData.label.position.y = ys[i]; }); } // labels of close neighbours stack instead of overlapping
     this.bind(); this.resize(); this.onResize = () => this.resize(); addEventListener('resize', this.onResize);
   }
   addStation(st) {
@@ -44,7 +47,7 @@ export class Venue {
     else if (st.type === 'check') { const c = makePlayerCar(st.color || '#3a7ca5'); c.scale.setScalar(0.34); c.position.y = 0.55; grp.add(c); box(2.0, 0.5, 1.1, 0x555a60, 0.25); box(0.2, 0.4, 0.2, 0xe0a020, 0.7).position.x = 1.15; }
     else if (st.type === 'service') { grp.add(PR.workbench(2.0)); const tc = PR.toolCart(); tc.position.set(1.4, 0, 0.1); grp.add(tc); for (let i = 0; i < 3; i++) box(0.25, 0.25, 0.25, [0xd6402f, 0x2e7dd1, 0xe0a020][i], 1.1).position.x = -0.6 + i * 0.6; }
     else if (st.type === 'car') { const c = makePlayerCar(st.color || '#888'); c.scale.setScalar(0.38); c.rotation.y = Math.PI / 6; grp.add(c); box(1.8, 0.06, 1.0, 0xdddddd, 0.03); }
-    const sp = makeNameSprite(`${ICON[st.type] || ''} ${st.label}`.slice(0, 26), '#fff3c4'); sp.scale.set(2.8, 0.7, 1); sp.position.y = st.type === 'dj' ? 2.3 : st.type === 'songs' ? 3.3 : st.type === 'dance' ? 1.2 : st.type === 'style' ? 2.5 : st.type === 'car' ? 1.8 : st.type === 'tv' ? 3.0 : st.type === 'board' ? 2.8 : 2.1; grp.add(sp);
+    const sp = makeNameSprite(`${ICON[st.type] || ''} ${shortLabel(st.label)}`, '#fff3c4'); sp.scale.set(2.8, 0.7, 1); grp.userData.label = sp; sp.position.y = st.type === 'dj' ? 2.3 : st.type === 'songs' ? 3.3 : st.type === 'dance' ? 1.2 : st.type === 'style' ? 2.5 : st.type === 'car' ? 1.8 : st.type === 'tv' ? 3.0 : st.type === 'board' ? 2.8 : 2.1; grp.add(sp);
     grp.position.set(st.x, 0, st.z); if (st.type === 'poster') grp.rotation.y = 0; grp.traverse(o => { o.userData.stationId = st.id; }); this.stations.add(grp); this.meshes[st.id] = grp;
   }
   people_refresh() {
@@ -75,6 +78,7 @@ export class Venue {
     else if (['dance', 'dj', 'bar', 'songs', 'vip', 'basin'].includes(st.type)) this.leisureAct(st);
     else if (st.type === 'style') this.salonSheet(st);
     else if (st.type === 'wear') wearSheet(this.g, this.id, st);
+    else if (st.type === 'office') officeSheet(this.g, st.focus);
     else if (['ticket', 'seat'].includes(st.type)) { const r = await ui.guard(() => post('/api/venue/act', { venueId: this.id, stationId: st.id, idem: crypto.randomUUID?.() })); if (r) { ui.toast(r.text, r.charged ? 'money' : undefined); this.g.refreshMe?.(); this.g.net.nudge(); } }
     else if (st.type === 'scores') this.scoresSheet(st);
     else if (st.type === 'game') this.sitPanel(st);
