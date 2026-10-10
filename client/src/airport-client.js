@@ -1,3 +1,5 @@
+import { PHYS } from './physics-config.js';
+import { smoothAngle } from './kinematics.js';
 // Airport on the client: the airfield and a parked plane, the "Departures" chip near the terminal, the departure board, your ticket countdown,
 // and the flight scene (the plane taxis, takes off and circles while a chase camera follows). The server decides everything that matters (ticket, departure, landing).
 import * as THREE from 'three';
@@ -40,7 +42,10 @@ export class AirportClient {
   /** per frame while flying: move the plane and put the camera behind it */
   step(now, dt) {
     const g = this.g, f = this.flight, tSec = (g.serverNow() - f.departsAt) / 1000; const p = flightPose(this.plan, tSec);
-    this.plane.position.set(p.x, p.y, p.z); this.plane.rotation.set(p.roll, p.yaw, p.pitch, 'YZX');
+    this.plane.position.set(p.x, p.y, p.z);
+    // what you SEE is a smoothed version of the pose (no snapping at phase changes) plus a faint shiver in cruise; the path itself (flightPose) is untouched
+    const A = PHYS.plane, att = this.att || (this.att = { roll: p.roll, pitch: p.pitch, yaw: p.yaw }); const tb = p.phase === 'cruise' ? A.turbulence : 0; const tn = now / 1000;
+    att.roll = smoothAngle(att.roll, p.roll + tb * Math.sin(tn * 1.7), A.attitudeRate, dt); att.pitch = smoothAngle(att.pitch, p.pitch + tb * Math.sin(tn * 1.1 + 1), A.attitudeRate, dt); att.yaw = smoothAngle(att.yaw, p.yaw, A.attitudeRate, dt); this.plane.rotation.set(att.roll, att.yaw, att.pitch, 'YZX');
     const c = chaseCam(p, 34, 10, 14); if (!this.cam) { this.cam = new THREE.Vector3(...c.pos); this.look = new THREE.Vector3(...c.look); } const k = Math.min(1, dt * 3.2); this.cam.lerp(new THREE.Vector3(...c.pos), k); this.look.lerp(new THREE.Vector3(...c.look), k * 1.4);
     g.camera.position.copy(this.cam); g.camera.lookAt(this.look); g.camera.updateMatrixWorld();
     const left = f.arriveAt - g.serverNow(); this.banner.textContent = left > 0 ? `✈ Flying to ${f.toName} · ${mmss(left)}` : `✈ Landing in ${f.toName}…`; if (left <= 300 && !this.nudged) { this.nudged = true; setTimeout(() => g.net.nudge?.(), 600); }

@@ -72,9 +72,29 @@ const D = {
   poleSign(g, k, o, R, anim) { const p = k.cyl(0.18, 1.7, 0xffffff, 0, 1.2, 0, 14); const st = new THREE.Group(); st.position.y = 1.2; for (let i = 0; i < 6; i++) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.16, 14), M(i % 2 ? 0xd62828 : 0x1d4ed8)); s.position.y = -0.8 + i * 0.28; st.add(s); } g.add(st); k.cyl(0.24, 0.12, 0x888, 0, 2.1); anim.push(t => { st.rotation.y = t * 2; }); void p; },
 };
 
+const GOLD = 0xf2c230, GLASS = new THREE.MeshBasicMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.22, depthWrite: false });
 const hx = (c, d) => (c == null ? d : c);
 const put = (g, o, x = 0, y = 0, z = 0, ry = 0) => { o.position.set(x, y, z); o.rotation.y = ry; g.add(o); return o; };
 Object.assign(D, {
+  glassCase(g, k, o, R, anim) { // a waist-high display cabinet: dark base, glass box on top, shiny pieces inside, a light strip
+    const w = o.w || 1.8, d = o.d || 0.6; k.box(w, 0.85, d, 0x2a2523, 0, 0.425, 0); k.box(w + 0.06, 0.05, d + 0.06, GOLD, 0, 0.875, 0); const gl = new THREE.Mesh(new THREE.BoxGeometry(w, 0.45, d), GLASS); gl.position.y = 1.12; g.add(gl);
+    k.box(w - 0.1, 0.02, d - 0.1, 0x7a1f2b, 0, 0.9, 0); const n = Math.max(3, Math.round(w / 0.28)); const cols = [GOLD, 0xd5dce2, 0xeaf6ff, 0xe0a080, 0xb3202a, 0x1b7a45];
+    const shine = []; for (let i = 0; i < n; i++) { const x = -w / 2 + 0.18 + i * (w - 0.36) / (n - 1); const c = cols[(i + (o.seed || 0)) % cols.length]; const m = k.sph(0.05 + (i % 3) * 0.015, c, x, 0.99, (i % 2 ? 1 : -1) * d * 0.15, new THREE.MeshBasicMaterial({ color: c })); shine.push(m); k.cyl(0.012, 0.09, c, x, 0.935, (i % 2 ? 1 : -1) * d * 0.15, 6); }
+    anim.push(t => { shine.forEach((m, i) => { m.scale.setScalar(1 + 0.18 * Math.sin(t * 3 + i * 1.7)); }); });
+  },
+  capWall(g, k, o) { // wall rack of caps in rows
+    const w = o.w || 3.2; k.box(w, 1.7, 0.1, 0x3b2f2a, 0, 0.85, 0); const cols = [0xb3202a, 0x4a6fa5, 0x1b7a45, 0x6b4a2b, 0x1b1b1f, 0xf4f4f0, 0xcfa34a];
+    for (let r = 0; r < 3; r++) { k.box(w, 0.04, 0.3, 0x8a5a2b, 0, 0.95 + r * 0.5, 0.16); const n = Math.round(w / 0.42); for (let i = 0; i < n; i++) { const x = -w / 2 + 0.3 + i * (w - 0.6) / (n - 1); const c = cols[(i * 3 + r) % cols.length]; const cap = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), M(c)); cap.position.set(x, 1.0 + r * 0.5, 0.17); g.add(cap); k.box(0.22, 0.02, 0.18, 0x222226, x + 0.0, 1.0 + r * 0.5, 0.3); } }
+  },
+  crownPlinth(g, k, o, R, anim) { // a column with a glass dome and a gold crown on a cushion: the dearest thing in the game
+    k.cyl(0.55, 0.9, 0xe9e2d0, 0, 0.45, 0, 16, undefined, 0.5); k.cyl(0.52, 0.06, GOLD, 0, 0.93, 0, 16); const cr = new THREE.Group(); cr.position.y = 1.0; g.add(cr); const ck = kit(cr); ck.cyl(0.2, 0.2, 0xb3202a, 0, 0.1, 0, 12);
+    ck.cyl(0.24, 0.24, GOLD, 0, 0.25, 0, 12); for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; const c = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.2, 5), new THREE.MeshBasicMaterial({ color: GOLD })); c.position.set(Math.cos(a) * 0.22, 0.43, Math.sin(a) * 0.22); cr.add(c); ck.sph(0.03, 0xffffff, Math.cos(a) * 0.22, 0.55, Math.sin(a) * 0.22, new THREE.MeshBasicMaterial({ color: i % 2 ? 0xeaf6ff : 0xb3202a })); }
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.62, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), GLASS); dome.position.y = 0.96; g.add(dome); anim.push(t => { cr.rotation.y = t * 0.6; });
+  },
+  guard(g, k, o) { // security guard in dark uniform with a cap, arms folded in front
+    const sc = 0.9; const gg = new THREE.Group(); gg.scale.setScalar(sc); g.add(gg); const kk = kit(gg); kk.box(0.2, 0.85, 0.2, 0x1c2430, 0, 0.42, -0.13); kk.box(0.2, 0.85, 0.2, 0x1c2430, 0, 0.42, 0.13); kk.box(0.3, 0.7, 0.5, 0x273447, 0, 1.2, 0); kk.box(0.34, 0.06, 0.54, 0x111111, 0, 0.9, 0);
+    kk.box(0.14, 0.18, 0.42, 0x273447, 0.17, 1.3, 0); kk.sph(0.17, 0x6b4226, 0, 1.78, 0); kk.box(0.34, 0.07, 0.34, 0x1c2430, -0.01, 1.92, 0); kk.box(0.2, 0.03, 0.3, 0x111111, 0.16, 1.9, 0); kk.box(0.05, 0.1, 0.1, 0xd4af37, 0.17, 1.35, -0.15, new THREE.MeshBasicMaterial({ color: 0xd4af37 })); gg.rotation.y = o.yaw ?? Math.PI / 2;
+  },
   shelf(g, k, o) { put(g, PR.bookshelf(2.2, 0.42, 1.9, { c: hx(o.c, 0x8a5a2b), stuff: o.bottles ? 'bottles' : o.pots ? 'pots' : undefined })); },
   fridge(g) { put(g, PR.fridge(0.9, 0.8, 2.0)); },
   stool(g, k, o) { put(g, PR.stool({ c: hx(o.c, 0xe63946) })); },
@@ -131,6 +151,8 @@ export function stationModel(st, grp, anim) {
   if (st.type === 'bar') { put(grp, PR.barCounter(3.8, { top: col.getHex(), glow: 0xff4fd8 })); for (let i = 0; i < 4; i++) k.cyl(0.07, 0.2, 0xcfe9f7, 0.1, 1.13, -1.3 + i * 0.85, 8); return true; }
   if (st.type === 'songs') { grp.rotation.y = -Math.PI / 2; k.box(2.6, 2.0, 0.12, 0x10131a, 0, 1.7); k.box(2.8, 0.1, 0.16, 0x333340, 0, 2.72); k.box(2.4, 0.3, 0.14, 0x7b2cbf, 0, 2.5, 0.02); k.box(2.4, 0.04, 0.18, 0xd4af37, 0, 0.72); const cs = [0xff006e, 0x3a86ff, 0x06d6a0, 0xffbe0b, 0x8338ec]; const rows = cs.map((c, i) => k.box(2.0, 0.12, 0.15, c, 0, 2.05 - i * 0.28, 0.02, B(c))); for (const x of [-1.2, 1.2]) k.cyl(0.04, 0.7, 0x333333, x, 0.35, 0, 8); anim.push(t => rows.forEach((r, i) => { r.scale.x = 0.55 + 0.45 * Math.abs(Math.sin(t * 1.5 + i)); })); return true; }
   if (st.type === 'vip') { put(grp, PR.coffeeTable(1.3, 0.7, { c: 0x1a1a1a }), 0, 0, 0); put(grp, PR.sofa(2.0, 0.9, { c: 0x6a040f, cushion: 0xd4af37 }), 0, 0, -0.95); put(grp, PR.sofa(1.4, 0.8, { c: 0x6a040f, cushion: 0xd4af37 }), 1.35, 0, 0.1, -Math.PI / 2); k.cyl(0.05, 0.28, 0xcfe9f7, 0.1, 0.57, 0.1, 8); k.sph(0.12, 0xffd166, -0.3, 0.55, 0, B(0xffd166)); k.cyl(0.1, 0.02, 0xd4af37, 0.3, 0.44, -0.1, 12); return true; }
+  if (st.type === 'wear' && st.focus === 'crown') { D.crownPlinth(grp, k, {}, null, anim); return true; } // the crown plinth: glass dome, rotating gold crown
+  if (st.type === 'wear') { const caps = /cap|crown/i.test(st.label); k.box(2.4, 0.9, 0.9, 0x2a2523, 0, 0.45, 0); k.box(2.5, 0.05, 1.0, GOLD, 0, 0.92, 0); const gl = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.5, 0.8), GLASS); gl.position.y = 1.2; grp.add(gl); k.box(2.2, 0.02, 0.7, 0x7a1f2b, 0, 0.95, 0); const cs = [GOLD, 0xd5dce2, 0xeaf6ff, 0xe0a080, 0xb3202a]; for (let i = 0; i < 6; i++) k.sph(0.07, 0, -0.95 + i * 0.38, 1.03, (i % 2 ? 0.15 : -0.15), B(cs[i % cs.length])); if (caps) k.box(0.6, 0.03, 0.5, 0x222226, 0, 0.96, 0); return true; }
   if (st.type === 'style') { put(grp, PR.salonChair({ c: col.getHex() }), 0, 0, 0, Math.PI); put(grp, PR.toolCart(), 0.9, 0, -0.5, Math.PI / 2); return true; }
   if (st.type === 'basin') { put(grp, PR.washBasin()); put(grp, PR.salonChair({ c: 0x333338 }), 0, 0, 0.95); return true; }
   return false;

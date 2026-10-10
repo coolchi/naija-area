@@ -37,10 +37,10 @@ export class UI {
     $('#actionBtn').onclick = () => game.doAction();
   }
   // ---------- audio (tiny WebAudio blips, no assets) ----------
-  sfx(kind) {
+  sfx(kind, vol = 1) {
     if (!this.sfxOn) return; try { this.actx ||= new (window.AudioContext || window.webkitAudioContext)(); const c = this.actx; const o = c.createOscillator(), gn = c.createGain(); o.connect(gn); gn.connect(c.destination);
-      const T = { coin: [[880, .07], [1320, .12]], ok: [[520, .08], [780, .1]], bad: [[180, .18]], horn: [[330, .22], [330, .22]], thunk: [[110, .09]], knock: [[140, .06], [140, .06], [140, .06]] }[kind] || [[600, .08]]; let t = c.currentTime;
-      o.type = kind === 'horn' ? 'sawtooth' : 'triangle'; gn.gain.setValueAtTime(0.08, t); for (const [f, d] of T) { o.frequency.setValueAtTime(f, t); t += d; } gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.05); o.start(); o.stop(t + 0.08); } catch { /* audio is optional */ }
+      const T = { coin: [[880, .07], [1320, .12]], ok: [[520, .08], [780, .1]], bad: [[180, .18]], horn: [[330, .22], [330, .22]], thunk: [[110, .09]], step: [[95, .035]], thud: [[70, .12]], knock: [[140, .06], [140, .06], [140, .06]] }[kind] || [[600, .08]]; let t = c.currentTime;
+      o.type = kind === 'horn' ? 'sawtooth' : 'triangle'; gn.gain.setValueAtTime(0.08 * vol, t); for (const [f, d] of T) { o.frequency.setValueAtTime(f, t); t += d; } gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.05); o.start(); o.stop(t + 0.08); } catch { /* audio is optional */ }
   }
   haptic(ms = 15) { try { navigator.vibrate?.(ms); } catch { /* optional */ } }
   checkPayReturn() { return checkReturn(this); }
@@ -266,7 +266,7 @@ export class UI {
   }
   async tab_alerts() { const d = await this.guard(() => get('/api/notifications')); this.g.markRead(); if (!d) return []; return [h('div', { class: 'list' }, d.rows.map(n => h('div', {}, h('span', {}, n.text), h('span', { class: 'mut' }, new Date(n.created_at).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' })))))]; }
   async tab_more() {
-    const g = this.g; const bl = await this.guard(() => get('/api/social/blocks')); const blocked = h('div', { class: 'list' }, (bl?.rows || []).map(r => h('div', {}, h('span', {}, `@${r.username} · ${r.kind}`), h('button', { class: 'btn small ghost', onclick: async () => { await this.setBlock(r.username, null); this.phone('more'); } }, 'Undo')))); return [h('b', {}, 'Muted and blocked'), (bl?.rows || []).length ? blocked : h('p', { class: 'mut' }, 'Nobody. Tap a chat line or the ⋯ on a house card to mute, block or report.'), h('div', { class: 'row' }, h('a', { class: 'btn ghost', href: '/advertise', target: '_blank', rel: 'noopener' }, 'Advertise'), h('a', { class: 'btn ghost', href: '/methodology', target: '_blank', rel: 'noopener' }, 'How ads are counted'), h('a', { class: 'btn ghost', href: '/stats.html', target: '_blank', rel: 'noopener' }, 'Stats')),
+    const g = this.g; const bl = await this.guard(() => get('/api/social/blocks')); const blocked = h('div', { class: 'list' }, (bl?.rows || []).map(r => h('div', {}, h('span', {}, `@${r.username} · ${r.kind}`), h('button', { class: 'btn small ghost', onclick: async () => { await this.setBlock(r.username, null); this.phone('more'); } }, 'Undo')))); const wr = g.user?.wear; return [h('b', {}, '💎 Your look'), h('p', { id: 'wearStatus', class: 'mut' }, wr ? `${wr.status}${wr.ownedCount ? ` · ${wr.ownedCount} pieces owned, worth ${fmtN(wr.ownedValue)}` : ''}. Buy more at the jewelry store and cap store.` : 'Nothing yet.'), h('b', {}, 'Muted and blocked'), (bl?.rows || []).length ? blocked : h('p', { class: 'mut' }, 'Nobody. Tap a chat line or the ⋯ on a house card to mute, block or report.'), h('div', { class: 'row' }, h('a', { class: 'btn ghost', href: '/advertise', target: '_blank', rel: 'noopener' }, 'Advertise'), h('a', { class: 'btn ghost', href: '/methodology', target: '_blank', rel: 'noopener' }, 'How ads are counted'), h('a', { class: 'btn ghost', href: '/stats.html', target: '_blank', rel: 'noopener' }, 'Stats')),
       h('p', { class: 'mut' }, `${g.cfg.name} v0 · test build. In-game ₦ is fictional with no cash-out. 18+.`), h('div', { class: 'row' }, h('button', { class: 'btn red', onclick: () => g.logout() }, 'Log out'))];
   }
 }

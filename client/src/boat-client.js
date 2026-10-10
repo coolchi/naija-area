@@ -1,3 +1,5 @@
+import { PHYS } from './physics-config.js';
+import { waveMotion, boatHeadingStep } from './kinematics.js';
 // Call a boat, on the client (10 Oct 2026). A chip appears at a jetty; you pick a destination, the boat sails in, you board, and a chase camera follows the crossing.
 // The server decides everything that matters (the call, the fare, the arrival). When the destination is in another district the page reloads there, like the road links.
 import * as THREE from 'three';
@@ -30,9 +32,10 @@ export class BoatClient {
   async cancel() { if (this.busy) return; this.busy = true; try { const r = await post('/api/boat/cancel', {}); this.g.ui.toast(r.text); this.trip = null; this.boat.visible = false; this.g.net.nudge?.(); } catch (e) { this.g.ui.error(e); } finally { this.busy = false; } }
   /** per frame: place the boat (sailing in, waiting, or crossing) and, when aboard, the chase camera */
   step(now, dt) {
-    const g = this.g, t = this.trip; if (!t) return; const ph = tripPhase(t, g.serverNow()); const from = this.stopOf(t.from); if (!from) return; const out = this.out(from); const berth = from.berth || { x: from.x + out[0] * 8, z: from.z + out[1] * 8 };
+    const g = this.g, t = this.trip; if (!t) { this.hs = null; return; } const ph = tripPhase(t, g.serverNow()); const from = this.stopOf(t.from); if (!from) return; const out = this.out(from); const berth = from.berth || { x: from.x + out[0] * 8, z: from.z + out[1] * 8 };
     let p; if (ph.phase === 'arriving') p = approachPose(berth, out, 160, ph.t01); else if (ph.phase === 'waiting') p = approachPose(berth, out, 160, 1); else p = crossPose(berth, t.sameCity ? (t.destBerth || null) : null, out, 320, ph.t01);
-    const bob = Math.sin(now / 420) * 0.12; this.boat.visible = true; this.boat.position.set(p.x, -3.5 + bob, p.z); this.boat.rotation.y = p.ry; this.boat.rotation.z = Math.sin(now / 600) * 0.03;
+    const wv = waveMotion(now / 1000, PHYS.boat); const hs = this.hs || (this.hs = { ry: p.ry, turn: 0, bank: 0 }); boatHeadingStep(hs, p.ry, Math.max(dt, 1e-3), PHYS.boat);
+    this.boat.visible = true; this.boat.position.set(p.x, -3.5 + wv.y, p.z); this.boat.rotation.set(hs.bank + wv.roll, hs.ry, wv.pitch + (p.speed ? PHYS.boat.pitchPerSpeed * 8 : 0), 'YZX');
     if (this.aboard) { const c = boatCam(p); if (!this.cam) { this.cam = new THREE.Vector3(...c.pos); this.look = new THREE.Vector3(...c.look); } const k = Math.min(1, dt * 3); this.cam.lerp(new THREE.Vector3(...c.pos), k); this.look.lerp(new THREE.Vector3(...c.look), k * 1.4); g.camera.position.copy(this.cam); g.camera.lookAt(this.look); g.camera.updateMatrixWorld();
       this.banner.textContent = ph.leftMs > 0 ? `⛵ Crossing to ${t.toName} · ${mmss(ph.leftMs)}` : `⛵ Arriving at ${t.toName}…`; if (ph.leftMs <= 300 && !this.nudged) { this.nudged = true; setTimeout(() => g.net.nudge?.(), 600); } }
   }

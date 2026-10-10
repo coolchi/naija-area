@@ -20,7 +20,7 @@ export function flightPose(plan, t) {
   if (t < F.taxiS + F.rollS) { const u = (t - F.taxiS) / F.rollS; const s = F.rollLen * u * u; return out(R.x0 + fwd[0] * s, 0, R.z0 + fwd[1] * s, th, u > 0.85 ? (u - 0.85) / 0.15 * 0.1 : 0, 0, 'roll'); }
   if (t < plan.totalPreCruise) { const tc = t - F.taxiS - F.rollS, u = tc / F.climbS; const v0 = plan.vEnd, v1 = plan.vClimbEnd; const s = F.rollLen + v0 * tc + (v1 - v0) * tc * tc / (2 * F.climbS); const y = F.climbH * ss(u); return out(R.x0 + fwd[0] * s, y, R.z0 + fwd[1] * s, th, 0.1 + 0.08 * Math.sin(u * Math.PI) - 0.1 * ss((u - 0.8) / 0.2), 0, 'climb'); }
   const tc = t - plan.totalPreCruise, v = plan.vClimbEnd, w = v / F.circleR * plan.side; const heading = th + w * tc; const nx = -Math.sin(heading) * plan.side, nz = Math.cos(heading) * plan.side;
-  const bankIn = ss(tc / 3); return out(plan.c[0] - nx * F.circleR, F.climbH + F.cruiseWobble * Math.sin(tc * 0.35), plan.c[1] - nz * F.circleR, heading, 0.03 * Math.cos(tc * 0.35), -plan.side * F.bank * bankIn, 'cruise');
+  const bankIn = ss(tc / 3); return out(plan.c[0] - nx * F.circleR, F.climbH + F.cruiseWobble * Math.sin(tc * 0.35), plan.c[1] - nz * F.circleR, heading, 0.03 * Math.cos(tc * 0.35) * ss(tc / 2.5), -plan.side * F.bank * bankIn, 'cruise');
 }
 /** chase camera: where to put the camera for a pose (behind and above), and what to look at */
 export function chaseCam(pose, back = 30, up = 9, ahead = 12) { const h = -pose.yaw; const fx = Math.cos(h), fz = Math.sin(h); return { pos: [pose.x - fx * back, pose.y + up, pose.z - fz * back], look: [pose.x + fx * ahead, pose.y + 1, pose.z + fz * ahead] }; }

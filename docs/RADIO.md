@@ -17,7 +17,8 @@
 - **No station has given written permission** for use in a game, and nothing has been sent to any of them (Sherif decided no letters). Broadcaster and music rights (for example COSON) may apply; that is a layperson's reading and needs a lawyer. Sherif approved the technical build anyway. The Beat's own terms forbid republishing or framing without written permission; the switch above exists so this can be turned off in one step.
 - Nigeria Info is talk and news; it may not suit every player.
 - Jet Radio was removed at Sherif's request.
-- **The static demo** (`naija-area-demo.zip`) opens from `file://` where live streams are unreliable, so the demo has real radio switched off and plays only the synthesised stations.
+- **The static demo** (`naija-area-demo.zip`) now has real radio **ON** too (Sherif, 10 Oct 2026; `demo-src/entry.js` sets `realRadio: true`). It opens from `file://`, where some browsers block or break live streams; then the car falls through to the synthesised stations as described above, and the chip's "Tap to play" covers a refused `play()`. Not verified by ear, not verified from `file://` in any real browser (only headless Chrome with aborted streams).
+- **Status 10 Oct 2026:** real radio is ON by default on the server (`NA_REAL_RADIO` unset = on; `0` = off) and in the demo. Still **unverified by ear**, **no written permission from any station** (a flagged risk; Sherif approved proceeding without waiting).
 
 ## The synthesised stations (all invented; the fallback)
 

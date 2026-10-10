@@ -1,3 +1,4 @@
+import { PHYS, applyServerLimits } from './physics-config.js';
 import { gate as ageGate } from './age-ui.js';
 import * as THREE from 'three';
 import { get, post, $, $$, h, ApiError } from './api.js';
@@ -16,6 +17,7 @@ import { lampsOn } from './lamps.js';
 import { setPlayerHeadlamps } from './headlamps.js';
 import { CrashClient } from './crash.js';
 import { Traffic, Walkers, Ghosts, makeNameSprite } from './entities.js';
+import { applyWear, indexCatalogue } from './wear-models.js';
 import { AdsClient } from './ads-client.js';
 import { UI, say } from './ui.js';
 import { Net } from './net.js';
@@ -47,15 +49,15 @@ class Game {
 
   async boot() {
     try {
-      this.progress(8, 'Reaching the server…'); const [cfg, city] = await Promise.all([get('/api/config'), get('/api/city')]); this.cfg = cfg; this.city = city; const legacy = (x, z) => (z > 125 ? 'Lagoon Front' : x < 0 && z < 0 ? 'Yaba' : x >= 0 && z < 0 ? 'Ikeja' : x < 0 ? 'Surulere' : 'Lekki Phase 1'); city.area = (x, z) => city.districts?.find(d => x >= d.x0 && x < d.x1 && z >= d.z0 && z < d.z1)?.name || (city.id === 'lagos-mainland' ? legacy(x, z) : city.cityName); $('#tagline').textContent = cfg.tagline || ''; document.title = cfg.name;
+      this.progress(8, 'Reaching the server…'); const [cfg, city] = await Promise.all([get('/api/config'), get('/api/city')]); this.cfg = cfg; this.city = city; get('/api/wearables/catalogue').then(c => { this.wearCat = indexCatalogue(c); if (this.ghosts) this.ghosts.cat = this.wearCat; this.syncWear(this.user?.wear); }).catch(() => {}); const legacy = (x, z) => (z > 125 ? 'Lagoon Front' : x < 0 && z < 0 ? 'Yaba' : x >= 0 && z < 0 ? 'Ikeja' : x < 0 ? 'Surulere' : 'Lekki Phase 1'); city.area = (x, z) => city.districts?.find(d => x >= d.x0 && x < d.x1 && z >= d.z0 && z < d.z1)?.name || (city.id === 'lagos-mainland' ? legacy(x, z) : city.cityName); $('#tagline').textContent = cfg.tagline || ''; document.title = cfg.name;
       this.progress(30, 'Building the district…'); await new Promise(r => setTimeout(r, 30));
       this.renderer = new THREE.WebGLRenderer({ canvas: $('#game'), antialias: devicePixelRatio < 2, powerPreference: 'high-performance' }); this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
       this.camera = new THREE.PerspectiveCamera(58, 1, 0.5, 900); this.camera.position.set(0, 14, 20);
       this.world = buildWorld(city); this.scene = this.world.scene; this.decorate();
       this.progress(60, 'Putting traffic on the road…'); await new Promise(r => setTimeout(r, 30));
-      this.traffic = new Traffic(this.scene, city.trafficLoops, city.busStops || []); this.traffic.onHorn = (c, car) => this.horn(c, car); this.walkers = new Walkers(this.scene, city.zones); this.ghosts = new Ghosts(this.scene);
+      this.traffic = new Traffic(this.scene, city.trafficLoops, city.busStops || []); this.traffic.onHorn = (c, car) => this.horn(c, car); this.walkers = new Walkers(this.scene, city.zones); this.ghosts = new Ghosts(this.scene); this.ghosts.cat = this.wearCat;
       this.ads = new AdsClient(this.world, city, () => this.serverNow()); this.ui = new UI(this); this.net = new Net(this); this.interior = new Interior(this); this.venue = new Venue(this); this.garage = new GarageView(this);
-      this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root); this.nav = new Nav(this); this.parking = new ParkingClient(this); this.bus = new BusStops(this); this.rideSvc = new RideClient(this); this.links = new LinkClient(this); this.boats = new BoatClient(this); this.radio = new RadioClient(this); this.air = new AirportClient(this); this.crash = new CrashClient(this); this.traffic.crash = this.crash;
+      this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root); applyServerLimits(this.cfg.movement); this.ctrl.onStep = (k) => this.ui.sfx('step', PHYS.audio.footstepVol * (0.6 + 0.4 * k)); this.ctrl.onBump = (imp) => this.ui.sfx('thud', PHYS.audio.thudVol * Math.min(1.4, 0.4 + imp / 12)); this.ctrl.obstacles = (x, z, r) => this.traffic.obstaclesNear(x, z, r); this.nav = new Nav(this); this.parking = new ParkingClient(this); this.bus = new BusStops(this); this.rideSvc = new RideClient(this); this.links = new LinkClient(this); this.boats = new BoatClient(this); this.radio = new RadioClient(this); this.air = new AirportClient(this); this.crash = new CrashClient(this); this.traffic.crash = this.crash;
       addEventListener('resize', () => this.resize()); this.resize(); this.bindAuth(); this.progress(85, TIPS[Math.floor(Math.random() * TIPS.length)]);
       const me = await get('/api/me').catch(() => null); this.progress(100, 'Ready!'); await new Promise(r => setTimeout(r, 250));
       this.loop(performance.now()); $('#loading').classList.add('hidden');
@@ -96,7 +98,9 @@ class Game {
   async refreshProps() { const d = await get('/api/properties').catch(() => null); if (d) { this.props = d.properties; this.world.setMarkers(d.properties); } }
   refreshPlots() { for (const p of this.plots) { const m = this.plotMeshes[p.id]; if (m) m.flag.material.color.setHex(p.status === 'available' ? 0x35c46b : p.status === 'yours' ? 0xffc20e : 0x8a8f98); } }
   async refreshMe() { const r = await get('/api/me').catch(() => null); if (r?.user) this.update(r.user); }
-  update(u) { if (!u) return; this.user = u; this.ui.hud(u); }
+  update(u) { if (!u) return; this.user = u; this.ui.hud(u); this.syncWear(u.wear); }
+  /** dress your own avatar in what the server says you wear (jewelry store and cap store) */
+  syncWear(w) { if (this.wearCat && this.ctrl?.avatar) applyWear(this.ctrl.avatar, (w?.worn || []).map(x => x.id), this.wearCat); }
   sessionLost() { if (!this.playing) return; this.playing = false; this.net.stop(); $('#hud').classList.add('hidden'); this.ui.closeSheet(); $('#auth').classList.remove('hidden'); $('#authErr').textContent = 'Your session ended. Please sign in again.'; }
   async logout() { await post('/api/auth/logout').catch(() => {}); this.playing = false; this.net.stop(); location.reload(); }
   setConn(ok) { $('#conn').classList.toggle('hidden', ok); }
@@ -155,7 +159,7 @@ class Game {
       requestAnimationFrame(frame); const dt = Math.min(0.1, (now - last) / 1000); last = now;
       if (!this.playing) { this.idleCam(now); this.renderer.render(this.scene, this.camera); return; }
       if (this.interior.open || this.venue.open || this.garage.open) return;
-      const sec = this.serverNow() / 1000; this.lightLevel = lampsOn(this.world.night); this.traffic.lightLevel = this.lightLevel; setPlayerHeadlamps(this.ctrl.carObj, this.lightLevel, this.ctrl.mode === 'drive'); this.traffic.update(sec, this.yieldTargets(), dt); this.walkers.update(sec, this.ctrl); this.ghosts.update(this.serverNow() - 1100); this.world.animate(dt * 1000);
+      const sec = this.serverNow() / 1000; this.lightLevel = lampsOn(this.world.night); this.traffic.lightLevel = this.lightLevel; setPlayerHeadlamps(this.ctrl.carObj, this.lightLevel, this.ctrl.mode === 'drive'); this.traffic.update(sec, this.yieldTargets(), dt); this.walkers.update(sec, this.ctrl); this.ghosts.update(this.serverNow() - 1100, this.ctrl); this.world.animate(dt * 1000);
       this.boats?.step(now, dt);
       if (this.air?.flying) this.air.step(now, dt);
       else if (this.boats?.aboard) { /* the boat's chase camera is set in boats.step */ }
