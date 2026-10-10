@@ -6,6 +6,7 @@ import { makeAvatar, makePlayerCar, makeNameSprite } from './entities.js';
 import { venueShell, decorate, stationModel } from './rooms.js';
 import * as PR from './props.js';
 import { wearSheet } from './wear-ui.js';
+import { officeSheet } from './office-ui.js';
 import { applyWear } from './wear-models.js';
 import { stateLabel, scoreText, kickoffText, sourceLine, groupByLeague } from './scores-view.js';
 
@@ -74,6 +75,7 @@ export class Venue {
     else if (['dance', 'dj', 'bar', 'songs', 'vip', 'basin'].includes(st.type)) this.leisureAct(st);
     else if (st.type === 'style') this.salonSheet(st);
     else if (st.type === 'wear') wearSheet(this.g, this.id, st);
+    else if (st.type === 'office') officeSheet(this.g, st.focus);
     else if (['ticket', 'seat'].includes(st.type)) { const r = await ui.guard(() => post('/api/venue/act', { venueId: this.id, stationId: st.id, idem: crypto.randomUUID?.() })); if (r) { ui.toast(r.text, r.charged ? 'money' : undefined); this.g.refreshMe?.(); this.g.net.nudge(); } }
     else if (st.type === 'scores') this.scoresSheet(st);
     else if (st.type === 'game') this.sitPanel(st);

@@ -22,6 +22,8 @@ import * as ride from './ride.js';
 import * as crash from './crash.js';
 import * as homes from './homes.js';
 import * as wear from './wearables.js';
+import * as signup from './signup.js';
+import * as office from './office.js';
 import { history, checkInvariants, moneySupply, balanceOf, cashId } from './ledger.js';
 import { RATE_CARD, AD_POLICY } from '../config/ratecard.js';
 import { GAME_NAME, GAME_TAGLINE, MIN_AGE } from '../config/game.js';
@@ -52,11 +54,12 @@ route('GET', '/api/stats', (c) => {
 route('GET', '/api/ads/ratecard', (c) => ({ ...RATE_CARD, maxUnits: Object.fromEntries(Object.entries(RATE_CARD.surfaces).flatMap(([s, v]) => Object.keys(v.tiers).map(t => [`${s}:${t}`, ads.maxUnits(c.app, s, t)]))), policy: { restricted: AD_POLICY.restrictedKeywords, prohibited: AD_POLICY.prohibitedKeywords }, test_mode: true }));
 
 // ---- auth
-route('POST', '/api/auth/signup', { rate: 'auth' }, async (c) => { const uid = await auth.signup(c.app, c.body, c.ipHash); c.out.session = uid; return { ok: true, user: eco.profile(c.app, uid) }; });
-route('POST', '/api/auth/login', { rate: 'auth' }, async (c) => { const uid = await auth.login(c.app, c.body); c.out.session = uid; return { ok: true, user: eco.profile(c.app, uid) }; });
-route('POST', '/api/auth/guest', { rate: 'auth' }, (c) => { const uid = auth.guest(c.app, c.body, c.ipHash); c.out.session = uid; return { ok: true, user: eco.profile(c.app, uid) }; });
+const meView = (app, uid) => ({ ...eco.profile(app, uid), signup: signup.signupView(app, uid) }); // the profile plus whether the sign-up choices still need doing
+route('POST', '/api/auth/signup', { rate: 'auth' }, async (c) => { const uid = await auth.signup(c.app, c.body, c.ipHash); c.out.session = uid; return { ok: true, user: meView(c.app, uid) }; });
+route('POST', '/api/auth/login', { rate: 'auth' }, async (c) => { const uid = await auth.login(c.app, c.body); c.out.session = uid; return { ok: true, user: meView(c.app, uid) }; });
+route('POST', '/api/auth/guest', { rate: 'auth' }, (c) => { const uid = auth.guest(c.app, c.body, c.ipHash); c.out.session = uid; return { ok: true, user: meView(c.app, uid) }; });
 route('POST', '/api/auth/logout', (c) => { if (c.uid) world.leaveWorld(c.app, c.uid); c.out.session = 'clear'; return { ok: true }; });
-route('GET', '/api/me', { auth: 'user' }, (c) => ({ user: eco.profile(c.app, c.uid) }));
+route('GET', '/api/me', { auth: 'user' }, (c) => ({ user: meView(c.app, c.uid) }));
 
 // ---- world
 route('POST', '/api/heartbeat', { auth: 'user' }, (c) => world.heartbeat(c.app, c.uid, c.body || {}, { headless: c.headless }));
@@ -117,6 +120,20 @@ route('POST', '/api/wearables/buy', { auth: 'user' }, (c) => wear.buy(c.app, c.u
 route('POST', '/api/wearables/equip', { auth: 'user' }, (c) => wear.equip(c.app, c.uid, c.body.itemId));
 route('POST', '/api/wearables/unequip', { auth: 'user' }, (c) => wear.unequip(c.app, c.uid, c.body.slot));
 route('POST', '/api/wearables/sell', { auth: 'user' }, (c) => wear.sell(c.app, c.uid, c.body.itemId, c.body.idem));
+// sign-up choices (city, city of interest, interests) and the Naija Area office (apply to join, share ideas)
+route('GET', '/api/signup/options', { auth: 'user' }, (c) => signup.options(c.app, c.uid));
+route('POST', '/api/signup/profile', { auth: 'user' }, (c) => ({ ...signup.save(c.app, c.uid, c.body), user: meView(c.app, c.uid) }));
+route('GET', '/api/office', { auth: 'user' }, (c) => office.info(c.app, c.uid));
+route('POST', '/api/office/apply', { auth: 'user' }, (c) => office.apply(c.app, c.uid, c.body));
+route('POST', '/api/office/withdraw', { auth: 'user' }, (c) => office.withdraw(c.app, c.uid));
+route('POST', '/api/office/idea', { auth: 'user' }, (c) => office.shareIdea(c.app, c.uid, c.body));
+route('GET', '/api/admin/applications', { auth: 'admin' }, (c) => ({ rows: office.adminApplications(c.app, c.query.status ? String(c.query.status).split(',') : null), summary: office.officeSummary(c.app) }));
+route('POST', '/api/admin/applications/:id/status', { auth: 'admin' }, (c) => office.adminSetApplication(c.app, Number(c.params.id), String(c.body.status || ''), c.body.note));
+route('GET', '/api/admin/ideas', { auth: 'admin' }, (c) => ({ rows: office.adminIdeas(c.app, c.query.status ? String(c.query.status).split(',') : null), summary: office.officeSummary(c.app) }));
+route('POST', '/api/admin/ideas/:id/status', { auth: 'admin' }, (c) => office.adminSetIdea(c.app, Number(c.params.id), String(c.body.status || ''), c.body.note));
+route('GET', '/api/admin/ideas/export', { auth: 'admin' }, (c) => ({ rows: office.pipelineExport(c.app) }));
+route('POST', '/api/admin/ideas/exported', { auth: 'admin' }, (c) => office.markExported(c.app, c.body.ids));
+route('GET', '/api/admin/signups', { auth: 'admin' }, (c) => signup.stats(c.app));
 route('GET', '/api/salon', { auth: 'user' }, (c) => leisure.salonMenu(c.app, c.uid, String(c.query.venueId || '')));
 route('POST', '/api/salon/style', { auth: 'user' }, (c) => leisure.salonStyle(c.app, c.uid, c.body.venueId, c.body.stationId, c.body.styleId, c.body.idem));
 route('POST', '/api/game/sit', { auth: 'user' }, (c) => games.sit(c.app, c.uid, c.body.venueId, c.body.stationId, Number(c.body.stake) || 0));

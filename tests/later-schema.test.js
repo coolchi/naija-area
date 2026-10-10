@@ -9,7 +9,7 @@ test('every later-schema chunk has its Postgres migration file with the same tab
   for (const c of LATER) {
     const f = files.find(x => x.startsWith(String(c.n).padStart(4, '0') + '_' + c.name)); assert.ok(f, `migration file for ${c.n} ${c.name}`); const pg = fs.readFileSync(path.join(dir, f), 'utf8');
     const lite = new Database(':memory:'); lite.exec(c.sql);
-    for (const t of lite.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(r => r.name)) {
+    for (const t of lite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all().map(r => r.name)) {
       const cols = lite.prepare(`PRAGMA table_info(${t})`).all().map(x => x.name); const m = new RegExp(`CREATE TABLE IF NOT EXISTS ${t} \\(([\\s\\S]*?)\\);`).exec(pg); assert.ok(m, `${t} in ${f}`);
       for (const col of cols) assert.match(m[1], new RegExp(`(^|[ (,])${col} `), `${t}.${col} in ${f}`);
       assert.doesNotMatch(m[1], /\bINTEGER\b|AUTOINCREMENT|\bREAL\b/, 'Postgres types');
