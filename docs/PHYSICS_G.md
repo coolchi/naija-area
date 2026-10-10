@@ -1,0 +1,18 @@
+# Jump, throw, push objects and prop/pedestrian collisions (Track G item 5, 10 Oct 2026)
+Answers the questions in docs/PHYSICS.md section 5. Sherif said "implement all", so these were built with sensible defaults. **Every number is an ESTIMATE in `server/config/physx.js`; nobody has played this.**
+
+## What exists now
+* **Jump** (J, Space on foot, or the round jump button on touch): vertical velocity 5.4 m/s, gravity 17 -> apex 0.86 m, airtime 0.64 s, 0.09 s coyote time, 0.12 s input buffer, 55% air control. The server world stays flat: height is a visual and a collision height only, positions sent to the server are still x and z, so the server speed clamp is unchanged. No jump in a car, on autopilot, while stunned, frozen, or in a room. Landing shakes the camera slightly. Space is still the handbrake while driving.
+* **Street props are solid** on foot and in a car: lamp posts (r 0.3) and palm trunks (r 0.42) are tall, so they cannot be hopped. Low things (crates, barrels, balls: height <= 0.7 m) can be hopped when you are above them. Cars slide off props like they do off buildings. Client feel only: no damage, no money, no server call.
+* **Pedestrians (NPC walkers) are solid** circles for the player. They do not react (no shove animation): this is the "soft" option. A car bumping one loses 35% speed. Real players do NOT collide with each other (`playersSolid: false`), so nobody can block a doorway or grief.
+* **Pushables:** crates, barrels and balls in a small yard near each spawn (3 per spawn, 36 max, deterministic from the spawn list). Walking or driving into one shoves it by mass ratio; friction stops it; buildings stop and bounce it a little; it returns home after 240 s. **Client-local**: each player sees their own; they are not synced, nothing is saved.
+* **Throwing a ball** (hold G or the ball button, let go): needs the server. `POST /api/throw` takes yaw and power only; the server uses its own record of your position, runs the same pure flight function as the clients, rate limits (1.2 s cooldown, 24/min, plus a route limiter), refuses throws from cars, inside venues, while flying or on a boat. Other players nearby see the ball through the heartbeat (`th`, up to 6 live throws per city, in memory only). A ball that passes within 0.55 m of someone below 1.9 m "bonks" them: a 0.5 s stagger and a note ("@name bonked you with a ball"). **Harmless: no money, no health, no ledger.** The same person cannot be bonked again for 15 s. Hidden/blocked players are excluded both ways.
+
+## Defaults chosen (decide if you disagree)
+Jump on (J/Space), props solid, pedestrians solid but not reactive, players not solid, pushables client-local, throwing harmless. Switch any piece off with `enabled: false` in `server/config/physx.js` (`jump`, `push`, `throw`, `ped`).
+
+## Tests
+`tests/physx.test.js` (pure jump, flight, hit and push maths, determinism), `tests/throws.test.js` (server rules: cooldown, rate, hidden players, in-car and venue refusal, no ledger entries, victim cooldown), `scripts/physx-smoke.mjs` (headless Chrome, real server, two browsers: jump apex and airtime, lamp post solid, pedestrian solid, pushable shoved and settles outside buildings, throw seen by a second player, cooldown, buttons present, ledger balanced, no console errors). Run: `node scripts/physx-smoke.mjs`.
+
+## NOT verified
+Feel. Headless Chrome ran at about 15 fps (a 120 ms key tap was missed once in the smoke, so the smoke now holds the key 250 ms). Jump height, air control, push mass, throw arc and power timing are guesses. Nobody has thrown a ball on a real phone. Jump over a crate is covered by maths tests, not by hand. NPC walkers still walk through each other and do not react to being touched.

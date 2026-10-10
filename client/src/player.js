@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { fwd, makeAvatar, makePlayerCar, makeNameSprite } from './entities.js';
 import { PHYS } from './physics-config.js';
+import { PHYSX } from '../../server/config/physx.js';
+import { newJump, jumpStep } from '../../server/core/physx.js';
 import { newWalker, walkStep, gaitStep, newCar, carStep, carVel, setCarVel, zoneSpeedCap, resolveBoxes, resolveCircles, carCircles, newSusp, suspStep, shakeOffset, shakeFromImpact, knockPose, knockSpeed, ambientLean, damp, clamp as kclamp } from './kinematics.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -8,12 +10,13 @@ const angDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
 
 /** a flooded street (weather.js) lowers the car's top speed: the zone cap is the lower of the two */
 const envCap = (zc, es, cfg) => (es && es.drive < 1 ? Math.min(zc ?? Infinity, cfg.maxSpeed * es.drive) : zc);
+const ZERO = [[0, 0]]; // a walker is one circle at its own centre
 export class Controller {
   constructor(canvas, city, colliders, color, name) {
     this.city = city; this.colliders = colliders; this.canvas = canvas;
     this.x = 0; this.z = 0; this.ry = 0; this.mode = 'walk'; this.v = 0; this.cam = 12; this.camYaw = 0; this.camPitch = 0.62; this.dragT = 0; this.frozen = false;
     this.walker = newWalker(); this.car = newCar(); this.susp = newSusp(); this.shake = 0; this.shakeT = 0; this.knockT = 99; this.knockDir = [0, 0]; this.bumpAt = 0; this.stepAt = 0; this.camBack = 0; this.lookAt = null; this._shk = { x: 0, y: 0, z: 0 }; this.prevRy = 0; this.prevV = 0; this.hand = false; this.obstacles = null; this.roundabouts = city.roundabouts || [];
-    this.keys = new Set(); this.joy = { x: 0, y: 0, active: false }; this.run = false; this.moving = false; this.blocked = false;
+    this.jump = newJump(); this.jumpBtn = false; this.solids = null; this.keys = new Set(); this.joy = { x: 0, y: 0, active: false }; this.run = false; this.moving = false; this.blocked = false;
     this.root = new THREE.Group(); this.setLook(color, name);
     this.bind();
   }
@@ -65,10 +68,12 @@ export class Controller {
       c.v = s.v; c.lat = 0; c.steer = 0; c.th = 0; c.ry = s.ry; c.x = s.x; c.z = s.z;
       if (performance.now() - this.dragT > 1500) this.camYaw += angDiff(this.camYaw, this.ry) * Math.min(1, dt * (drive ? 3 : 1.6));
     } else if (!drive) {
+      jumpStep(this.jump, (this.keys.has('j') || this.keys.has(' ') || this.jumpBtn) && !this.frozen && !(this.stun > 0), dt, PHYSX.jump, !this.noJump);
+      if (this.jump.justLanded) this.shake = Math.max(this.shake, 0.06);
       const dead = 0.08; const mag = Math.hypot(ix, iy);
       if (mag > dead) {
         const f = fwd(this.camYaw), r = [Math.sin(this.camYaw), Math.cos(this.camYaw)]; let dx = f[0] * iy + r[0] * ix, dz = f[1] * iy + r[1] * ix; const l = Math.hypot(dx, dz); dx /= l; dz /= l;
-        walkStep(w, dx, dz, mag * (this.envScale?.walk ?? 1), this.run, dt, P.walk); const target = Math.atan2(-dz, dx); this.ry += angDiff(this.ry, target) * Math.min(1, dt * P.walk.turnRate);
+        walkStep(w, dx, dz, mag * (this.envScale?.walk ?? 1), this.run, dt, this.jump.air ? this.airWalk(P.walk) : P.walk); const target = Math.atan2(-dz, dx); this.ry += angDiff(this.ry, target) * Math.min(1, dt * P.walk.turnRate);
       } else walkStep(w, 0, 0, 0, this.run, dt, P.walk);
       this.x += w.vx * dt; this.z += w.vz * dt; this.v = w.speed;
     } else {
@@ -78,6 +83,7 @@ export class Controller {
       if (performance.now() - this.dragT > 1500) this.camYaw += angDiff(this.camYaw, this.ry) * damp(3, dt);
     }
     // knock-back slide (after a server-decided hit): extra displacement that dies away quickly
+    if (drive || auto) { this.jump.y = 0; this.jump.vy = 0; this.jump.air = false; }
     let pose = { y: 0, tilt: 0 };
     if (this.knockT < 1.9) { const sp = knockSpeed(this.knockT, P.knock); this.x += this.knockDir[0] * sp * dt; this.z += this.knockDir[1] * sp * dt; this.knockT += dt; pose = knockPose(this.knockT, P.knock); }
     // collisions: slide along building boxes (bounce a little, lose speed, shake the camera), bump ambient traffic, stay inside the district + off the water
@@ -88,6 +94,8 @@ export class Controller {
       const p = drive ? Object.assign(carVel(c), { x: this.x, z: this.z }) : { x: this.x, z: this.z, vx: w.vx, vz: w.vz };
       const r = resolveBoxes(p, this.colliders, rad, drive ? P.collide.carRestitution : P.collide.walkRestitution, dt, P.collide); impact = r.impact; let hit = r.hit;
       if (drive && P.collide.npcCars && this.obstacles) { const list = this.obstacles(this.x, this.z, P.collide.npcRange + 4); if (list.length) { const self = carCircles(p.x, p.z, this.ry, P.collide.selfOffset, this._offs || (this._offs = [])); const r2 = resolveCircles(p, self, P.collide.selfR, list, P.collide.carRestitution, dt, P.collide); hit = hit || r2.hit; impact = Math.max(impact, r2.impact); } }
+      if (this.solids && !auto) { const L = this.solids(p.x, p.z, drive ? 8 : 3, this.jump.y); if (L.props.length) { const self = drive ? carCircles(p.x, p.z, this.ry, P.collide.selfOffset, this._offs || (this._offs = [])) : ZERO; const r3 = resolveCircles(p, self, drive ? P.collide.selfR : PHYSX.walkerRadius, L.props, drive ? P.collide.carRestitution : 0, dt, P.collide); hit = hit || r3.hit; impact = Math.max(impact, r3.impact); }
+        if (L.peds.length && PHYSX.ped.enabled) { const self = drive ? carCircles(p.x, p.z, this.ry, P.collide.selfOffset, this._offs || (this._offs = [])) : ZERO; const r4 = resolveCircles(p, self, drive ? P.collide.selfR : PHYSX.walkerRadius, L.peds, drive ? P.collide.carRestitution : 0, dt, P.collide); hit = hit || r4.hit; impact = Math.max(impact, r4.impact); if (drive && r4.hit && Math.hypot(p.vx, p.vz) > 3) { p.vx *= 1 - PHYSX.ped.bumpSpeedLoss; p.vz *= 1 - PHYSX.ped.bumpSpeedLoss; } } }
       this.x = p.x; this.z = p.z; this.blocked = hit;
       if (drive) { c.x = p.x; c.z = p.z; setCarVel(c, p.vx, p.vz); this.v = c.v; } else { w.vx = p.vx; w.vz = p.vz; w.speed = Math.hypot(w.vx, w.vz); this.v = w.speed; }
     }
@@ -98,14 +106,16 @@ export class Controller {
     this.root.position.set(this.x, 0, this.z); this.root.rotation.y = this.ry;
     // visuals
     if (!drive) {
-      const steps = gaitStep(w, dt, P.walk); const b = this.avatar.userData.body; b.position.y = w.bob; b.rotation.z = -w.lean; b.rotation.x = w.sway; this.avatar.position.y = pose.y; this.avatar.rotation.z = pose.tilt;
-      if (steps > 0 && P.audio.footsteps && w.speed > P.audio.footstepMinSpeed) { const now = performance.now(); if (now - this.stepAt > 90) { this.stepAt = now; this.onStep?.(w.speed / P.walk.runSpeed); } }
+      const steps = gaitStep(w, dt, P.walk); const b = this.avatar.userData.body; b.position.y = w.bob; b.rotation.z = -w.lean; b.rotation.x = w.sway; this.avatar.position.y = pose.y + this.jump.y; this.avatar.rotation.z = pose.tilt;
+      if (steps > 0 && P.audio.footsteps && !this.jump.air && w.speed > P.audio.footstepMinSpeed) { const now = performance.now(); if (now - this.stepAt > 90) { this.stepAt = now; this.onStep?.(w.speed / P.walk.runSpeed); } }
     } else {
       if (auto) { const l = ambientLean(oldRy, this.ry, oldV, this.v, Math.max(dt, 1e-3)); ax = l.ax; ay = l.ay; }
       suspStep(this.susp, ax, ay, kick, dt, P.susp); const m = this.carObj.children[0]; if (m) { m.rotation.x = this.susp.roll; m.rotation.z = this.susp.pitch; m.position.y = 0.12 + this.susp.y; } this.avatar.position.y = 0; this.avatar.rotation.z = 0;
     }
     this.prevRy = this.ry; this.prevV = this.v;
   }
+  /** walking settings while airborne: you can steer a little but not stop or turn on a coin */
+  airWalk(W) { const k = PHYSX.jump.airControl; return (this._air ||= { ...W, accel: W.accel * k, decel: W.decel * k }); }
   /** current speed over the ground for the camera (m/s) */
   groundSpeed() { return this.mode === 'drive' ? Math.hypot(this.car.v, this.car.lat) : this.walker.speed; }
   placeCamera(camera, dt) {

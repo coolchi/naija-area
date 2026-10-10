@@ -11,6 +11,7 @@ import { danfoGeo, kekeGeo, okadaGeo, carGeo } from '../sample/vehicles.js';
 import { nameTag, glowTexture } from './textures.js';
 import { applyWear, wearLod } from './wear-models.js';
 import { avatarLook } from './avatar-look.js';
+import { PHYSX } from '../../server/config/physx.js';
 
 const vcMat = new THREE.MeshLambertMaterial({ vertexColors: true });
 const shadowTex = glowTexture();
@@ -120,14 +121,16 @@ export class Walkers { // instanced pedestrians on block sidewalks, human shaped
       const z = usable[(rnd() * usable.length) | 0]; const inset = 1.5; const P = makePath([[z.x0 + inset, z.z0 + inset], [z.x1 - inset, z.z0 + inset], [z.x1 - inset, z.z1 - inset], [z.x0 + inset, z.z1 - inset]], 4);
       this.items.push({ P, off: rnd() * P.length, v: 1.1 + rnd() * 0.7, dir: rnd() > 0.5 ? 1 : -1, ph: rnd() * 6 });
     }
-    this.tmp = {}; this.body = this.crowd.parts.torso; this.legL = this.crowd.parts.legL; this.m = new THREE.Matrix4();
+    this.tmp = {}; this.circ = []; this.body = this.crowd.parts.torso; this.legL = this.crowd.parts.legL; this.m = new THREE.Matrix4();
   }
   /** viewer: optional {x, z}; walkers farther than 60 m stop swinging their limbs (cheaper) */
   update(serverSec, viewer = null) {
-    this.items.forEach((it, i) => { atPath(it.P, it.dir * it.v * serverSec + it.off, this.tmp); const far = viewer ? Math.hypot(this.tmp.x - viewer.x, this.tmp.z - viewer.z) > 60 : false;
+    this.items.forEach((it, i) => { atPath(it.P, it.dir * it.v * serverSec + it.off, this.tmp); it.x = this.tmp.x; it.z = this.tmp.z; const far = viewer ? Math.hypot(this.tmp.x - viewer.x, this.tmp.z - viewer.z) > 60 : false;
       this.crowd.pose(i, this.tmp.x, 0.2, this.tmp.z, this.tmp.yaw + (it.dir < 0 ? Math.PI : 0), serverSec * it.v * 3.4 + it.ph, 1, far); });
     this.crowd.commit();
   }
+  /** walkers within `range` of (x, z) as solid circles for the player's collisions (Track G item 5); the walkers themselves do not react */
+  circlesNear(x, z, range, out, r = PHYSX.solids.ped.r) { for (const it of this.items) { if (it.x === undefined || Math.abs(it.x - x) > range || Math.abs(it.z - z) > range) continue; let o = it.circ; if (!o) o = it.circ = { x: 0, z: 0, r, h: PHYSX.solids.ped.h, ped: true }; o.x = it.x; o.z = it.z; out.push(o); } return out; }
 }
 
 // ---- ghosts: other real players, interpolated from heartbeat trail samples (rendered slightly in the past)

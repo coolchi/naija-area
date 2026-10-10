@@ -26,6 +26,7 @@ import * as wear from './wearables.js';
 import * as business from './business.js';
 import * as market from './market.js';
 import * as clubs from './clubs.js';
+import * as throws from './throws.js';
 import * as weather from './weather.js';
 import * as events from './events.js';
 import * as signup from './signup.js';
@@ -51,7 +52,7 @@ const realRadioOn = (app) => { const rt = (app.runtime ||= {}); if (rt.realRadio
 route('GET', '/api/admin/radio', { auth: 'admin' }, (c) => ({ realRadio: realRadioOn(c.app) }));
 route('POST', '/api/admin/radio', { auth: 'admin' }, (c) => { realRadioOn(c.app); c.app.runtime.realRadio = c.body.enabled !== false && c.body.enabled !== 'false'; return { realRadio: c.app.runtime.realRadio }; });
 route('GET', '/api/health', (c) => ({ ok: true, name: c.app.gameName, now: c.app.clock.now() }));
-route('GET', '/api/config', (c) => ({ realRadio: realRadioOn(c.app), movement: { maxWalkSpeed: c.app.balance.movement.maxWalkSpeed, maxDriveSpeed: c.app.balance.movement.maxDriveSpeed, slack: c.app.balance.movement.slack }, crash: { enabled: !!c.app.balance.crash.enabled, regenPerMin: c.app.balance.crash.regenPerMin, max: c.app.balance.crash.maxHealth }, moodHappyAt: c.app.balance.mood.happyAt, name: c.app.gameName, tagline: GAME_TAGLINE, minAge: MIN_AGE, testMode: true, devRoutes: !!c.app.devRoutes, rotationMs: AD_POLICY.rotationMs, balanceNote: c.app.balance._note,
+route('GET', '/api/config', (c) => ({ realRadio: realRadioOn(c.app), movement: { maxWalkSpeed: c.app.balance.movement.maxWalkSpeed, maxDriveSpeed: c.app.balance.movement.maxDriveSpeed, slack: c.app.balance.movement.slack }, physx: c.app.balance.physx || null, crash: { enabled: !!c.app.balance.crash.enabled, regenPerMin: c.app.balance.crash.regenPerMin, max: c.app.balance.crash.maxHealth }, moodHappyAt: c.app.balance.mood.happyAt, name: c.app.gameName, tagline: GAME_TAGLINE, minAge: MIN_AGE, testMode: true, devRoutes: !!c.app.devRoutes, rotationMs: AD_POLICY.rotationMs, balanceNote: c.app.balance._note,
   topupOptions: c.app.balance.topup.options, payments: paymentsConfig(c.app), ageCheck: ageConfig(c.app), phone: !!c.app.balance.phone.enabled, transport: c.app.balance.transport, shopChannels: c.app.balance.shops.channels, workTask: c.app.balance.work.task, land: { risk: c.app.balance.land.risk }, maxNameLen: c.app.balance.housing.maxNameLen, housing: { rentPeriodMs: c.app.balance.housing.rentPeriodMs }, furniture: c.app.balance.housing.furniture }));
 route('GET', '/api/city', (c) => publicCity(c.uid ? cityOf(c.app, c.uid) : c.app.city));
 route('POST', '/api/cities/link', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); flight.assertNotFlying(c.app, c.uid); return { ...useLink(c.app, c.uid, String(c.body.linkId || ''), c.body.idem), user: eco.profile(c.app, c.uid) }; });
@@ -155,6 +156,7 @@ route('POST', '/api/clubs/say', { auth: 'user' }, (c) => clubs.say(c.app, c.uid,
 route('GET', '/api/clubs/chat', { auth: 'user' }, (c) => clubs.chat(c.app, c.uid, c.query.since));
 route('POST', '/api/clubs/hangout', { auth: 'user' }, (c) => clubs.hangout(c.app, c.uid));
 // weather, rain, flooding and the day/night phase (server/core/weather.js); events: night market, street owambe, festivals (server/core/events.js)
+route('POST', '/api/throw', { auth: 'user' }, (c) => { c.app.limiter.hit?.(`throw:${c.uid}`, 60, 60000, c.app.clock.now()); return throws.throwBall(c.app, c.uid, c.body); });
 route('GET', '/api/weather', { auth: 'user' }, (c) => weather.view(c.app, c.uid));
 route('POST', '/api/admin/weather', { auth: 'admin' }, (c) => weather.force(c.app, c.body.state));
 route('GET', '/api/events', { auth: 'user' }, (c) => events.view(c.app, c.uid));

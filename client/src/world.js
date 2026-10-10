@@ -19,7 +19,7 @@ function signTexture(text, bg, fg = '#fff', w = 512, hgt = 128) {
 export function buildWorld(city) {
   const scene = new THREE.Scene();
   const root = new THREE.Group(); scene.add(root);
-  const cableSegs = []; const colliders = []; const boards = {}; const doorMarkers = {}; const labels = [];
+  const cableSegs = []; const palmSpots = []; /* trunks you can bump into (Track G item 5) */ const colliders = []; const boards = {}; const doorMarkers = {}; const labels = [];
   const hemi = new THREE.HemisphereLight(0xdfefff, 0x6b5f4a, 0.9); scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff1d6, 1.4); sun.position.set(120, 200, 80); scene.add(sun);
   const vcMat = new THREE.MeshLambertMaterial({ vertexColors: true });
@@ -80,6 +80,7 @@ export function buildWorld(city) {
   const applyLamps = (t) => { const lv = lampsOn(night); for (const l of lamps) { if (lv > 0 || lampLvl !== 0) { const b = lampLevel(l, lv, t); lampHeads.setColorAt(l.id, tmpC.copy(cold).lerp(warm, b)); lampPools.setColorAt(l.id, tmpC.setScalar(b)); } } if (lampHeads.instanceColor) lampHeads.instanceColor.needsUpdate = true; if (lampPools.instanceColor) lampPools.instanceColor.needsUpdate = true; lampPools.visible = lv > 0.02; lampLvl = lv; };
   function lamp(b, l) { b.cyl(0.12, 0.16, 6.5, 6, l.x, 0, l.z, 0x3b3f45, { noAO: true }); b.box(1.4, 0.18, 0.3, l.x + l.fx * 0.55, 6.4, l.z + l.fz * 0.55, 0x3b3f45, { noAO: true, ry: Math.atan2(-l.fz, l.fx) }); }
   function palm(b, x, z, s = 1) {
+    palmSpots.push({ x, z, r: 0.35 * s + 0.07 });
     const hgt = 7 * s; b.cyl(0.22 * s, 0.35 * s, hgt, 6, x, 0, z, 0x8a6a45, { noAO: true });
     for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2; b.box(0.5 * s, 0.1, 3.4 * s, x + Math.cos(a) * 1.6 * s, hgt + 0.1, z + Math.sin(a) * 1.6 * s, 0x2f8f3a, { ry: -a + Math.PI / 2, rx: 0.5, noAO: true }); }
   }
@@ -190,7 +191,7 @@ export function buildWorld(city) {
   const fogC = new THREE.Color('#9fd3ee'); scene.fog = new THREE.Fog(fogC, 140, 520);
   let night = 0; applyLamps(0);
   const api = {
-    scene, colliders, boards, doorMarkers, labels, root,
+    scene, colliders, palmSpots, boards, doorMarkers, labels, root,
     setMarkers(props) { for (const p of props) { const m = doorMarkers[p.id]; if (m) m.material.color.setHex(markerColor[p.status] || 0x35c46b); } },
     setTime(minutes) { // 0..1440
       const t = minutes / 1440; const a = (t - 0.25) * Math.PI * 2; const h = Math.sin(a); const day = Math.max(0, Math.min(1, h * 1.8 + 0.25));
