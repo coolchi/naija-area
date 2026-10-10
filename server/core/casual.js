@@ -10,12 +10,14 @@ import * as match3 from './casual/match3.js';
 import * as danfo from './casual/danfo.js';
 import { DANFO_LEVELS } from '../config/danfo-levels.js';
 import { ANSWERS, VALID } from '../config/words.js';
+import * as wordsearch from './casual/wordsearch.js';
 
 export const CASUAL = [
   { id: 'merge', name: 'Merge Am', blurb: 'Slide the tiles. Equal tiles join. Chase the big number.', where: 'Viewing Centre' },
   { id: 'memory', name: 'Pair Am', blurb: 'Flip the cards and find the pairs in few tries.', where: 'Corner Joint' },
   { id: 'match3', name: 'Chop Am', blurb: 'Swap snacks to line up three or more. 20 moves, chase big chains.', where: 'Viewing Centre' },
   { id: 'danfo', name: 'Clear the Go-Slow', blurb: 'Slide the stuck vehicles so the yellow danfo can get out. Fewest moves wins.', where: 'Mama Put' },
+  { id: 'wordsearch', name: 'Find Am (word search)', blurb: 'Find the 8 hidden Lagos words in today\'s grid. One puzzle a day for everybody.', where: 'Mama Put' },
   { id: 'word', name: 'Word of the Day', blurb: 'Guess the 5-letter word in six tries. One word a day for everybody.', where: 'Mama Put' }
 ];
 const cfg = (app) => app.balance.casual;
@@ -48,9 +50,9 @@ function getRun(app, uid, id, kind) {
 const best = (app, uid, kind) => app.db.prepare("SELECT MAX(score) b FROM casual_runs WHERE user_id=? AND kind=? AND status='done'").get(uid, kind).b || 0;
 
 export function overview(app, uid) {
-  const C = cfg(app); const day = dayKey(app.clock.now()); const d = dailyRow(app, uid, day); const w = wordState(app, uid, false);
+  const C = cfg(app); const day = dayKey(app.clock.now()); const d = dailyRow(app, uid, day); const w = wordState(app, uid, false); const ws = wordsearchState(app, uid, false);
   return { day, earnedToday: d.earned, dailyCap: C.dailyCap, rewardsOn: eligible(app, uid), note: 'Game money only. Rewards are small ESTIMATE placeholders with a daily cap.',
-    games: CASUAL.map(g => ({ ...g, best: g.id === 'word' ? undefined : best(app, uid, g.id), doneToday: g.id === 'word' ? w.status !== 'playing' : undefined })) };
+    games: CASUAL.map(g => ({ ...g, best: g.id === 'word' || g.id === 'wordsearch' ? undefined : best(app, uid, g.id), doneToday: g.id === 'word' ? w.status !== 'playing' : g.id === 'wordsearch' ? ws.status === 'done' : undefined })) };
 }
 
 // ---------------------------------------------------------------- tile-merge
@@ -142,4 +144,29 @@ export function wordGuess(app, uid, word) {
   if (over) { const want = won ? C.rewards[Math.min(st.guesses.length, C.rewards.length) - 1] : 0; app.db.prepare("UPDATE casual_runs SET status='done', state=?, score=?, finished_at=? WHERE id=?").run(JSON.stringify(st), won ? 7 - st.guesses.length : 0, app.clock.now(), run.id); const p = payout(app, uid, run.id, want); reward = p.paid; note = p.note; earnedToday = p.earnedToday; app.db.prepare('UPDATE casual_runs SET reward=? WHERE id=?').run(reward, run.id); if (reward) notify(app, uid, 'casual', `Word of the Day solved in ${st.guesses.length}! +₦${reward} (game money).`); }
   else app.db.prepare('UPDATE casual_runs SET state=? WHERE id=?').run(JSON.stringify(st), run.id);
   return { word: w, marks, guesses: st.guesses, status: !over ? 'playing' : won ? 'won' : 'lost', reward, note, earnedToday, answer: over ? answer : undefined };
+}
+
+// ---------------------------------------------------------------- word search ("Find Am"): one puzzle a day for everybody
+function wsRun(app, uid, day, create) {
+  let r = app.db.prepare("SELECT * FROM casual_runs WHERE user_id=? AND kind='wordsearch' AND day=?").get(uid, day);
+  if (!r && create) { const id = app.db.prepare('INSERT INTO casual_runs(user_id,kind,seed,state,status,day,started_at) VALUES (?,?,?,?,?,?,?)').run(uid, 'wordsearch', 0, JSON.stringify({ found: [] }), 'open', day, app.clock.now()).lastInsertRowid; r = app.db.prepare('SELECT * FROM casual_runs WHERE id=?').get(id); }
+  return r;
+}
+export function wordsearchState(app, uid, create = true) {
+  const C = cfg(app).wordsearch; const day = dayKey(app.clock.now()); const p = wordsearch.puzzle(day); const run = wsRun(app, uid, day, create); const st = run ? JSON.parse(run.state) : { found: [] };
+  return { day, size: p.size, rows: Array.from({ length: p.size }, (_, r) => p.grid.slice(r * p.size, (r + 1) * p.size).join('')), words: p.words, found: st.found, status: run && run.status !== 'open' ? 'done' : 'playing', reward: run?.reward || 0, perRunCap: C.perRunCap, note: 'Draw a line from the first letter to the last: tap one end, then the other. Words can run in any direction. PLACEHOLDER word list: a Lagos editor will review it.' };
+}
+export function wordsearchLine(app, uid, r1, c1, r2, c2) {
+  const C = cfg(app).wordsearch; const day = dayKey(app.clock.now()); const p = wordsearch.puzzle(day); const run = wsRun(app, uid, day, true);
+  if (run.status !== 'open') bad('DONE_TODAY', 'You already finished today\'s puzzle. A new one comes tomorrow!', 409);
+  if (!app.limiter.hit(`wsline:${uid}`, C.linesPerMin, 60000, app.clock.now())) bad('RATE_LIMIT', 'Easy now. Take a breath.', 429);
+  const w = wordsearch.matchLine(p, Number(r1), Number(c1), Number(r2), Number(c2)); if (!w) return { ok: false, found: JSON.parse(run.state).found.length, message: 'No word there. Try again.' };
+  const st = JSON.parse(run.state); if (st.found.some(f => f.word === w)) return { ok: false, found: st.found.length, message: `You already found ${w}.` };
+  const done = st.found.length + 1 >= p.words.length; if (done && app.clock.now() - run.started_at < p.words.length * C.minMsPerWord) bad('TOO_FAST', 'That was faster than a human can search. Take your time.', 429);
+  st.found.push({ word: w, r1: Number(r1), c1: Number(c1), r2: Number(r2), c2: Number(c2) }); const out = { ok: true, word: w, found: st.found.length, total: p.words.length, done };
+  if (!done) { app.db.prepare('UPDATE casual_runs SET state=? WHERE id=?').run(JSON.stringify(st), run.id); return out; }
+  const want = C.perRunCap; app.db.prepare("UPDATE casual_runs SET status='done', state=?, score=?, finished_at=? WHERE id=?").run(JSON.stringify(st), p.words.length, app.clock.now(), run.id);
+  const pay = payout(app, uid, run.id, want); app.db.prepare('UPDATE casual_runs SET reward=? WHERE id=?').run(pay.paid, run.id);
+  if (pay.paid) notify(app, uid, 'casual', `Find Am: all ${p.words.length} words found! +₦${pay.paid} (game money).`);
+  return { ...out, reward: pay.paid, note: pay.note, earnedToday: pay.earnedToday, dailyCap: pay.dailyCap };
 }

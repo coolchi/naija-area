@@ -96,7 +96,9 @@ export const BALANCE = {
     word: { length: 5, maxGuesses: 6, rewards: [60, 50, 40, 30, 20, 10] },
     // match-3 ("Chop Am") and the traffic-jam puzzle ("Clear the Go-Slow"): reward numbers are ESTIMATE placeholders like the rest
     match3: { scorePerNaira: 60, perRunCap: 50, minMoves: 5, minMsPerMove: 700 },
-    danfo: { perLevelBase: 8, perPar: 2, perRunCap: 45, perExtraMove: 2, floor: 4, minMsPerMove: 350, maxMoves: 200 } },
+    danfo: { perLevelBase: 8, perPar: 2, perRunCap: 45, perExtraMove: 2, floor: 4, minMsPerMove: 350, maxMoves: 200 },
+    // word search (Find Am): one puzzle a day, ESTIMATE reward like the rest
+    wordsearch: { perRunCap: 30, minMsPerWord: 4000, linesPerMin: 40 } },
   // ---- cars (fictional models, placeholder ESTIMATE prices). 'borrowed' is what you drive until you buy one. fuel = perM per metre.
   cars: {
     borrowed: { name: 'Borrowed car', base: 60, perM: 0.35, speed: 10, mood: 0 },

@@ -4216,6 +4216,15 @@
      "x": -1.8,
      "z": 2.8,
      "color": "#2a6f97"
+    },
+    {
+     "id": "wsearch1",
+     "type": "casual",
+     "game": "wordsearch",
+     "label": "Find Am (word search)",
+     "x": 0.4,
+     "z": 3.6,
+     "color": "#e9c46a"
     }
    ],
    "room": {

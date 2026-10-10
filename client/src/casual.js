@@ -5,7 +5,7 @@ import * as M from '../../server/core/casual/merge.js';
 import * as M3 from '../../server/core/casual/match3.js';
 import * as D from '../../server/core/casual/danfo.js';
 
-const NAMES = { merge: 'Merge Am', memory: 'Pair Am', word: 'Word of the Day', match3: 'Chop Am', danfo: 'Clear the Go-Slow' };
+const NAMES = { merge: 'Merge Am', memory: 'Pair Am', word: 'Word of the Day', match3: 'Chop Am', danfo: 'Clear the Go-Slow', wordsearch: 'Find Am (word search)' };
 const SNACK = { puffpuff: '🍩', chinchin: '🍪', suya: '🍢', zobo: '🍹', plantain: '🍌' }; // puff-puff, chin chin, suya, zobo, plantain
 const VEH = { danfo: ['🚌', '#f2c200'], keke: ['🛺', '#2e9b5e'], car: ['🚗', '#2e7dd1'], bus: ['🚐', '#8a5ad6'], lorry: ['🚚', '#6b7280'], molue: ['🚍', '#d6402f'] };
 const SYM = { danfo: '🚌', keke: '🛺', suya: '🍢', akara: '🥯', ankara: '🧵', naira: '₦', agbada: '👘', gele: '👑' };
@@ -21,7 +21,7 @@ export async function hub(ui) {
 
 export function play(ui, id) {
   const body = h('div', { class: 'casual' }); let stop = null; ui.openSheet(NAMES[id], body, () => stop?.());
-  if (id === 'merge') stop = mergeGame(ui, body); else if (id === 'memory') stop = memoryGame(ui, body); else if (id === 'match3') stop = match3Game(ui, body); else if (id === 'danfo') stop = danfoGame(ui, body); else wordGame(ui, body);
+  if (id === 'merge') stop = mergeGame(ui, body); else if (id === 'memory') stop = memoryGame(ui, body); else if (id === 'match3') stop = match3Game(ui, body); else if (id === 'danfo') stop = danfoGame(ui, body); else if (id === 'wordsearch') stop = wordsearchGame(ui, body); else wordGame(ui, body);
 }
 
 function resultBox(ui, r, label) {
@@ -118,4 +118,25 @@ function danfoGame(ui, body) {
   const start = async (lvl) => { const r = await ui.guard(() => post('/api/casual/danfo/start', lvl ? { level: lvl } : {})); if (!r) return; run = r; level = r.level; info = { unlocked: r.unlocked, total: r.total }; title.textContent = `${level.name} · par ${level.par}`; reset(); chips(); };
   body.replaceChildren(h('div', { class: 'row sp' }, title, h('span', {}, 'Moves ', mv), h('button', { class: 'btn small ghost', id: 'dfReset', onclick: reset }, '↺ Restart')), h('p', { class: 'mut' }, 'Slide the vehicles along their lanes (drag, or tap one then tap where it should go, or use the arrow keys) until the yellow danfo can drive out on the right. Fewest moves wins.'), board, msg, lvlBox);
   start(); window.__danfo = { slide, get log() { return log.join(','); }, get vs() { return vs; }, get level() { return level; }, get done() { return done; } }; return () => document.removeEventListener('keydown', key, true);
+}
+
+// ------------------------------------------------------------------ Find Am (word search): the grid is the same for everybody today; the SERVER checks each line you draw
+function wordsearchGame(ui, body) {
+  let st = null, from = null, busy = false; const msg = h('div', {}); const grid = h('div', { class: 'wsgrid' }); const list = h('div', { class: 'wslist' });
+  const cellsOf = (f) => { const dr = Math.sign(f.r2 - f.r1), dc = Math.sign(f.c2 - f.c1), n = Math.max(Math.abs(f.r2 - f.r1), Math.abs(f.c2 - f.c1)) + 1; return Array.from({ length: n }, (_, k) => (f.r1 + dr * k) * st.size + f.c1 + dc * k); };
+  const draw = () => {
+    const hit = new Set(st.found.flatMap(cellsOf)); grid.style.setProperty('--n', st.size);
+    grid.replaceChildren(...st.rows.flatMap((row, r) => [...row].map((ch, c) => h('button', { class: `wsc ${hit.has(r * st.size + c) ? 'hit' : ''} ${from && from[0] === r && from[1] === c ? 'start' : ''}`, 'data-rc': `${r},${c}`, disabled: st.status === 'done', onclick: () => tap(r, c) }, ch))));
+    list.replaceChildren(...st.words.map(w => h('span', { class: `wsw ${st.found.some(f => f.word === w) ? 'got' : ''}`, 'data-w': w }, w)));
+  };
+  const tap = async (r, c) => {
+    if (busy || st.status === 'done') return; if (!from) { from = [r, c]; draw(); return; } if (from[0] === r && from[1] === c) { from = null; draw(); return; }
+    const [r1, c1] = from; from = null; busy = true; const res = await ui.guard(() => post('/api/casual/wordsearch/line', { r1, c1, r2: r, c2: c })); busy = false;
+    if (res?.ok) { st.found.push({ word: res.word, r1, c1, r2: r, c2: c }); ui.sfx?.('ok'); msg.replaceChildren(h('p', { class: 'mut' }, `Found ${res.word}! ${res.found} of ${res.total}`)); if (res.done) { st.status = 'done'; msg.replaceChildren(resultBox(ui, res, `All ${res.total} found!`)); } }
+    else if (res) msg.replaceChildren(h('p', { class: 'mut' }, res.message || 'No word there.')); draw();
+  };
+  window.__wsearch = { get st() { return st; }, tap };
+  (async () => { const r = await ui.guard(() => get('/api/casual/wordsearch')); if (!r) return; st = r; draw(); if (st.status === 'done') msg.replaceChildren(h('p', { class: 'mut' }, 'You finished today\'s puzzle. Come back tomorrow for a new one.')); })();
+  body.replaceChildren(h('p', { class: 'mut' }, 'Find the hidden Lagos words. Tap the first letter, then the last letter. Words run in any direction. One puzzle a day.'), grid, list, msg, h('small', { class: 'mut' }, 'Game money only. Small reward, inside your daily cap. Word list is placeholder content.'));
+  return () => { delete window.__wsearch; };
 }
