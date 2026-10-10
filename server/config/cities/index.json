@@ -58,6 +58,16 @@
       "enabled": false,
       "preview": true,
       "_note": "Generated sample city so the airport and city switching can be seen. Fictional. Start the server with NA_PREVIEW_CITIES=1 to load it."
+    },
+    {
+      "id": "abuja",
+      "file": "abuja.json",
+      "enabled": true
+    },
+    {
+      "id": "port-harcourt",
+      "file": "port-harcourt.json",
+      "enabled": true
     }
   ]
 }

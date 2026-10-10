@@ -1,6 +1,8 @@
 // The plane's flight as a pure function of time (10 Oct 2026): taxi from the apron to the runway, take-off roll, climb, then a banked circle over the district.
 // Everything is derived from the airport config (apron point and runway), so any city's airport reuses it. Units: metres and seconds. Visual only: the server decides when you land.
-export const FLIGHT = { taxiS: 5, rollS: 7, climbS: 9, rollLen: 170, climbH: 70, circleR: 170, bank: 0.35, cruiseWobble: 6 };
+export const FLIGHT = { taxiS: 5, rollS: 7, climbS: 9, rollLen: 170, climbH: 70, circleR: 170, bank: 0.35, cruiseWobble: 6,
+  // what OTHER players see (item 7): a departing plane circles for circleShowS then leaves in a straight climb for exitS and vanishes at exitH metres up; an arriving plane lands in landS (= the take-off run played backwards). Keep balance.flight.planes.depVisibleS >= taxi+roll+climb+circleShowS+exitS.
+  circleShowS: 12, exitS: 10, exitH: 320 };
 const ss = (u) => { const k = Math.max(0, Math.min(1, u)); return k * k * (3 - 2 * k); };
 const lerpAng = (a, b, k) => { let d = ((b - a + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI; return a + d * k; };
 /** precompute the geometry for one airport; `towards` is a point the circuit should bend toward (the middle of the city) */
@@ -24,3 +26,16 @@ export function flightPose(plan, t) {
 }
 /** chase camera: where to put the camera for a pose (behind and above), and what to look at */
 export function chaseCam(pose, back = 30, up = 9, ahead = 12) { const h = -pose.yaw; const fx = Math.cos(h), fz = Math.sin(h); return { pos: [pose.x - fx * back, pose.y + up, pose.z - fz * back], look: [pose.x + fx * ahead, pose.y + 1, pose.z + fz * ahead] }; }
+
+/** what a bystander sees of a DEPARTING plane: the same take-off and circuit as the passenger's, then it straightens out and climbs away. t = seconds since departure; null once it has gone. */
+export function departPose(plan, t) {
+  const { F } = plan; const tEnd = plan.totalPreCruise + F.circleShowS; if (t < 0 || t > tEnd + F.exitS) return null; if (t <= tEnd) return flightPose(plan, t);
+  const p0 = flightPose(plan, tEnd); const heading = -p0.yaw; const u = (t - tEnd) / F.exitS; const v = plan.vClimbEnd; const s = (t - tEnd) * v;
+  return { x: p0.x + Math.cos(heading) * s, y: p0.y + (F.exitH - p0.y) * u * u, z: p0.z + Math.sin(heading) * s, yaw: p0.yaw, pitch: 0.12 * Math.min(1, u * 4), roll: p0.roll * (1 - ss(u * 2)), phase: 'exit' };
+}
+/** an ARRIVING plane: the take-off run backwards (it comes in low over the far end, touches down, rolls out and taxis to the apron, turning to park). t = seconds since the start of the landing (0 .. totalPreCruise). */
+export function landingPose(plan, t) {
+  const { F } = plan; const T = plan.totalPreCruise; if (t < 0 || t > T) return null; const tau = T - t; const p = flightPose(plan, tau);
+  let yaw = p.yaw - Math.PI; if (tau < F.taxiS) { const k = ss((F.taxiS - tau) / F.taxiS * 1.4 - 0.4); yaw = p.yaw - Math.PI * (1 - k); } // swing half a turn (always the same way round) to park nose out like the parked plane
+  return { x: p.x, y: p.y, z: p.z, yaw, pitch: p.phase === 'taxi' ? 0 : p.pitch, roll: 0, phase: p.phase === 'taxi' ? 'taxi' : p.phase === 'roll' ? 'rollout' : 'approach' };
+}

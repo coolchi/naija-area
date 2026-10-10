@@ -150,7 +150,12 @@ export const BALANCE = {
   // Crash rules (10 Oct 2026). EVERY number is a placeholder ESTIMATE. The server decides hits with a seeded RNG; ambient cars are never charged.
   ride: { enabled: true, name: 'Oya Ride', base: 300, perM: 1.6, rushMult: 1.4, speed: 13, minTripSec: 6, maxTripSec: 40, minDistanceM: 40, driverMinM: 140, driverMaxM: 300, driverSpeed: 11, rushEtaMult: 1.3, waitMs: 120000, cancelFee: 100, boardRangeM: 14, requestsPerMin: 6, _note: 'ESTIMATE placeholders. Generic in-game service name, no real brand.' },
   // Airport and flights (10 Oct 2026). EVERY number is a placeholder ESTIMATE.
-  flight: { enabled: true, gateRadiusM: 70, departEveryMs: 90000, minLeadMs: 20000, slotsShown: 3, flightMs: 45000, cooldownMs: 120000, cancelRefundPct: 80, fares: { sameState: 4500, otherState: 9000 }, _note: 'Fares and times are ESTIMATES. departEveryMs is real time between scheduled departures.' },
+  flight: { enabled: true, gateRadiusM: 70, departEveryMs: 90000, minLeadMs: 20000, slotsShown: 3, flightMs: 45000, cooldownMs: 120000, cancelRefundPct: 80, fares: { sameState: 4500, otherState: 9000 },
+    // long routes (Track G item 7). A route entry belongs to a CITY: a flight to or from it costs at least `fare` and takes `flightFactor` times as long (the larger of the two cities' values wins). ESTIMATES, game money only.
+    routes: { abuja: { fare: 24000, flightFactor: 1.4 }, 'port-harcourt': { fare: 21000, flightFactor: 1.3 } },
+    // other players see planes: the departure circuit and the landing of flights in the airport's city, to anyone within viewRangeM of the apron (heartbeat field `pl`). ESTIMATE.
+    planes: { enabled: true, viewRangeM: 700, resolveEveryMs: 1000, maxShown: 3, depVisibleS: 45, arrVisibleS: 24 }, // depVisibleS: takeoff + circuit + climb-out; arrVisibleS: the landing (keep in step with client/src/flightpath.js FLIGHT)
+    _note: 'Fares and times are ESTIMATES. departEveryMs is real time between scheduled departures.' },
   // Road links between districts/cities (10 Oct 2026). ESTIMATE placeholders.
   link: { enabled: true, fare: 200, gateRadiusM: 16, perMin: 6, _note: 'ESTIMATE. A link gate moves you to the next district by road; the fare goes through the ledger.' },
   // Stadium (10 Oct 2026). ESTIMATE placeholders. Live scores are a TEST: see core/scores.js and docs/STADIUM.md.

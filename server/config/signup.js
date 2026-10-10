@@ -36,7 +36,7 @@ export const SIGNUP_RULES = { minInterests: 1, maxInterests: 5 };
 //  * START_CLOSED: built cities you want to hold back from new players for now (their ids as the player sees them, e.g. 'kano'). Empty = every built city is open.
 //  * WISHLIST_CITIES: cities that do not exist in the game yet but players may ask for. They show as "not open yet". Add or remove freely.
 //  * FALLBACK_CITY: where a player who picks a closed city starts (the default city, Lagos).
-export const START_CLOSED = [];
+export const START_CLOSED = ['abuja', 'port-harcourt']; // Abuja and Port Harcourt (item 7) are small airport districts you ARRIVE in by plane; nobody starts there yet (Sherif's open list is unchanged)
 export const FALLBACK_CITY = 'lagos';
 export const WISHLIST_CITIES = [
   { id: 'abuja', name: 'Abuja', state: 'FCT' }, { id: 'port-harcourt', name: 'Port Harcourt', state: 'Rivers' }, { id: 'ibadan', name: 'Ibadan', state: 'Oyo' },

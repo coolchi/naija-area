@@ -121,7 +121,7 @@ export class UI {
   }
   fillPlaceInfo(el, pl, q) {
     if (pl.type === 'shop') this.shopBlock(el, pl.id); else if (pl.type === 'job') this.jobBlock(el, pl.id); else if (pl.type === 'house') this.houseBlock(el, pl.id); else if (pl.type === 'plot') this.plotBlock(el, pl.id); else if (pl.type === 'venue') this.venueBlock(el, pl); else if (pl.id === 'clinic') this.clinicBlock(el, pl);
-    else el.replaceChildren(h('p', { class: 'mut' }, pl.id === 'airport' ? 'Fast travel to other cities (Abuja, Port Harcourt) comes later. The airport also hosts premium ad boards.' : 'A public landmark. Wave to the neighbours.'));
+    else el.replaceChildren(h('p', { class: 'mut' }, pl.id === 'airport' ? 'Fly to Kano, Abuja and Port Harcourt from the departures board. The airport also hosts premium ad boards.' : 'A public landmark. Wave to the neighbours.'));
   }
 
   async clinicBlock(el, pl) {
