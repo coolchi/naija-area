@@ -2,6 +2,7 @@ import { graphicsBlock } from './quality-ui.js';
 import { soundBlock } from './audio-ui.js';
 import { missionsBody } from './missions-ui.js';
 import { meBody } from './me-ui.js';
+import { safetyBody } from './guardian-ui.js';
 import { roadPts } from './roadgeom.js';
 import { PhoneShell } from './phone-v2/apps.js';
 import { get, post, fmtN, h, $, $$, ApiError } from './api.js';
@@ -235,7 +236,7 @@ export class UI {
     return this.phoneLegacy(tab || 'wallet');
   }
   phoneLegacy(tab = 'wallet') {
-    const g = this.g; const tabs = [['wallet', '💰 Wallet'], ['jobs', '💼 Jobs'], ['home', '🏠 Home'], ['land', '🌍 Land'], ['ranks', '🏆 Ranks'], ['missions', '🎯 Missions'], ['me', '🏅 Me'], ['garage', '🚗 Garage'], ['games', '🎮 Games'], ['map', '🗺 Map'], ['alerts', '🔔 Alerts'], ['more', '⚙️ More']]; const body = h('div', {}); let cur = tab;
+    const g = this.g; const tabs = [['wallet', '💰 Wallet'], ['jobs', '💼 Jobs'], ['home', '🏠 Home'], ['land', '🌍 Land'], ['ranks', '🏆 Ranks'], ['missions', '🎯 Missions'], ['me', '🏅 Me'], ['safe', '🛡 Safety'], ['garage', '🚗 Garage'], ['games', '🎮 Games'], ['map', '🗺 Map'], ['alerts', '🔔 Alerts'], ['more', '⚙️ More']]; const body = h('div', {}); let cur = tab;
     const bar = h('div', { class: 'tabrow' }); const drawTabs = () => bar.replaceChildren(...tabs.map(([id, l]) => h('button', { class: id === cur ? 'on' : '', onclick: () => { cur = id; drawTabs(); render(); } }, l)));
     const render = async () => { body.replaceChildren(h('p', { class: 'mut' }, 'Loading…')); const fn = this['tab_' + cur]; const el = await fn.call(this); body.replaceChildren(...[].concat(el)); };
     drawTabs(); this.openSheet('Phone', [bar, body]); render();
@@ -269,6 +270,7 @@ export class UI {
   }
   async tab_alerts() { const d = await this.guard(() => get('/api/notifications')); this.g.markRead(); if (!d) return []; return [h('div', { class: 'list' }, d.rows.map(n => h('div', {}, h('span', {}, n.text), h('span', { class: 'mut' }, new Date(n.created_at).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' })))))]; }
   async tab_me() { return meBody(this.g, () => this.phone('me')); }
+  async tab_safe() { return safetyBody(this.g, () => this.phone('safe')); }
   async tab_missions() { return missionsBody(this.g, () => this.phone('missions')); }
   async tab_more() {
     const g = this.g; const bl = await this.guard(() => get('/api/social/blocks')); const blocked = h('div', { class: 'list' }, (bl?.rows || []).map(r => h('div', {}, h('span', {}, `@${r.username} · ${r.kind}`), h('button', { class: 'btn small ghost', onclick: async () => { await this.setBlock(r.username, null); this.phone('more'); } }, 'Undo')))); const wr = g.user?.wear; return [...graphicsBlock(g), ...soundBlock(g), h('b', {}, '💎 Your look'), h('p', { id: 'wearStatus', class: 'mut' }, wr ? `${wr.status}${wr.ownedCount ? ` · ${wr.ownedCount} pieces owned, worth ${fmtN(wr.ownedValue)}` : ''}. Buy more at the jewelry store and cap store.` : 'Nothing yet.'), h('b', {}, '🧭 Your choices'), h('p', { id: 'choicesStatus', class: 'mut' }, g.user?.signup?.done ? `City: ${g.user.signup.homeCity}${g.user.signup.interestCity ? ` · interested in ${g.user.signup.interestCity}` : ''} · ${g.user.signup.interests.length} interests` : 'Not set yet.'), h('div', { class: 'row' }, h('button', { class: 'btn small', 'data-more': 'choices', onclick: async () => { g.ui.closeSheet?.(); await setupFlow(g, { editing: true }); } }, 'Change my choices'), h('button', { class: 'btn small alt', 'data-more': 'apply', onclick: () => officeSheet(g, 'apply') }, 'Apply to join the team'), h('button', { class: 'btn small ghost', 'data-more': 'idea', onclick: () => officeSheet(g, 'ideas') }, 'Share an idea'), h('button', { class: 'btn small ghost', 'data-more': 'tutorial', onclick: () => { g.ui.closeSheet?.(); g.tutorial?.restart(); } }, 'Replay the tutorial')), h('b', {}, '🔐 Your data'), h('p', { class: 'mut' }, 'See everything we hold about you, or close your account.'), h('div', { class: 'row' }, h('button', { class: 'btn small ghost', 'data-more': 'download', onclick: () => downloadData(g) }, 'Download my data'), h('button', { class: 'btn small red', 'data-more': 'close', onclick: () => closeAccountSheet(g) }, 'Close my account')), h('b', {}, 'Muted and blocked'), (bl?.rows || []).length ? blocked : h('p', { class: 'mut' }, 'Nobody. Tap a chat line or the ⋯ on a house card to mute, block or report.'), h('div', { class: 'row' }, h('a', { class: 'btn ghost', href: '/advertise', target: '_blank', rel: 'noopener' }, 'Advertise'), h('a', { class: 'btn ghost', href: '/methodology', target: '_blank', rel: 'noopener' }, 'How ads are counted'), h('a', { class: 'btn ghost', href: '/stats.html', target: '_blank', rel: 'noopener' }, 'Stats')),

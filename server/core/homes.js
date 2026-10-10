@@ -5,6 +5,7 @@ import { screen } from './filter.js';
 import { notify, addMood, propDef } from './economy.js';
 import { move, cashId, balanceOf, SYS } from './ledger.js';
 import { hiddenFrom, chatMuted } from './safety.js';
+import * as guardian from './guardian.js';
 
 const ownerRow = (app, pid) => app.db.prepare('SELECT po.*, u.username FROM property_owner po JOIN users u ON u.id=po.user_id WHERE property_id=?').get(pid);
 function access(app, uid, pid) { // -> { o, isOwner } or throws
@@ -51,6 +52,7 @@ export function act(app, uid, pid, action) {
 export function say(app, uid, pid, text) {
   access(app, uid, pid); const t = cleanText(text, 120); if (!t) bad('EMPTY', 'Say something.'); const sc = screen(t); if (!sc.ok) bad(sc.code, sc.message);
   if (chatMuted(app, uid)) bad('CHAT_PAUSED', 'Chat is paused for your account for a little while.', 403);
+  guardian.chatCheck(app, uid, 'room');
   if (!app.limiter.hit(`say:${uid}`, app.balance.safety.chatPerMin, 60000, app.clock.now())) bad('RATE_LIMIT', 'Too many messages. Take a breather.', 429);
   event(app, pid, uid, 'say', t); return { ok: true };
 }

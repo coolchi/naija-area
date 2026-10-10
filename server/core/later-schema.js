@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS player_titles (user_id INTEGER PRIMARY KEY, title_id 
   { n: 8, name: 'sanctions', sql: `
 CREATE TABLE IF NOT EXISTS sanctions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, kind TEXT NOT NULL, reason TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', until_at INTEGER, actor TEXT NOT NULL, report_ref TEXT, created_at INTEGER NOT NULL, lifted_at INTEGER, lifted_by TEXT);
 CREATE INDEX IF NOT EXISTS ix_sanctions_user ON sanctions(user_id, id);
-CREATE INDEX IF NOT EXISTS ix_sanctions_kind ON sanctions(kind, lifted_at);` }
+CREATE INDEX IF NOT EXISTS ix_sanctions_kind ON sanctions(kind, lifted_at);` },
+  { n: 9, name: 'guardian', sql: `
+CREATE TABLE IF NOT EXISTS guardian_settings (user_id INTEGER PRIMARY KEY, chat_mode TEXT NOT NULL DEFAULT 'all', max_stake INTEGER, transfers_off INTEGER NOT NULL DEFAULT 0, topup_daily_ngn INTEGER, play_limit_min INTEGER, curfew_start INTEGER, curfew_end INTEGER, break_every_min INTEGER, pin_hash TEXT, pin_fails INTEGER NOT NULL DEFAULT 0, pin_locked_until INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS guardian_play (user_id INTEGER NOT NULL, day INTEGER NOT NULL, ms INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day));` }
 ];
 export function applyLater(db) { for (const c of LATER) db.exec(c.sql); }

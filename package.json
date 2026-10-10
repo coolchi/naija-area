@@ -25,6 +25,7 @@
     "smoke:missions": "node scripts/missions-smoke.mjs",
     "smoke:achievements": "node scripts/achievements-smoke.mjs",
     "smoke:mod": "node scripts/mod-smoke.mjs",
+    "smoke:guardian": "node scripts/guardian-smoke.mjs",
     "smoke:admin": "node scripts/admin-smoke.mjs",
     "build:demo": "node tools/build-demo.mjs"
   },

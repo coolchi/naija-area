@@ -5,6 +5,7 @@
 import { bad, GameError } from '../util.js';
 import { move, post, balanceOf, cashId } from '../ledger.js';
 import { notify } from '../economy.js';
+import * as guardian from '../guardian.js';
 import { priceKobo, proportion, toKobo, toNgn } from './fees.js';
 import { PAYMENTS } from '../../config/payments.js';
 
@@ -77,6 +78,7 @@ export async function startTopup(app, uid, { packId, email, idemKey } = {}) {
   const pk = cfg.packs.find(x => x.id === packId); if (!pk) bad('BAD_PACK', 'Pick one of the packs.');
   const mail = String(email || '').trim().toLowerCase(); if (!EMAIL.test(mail)) bad('BAD_EMAIL', 'Enter a valid email for your receipt.');
   const netKobo = toKobo(pk.priceNgn); const pr = priceKobo(netKobo, cfg);
+  guardian.assertSpend(app, uid, pr.totalKobo, spentToday(app, uid));   // the player's own limit (safety settings), on top of the shop's
   if (spentToday(app, uid) + pr.totalKobo > cfg.maxPerUserPerDayKobo) bad('DAILY_LIMIT', 'Daily purchase limit reached.', 429);
   const open = q(app).prepare("SELECT COUNT(*) n FROM payment_intents WHERE user_id=? AND status IN ('created','pending')").get(uid).n;
   if (open >= 3) bad('TOO_MANY_OPEN', 'Finish or wait out your open payments first.', 429);

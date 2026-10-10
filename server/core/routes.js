@@ -30,7 +30,9 @@ import * as tutorial from './tutorial.js';
 import * as missions from './missions.js';
 import * as achievements from './achievements.js';
 import * as moderation from './moderation.js';
+import * as guardian from './guardian.js';
 import { MOD as moderationOptions } from '../config/moderation.js';
+account.registerPlayerData('guardian', guardian.exportMine, guardian.deleteMine);   // safety settings: in the download, erased on closing
 import './gamedata.js';   // registers what the table games and the word/board games hold about a player with the account download/closing module (docs/ACCOUNT_DATA.md)
 import { checkAdminLogin } from './admin-guard.js';
 import { history, checkInvariants, moneySupply, balanceOf, cashId } from './ledger.js';
@@ -142,6 +144,11 @@ route('POST', '/api/missions/streak', { auth: 'user' }, (c) => missions.claimStr
 route('GET', '/api/achievements', { auth: 'user' }, (c) => achievements.view(c.app, c.uid));
 route('POST', '/api/achievements/title', { auth: 'user' }, (c) => achievements.selectTitle(c.app, c.uid, c.body.id === undefined ? 'auto' : c.body.id === null ? null : String(c.body.id)));
 // moderator tools (admin back end)
+route('GET', '/api/guardian', { auth: 'user' }, (c) => guardian.view(c.app, c.uid));
+route('POST', '/api/guardian', { auth: 'user' }, (c) => guardian.update(c.app, c.uid, c.body));
+route('POST', '/api/guardian/pin', { auth: 'user' }, (c) => guardian.setPin(c.app, c.uid, c.body));
+route('POST', '/api/admin/guardian/reset-pin', { auth: 'admin' }, (c) => guardian.adminResetPin(c.app, c.body.who));
+
 route('GET', '/api/admin/mod/overview', { auth: 'admin' }, (c) => moderation.overview(c.app));
 route('GET', '/api/admin/mod/player', { auth: 'admin' }, (c) => moderation.lookup(c.app, c.query.q));
 route('POST', '/api/admin/mod/sanction', { auth: 'admin' }, (c) => moderation.sanction(c.app, { who: c.body.who, kind: c.body.kind, hours: c.body.hours === '' || c.body.hours == null ? null : c.body.hours, reason: c.body.reason, note: c.body.note, reportRef: c.body.reportRef || null }));
@@ -295,6 +302,7 @@ export async function dispatch(app, req) {
   try {
     if (r.auth === 'user' && !req.uid) throw new GameError('LOGIN_REQUIRED', 'Please log in.', 401);
     if (r.auth === 'admin' && !req.isAdmin) throw new GameError('ADMIN_REQUIRED', 'Admin login required.', 401);
+    if (req.uid && r.auth === 'user') { const g = guardian.playGuard(app, req.uid, r.path); if (g) throw new GameError(g.code, g.message, 403, g.extra); } // safety settings: daily play limit and quiet hours
     if (req.uid && r.auth === 'user' && app.agePlayGuard) { const g = app.agePlayGuard(req.uid, r.path); if (g) throw new GameError(g.code, g.message, 403); } // age mode 'play': unverified players can do nothing but verify
     if (r.rate === 'auth' && !app.limiter.hit(`auth:${req.ip}:${r.path}`, app.balance.rate.authPerMin, 60000, now)) throw new GameError('RATE_LIMIT', 'Too many attempts, wait a minute.', 429);
     if (r.method === 'POST' && req.uid && r.path !== '/api/heartbeat' && !app.limiter.hit(`act:${req.uid}`, app.balance.rate.actionsPerMin, 60000, now)) throw new GameError('RATE_LIMIT', 'Slow down a little.', 429);

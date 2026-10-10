@@ -7,6 +7,7 @@ export async function api(method, path, body, opts = {}) {
   } catch (e) { throw new ApiError(0, { error: 'NETWORK', message: 'Cannot reach the server. Check your connection.' }); }
   let data = null; try { data = await res.json(); } catch { /* non-json */ }
   if (!res.ok && res.status === 403 && data?.error === 'BANNED') showBanned(data.message);
+  if (!res.ok && res.status === 403 && data?.error === 'BREAK_TIME' && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('na-break', { detail: data })); // safety settings: the day's play time is used up, or quiet hours
   if (!res.ok) throw new ApiError(res.status, data || { message: `Server error (${res.status})` });
   return data;
 }

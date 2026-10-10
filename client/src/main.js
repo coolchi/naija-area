@@ -14,6 +14,7 @@ import { TutorialCard } from './tutorial-ui.js';
 import * as Q from './quality.js';
 import { GameAudio } from './audio.js';
 import { readyCount } from './missions-ui.js';
+import { GuardianWatch, showBreak } from './guardian-ui.js';
 import { AirportClient } from './airport-client.js';
 import { LinkClient } from './link-client.js';
 import { BoatClient } from './boat-client.js';
@@ -63,7 +64,7 @@ class Game {
       this.progress(60, 'Putting traffic on the road…'); await new Promise(r => setTimeout(r, 30));
       this.traffic = new Traffic(this.scene, city.trafficLoops, city.busStops || []); this.traffic.onHorn = (c, car) => this.horn(c, car); this.walkers = new Walkers(this.scene, city.zones, q0.walkers); this.ghosts = new Ghosts(this.scene); this.ghosts.cat = this.wearCat;
       this.audio = new GameAudio({ isLowEnd: () => this.qualityLevel === 'low', radioPlaying: () => !!this.radio?.state?.playing, night: () => lampsOn(this.world.night) > 0.5 }); const unlock = () => this.audio.unlock(); addEventListener('pointerdown', unlock, true); addEventListener('keydown', unlock, true); document.addEventListener('visibilitychange', () => this.audio.visibility(document.hidden)); document.addEventListener('click', (e) => { if (e.target.closest?.('button, .btn, .round')) this.audio.play('click'); }, true);
-      this.ads = new AdsClient(this.world, city, () => this.serverNow()); this.ui = new UI(this); if (this.audio.set.on === false) { $('#muteBtn').textContent = '🔇'; this.ui.sfxOn = false; } this.net = new Net(this); this.interior = new Interior(this); this.venue = new Venue(this); this.garage = new GarageView(this);
+      this.ads = new AdsClient(this.world, city, () => this.serverNow()); this.ui = new UI(this); this.guardian = new GuardianWatch(this); window.addEventListener('na-break', (ev) => showBreak(this, ev.detail)); if (this.audio.set.on === false) { $('#muteBtn').textContent = '🔇'; this.ui.sfxOn = false; } this.net = new Net(this); this.interior = new Interior(this); this.venue = new Venue(this); this.garage = new GarageView(this);
       this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root); applyServerLimits(this.cfg.movement); this.ctrl.onStep = (k) => this.ui.sfx('step', PHYS.audio.footstepVol * (0.6 + 0.4 * k)); this.ctrl.onBump = (imp) => this.ui.sfx('thud', PHYS.audio.thudVol * Math.min(1.4, 0.4 + imp / 12)); this.ctrl.obstacles = (x, z, r) => this.traffic.obstaclesNear(x, z, r); this.nav = new Nav(this); this.parking = new ParkingClient(this); this.bus = new BusStops(this); this.rideSvc = new RideClient(this); this.links = new LinkClient(this); this.boats = new BoatClient(this); this.radio = new RadioClient(this); this.air = new AirportClient(this); this.crash = new CrashClient(this); this.traffic.crash = this.crash;
       addEventListener('resize', () => this.resize()); this.resize(); Q.apply(this, Q.resolve(this.qualityChoice, Q.readEnv())); this.bindAuth(); this.progress(85, TIPS[Math.floor(Math.random() * TIPS.length)]);
       const me = await get('/api/me').catch(() => null); this.progress(100, 'Ready!'); await new Promise(r => setTimeout(r, 250));
@@ -116,6 +117,7 @@ class Game {
 
   // ---- heartbeat results
   onHeartbeat(r) {
+    this.guardian?.onBeat(r.gd);
     this.air?.setTicket(r.flight); this.boats?.setTrip(r.boat);
     if (r.city && this.city?.id && r.city !== this.city.id && !this.cityChanging) { this.cityChanging = true; this.ui.toast('Arriving in a new city…'); setTimeout(() => location.reload(), 700); return; }
     this.update(r.me); this.worldTime = r.world; this.ui.clock(r.world); this.world.setTime(r.world.minutesOfDay); this.ghosts.ingest(r.players, this.serverNow()); this.ads.setSnapshot(r.ads);

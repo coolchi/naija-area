@@ -5,6 +5,7 @@ import { bad, cleanText } from './util.js';
 import { maxGuestsOf, plotStage } from './housing.js';
 import { screen } from './filter.js';
 import { isBlocked, chatMuted } from './safety.js';
+import * as guardian from './guardian.js';
 import { dist, notify, homeOf, gameTime, getState, addMood } from './economy.js';
 import { move, cashId, balanceOf, SYS } from './ledger.js';
 import { ensurePresence, syncPos } from './world.js';
@@ -70,13 +71,14 @@ export function sendDm(app, uid, toUsername, text) {
   if (chatMuted(app, uid)) bad('CHAT_PAUSED', 'Messaging is paused for your account for a little while.', 403);
   const me = app.db.prepare('SELECT username, is_guest FROM users WHERE id=?').get(uid); const to = app.db.prepare('SELECT id FROM users WHERE username=?').get(String(toUsername || ''));
   if (!to) bad('NO_RECIPIENT', 'No player with that username.', 404); if (to.id === uid) bad('SELF', 'You cannot message yourself.');
+  guardian.chatCheck(app, uid, 'private', to.id);
   const now = app.clock.now(); const S = app.balance.safety;
   if (isBlocked(app, uid, to.id)) bad('CANNOT_MESSAGE', 'You cannot message this player.', 403);
   const lk = `dmlast:${uid}:${to.id}`; const lastDm = app.world.lastDm ||= new Map(); const ld = lastDm.get(lk); if (ld && ld.t === t.toLowerCase() && now - ld.at < S.dupWindowMs) bad('SPAM', 'You just sent that.', 429); lastDm.set(lk, { t: t.toLowerCase(), at: now });
   if (!app.limiter.hit(`dm:${uid}`, S.dmPerMin, 60000, now)) bad('RATE_LIMIT', 'Too many messages, slow down.', 429);
   if (!app.limiter.hit(`dm:${uid}:${to.id}`, S.dmPerRecipientPerMin, 60000, now)) bad('RATE_LIMIT', 'Easy now: let them reply first.', 429);
   // a muted sender is allowed to send but a recipient who muted them never sees it
-  if (app.db.prepare("SELECT 1 FROM user_blocks WHERE blocker_id=? AND blocked_id=?").get(to.id, uid)) return { ok: true };
+  if (app.db.prepare("SELECT 1 FROM user_blocks WHERE blocker_id=? AND blocked_id=?").get(to.id, uid) || !guardian.canReceive(app, uid, to.id)) return { ok: true };
   notify(app, to.id, 'dm', `@${me.username}: ${t}`); return { ok: true };
 }
 

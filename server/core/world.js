@@ -13,6 +13,7 @@ import { venueTick } from './venues.js';
 import { parkedActive } from './parking.js';
 import { wearIds } from './wearables.js';
 import { titleOf } from './achievements.js';
+import * as guardian from './guardian.js';
 
 export function createWorld() { return { players: new Map(), chatSeq: 0 }; }
 
@@ -65,7 +66,7 @@ export function heartbeat(app, uid, body, meta = {}) {
   const userRow = app.db.prepare('SELECT username,color,is_bot,is_guest FROM users WHERE id=?').get(uid);
   if (!userRow) bad('NO_PLAYER', 'Unknown player', 401);
   const p = ensurePresence(app, uid);
-  p.lastSeen = now; p.headless = !!meta.headless;
+  p.lastSeen = now; p.headless = !!meta.headless; guardian.tickPlay(app, uid);
   if (body.mode === 'walk' || body.mode === 'drive') { if (body.mode === 'drive' && p.mode !== 'drive' && parkedActive(app, uid)) { /* your car is parked: it cannot be driven from elsewhere */ } else p.mode = body.mode; }
   if (typeof body.activity === 'string') p.activity = cleanText(body.activity, 24);
   const fl = flightTick(app, uid); const bt = boatTick(app, uid); const flying = fl?.state === 'flying' || bt?.state === 'crossing';
@@ -93,12 +94,13 @@ export function heartbeat(app, uid, body, meta = {}) {
   const notifs = app.db.prepare('SELECT id,kind,text,created_at FROM notifications WHERE user_id=? AND id>? ORDER BY id LIMIT 20').all(uid, nSince);
   // nearby chat
   const chatSince = Number.isFinite(body.chatSince) ? body.chatSince : p.chatSince;
+  const seeChat = guardian.chatFeedFilter(app, uid);   // safety settings: friends only / chat off hide other players' lines
   const chat = app.db.prepare('SELECT id,user_id,username,x,z,text,created_at,city_id FROM chat_messages WHERE id>? ORDER BY id LIMIT 60').all(chatSince)
-    .filter(m => m.city_id === p.city && dist(m.x, m.z, p.x, p.z) <= app.balance.chat.radius && !hidden.has(m.user_id)).map(m => { const tt = titleOf(app, m.user_id); return { id: m.id, u: m.username, t: m.text, at: m.created_at, ...(tt ? { tt } : {}) }; });
+    .filter(m => m.city_id === p.city && dist(m.x, m.z, p.x, p.z) <= app.balance.chat.radius && !hidden.has(m.user_id) && (!seeChat || seeChat(m.user_id))).map(m => { const tt = titleOf(app, m.user_id); return { id: m.id, u: m.username, t: m.text, at: m.created_at, ...(tt ? { tt } : {}) }; });
   const chatMax = app.db.prepare('SELECT COALESCE(MAX(id),0) m FROM chat_messages').get().m;
   const me = profile(app, uid);
   const resp = { now, interval, ccu, city: p.city, flight: flightMini(app, uid), boat: boatMini(app, uid), shed: interval >= 20000, world: gameTime(app, now), me, players, notifs, chat, chatCursor: chatMax,
-    knocks: knockState(app, uid), game: myMatchView(app, uid), venue: p.venue || null, teleport: p.force || undefined, adsVersion: app.adsVersion, ads: body.adsVersion === app.adsVersion ? undefined : adsSnapshot(app, now, p.city), adResult };
+    knocks: knockState(app, uid), game: myMatchView(app, uid), venue: p.venue || null, gd: guardian.heartbeatInfo(app, uid), teleport: p.force || undefined, adsVersion: app.adsVersion, ads: body.adsVersion === app.adsVersion ? undefined : adsSnapshot(app, now, p.city), adResult };
   p.force = undefined;
   return resp;
 }
@@ -109,6 +111,7 @@ export function sendChat(app, uid, text) {
   const now = app.clock.now(); if (p.lastChat && now - p.lastChat < app.balance.chat.minIntervalMs) bad('SLOW_DOWN', 'Slow down a little.', 429);
   const sc = screen(t); if (!sc.ok) bad(sc.code, sc.message);
   if (chatMuted(app, uid)) bad('CHAT_PAUSED', 'Chat is paused for your account for a little while.', 403);
+  guardian.chatCheck(app, uid, 'public');
   const S = app.balance.safety; if (!app.limiter.hit(`chat:${uid}`, S.chatPerMin, 60000, now)) bad('RATE_LIMIT', 'Too many messages. Take a breather.', 429);
   if (p.lastText === t.toLowerCase() && now - (p.lastTextAt || 0) < S.dupWindowMs) bad('SPAM', 'You just said that.', 429);
   p.lastText = t.toLowerCase(); p.lastTextAt = now;

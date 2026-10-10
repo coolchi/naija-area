@@ -14,7 +14,7 @@ export class Net {
       const t0 = performance.now(); const r = await post('/api/heartbeat', body); const rtt = performance.now() - t0; g.clockSync(r.now, rtt); this.since = r.now; this.fails = 0; ok = true; g.setConn(true);
       this.interval = r.interval || 3000; this.adsVersion = r.adsVersion; this.chatSince = r.chatCursor; if (r.notifs?.length) this.notifSince = r.notifs[r.notifs.length - 1].id; g.onHeartbeat(r);
     } catch (e) {
-      this.fails++; if (e instanceof ApiError && e.status === 401) { this.stop(); g.sessionLost(); return; } if (this.fails >= 3) g.setConn(false);
+      if (e instanceof ApiError && e.code === 'BREAK_TIME') { ok = true; this.fails = 0; this.interval = Math.max(this.interval || 0, 10000); } else { this.fails++; } if (e instanceof ApiError && e.status === 401) { this.stop(); g.sessionLost(); return; } if (this.fails >= 3) g.setConn(false);
     } finally { this.inflight = false; }
     if (this.running) this.timer = setTimeout(() => this.tick(), ok ? this.interval : Math.min(15000, 1500 * 2 ** Math.min(this.fails, 3)));
   }

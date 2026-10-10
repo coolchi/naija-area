@@ -5,6 +5,7 @@ import { bad } from './util.js';
 import { notify, addMood } from './economy.js';
 import { move as ledgerMove, cashId, SYS } from './ledger.js';
 import { isBlocked } from './safety.js';
+import * as guardian from './guardian.js';
 import * as whot from './games/whot.js';
 import * as ludo from './games/ludo.js';
 import * as dominoes from './games/dominoes.js';
@@ -71,7 +72,7 @@ export function sit(app, uid, venueId, stationId, stake = 0) {
   return app.db.transaction(() => {
     if (app.db.prepare("SELECT 1 FROM game_matches WHERE venue_id=? AND station_id=? AND status='active'").get(venueId, stationId)) bad('TABLE_BUSY', 'This table is in use. Try another one.', 409);
     const w = app.db.prepare("SELECT * FROM game_matches WHERE venue_id=? AND station_id=? AND status='waiting' ORDER BY id LIMIT 1").get(venueId, stationId);
-    const useStake = w ? w.stake : stake; if (!G.stakes.includes(useStake)) bad('BAD_STAKE', `Stake must be one of: ${G.stakes.join(', ')}.`);
+    const useStake = w ? w.stake : stake; if (!G.stakes.includes(useStake)) bad('BAD_STAKE', `Stake must be one of: ${G.stakes.join(', ')}.`); guardian.assertStake(app, uid, useStake);
     if (useStake > 0) {
       if (me.is_guest && !G.guestsMayStake) bad('GUEST_NOT_ALLOWED', 'Guests can play friendly games only. Create an account to play for stakes.', 403);
       if (now - me.created_at < app.balance.transfer.minAccountAgeMs) bad('ACCOUNT_TOO_NEW', 'New accounts can play for stakes after a short wait. Friendly games are open now.', 403);
