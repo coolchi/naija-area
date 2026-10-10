@@ -1,5 +1,6 @@
 // Oya Ride (in-game ride-hailing, a generic placeholder name; no real brand). The player picks a destination in the phone app, gets a fare and arrival estimate, a driver car
 // (an AI driver) drives to the player's spot, the player gets in and the trip uses the normal server travel flow (position move, fare through the ledger). All numbers are ESTIMATE placeholders in balance.ride.
+import { fareMult } from './weather.js';
 import { assertNotFlying } from './flight.js';
 import { cityOf } from './cities.js';
 import { bad } from './util.js';
@@ -15,7 +16,7 @@ const CARS = [['Silver sedan', '#b0b5ba'], ['White hatch', '#f2f2f2'], ['Green s
 const placeOk = (app, id, uid) => { const pl = (uid ? cityOf(app, uid) : app.city).placeById[id]; if (!pl) bad('NO_PLACE', 'Unknown place.', 404); return pl; };
 export function quote(app, uid, placeId) {
   const R = app.balance.ride; const pl = placeOk(app, placeId, uid); const p = ensurePresence(app, uid); const d = Math.hypot(pl.x - p.x, pl.z - p.z); const rush = isRush(app);
-  const fare = Math.round((R.base + R.perM * d) * (rush ? R.rushMult : 1)); const seconds = Math.max(R.minTripSec, Math.min(R.maxTripSec, Math.round(d / R.speed)));
+  const fare = Math.round((R.base + R.perM * d) * (rush ? R.rushMult : 1) * fareMult(app)); const seconds = Math.max(R.minTripSec, Math.min(R.maxTripSec, Math.round(d / R.speed)));
   const n = (app.world.rideSeq || 0) + 1; const driverDist = Math.round(R.driverMinM + hash(uid * 17 + n) * (R.driverMaxM - R.driverMinM)); const etaMs = Math.round(driverDist / R.driverSpeed * 1000 * (rush ? R.rushEtaMult : 1));
   return { place: { id: pl.id, name: pl.name, area: pl.area }, distance: Math.round(d), fare, seconds, rush, etaMs, driverDist, estimate: true, service: R.name, cash: balanceOf(app.db, cashId(uid)) };
 }

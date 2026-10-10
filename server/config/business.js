@@ -17,16 +17,16 @@ export const BUSINESS = {
   candidatesPerDay: 3,             // staff you may look at (the pool changes every game day, same for everybody in this business)
   staffNames: ['Tunde', 'Amaka', 'Bisi', 'Chidi', 'Femi', 'Ngozi', 'Kunle', 'Zainab', 'Emeka', 'Hauwa', 'Sade', 'Ibrahim', 'Yetunde', 'Obinna', 'Aisha', 'Segun', 'Ify', 'Dayo', 'Halima', 'Tobi'],
   types: {
-    mamaput: { name: 'Mama Put', icon: '🍲', blurb: 'A buka serving rice, soup and swallow. Busy at mealtimes.', cost: 40000, upkeepPerHour: 100, suppliesFraction: 0.35, baseRevenuePerHour: 1800, weather: { rain: 1.15, storm: 0.8, flood: 0.7 },
+    mamaput: { name: 'Mama Put', icon: '🍲', blurb: 'A buka serving rice, soup and swallow. Busy at mealtimes.', cost: 40000, upkeepPerHour: 100, suppliesFraction: 0.35, baseRevenuePerHour: 1800, weather: { rain: 1.15, storm: 0.8 },
       levels: [{ maxStaff: 2, mult: 1 }, { maxStaff: 4, mult: 1.5, upgrade: 30000 }, { maxStaff: 6, mult: 2.1, upgrade: 60000 }],
       demand: [0.1, 0.05, 0.05, 0.05, 0.1, 0.3, 0.7, 1, 0.9, 0.5, 0.4, 0.7, 1, 1, 0.7, 0.4, 0.5, 0.8, 1, 1, 0.8, 0.5, 0.3, 0.2] },
-    barber: { name: 'Barbing Salon', icon: '💈', blurb: 'Fades, cuts and gist. Steady in the daytime, busy before the weekend.', cost: 25000, upkeepPerHour: 60, suppliesFraction: 0.15, baseRevenuePerHour: 1200, weather: { rain: 0.8, storm: 0.5, flood: 0.5 },
+    barber: { name: 'Barbing Salon', icon: '💈', blurb: 'Fades, cuts and gist. Steady in the daytime, busy before the weekend.', cost: 25000, upkeepPerHour: 60, suppliesFraction: 0.15, baseRevenuePerHour: 1200, weather: { rain: 0.8, storm: 0.5 },
       levels: [{ maxStaff: 2, mult: 1 }, { maxStaff: 3, mult: 1.5, upgrade: 20000 }, { maxStaff: 5, mult: 2, upgrade: 40000 }],
       demand: [0, 0, 0, 0, 0, 0.05, 0.2, 0.4, 0.6, 0.8, 0.9, 0.9, 0.8, 0.8, 0.9, 1, 1, 0.9, 0.7, 0.4, 0.2, 0.1, 0, 0] },
-    shop: { name: 'Provision Shop', icon: '🏪', blurb: 'Indomie, drinks, recharge cards and everything small. Open long hours.', cost: 60000, upkeepPerHour: 150, suppliesFraction: 0.5, baseRevenuePerHour: 3000, weather: { rain: 1.1, storm: 0.9, flood: 0.8 },
+    shop: { name: 'Provision Shop', icon: '🏪', blurb: 'Indomie, drinks, recharge cards and everything small. Open long hours.', cost: 60000, upkeepPerHour: 150, suppliesFraction: 0.5, baseRevenuePerHour: 3000, weather: { rain: 1.1, storm: 0.9 },
       levels: [{ maxStaff: 2, mult: 1 }, { maxStaff: 4, mult: 1.4, upgrade: 45000 }, { maxStaff: 6, mult: 1.9, upgrade: 90000 }],
       demand: [0.1, 0.05, 0.05, 0.05, 0.1, 0.3, 0.6, 0.8, 0.8, 0.7, 0.6, 0.6, 0.7, 0.7, 0.6, 0.6, 0.7, 0.9, 1, 1, 0.8, 0.5, 0.3, 0.2] },
-    carwash: { name: 'Car Wash', icon: '🚿', blurb: 'Foam, bucket and shine. Dry days only: rain keeps customers away.', cost: 35000, upkeepPerHour: 80, suppliesFraction: 0.2, baseRevenuePerHour: 1500, weather: { rain: 0.3, storm: 0.1, flood: 0.1 },
+    carwash: { name: 'Car Wash', icon: '🚿', blurb: 'Foam, bucket and shine. Dry days only: rain keeps customers away.', cost: 35000, upkeepPerHour: 80, suppliesFraction: 0.2, baseRevenuePerHour: 1500, weather: { rain: 0.3, storm: 0.1 },
       levels: [{ maxStaff: 2, mult: 1 }, { maxStaff: 4, mult: 1.5, upgrade: 25000 }, { maxStaff: 5, mult: 2.1, upgrade: 55000 }],
       demand: [0, 0, 0, 0, 0, 0, 0.1, 0.4, 0.8, 1, 1, 0.9, 0.8, 0.9, 1, 1, 0.9, 0.6, 0.3, 0.1, 0, 0, 0, 0] }
   }

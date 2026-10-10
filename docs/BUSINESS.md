@@ -8,7 +8,7 @@ Mama Put, Barbing Salon, Provision Shop and Car Wash that a player can buy, staf
 - **Income** accrues while you are away, from the clock: every 10 real minutes it takes the demand for that **game hour** (a Mama Put peaks at mealtimes, a barber in the daytime, a car wash on dry days), times the base revenue, level and staff capacity. Supplies, wages and upkeep come off it. Settlement is lazy (done when you look or act), deterministic, and identical on SQLite and Postgres.
 - **Caps (anti-inflation):** at most 24 real hours of earnings pile up between visits; at most ₦18,000 net per business per UTC day to the owner.
 - **Collect:** ONE balanced ledger transaction `business_collect`: revenue out of `sys:faucet_business`, costs into `sys:sink_business`, the net to your cash. A second collect pays nothing. Selling returns 60% of everything paid (price + upgrades) plus whatever was waiting.
-- **Hooks:** `demandHooks` in `business.js` let other systems scale demand. Weather (item 4) uses it: rain helps a Mama Put and hurts a car wash.
+- **Hooks:** `demandHooks` in `business.js` let other systems scale demand. Weather (item 4) uses it: rain helps a Mama Put (+15%) and hurts a car wash (down to 30%).
 - Account download lists your businesses and staff; closing the account removes them (value forfeited, ledger rows stay anonymised).
 
 ## Not verified

@@ -1,4 +1,5 @@
 // House presence, the visitor knock flow, DMs, travel (fare + timed commute) and land plots.
+import { fareMult } from './weather.js';
 import { assertNotFlying } from './flight.js';
 import { cityOf } from './cities.js';
 import { bad, cleanText } from './util.js';
@@ -85,7 +86,7 @@ export function isRush(app, now = app.clock.now()) { const h = gameTime(app, now
 export function travelQuote(app, uid, placeId) {
   const pl = cityOf(app, uid).placeById[placeId]; if (!pl) bad('NO_PLACE', 'Unknown place.', 404); const st = getState(app, uid); const d = dist(st.x, st.z, pl.x, pl.z); const T = app.balance.transport; const rush = isRush(app);
   const car = carFor(app, uid); const allModes = { ...T.modes, car: { label: car.label, base: car.base, perM: car.perM, speed: car.speed, mood: car.mood } };
-  const modes = Object.entries(allModes).map(([id, m]) => { const fare = Math.round((m.base + m.perM * d) * (rush ? T.rushMult : 1)); const sec = Math.max(T.minSec, Math.min(T.maxSec, Math.round(d / m.speed))); return { id, label: m.label, fare, seconds: sec, ...(id === 'car' ? { mood: m.mood, owned: car.owned, model: car.model } : {}) }; });
+  const modes = Object.entries(allModes).map(([id, m]) => { const fare = Math.round((m.base + m.perM * d) * (rush ? T.rushMult : 1) * fareMult(app)); const sec = Math.max(T.minSec, Math.min(T.maxSec, Math.round(d / m.speed))); return { id, label: m.label, fare, seconds: sec, ...(id === 'car' ? { mood: m.mood, owned: car.owned, model: car.model } : {}) }; });
   return { place: { id: pl.id, name: pl.name, type: pl.type, area: pl.area }, distance: Math.round(d), traffic: rush ? 'Go-slow (rush hour)' : 'Free road', rush, modes: [{ id: 'walk', label: 'Walk', fare: 0, seconds: Math.round(d / 5.2) }, ...modes] };
 }
 export function travel(app, uid, placeId, mode, idemKey, override = null) {

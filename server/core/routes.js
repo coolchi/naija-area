@@ -26,6 +26,8 @@ import * as wear from './wearables.js';
 import * as business from './business.js';
 import * as market from './market.js';
 import * as clubs from './clubs.js';
+import * as weather from './weather.js';
+import * as events from './events.js';
 import * as signup from './signup.js';
 import * as office from './office.js';
 import * as account from './account.js';
@@ -152,6 +154,12 @@ route('POST', '/api/clubs/mute', { auth: 'user' }, (c) => clubs.mute(c.app, c.ui
 route('POST', '/api/clubs/say', { auth: 'user' }, (c) => clubs.say(c.app, c.uid, c.body.text));
 route('GET', '/api/clubs/chat', { auth: 'user' }, (c) => clubs.chat(c.app, c.uid, c.query.since));
 route('POST', '/api/clubs/hangout', { auth: 'user' }, (c) => clubs.hangout(c.app, c.uid));
+// weather, rain, flooding and the day/night phase (server/core/weather.js); events: night market, street owambe, festivals (server/core/events.js)
+route('GET', '/api/weather', { auth: 'user' }, (c) => weather.view(c.app, c.uid));
+route('POST', '/api/admin/weather', { auth: 'admin' }, (c) => weather.force(c.app, c.body.state));
+route('GET', '/api/events', { auth: 'user' }, (c) => events.view(c.app, c.uid));
+route('POST', '/api/events/buy', { auth: 'user' }, (c) => events.buy(c.app, c.uid, String(c.body.event || ''), String(c.body.item || ''), c.body.idem));
+route('POST', '/api/events/claim', { auth: 'user' }, (c) => events.claim(c.app, c.uid, String(c.body.event || ''), c.body.idem));
 // jewelry store + cap store (wearables): public catalogue, the shop window, buy, wear, take off, (optional) sell back
 route('GET', '/api/wearables/catalogue', (c) => wear.catalogue(c.app));
 route('GET', '/api/wearables/shop', { auth: 'user' }, (c) => wear.shopView(c.app, c.uid, String(c.query.venueId || '')));

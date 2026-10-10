@@ -33,6 +33,10 @@ CREATE TABLE IF NOT EXISTS club_requests (club_id INTEGER NOT NULL, user_id INTE
 CREATE INDEX IF NOT EXISTS ix_club_requests_user ON club_requests(user_id);
 CREATE TABLE IF NOT EXISTS club_chat (id INTEGER PRIMARY KEY AUTOINCREMENT, club_id INTEGER NOT NULL, user_id INTEGER NOT NULL, username TEXT NOT NULL, text TEXT NOT NULL, created_at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS ix_club_chat_club ON club_chat(club_id, id);
-CREATE TABLE IF NOT EXISTS club_cooldowns (user_id INTEGER PRIMARY KEY, until_ms INTEGER NOT NULL);` }
+CREATE TABLE IF NOT EXISTS club_cooldowns (user_id INTEGER PRIMARY KEY, until_ms INTEGER NOT NULL);` },
+  { n: 8, name: 'events', sql: `
+CREATE TABLE IF NOT EXISTS event_stock (event_key TEXT NOT NULL, item_id TEXT NOT NULL, sold INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (event_key, item_id));
+CREATE TABLE IF NOT EXISTS event_buys (user_id INTEGER NOT NULL, event_key TEXT NOT NULL, item_id TEXT NOT NULL, qty INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, event_key, item_id));
+CREATE TABLE IF NOT EXISTS event_claims (user_id INTEGER NOT NULL, event_key TEXT NOT NULL, claimed_at INTEGER NOT NULL, amount INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, event_key));` }
 ];
 export function applyLater(db) { for (const c of LATER) db.exec(c.sql); }

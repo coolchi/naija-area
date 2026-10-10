@@ -6,6 +6,8 @@ import { newWalker, walkStep, gaitStep, newCar, carStep, carVel, setCarVel, zone
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const angDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
 
+/** a flooded street (weather.js) lowers the car's top speed: the zone cap is the lower of the two */
+const envCap = (zc, es, cfg) => (es && es.drive < 1 ? Math.min(zc ?? Infinity, cfg.maxSpeed * es.drive) : zc);
 export class Controller {
   constructor(canvas, city, colliders, color, name) {
     this.city = city; this.colliders = colliders; this.canvas = canvas;
@@ -66,12 +68,12 @@ export class Controller {
       const dead = 0.08; const mag = Math.hypot(ix, iy);
       if (mag > dead) {
         const f = fwd(this.camYaw), r = [Math.sin(this.camYaw), Math.cos(this.camYaw)]; let dx = f[0] * iy + r[0] * ix, dz = f[1] * iy + r[1] * ix; const l = Math.hypot(dx, dz); dx /= l; dz /= l;
-        walkStep(w, dx, dz, mag, this.run, dt, P.walk); const target = Math.atan2(-dz, dx); this.ry += angDiff(this.ry, target) * Math.min(1, dt * P.walk.turnRate);
+        walkStep(w, dx, dz, mag * (this.envScale?.walk ?? 1), this.run, dt, P.walk); const target = Math.atan2(-dz, dx); this.ry += angDiff(this.ry, target) * Math.min(1, dt * P.walk.turnRate);
       } else walkStep(w, 0, 0, 0, this.run, dt, P.walk);
       this.x += w.vx * dt; this.z += w.vz * dt; this.v = w.speed;
     } else {
       c.x = this.x; c.z = this.z; c.ry = this.ry; const pedal = Math.abs(iy) > 0.15 ? iy : 0; const steer = Math.abs(ix) > 0.1 ? ix : 0;
-      carStep(c, { pedal, steer, hand: this.hand && !this.frozen }, dt, P.car, { cap: zoneSpeedCap(c.x, c.z, this.roundabouts, P.car) });
+      carStep(c, { pedal, steer, hand: this.hand && !this.frozen }, dt, P.car, { cap: envCap(zoneSpeedCap(c.x, c.z, this.roundabouts, P.car), this.envScale, P.car) });
       this.x = c.x; this.z = c.z; this.ry = c.ry; this.v = c.v; ay = c.ay; ax = c.ax;
       if (performance.now() - this.dragT > 1500) this.camYaw += angDiff(this.camYaw, this.ry) * damp(3, dt);
     }

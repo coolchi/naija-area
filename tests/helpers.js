@@ -5,12 +5,13 @@ import { makePng } from '../server/lib/png.js';
 import * as auth from '../server/core/auth.js';
 import { teleport } from '../server/core/world.js';
 import { BALANCE } from '../server/config/balance.js';
+import { WEATHER } from '../server/config/weather.js';
 
 // NA_TEST_PG_URL=postgres://... (set by `npm run test:pg`) runs EVERY test against real Postgres: each server gets its own throw-away schema. Default: in-memory SQLite.
 export const PG_URL = process.env.NA_TEST_PG_URL || null;
 let schemaN = 0; const tag = Math.random().toString(36).slice(2, 8);
 export function makeServer(opts = {}) {
-  const balance = structuredClone(BALANCE); balance.shops.enforceHours = false;
+  const balance = structuredClone(BALANCE); balance.shops.enforceHours = false; balance.weather = { ...WEATHER, forced: 'clear' }; // tests never depend on the real clock's weather (weather tests set their own)
   const pg = PG_URL && !opts.dbPath && opts.databaseUrl === undefined ? { databaseUrl: PG_URL, databaseSchema: `t_${tag}_${++schemaN}` } : {};
   return buildServer({ dbPath: ':memory:', quiet: true, adminPassword: 'test-admin', dev: true, balance, ...pg, ...opts });
 }
