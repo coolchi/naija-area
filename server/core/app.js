@@ -16,6 +16,7 @@ export function createApp({ db, platform, cityJson, extraCities = [], balance = 
   const offset = { ms: 0 };
   for (const raw of [cityJson, ...extraCities]) { const problems = validateCity(raw); if (problems.length) throw new Error(`City config ${raw.id || '?'} is not valid: ${problems.slice(0, 5).join('; ')}`); }
   const city = indexCity(cityJson); const cities = { [city.id]: city }; for (const raw of extraCities) { const c = indexCity(raw); cities[c.id] = c; }
+  for (const c of Object.values(cities)) if (c.links) c.links = c.links.filter(l => cities[l.to]); // a link to a city that is not loaded is simply not offered
   const app = {
     db, platform, balance, gameName, filterHeadless, city, cities, defaultCityId: city.id, all: mergeCities(Object.values(cities)), world: createWorld(), limiter: new Limiter(),
     clock: clock || { now: () => Date.now() + offset.ms, advance: (ms) => { offset.ms += ms; } }, adsVersion: 1, pushUser: null

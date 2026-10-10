@@ -1693,6 +1693,24 @@
     -1
    ],
    "id": "b_clinic"
+  },
+  {
+   "kind": "landmark",
+   "model": "theatre",
+   "x": -202,
+   "z": 139.5,
+   "w": 56,
+   "d": 22,
+   "h": 18,
+   "floors": 1,
+   "color": "#d8d6cf",
+   "face": [
+    0,
+    -1
+   ],
+   "label": "National Theatre",
+   "id": "b_theatre",
+   "nocollideCheck": true
   }
  ],
  "properties": [
@@ -5835,5 +5853,21 @@
    "z": -165,
    "ry": 0
   }
- }
+ },
+ "links": [
+  {
+   "id": "to-island",
+   "name": "Third Mainland Bridge road",
+   "to": "lagos-island",
+   "x": 120,
+   "z": 140,
+   "r": 16,
+   "fare": 200,
+   "arrive": {
+    "x": -190,
+    "z": -10,
+    "ry": 0
+   }
+  }
+ ]
 }

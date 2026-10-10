@@ -1,7 +1,10 @@
 // Pure (no DOM) model behind the full city map: everything is derived from the city JSON, so a new district or city file shows up with no code change.
 // Used by map.js (drawing + input) and by tests/map.test.js.
-export const KIND_COL = { house: '#8fb0c9', kiosk: '#9bc59d', market: '#e0a85c', office: '#9aa3b8', tower: '#6c7aa6', shop: '#f0c04a', airport: '#cfd8e3' };
-export const KIND_NAME = { house: 'House', kiosk: 'Kiosk', market: 'Market', office: 'Office block', tower: 'Tower block', shop: 'Shop', airport: 'Airport terminal' };
+export const KIND_COL = { house: '#8fb0c9', kiosk: '#9bc59d', market: '#e0a85c', office: '#9aa3b8', tower: '#6c7aa6', shop: '#f0c04a', airport: '#cfd8e3', hotel: '#d8b46a', landmark: '#c59be0' };
+export const KIND_NAME = { house: 'House', kiosk: 'Kiosk', market: 'Market', office: 'Office block', tower: 'Tower block', shop: 'Shop', airport: 'Airport terminal', hotel: 'Hotel', landmark: 'Landmark' };
+export const MODEL_ICON = { mosque: '🕌', cathedral: '⛪', theatre: '🎭' };
+export const KIND_ICON = { hotel: '🏨', club: '🎵', salon: '✂️', arts: '🎭' };
+export const LM_ICON = { plaza: '⛲', clinic: '🏥', beach: '🏖️', jetty: '⛴️' };
 export const VENUE_ICON = { venue_mamaput: '🍲', venue_viewing: '📺', venue_joint: '🎲', venue_meco: '🔧', venue_motors: '🚗' };
 export const LAYERS = [['districts', 'Districts', '#d9c7a3'], ['roads', 'Roads and names', '#3d4046'], ['buildings', 'Buildings', '#8fb0c9'], ['venues', 'Venues and shops', '#ffc20e'], ['jobs', 'Jobs', '#4aa3ff'], ['homes', 'Homes for rent', '#e56b6f'],
   ['plots', 'Land plots', '#7fb069'], ['landmarks', 'Landmarks', '#b44cff'], ['billboards', 'Billboard spots', '#35c46b'], ['players', 'Players nearby', '#ffffff']];
@@ -14,13 +17,16 @@ const fmt = (n) => `₦${Math.round(n).toLocaleString('en-NG')}`;
 export function buildModel(city) {
   const placeOf = (id) => city.placeById?.[id] || (city.places || []).find(p => p.id === id);
   const items = []; // searchable + hittable point things
-  for (const v of city.venues || []) items.push({ type: 'venue', id: v.id, name: v.name, x: v.x, z: v.z, icon: VENUE_ICON[v.id] || '🎲', lines: [v.blurb || 'A place to hang out.', v.hours ? `Open ${v.hours[0]}:00 to ${v.hours[1]}:00` : ''], placeId: v.id, group: 'Venues' });
+  for (const v of city.venues || []) items.push({ type: 'venue', id: v.id, name: v.name, x: v.x, z: v.z, icon: VENUE_ICON[v.id] || KIND_ICON[v.kind] || (v.shopId ? '🍲' : '🎲'), lines: [v.blurb || 'A place to hang out.', v.hours ? `Open ${v.hours[0]}:00 to ${v.hours[1]}:00` : ''], placeId: v.id, group: 'Venues' });
   for (const s of city.shops || []) if (!(city.venues || []).some(v => v.shopId === s.id)) items.push({ type: 'shop', id: s.id, name: s.name, x: s.x, z: s.z, icon: '🛒', lines: [s.desc || 'Shop'], placeId: s.id, group: 'Shops' });
   for (const j of city.jobs || []) items.push({ type: 'job', id: j.id, name: j.label, x: j.x, z: j.z, icon: '💼', lines: ['Job: start a shift here'], placeId: j.id, group: 'Jobs' });
-  for (const l of city.landmarks || []) items.push({ type: 'landmark', id: l.id, name: l.name, x: l.x, z: l.z, icon: '⛲', lines: ['Landmark'], placeId: placeOf(l.id) ? l.id : null, group: 'Landmarks' });
+  for (const l of city.landmarks || []) items.push({ type: 'landmark', id: l.id, name: l.name, x: l.x, z: l.z, icon: LM_ICON[l.kind] || '⛲', lines: [l.note || 'Landmark'], placeId: placeOf(l.id) ? l.id : null, group: 'Landmarks' });
   for (const l of city.carParks || []) items.push({ type: 'landmark', id: l.id, name: l.name, x: l.x, z: l.z, lot: { w: l.w, d: l.d }, icon: '🅿️', lines: ['Car park', l.fee ? `Fee ₦${l.fee} (ESTIMATE)` : 'Free parking', l.blurb || ''], placeId: null, group: 'Car parks' });
   for (const b of city.busStops || []) items.push({ type: 'landmark', id: b.id, name: b.name, x: b.x, z: b.z, icon: '🚏', lines: ['Bus stop: wait here and a danfo will stop for you.', 'Ride fares are the normal danfo fare.'], placeId: b.id, group: 'Bus stops' });
   for (const b of city.buildings) if (b.kind === 'airport') items.push({ type: 'landmark', id: b.id, name: b.label || 'Airport', x: b.x, z: b.z, icon: '✈️', lines: ['Landmark'], placeId: placeOf('airport') ? 'airport' : null, group: 'Landmarks' });
+  for (const b of city.buildings) if (b.kind === 'landmark') items.push({ type: 'landmark', id: b.id, name: b.label, x: b.x, z: b.z, icon: MODEL_ICON[b.model] || '🏛️', lines: [b.sacred ? 'Landmark. A place of worship: please be respectful.' : 'Landmark'], placeId: null, group: 'Landmarks' });
+  for (const l of city.links || []) items.push({ type: 'landmark', id: `link_${l.id}`, name: l.name, x: l.x, z: l.z, icon: '🌉', lines: [`Road to ${l.to}. Walk to the gate and tap Go.`, `Fare ₦${l.fare ?? 200} (ESTIMATE)`], placeId: null, group: 'Road links' });
+  for (const br of city.bridges || []) items.push({ type: 'landmark', id: `bridge_${br.id}`, name: br.name, x: br.type === 'cable' ? (br.pylonX || 0) : (br.a + br.b) / 2, z: br.z, icon: '🌉', lines: [br.type === 'cable' ? 'Cable-stayed bridge with a single pylon' : 'Bridge'], placeId: null, group: 'Landmarks' });
   for (const p of city.plots || []) items.push({ type: 'plot', id: p.id, name: p.name, x: p.x, z: p.z, size: p.size, icon: '🌍', lines: [`${p.area} · ${p.sqm} sqm`, `Price ${fmt(p.price)} · growth ${(p.growthPerWeek * 100).toFixed(0)}%/week (ESTIMATE)`, `Omo-onile risk: ${p.risk}`], placeId: p.id, group: 'Land plots' });
   for (const p of city.properties || []) items.push({ type: 'house', id: p.id, name: p.name, x: p.door.x, z: p.door.z, icon: '🏠', lines: [`${p.tierLabel}`, p.price ? `Price ${fmt(p.price)}` : `Rent ${fmt(p.rent)}/week`, p.area || ''], placeId: p.id, buildingId: p.buildingId, group: 'Homes' });
   for (const b of city.billboards || []) if (b.surface !== 'lagoon_plot') items.push({ type: 'billboard', id: b.id, name: `Billboard spot ${b.id}`, x: b.x, z: b.z, icon: '🪧', lines: [`${b.tier} tier ad space (${b.w}x${b.h} m)`, 'Advertise from the ads page'], placeId: null, group: 'Billboard spots' });

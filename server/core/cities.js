@@ -2,6 +2,7 @@
 // Every city is a JSON config indexed by city.js; `app.city` is the default city, `app.cities` has them all, `app.all` has by-id lookups merged over all cities.
 // A player lives in exactly one city at a time (player_state.city_id). Presence, chat, ads, places, shops, venues, jobs, car parks and bus stops are scoped to it.
 import { bad } from './util.js';
+import { move, cashId, SYS } from './ledger.js';
 
 export const cityIdOf = (app, uid) => {
   const p = app.world.players.get(uid); if (p?.city && app.cities[p.city]) return p.city;
@@ -23,3 +24,16 @@ export function enterCity(app, uid, cityId, spawnIdx = 0) {
 }
 /** online players per city (distinct, within the active window) */
 export function onlineByCity(app) { const cut = app.clock.now() - app.balance.heartbeat.activeWindowMs; const out = Object.fromEntries(Object.keys(app.cities).map(k => [k, 0])); for (const p of app.world.players.values()) if (p.lastSeen >= cut) out[p.city || app.defaultCityId]++; return out; }
+
+/** Road links: a gate in one district that leads to a gate in another (bridges, roads). Server-checked: you must stand at the gate, on foot or in a car, not flying, not inside a venue. */
+export const linksOf = (city) => (city.links || []);
+export function useLink(app, uid, linkId, idemKey) {
+  const L = app.balance.link; if (!L.enabled) bad('OFF', 'Road links are switched off.', 409); const here = cityOf(app, uid); const link = linksOf(here).find(l => l.id === linkId); if (!link) bad('NO_LINK', 'No road leads there from here.', 404);
+  const to = app.cities[link.to]; if (!to) bad('NO_CITY', 'That place is not open yet.', 404); const p = app.world.players.get(uid); if (!p) bad('NOT_IN_WORLD', 'Join the world first.', 409);
+  if (p.venue) bad('INSIDE', 'Step outside first.', 409); if (Math.hypot(p.x - link.x, p.z - link.z) > (link.r || L.gateRadiusM)) bad('NOT_AT_GATE', `Walk to ${link.name} first.`, 409, { x: link.x, z: link.z });
+  const now = app.clock.now(); if (!app.limiter.hit(`link:${uid}`, L.perMin, 60000, now)) bad('RATE_LIMIT', 'Easy. One road at a time.', 429);
+  const fare = link.fare ?? L.fare; return app.db.transaction(() => {
+    if (fare > 0) move(app, { from: cashId(uid), to: SYS.SINK_TRANSPORT, amount: fare, reason: 'district_link', ref: `${here.id}>${to.id}`, userId: uid, idemKey: idemKey ? `link:${uid}:${idemKey}` : undefined });
+    const r = enterCity(app, uid, to.id, { x: link.arrive.x, z: link.arrive.z, ry: link.arrive.ry || 0 }); return { ok: true, fare, ...r, text: `You are in ${to.cityName === here.cityName ? to.name : to.cityName + ' · ' + to.name}.` };
+  })();
+}

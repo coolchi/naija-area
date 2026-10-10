@@ -143,6 +143,8 @@ export const BALANCE = {
   ride: { enabled: true, name: 'Oya Ride', base: 300, perM: 1.6, rushMult: 1.4, speed: 13, minTripSec: 6, maxTripSec: 40, minDistanceM: 40, driverMinM: 140, driverMaxM: 300, driverSpeed: 11, rushEtaMult: 1.3, waitMs: 120000, cancelFee: 100, boardRangeM: 14, requestsPerMin: 6, _note: 'ESTIMATE placeholders. Generic in-game service name, no real brand.' },
   // Airport and flights (10 Oct 2026). EVERY number is a placeholder ESTIMATE.
   flight: { enabled: true, gateRadiusM: 70, departEveryMs: 90000, minLeadMs: 20000, slotsShown: 3, flightMs: 45000, cooldownMs: 120000, cancelRefundPct: 80, fares: { sameState: 4500, otherState: 9000 }, _note: 'Fares and times are ESTIMATES. departEveryMs is real time between scheduled departures.' },
+  // Road links between districts/cities (10 Oct 2026). ESTIMATE placeholders.
+  link: { enabled: true, fare: 200, gateRadiusM: 16, perMin: 6, _note: 'ESTIMATE. A link gate moves you to the next district by road; the fare goes through the ledger.' },
   bus: { enabled: true, waitMinMs: 10000, waitMaxMs: 24000, rushMult: 1.5, callExpireMs: 90000, rangeM: 12, callsPerMin: 4, _note: 'ESTIMATE placeholders: wait times; the fare is the normal danfo fare (transport.modes.danfo)' },
   parking: { enabled: true, takeRangeM: 9, lotPadM: 1, maxParkedMs: 3 * 24 * 3600 * 1000, _note: 'ESTIMATE placeholders: lot fees live in the city JSON (carParks[].fee)' },
   crash: {

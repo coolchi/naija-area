@@ -1,6 +1,6 @@
 // Transport-agnostic route table. Express adapts it (server/index.js); the static demo adapts it to an in-browser fetch mock.
 import * as flight from './flight.js';
-import { cityOf, publicCity, cityList, onlineByCity } from './cities.js';
+import { cityOf, publicCity, cityList, onlineByCity, useLink } from './cities.js';
 import { GameError, bad, cleanText } from './util.js';
 import * as auth from './auth.js';
 import * as eco from './economy.js';
@@ -31,6 +31,7 @@ route('GET', '/api/health', (c) => ({ ok: true, name: c.app.gameName, now: c.app
 route('GET', '/api/config', (c) => ({ crash: { enabled: !!c.app.balance.crash.enabled, regenPerMin: c.app.balance.crash.regenPerMin, max: c.app.balance.crash.maxHealth }, moodHappyAt: c.app.balance.mood.happyAt, name: c.app.gameName, tagline: GAME_TAGLINE, minAge: MIN_AGE, testMode: true, devRoutes: !!c.app.devRoutes, rotationMs: AD_POLICY.rotationMs, balanceNote: c.app.balance._note,
   topupOptions: c.app.balance.topup.options, phone: !!c.app.balance.phone.enabled, transport: c.app.balance.transport, shopChannels: c.app.balance.shops.channels, workTask: c.app.balance.work.task, land: { risk: c.app.balance.land.risk }, maxNameLen: c.app.balance.housing.maxNameLen, housing: { rentPeriodMs: c.app.balance.housing.rentPeriodMs }, furniture: c.app.balance.housing.furniture }));
 route('GET', '/api/city', (c) => publicCity(c.uid ? cityOf(c.app, c.uid) : c.app.city));
+route('POST', '/api/cities/link', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); flight.assertNotFlying(c.app, c.uid); return { ...useLink(c.app, c.uid, String(c.body.linkId || ''), c.body.idem), user: eco.profile(c.app, c.uid) }; });
 route('GET', '/api/cities', { auth: 'user' }, (c) => ({ cities: cityList(c.app, c.uid), online: onlineByCity(c.app) }));
 route('GET', '/api/stats', (c) => {
   const a = c.app; const players = a.db.prepare('SELECT COUNT(*) n FROM users WHERE is_bot=0').get().n; const bots = a.db.prepare('SELECT COUNT(*) n FROM users WHERE is_bot=1').get().n;

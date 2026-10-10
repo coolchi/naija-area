@@ -2,7 +2,37 @@
   "_note": "City registry. A city file listed here with enabled:true is loaded at start-up. Add a city = add its JSON (tools/new-city.mjs makes a valid skeleton) and one line here. Ids must be unique across cities (job ids excepted).",
   "default": "lagos-mainland",
   "cities": [
-    { "id": "lagos-mainland", "file": "lagos-mainland.json", "enabled": true },
-    { "id": "preview-town", "file": "preview-town.json", "enabled": false, "preview": true, "_note": "Generated sample city so the airport and city switching can be seen. Fictional. Start the server with NA_PREVIEW_CITIES=1 to load it." }
+    {
+      "id": "lagos-mainland",
+      "file": "lagos-mainland.json",
+      "enabled": true
+    },
+    {
+      "id": "lagos-island",
+      "file": "lagos-island.json",
+      "enabled": true
+    },
+    {
+      "id": "lagos-vi-ikoyi",
+      "file": "lagos-vi-ikoyi.json",
+      "enabled": true
+    },
+    {
+      "id": "lagos-bridge",
+      "file": "lagos-bridge.json",
+      "enabled": true
+    },
+    {
+      "id": "lagos-lekki",
+      "file": "lagos-lekki.json",
+      "enabled": true
+    },
+    {
+      "id": "preview-town",
+      "file": "preview-town.json",
+      "enabled": false,
+      "preview": true,
+      "_note": "Generated sample city so the airport and city switching can be seen. Fictional. Start the server with NA_PREVIEW_CITIES=1 to load it."
+    }
   ]
 }
