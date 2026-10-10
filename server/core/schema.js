@@ -1,6 +1,7 @@
 import { PHONE_SQL } from './phone/phone-sql.js';
 import { PAYMENTS_SQL } from './payments/sql.js';
 import { AGE_SQL } from './age/sql.js';
+import { applyLater } from './later-schema.js';
 // SQLite schema (better-sqlite3 in Node, sql.js in the static demo). PRODUCTION TARGET IS POSTGRES: same tables,
 // swap INTEGER ms timestamps for timestamptz, add real row locks (SELECT ... FOR UPDATE) instead of SQLite's single-writer lock.
 export const SCHEMA = `
@@ -228,7 +229,7 @@ CREATE TABLE IF NOT EXISTS casual_daily (user_id INTEGER NOT NULL, day TEXT NOT 
 `;
 
 /** Add columns to databases created by earlier versions (CREATE TABLE IF NOT EXISTS never alters an existing table). Idempotent. */
-export function migrate(db) {
+export function migrate(db, { later = true } = {}) {
   const cols = (t) => db.prepare(`PRAGMA table_info(${t})`).all().map(c => c.name);
   const add = (t, c, def) => { if (!cols(t).includes(c)) db.exec(`ALTER TABLE ${t} ADD COLUMN ${c} ${def}`); };
   add('property_items', 'x', 'INTEGER NOT NULL DEFAULT 0'); add('property_items', 'z', 'INTEGER NOT NULL DEFAULT 0'); add('property_items', 'rot', 'INTEGER NOT NULL DEFAULT 0');
@@ -251,4 +252,5 @@ export function migrate(db) {
     id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, at INTEGER NOT NULL, token TEXT, state TEXT NOT NULL, hit INTEGER NOT NULL DEFAULT 0,
     reason TEXT, roll REAL, vtype TEXT, mode TEXT, x REAL, z REAL, damage REAL, car_id INTEGER, car_damage INTEGER, fee INTEGER, expires_at INTEGER
   ); CREATE INDEX IF NOT EXISTS ix_crash_user ON crash_events(user_id, id);`);
+  if (later) applyLater(db); // tables added after the frozen Postgres baseline (see later-schema.js)
 }

@@ -37,7 +37,7 @@ test('translator: Postgres error codes map to the SQLITE_CONSTRAINT codes the ro
   assert.equal(mapErrorCode('23505'), 'SQLITE_CONSTRAINT_UNIQUE'); assert.equal(mapErrorCode('23514'), 'SQLITE_CONSTRAINT_CHECK'); assert.equal(mapErrorCode('P0001'), 'SQLITE_CONSTRAINT_TRIGGER'); assert.equal(mapErrorCode('42P01'), undefined);
 });
 test('baseline: generated from the SQLite schema, covers every table, index and trigger, and has no SQLite-only syntax left', () => {
-  const sql = generate(); const rows = sqliteFinalSchema();
+  const sql = generate(); const rows = sqliteFinalSchema({ later: false });
   for (const r of rows.filter(x => x.type === 'table')) assert.match(sql, new RegExp(`CREATE TABLE ${r.name} \\(`), r.name);
   assert.equal((sql.match(/CREATE (UNIQUE )?INDEX/g) || []).length, rows.filter(x => x.type === 'index').length);
   assert.equal((sql.match(/CREATE TRIGGER/g) || []).length, rows.filter(x => x.type === 'trigger').length); assert.ok(rows.some(x => x.type === 'trigger'), 'the ledger triggers exist');
