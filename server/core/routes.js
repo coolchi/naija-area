@@ -26,6 +26,8 @@ import { RATE_CARD, AD_POLICY } from '../config/ratecard.js';
 import { GAME_NAME, GAME_TAGLINE, MIN_AGE } from '../config/game.js';
 import { paymentRoutes } from './payments/routes.js';
 import { publicConfig as paymentsConfig } from './payments/index.js';
+import { ageRoutes } from './age/routes.js';
+import { publicConfig as ageConfig } from './age/index.js';
 
 const R = [];
 const route = (method, path, opts, handler) => { if (typeof opts === 'function') { handler = opts; opts = {}; } R.push({ method, path, parts: path.split('/').filter(Boolean), auth: opts.auth || 'none', handler, rate: opts.rate }); };
@@ -33,7 +35,7 @@ const route = (method, path, opts, handler) => { if (typeof opts === 'function')
 // ---- public / meta
 route('GET', '/api/health', (c) => ({ ok: true, name: c.app.gameName, now: c.app.clock.now() }));
 route('GET', '/api/config', (c) => ({ crash: { enabled: !!c.app.balance.crash.enabled, regenPerMin: c.app.balance.crash.regenPerMin, max: c.app.balance.crash.maxHealth }, moodHappyAt: c.app.balance.mood.happyAt, name: c.app.gameName, tagline: GAME_TAGLINE, minAge: MIN_AGE, testMode: true, devRoutes: !!c.app.devRoutes, rotationMs: AD_POLICY.rotationMs, balanceNote: c.app.balance._note,
-  topupOptions: c.app.balance.topup.options, payments: paymentsConfig(c.app), phone: !!c.app.balance.phone.enabled, transport: c.app.balance.transport, shopChannels: c.app.balance.shops.channels, workTask: c.app.balance.work.task, land: { risk: c.app.balance.land.risk }, maxNameLen: c.app.balance.housing.maxNameLen, housing: { rentPeriodMs: c.app.balance.housing.rentPeriodMs }, furniture: c.app.balance.housing.furniture }));
+  topupOptions: c.app.balance.topup.options, payments: paymentsConfig(c.app), ageCheck: ageConfig(c.app), phone: !!c.app.balance.phone.enabled, transport: c.app.balance.transport, shopChannels: c.app.balance.shops.channels, workTask: c.app.balance.work.task, land: { risk: c.app.balance.land.risk }, maxNameLen: c.app.balance.housing.maxNameLen, housing: { rentPeriodMs: c.app.balance.housing.rentPeriodMs }, furniture: c.app.balance.housing.furniture }));
 route('GET', '/api/city', (c) => publicCity(c.uid ? cityOf(c.app, c.uid) : c.app.city));
 route('POST', '/api/cities/link', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); flight.assertNotFlying(c.app, c.uid); return { ...useLink(c.app, c.uid, String(c.body.linkId || ''), c.body.idem), user: eco.profile(c.app, c.uid) }; });
 route('GET', '/api/cities', { auth: 'user' }, (c) => ({ cities: cityList(c.app, c.uid), online: onlineByCity(c.app) }));
@@ -179,6 +181,7 @@ route('POST', '/api/ads/campaigns', { rate: 'auth' }, (c) => {
 route('GET', '/api/advertiser/campaigns', (c) => { const a = needKey(c); return { brand: a.brand_name, campaigns: ads.advertiserCampaigns(c.app, a.id) }; });
 route('POST', '/api/ads/tap', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return ads.mintTap(c.app, c.uid, c.body.campaign, c.body.slot); });
 
+ageRoutes(route); // real age checks (provider interface, pass/fail + date only)
 paymentRoutes(route); // payments (TEST MODE): top-up, webhook, ad checkout, refunds, reconciliation
 
 // ---- admin
@@ -217,6 +220,7 @@ export async function dispatch(app, req) {
   try {
     if (r.auth === 'user' && !req.uid) throw new GameError('LOGIN_REQUIRED', 'Please log in.', 401);
     if (r.auth === 'admin' && !req.isAdmin) throw new GameError('ADMIN_REQUIRED', 'Admin login required.', 401);
+    if (req.uid && r.auth === 'user' && app.agePlayGuard) { const g = app.agePlayGuard(req.uid, r.path); if (g) throw new GameError(g.code, g.message, 403); } // age mode 'play': unverified players can do nothing but verify
     if (r.rate === 'auth' && !app.limiter.hit(`auth:${req.ip}:${r.path}`, app.balance.rate.authPerMin, 60000, now)) throw new GameError('RATE_LIMIT', 'Too many attempts, wait a minute.', 429);
     if (r.method === 'POST' && req.uid && r.path !== '/api/heartbeat' && !app.limiter.hit(`act:${req.uid}`, app.balance.rate.actionsPerMin, 60000, now)) throw new GameError('RATE_LIMIT', 'Slow down a little.', 429);
     if (r.path === '/api/auth/guest' && !app.limiter.hit(`guest:${req.ip}`, app.balance.rate.guestPerHourPerIp, 3600000, now)) throw new GameError('RATE_LIMIT', 'Too many guest accounts from this network.', 429);

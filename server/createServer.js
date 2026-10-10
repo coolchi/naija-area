@@ -18,6 +18,9 @@ import { GameError } from './core/util.js';
 import { voiceAudio as phoneVoice, tickVoice, tickCalls } from './core/phone/phone.js';
 import { BALANCE } from './config/balance.js';
 import { PAYMENTS } from './config/payments.js';
+import { AGE } from './config/age.js';
+import { createAge, tickAge } from './core/age/index.js';
+import { mockAgeProvider } from './core/age/providers.js';
 import { createPayments, tickPayments } from './core/payments/index.js';
 import { mockProvider, monipayProvider } from './core/payments/providers.js';
 
@@ -48,6 +51,11 @@ export function buildServer(opts = {}) {
       ? monipayProvider({ platform, secretKey: env.MONIPAY_SECRET_KEY, publicKey: env.MONIPAY_PUBLIC_KEY, webhookSecret: env.MONIPAY_WEBHOOK_SECRET, baseUrl: pcfg.baseUrl })
       : mockProvider({ platform, now: () => app.clock.now() }));
     if (opts.payments !== false) createPayments(app, { provider: prov, cfg: pcfg }); }
+  // real age checks: no vendor is chosen, so only the stand-in provider exists. Never allowed to be the gate in production.
+  { const acfg = opts.ageConfig || AGE; const aprov = opts.ageProvider || (acfg.provider === 'mock' ? mockAgeProvider({ platform, now: () => app.clock.now(), ttlMs: acfg.sessionTtlMs }) : (() => { throw new Error(`Unknown age provider "${acfg.provider}": no vendor is chosen yet (NA_AGE_PROVIDER=mock)`); })());
+    if (prod && aprov.id === 'mock' && acfg.mode !== 'off') throw new Error('The mock age provider cannot be the age gate in production. Choose a vendor first.');
+    if (prod && app.payments?.provider.id === 'mock') throw new Error('The mock payments provider cannot run in production.');
+    if (opts.age !== false) createAge(app, { provider: aprov, cfg: acfg }); }
   app.devRoutes = opts.dev ?? env.NA_DEV === '1';
   // admin password: env var; a fixed default exists ONLY outside production, with a loud warning
   app.adminPassword = opts.adminPassword ?? env.ADMIN_PASSWORD ?? (prod ? null : 'admin-dev-only');
@@ -77,6 +85,7 @@ export function buildServer(opts = {}) {
     catch (e) { if (e instanceof GameError) return res.status(e.status).json({ error: e.code, message: e.message }); console.error(e); res.status(500).end(); }
   });
   ex.use('/api/payments/webhook', express.raw({ type: () => true, limit: '100kb' })); // the signature is over the exact bytes, so keep them raw
+  ex.use('/api/age/webhook', express.raw({ type: () => true, limit: '20kb' }));
   ex.use('/api', express.json({ limit: '100kb' }));
   ex.use('/api', express.raw({ type: ['image/png', 'image/jpeg', 'image/webp', 'application/octet-stream', 'audio/webm', 'audio/ogg', 'audio/mp4'], limit: '1.2mb' }));
   ex.use('/api', async (req, res) => {
@@ -130,6 +139,7 @@ export function buildServer(opts = {}) {
   function startTimers() {
     tickScores(app).catch((e) => console.error('tickScores', e));
     timers.push(setInterval(() => { tickScores(app).catch((e) => console.error('tickScores', e)); }, 30000)); // one job for all viewers; it only calls the provider when due and under the daily cap
+    timers.push(setInterval(() => { try { tickAge(app); } catch (e) { console.error('tickAge', e); } }, 60000));
     timers.push(setInterval(() => { tickPayments(app).catch((e) => console.error('tickPayments', e)); }, 15000)); // asks the provider about payments whose webhook never came; sends recorded refunds
     timers.push(setInterval(() => { try { tickCalls(app); } catch (e) { console.error('tickCalls', e); } }, 1000));
     timers.push(setInterval(() => { try { tickAds(app); } catch (e) { console.error('tickAds', e); } }, 5000));

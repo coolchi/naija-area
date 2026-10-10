@@ -1,5 +1,6 @@
 import { PHONE_SQL } from './phone/phone-sql.js';
 import { PAYMENTS_SQL } from './payments/sql.js';
+import { AGE_SQL } from './age/sql.js';
 // SQLite schema (better-sqlite3 in Node, sql.js in the static demo). PRODUCTION TARGET IS POSTGRES: same tables,
 // swap INTEGER ms timestamps for timestamptz, add real row locks (SELECT ... FOR UPDATE) instead of SQLite's single-writer lock.
 export const SCHEMA = `
@@ -239,6 +240,7 @@ export function migrate(db) {
   add('player_state', 'mood', 'REAL NOT NULL DEFAULT 60'); add('player_state', 'hair', 'TEXT'); add('player_state', 'hair_at', 'INTEGER NOT NULL DEFAULT 0');
   db.exec(PHONE_SQL);
   db.exec(PAYMENTS_SQL);
+  db.exec(AGE_SQL);
   add('player_cars', 'serviced_at', 'INTEGER'); add('player_cars', 'serviced_until', 'INTEGER');
   add('player_cars', 'damage', 'INTEGER NOT NULL DEFAULT 0');
   add('player_state', 'health', 'REAL NOT NULL DEFAULT 100'); add('player_state', 'health_at', 'INTEGER NOT NULL DEFAULT 0'); add('player_state', 'crash_cd_until', 'INTEGER NOT NULL DEFAULT 0'); add('player_state', 'crash_roll_at', 'INTEGER NOT NULL DEFAULT 0');
