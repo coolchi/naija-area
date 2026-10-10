@@ -67,7 +67,7 @@ export class EmoteSystem {
   }
   /** per frame from the render loop: draws your own emote on your avatar */
   frame() {
-    const c = this.g.ctrl; if (!c?.root || !c.avatar) return; if (!this.holder || this.holder.root !== c.root) this.holder = { root: c.root, obj: c.avatar }; if (this.mine && performance.now() > this.until) this.mine = '';
+    const c = this.g.ctrl; if (!c?.root || !c.avatar) return; if (!this.holder || this.holder.root !== c.root || this.holder.obj !== c.avatar) this.holder = { root: c.root, obj: c.avatar }; // the avatar is rebuilt when a skin changes or on walk<->car: follow it if (this.mine && performance.now() > this.until) this.mine = '';
     const b = c.avatar.userData.body; const moving = c.moving || c.mode === 'drive'; if (moving && this.mine && (this.view.list.get(this.mine)?.kind === 'dance')) this.mine = ''; // walking away ends a dance
     this.view.step(this.holder, this.mine, moving, b ? { y: b.position.y, rx: b.rotation.x, rz: b.rotation.z } : undefined, c.mode === 'drive' ? 4.2 : 3.6);
   }
