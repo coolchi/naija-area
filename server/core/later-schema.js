@@ -12,6 +12,8 @@ CREATE INDEX IF NOT EXISTS ix_applications_status ON applications(status, id);
 CREATE INDEX IF NOT EXISTS ix_applications_user ON applications(user_id, id);
 CREATE TABLE IF NOT EXISTS office_ideas (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, role TEXT NOT NULL, category TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL, why TEXT NOT NULL DEFAULT '', priority INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'new', note TEXT NOT NULL DEFAULT '', exported_at INTEGER, created_at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS ix_office_ideas_status ON office_ideas(status, id);
-CREATE INDEX IF NOT EXISTS ix_office_ideas_user ON office_ideas(user_id, id);` }
+CREATE INDEX IF NOT EXISTS ix_office_ideas_user ON office_ideas(user_id, id);` },
+  { n: 4, name: 'account_deletions', sql: `
+CREATE TABLE IF NOT EXISTS account_deletions (user_id INTEGER PRIMARY KEY, deleted_at INTEGER NOT NULL, was_guest INTEGER NOT NULL DEFAULT 0, forfeited INTEGER NOT NULL DEFAULT 0, kept TEXT NOT NULL DEFAULT '');` }
 ];
 export function applyLater(db) { for (const c of LATER) db.exec(c.sql); }

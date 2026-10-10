@@ -24,6 +24,7 @@ import * as homes from './homes.js';
 import * as wear from './wearables.js';
 import * as signup from './signup.js';
 import * as office from './office.js';
+import * as account from './account.js';
 import { history, checkInvariants, moneySupply, balanceOf, cashId } from './ledger.js';
 import { RATE_CARD, AD_POLICY } from '../config/ratecard.js';
 import { GAME_NAME, GAME_TAGLINE, MIN_AGE } from '../config/game.js';
@@ -120,6 +121,9 @@ route('POST', '/api/wearables/buy', { auth: 'user' }, (c) => wear.buy(c.app, c.u
 route('POST', '/api/wearables/equip', { auth: 'user' }, (c) => wear.equip(c.app, c.uid, c.body.itemId));
 route('POST', '/api/wearables/unequip', { auth: 'user' }, (c) => wear.unequip(c.app, c.uid, c.body.slot));
 route('POST', '/api/wearables/sell', { auth: 'user' }, (c) => wear.sell(c.app, c.uid, c.body.itemId, c.body.idem));
+// your data: download everything we hold, or close the account (erases and anonymises; see docs/ACCOUNT_DATA.md)
+route('GET', '/api/account/export', { auth: 'user' }, (c) => { if (!c.app.limiter.hit(`export:${c.uid}`, 5, 3600000, c.app.clock.now())) bad('RATE_LIMIT', 'You can download your data 5 times an hour.', 429); return account.exportData(c.app, c.uid); });
+route('POST', '/api/account/delete', { auth: 'user' }, async (c) => { if (!c.app.limiter.hit(`delete:${c.uid}`, 5, 3600000, c.app.clock.now())) bad('RATE_LIMIT', 'Too many attempts. Try again later.', 429); const r = await account.deleteAccount(c.app, c.uid, c.body); c.out.session = 'clear'; return r; });
 // sign-up choices (city, city of interest, interests) and the Naija Area office (apply to join, share ideas)
 route('GET', '/api/signup/options', { auth: 'user' }, (c) => signup.options(c.app, c.uid));
 route('POST', '/api/signup/profile', { auth: 'user' }, (c) => ({ ...signup.save(c.app, c.uid, c.body), user: meView(c.app, c.uid) }));
@@ -250,6 +254,7 @@ export async function dispatch(app, req) {
   const m = match(req.method, req.path);
   if (!m) return { status: 404, json: { error: 'NOT_FOUND', message: 'Unknown endpoint.' } };
   const { r, params } = m; const now = app.clock.now();
+  if (req.uid && (app.deletedUsers ||= account.loadDeleted(app)).has(req.uid)) req = { ...req, uid: null }; // a closed account's old session cookie is dead
   const ctx = { app, uid: req.uid, body: req.body || {}, query: req.query || {}, params, headers: req.headers || {}, raw: req.raw, ip: req.ip, ipHash: req.ip ? app.platform.sha256(String(req.ip)).slice(0, 16) : null, headless: /headless/i.test(req.ua || ''), out: {} };
   try {
     if (r.auth === 'user' && !req.uid) throw new GameError('LOGIN_REQUIRED', 'Please log in.', 401);
