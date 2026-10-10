@@ -2790,8 +2790,7 @@
      "x": -5.25,
      "z": 7,
      "color": "#3a3a40",
-     "compact": true,
-     "soon": "chess"
+     "compact": true
     },
     {
      "id": "wordduel1",
@@ -2801,8 +2800,7 @@
      "x": 0,
      "z": 7,
      "color": "#c8a23d",
-     "compact": true,
-     "soon": "wordduel"
+     "compact": true
     },
     {
      "id": "property1",
