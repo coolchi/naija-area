@@ -15,7 +15,7 @@ export class TutorialCard {
   async ack(step) { if (!this.v?.active) return; const s = this.v.steps.find(x => x.id === step); if (!s || s.done) return; try { this.v = await post('/api/tutorial/ack', { step }); this.draw(); } catch { /* the next poll fixes it */ } }
   draw() {
     const v = this.v; const g = this.g;
-    if (!v || !v.active || !g.playing) { if (v?.done && !this.celebrated) { this.celebrated = true; g.ui?.toast?.(`🎉 Tutorial complete! +₦${(v.reward || 0).toLocaleString('en-NG')}`); g.ui?.sfx?.('ok'); } this.el.classList.add('hidden'); return; }
+    if (!v || !v.active || !g.playing) { if (v?.done && !this.celebrated) { this.celebrated = true; g.ui?.sfx?.('achieve'); /* the server sends the 'Tutorial complete' alert */ } this.el.classList.add('hidden'); return; }
     const cur = v.steps.find(s => s.id === v.current) || v.steps[0]; this.el.classList.remove('hidden'); this.el.classList.toggle('open', this.open);
     const head = h('div', { class: 'tut-head', 'data-tut-head': '1', onclick: () => { this.open = !this.open; this.draw(); } }, h('b', {}, `${cur.icon} ${v.doneCount + 1 > v.steps.length ? v.steps.length : v.doneCount + 1}/${v.steps.length} ${cur.title}`), h('span', { class: 'tut-more' }, this.open ? '▲' : '▼'));
     const kids = [head, h('div', { class: 'tut-text' }, this.touch ? cur.touch : cur.desk)];
