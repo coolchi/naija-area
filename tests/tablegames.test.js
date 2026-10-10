@@ -12,7 +12,7 @@ const raw = (s, id) => s.db.prepare('SELECT * FROM game_matches WHERE id=?').get
 const seatOf = (s, id, u) => s.db.prepare('SELECT seat FROM game_players WHERE match_id=? AND user_id=?').get(id, u).seat;
 
 // each new game is played to the end through the real HTTP routes, with the engine's bot choosing moves from the SERVER-side state
-for (const [kind, venue, station, n] of [['dominoes', 'venue_joint', 'domino1', 3], ['draughts', 'venue_viewing', 'draughts1', 2], ['ayo', 'venue_mamaput', 'ayo1', 2], ['football', 'venue_joint', 'football1', 2]]) {
+for (const [kind, venue, station, n] of [['dominoes', 'venue_joint', 'domino1', 3], ['draughts', 'venue_viewing', 'draughts1', 2], ['ayo', 'venue_mamaput', 'ayo1', 2], ['football', 'venue_joint', 'football1', 2], ['chess', 'venue_viewing', 'chess1', 2]]) {
   test(`${kind}: stations exist, escrow in, hidden info stays hidden, server validates moves, a full game pays the pot and ledger/scoreboard hold`, async () => {
     const s = makeServer(); let seed = 5; s.app.rng = () => (seed = (seed * 16807) % 2147483647) / 2147483647; const us = Array.from({ length: n }, () => adult(s, 3000)); for (const u of us) await enter(s, u, venue);
     assert.ok(V(s, venue).stations.some(x => x.id === station && x.game === kind)); const w = (await sit(s, us[0], venue, station, 100)).json; assert.equal(w.status, 'waiting');
