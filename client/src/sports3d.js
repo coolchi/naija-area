@@ -77,7 +77,7 @@ const mat = (k, f) => mats[k] ||= f();
 /** the animated players, rackets, balls and name tags of every sport station in the open venue room. One Crowd for all athletes. */
 export class SportsStage {
   constructor(scene, nameSprite, venue) {
-    this.scene = scene; this.nameSprite = nameSprite; this.v = venue; this.fk = 0; this.root = new THREE.Group(); scene.add(this.root); this.slots = new Map(); this.SC = 0.9; this.last = null; this.cg = new THREE.Group(); this.cg.scale.setScalar(this.SC); this.root.add(this.cg); this.crowd = null; this.n = 0; this.t = 0;
+    this.scene = scene; this.nameSprite = nameSprite; this.v = venue; this.fk = 0; if (venue) { venue.focus = null; venue.dist0 = null; venue.yaw0 = null; } /* a fresh room starts with a fresh camera */ this.root = new THREE.Group(); scene.add(this.root); this.slots = new Map(); this.SC = 0.9; this.last = null; this.cg = new THREE.Group(); this.cg.scale.setScalar(this.SC); this.root.add(this.cg); this.crowd = null; this.n = 0; this.t = 0;
   }
   /** call after the stations exist (and again when the venue data refreshes): `stations` = venue view stations */
   sync(stations) {

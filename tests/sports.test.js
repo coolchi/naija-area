@@ -114,11 +114,13 @@ test('coming-soon slots: shown but not playable; a slot lights up by itself when
   const s = makeServer(); const u = adult(s); const view = await enter(s, u); const by = (id) => view.stations.find(x => x.id === id);
   for (const id of ['pp1', 'pp2', 'tennis1', 'whot1', 'ludo1', 'domino1', 'draughts1', 'ayo1', 'football1']) assert.ok(!by(id).soon, id + ' is open');
   assert.equal(sports.kindOf({ game: 'nope' }), null); assert.equal(sports.kindOf({ game: 'nope', alts: ['football'] }), 'football'); assert.equal(sports.kindOf({ game: 'whot' }), 'whot');
-  const ids = ['chess1', 'wordduel1', 'property1', 'suwe1']; for (const id of ids) { const st = by(id); assert.equal(st.soon, !GAMES[st.game] && !(st.alts || []).some(a => GAMES[a]), id); }
-  const slot = s.app.all.venueById[VID].stations.find(x => x.id === 'suwe1'); if (!GAMES.suwe) { const r = await call(s, 'POST', '/api/game/sit', { uid: u, body: { venueId: VID, stationId: 'suwe1', stake: 0 } }); assert.equal(r.status, 409); assert.equal(r.json.error, 'COMING_SOON'); assert.equal((await call(s, 'POST', '/api/sports/bot', { uid: u, body: { venueId: VID, stationId: 'suwe1', level: 'club' } })).json.error, 'COMING_SOON'); }
+  const ids = ['chess1', 'wordduel1', 'property1', 'suwe1']; for (const id of ids) { const st = by(id); assert.equal(!!st.soon, !GAMES[st.game] && !(st.alts || []).some(a => GAMES[a]), id); }
+  // use an unregistered game id for the slot so this test does not depend on which games exist yet (track-c registers suwe, chess, ...)
+  const slot = s.app.all.venueById[VID].stations.find(x => x.id === 'suwe1'); const realGame = slot.game; slot.game = 'nope_game'; delete slot.alts;
+  { const r = await call(s, 'POST', '/api/game/sit', { uid: u, body: { venueId: VID, stationId: 'suwe1', stake: 0 } }); assert.equal(r.status, 409); assert.equal(r.json.error, 'COMING_SOON'); assert.equal((await call(s, 'POST', '/api/sports/bot', { uid: u, body: { venueId: VID, stationId: 'suwe1', level: 'club' } })).json.error, 'COMING_SOON'); assert.ok((await ok(s, 'GET', `/api/venue?id=${VID}`, { uid: u })).stations.find(x => x.id === 'suwe1').soon); }
   GAMES.suwe_test = { label: 'Suwe test', min: 2, max: 2, eng: GAMES.football.eng }; slot.alts = ['suwe_test'];
   try { const v2 = (await ok(s, 'GET', `/api/venue?id=${VID}`, { uid: u })).stations.find(x => x.id === 'suwe1'); assert.ok(!v2.soon, 'it lights up'); const w = await ok(s, 'POST', '/api/game/sit', { uid: u, body: { venueId: VID, stationId: 'suwe1', stake: 0 } }); assert.equal(raw(s, w.id).kind, 'suwe_test', 'the match is created with the registered kind'); }
-  finally { delete GAMES.suwe_test; delete slot.alts; }
+  finally { delete GAMES.suwe_test; delete slot.alts; slot.game = realGame; }
 });
 // ------------------------------------------------------------------------------------------ two players: stakes, escrow, ledger, scoreboard, forfeits
 for (const [kind, station, E] of [['pingpong', 'pp1', pp], ['tennis', 'tennis1', tn]]) {
