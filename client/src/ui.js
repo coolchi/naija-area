@@ -37,10 +37,10 @@ export class UI {
     $('#actionBtn').onclick = () => game.doAction();
   }
   // ---------- audio (tiny WebAudio blips, no assets) ----------
-  sfx(kind) {
+  sfx(kind, vol = 1) {
     if (!this.sfxOn) return; try { this.actx ||= new (window.AudioContext || window.webkitAudioContext)(); const c = this.actx; const o = c.createOscillator(), gn = c.createGain(); o.connect(gn); gn.connect(c.destination);
-      const T = { coin: [[880, .07], [1320, .12]], ok: [[520, .08], [780, .1]], bad: [[180, .18]], horn: [[330, .22], [330, .22]], thunk: [[110, .09]], knock: [[140, .06], [140, .06], [140, .06]] }[kind] || [[600, .08]]; let t = c.currentTime;
-      o.type = kind === 'horn' ? 'sawtooth' : 'triangle'; gn.gain.setValueAtTime(0.08, t); for (const [f, d] of T) { o.frequency.setValueAtTime(f, t); t += d; } gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.05); o.start(); o.stop(t + 0.08); } catch { /* audio is optional */ }
+      const T = { coin: [[880, .07], [1320, .12]], ok: [[520, .08], [780, .1]], bad: [[180, .18]], horn: [[330, .22], [330, .22]], thunk: [[110, .09]], step: [[95, .035]], thud: [[70, .12]], knock: [[140, .06], [140, .06], [140, .06]] }[kind] || [[600, .08]]; let t = c.currentTime;
+      o.type = kind === 'horn' ? 'sawtooth' : 'triangle'; gn.gain.setValueAtTime(0.08 * vol, t); for (const [f, d] of T) { o.frequency.setValueAtTime(f, t); t += d; } gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.05); o.start(); o.stop(t + 0.08); } catch { /* audio is optional */ }
   }
   haptic(ms = 15) { try { navigator.vibrate?.(ms); } catch { /* optional */ } }
   checkPayReturn() { return checkReturn(this); }
