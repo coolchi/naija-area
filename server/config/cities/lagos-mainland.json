@@ -1764,7 +1764,7 @@
   },
   {
    "kind": "office",
-   "x": -144,
+   "x": -172,
    "z": 58,
    "w": 22,
    "d": 16,
@@ -6365,11 +6365,11 @@
    }
   },
   {
-   "id": "venue_clubhouse",
+   "id": "venue_crewhq",
    "name": "Clubhouse",
    "blurb": "Where clubs and crews meet. Found a club, join one, read the club board and chat with your members.",
    "buildingId": "b057",
-   "x": -144,
+   "x": -172,
    "z": 46.5,
    "hours": [
     0,
@@ -6500,7 +6500,7 @@
      },
      {
       "k": "shelf",
-      "x": 4,
+      "x": 2,
       "z": -3.6,
       "c": "#8a5a2b"
      },

@@ -1,4 +1,4 @@
-// Clubs and crews: found one, join one, a shared clubhouse in Lagos Mainland (venue_clubhouse), roles, requests and invites, and members-only chat.
+// Clubs and crews: found one, join one, a shared clubhouse in Lagos Mainland (venue_crewhq), roles, requests and invites, and members-only chat.
 // GAME MONEY ONLY: the only money is the one-off founding fee (a sink). Numbers: server/config/clubs.js (ESTIMATES). Names, mottos and chat are filtered; chat is rate limited and can be muted by leaders.
 import { bad, cleanText } from './util.js';
 import { screen } from './filter.js';

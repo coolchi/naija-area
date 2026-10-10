@@ -52,9 +52,9 @@ test('chat: members only, filtered, rate limited, muted members cannot post, blo
 test('the directory lists clubs by size and can be searched; the clubhouse is a real venue; hanging out needs two members inside together and has a cooldown', async () => {
   const s = makeServer(); const a = adult(s), b = adult(s), x = adult(s); const club = (await found(s, a, 'Lekki Lions', 'LKL')).club; await found(s, x, 'Ajegunle Aces', 'AJA'); await ok(s, 'POST', '/api/clubs/join', { uid: b, body: { clubId: club.id } });
   const d = await ok(s, 'GET', '/api/clubs/directory', { uid: b }); assert.equal(d.clubs[0].name, 'Lekki Lions'); assert.equal((await ok(s, 'GET', '/api/clubs/directory?q=zzz', { uid: b })).clubs.length, 0); assert.equal((await ok(s, 'GET', '/api/clubs/directory?q=aj', { uid: b })).clubs.length, 1);
-  const v = s.app.city.venueById.venue_clubhouse; assert.ok(v && v.stations.some(t => t.type === 'club')); assert.equal((await P(s, a, 'hangout', {})).json.error, 'NOT_HERE');
-  at(s, a, v.x, v.z); await ok(s, 'POST', '/api/heartbeat', { uid: a, body: {} }); await ok(s, 'POST', '/api/venue/enter', { uid: a, body: { venueId: 'venue_clubhouse' } });
-  assert.equal((await P(s, a, 'hangout', {})).json.error, 'ALONE', 'one member is not a hangout'); at(s, b, v.x, v.z); await ok(s, 'POST', '/api/heartbeat', { uid: b, body: {} }); await ok(s, 'POST', '/api/venue/enter', { uid: b, body: { venueId: 'venue_clubhouse' } });
+  const v = s.app.city.venueById.venue_crewhq; assert.ok(v && v.stations.some(t => t.type === 'club')); assert.equal((await P(s, a, 'hangout', {})).json.error, 'NOT_HERE');
+  at(s, a, v.x, v.z); await ok(s, 'POST', '/api/heartbeat', { uid: a, body: {} }); await ok(s, 'POST', '/api/venue/enter', { uid: a, body: { venueId: 'venue_crewhq' } });
+  assert.equal((await P(s, a, 'hangout', {})).json.error, 'ALONE', 'one member is not a hangout'); at(s, b, v.x, v.z); await ok(s, 'POST', '/api/heartbeat', { uid: b, body: {} }); await ok(s, 'POST', '/api/venue/enter', { uid: b, body: { venueId: 'venue_crewhq' } });
   const mine = await ok(s, 'GET', '/api/clubs', { uid: a }); assert.equal(mine.clubhouse.here.length, 2); assert.equal(mine.clubhouse.canHangout, true);
   const r = await ok(s, 'POST', '/api/clubs/hangout', { uid: a, body: {} }); assert.ok(r.mood > 0); assert.equal((await P(s, a, 'hangout', {})).json.error, 'COOLDOWN'); await ok(s, 'POST', '/api/clubs/hangout', { uid: b, body: {} });
 });

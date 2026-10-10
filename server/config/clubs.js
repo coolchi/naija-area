@@ -11,6 +11,6 @@ export const CLUBS = {
   muteMinutes: [5, 30, 120],
   requestsMax: 30,                  // pending join requests/invites a club can hold
   leaveCooldownMs: 10 * 60000,      // after leaving or being removed, wait before joining or founding another
-  hangout: { venueId: 'venue_clubhouse', minMembers: 2, mood: 5, cooldownMs: 30 * 60000 }, // two or more club members in the clubhouse together can hang out for a small mood lift
+  hangout: { venueId: 'venue_crewhq', minMembers: 2, mood: 5, cooldownMs: 30 * 60000 }, // two or more club members in the clubhouse together can hang out for a small mood lift
   directoryPage: 20
 };
