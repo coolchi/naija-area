@@ -5,6 +5,7 @@ import { bad, clamp, cleanText, dayKey } from './util.js';
 import { screen } from './filter.js';
 import { typeOf, maxGuestsOf, layoutOf, reservedRects, plotStage } from './housing.js';
 import { decorOf, lovesOf } from './homes.js';
+import { homeSkinOf } from './skins.js';
 import { healthView } from './crash.js';
 import { wearView } from './wearables.js';
 import { move, post, cashId, savId, balanceOf, SYS } from './ledger.js';
@@ -149,7 +150,7 @@ export function shopBuy(app, uid, shopId, itemId, qty = 1, idemKey = null, chann
 export function propertyView(app, p, uid) {
   const o = app.db.prepare('SELECT po.*, u.username, u.color FROM property_owner po JOIN users u ON u.id=po.user_id WHERE property_id=?').get(p.id);
   const items = o ? app.db.prepare('SELECT COUNT(*) n FROM property_items WHERE property_id=?').get(p.id).n : 0;
-  return { loves: o ? lovesOf(app, p.id) : 0, ...(o ? decorOf(app, o) : {}), id: p.id, name: (o && !o.name_hidden && o.custom_name) || p.name, nameHidden: !!o?.name_hidden, hasCustomName: !!o?.custom_name, baseName: p.name, tier: p.tier, tierLabel: p.tierLabel, rent: p.rent, price: p.price, rooms: p.rooms, door: p.door, buildingId: p.buildingId, area: p.area, items,
+  return { loves: o ? lovesOf(app, p.id) : 0, ...(o ? decorOf(app, o) : {}), ...(o && homeSkinOf(app, o.user_id) ? { homeSkin: homeSkinOf(app, o.user_id).accent } : {}), id: p.id, name: (o && !o.name_hidden && o.custom_name) || p.name, nameHidden: !!o?.name_hidden, hasCustomName: !!o?.custom_name, baseName: p.name, tier: p.tier, tierLabel: p.tierLabel, rent: p.rent, price: p.price, rooms: p.rooms, door: p.door, buildingId: p.buildingId, area: p.area, items,
     status: o ? (o.user_id === uid ? 'yours' : 'taken') : 'available', owner: o ? o.username : null, ownerColor: o ? o.color : null, mode: o ? o.mode : null,
     presence: o ? app.presenceOf?.(o.user_id, p.id) || 'away' : null, maxGuests: maxGuestsOf(app, p), type: typeOf(app, p).id, typeLabel: typeOf(app, p).label,
     nextRentDue: o && o.user_id === uid ? o.next_rent_due : undefined, missed: o && o.user_id === uid ? o.missed : undefined };

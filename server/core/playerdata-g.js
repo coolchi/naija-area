@@ -24,3 +24,9 @@ registerPlayerData('events',
   (app, uid) => ({ purchases: all(app, 'SELECT event_key, item_id, qty FROM event_buys WHERE user_id=?', uid), claims: all(app, 'SELECT event_key, claimed_at, amount FROM event_claims WHERE user_id=?', uid) }),
   (app, uid) => { del(app, 'DELETE FROM event_buys WHERE user_id=?', uid); del(app, 'DELETE FROM event_claims WHERE user_id=?', uid); },
   'purchase counts and claim records are deleted; the shared stock counters are not personal');
+
+registerPlayerData('skinsAndBattlePass',
+  (app, uid) => ({ skinsOwned: all(app, 'SELECT skin_id, how, price_paid, acquired_at FROM skins_owned WHERE user_id=? ORDER BY acquired_at, skin_id', uid), skinsWorn: all(app, 'SELECT slot, skin_id FROM skins_equipped WHERE user_id=?', uid),
+    battlePass: all(app, 'SELECT season, xp, premium, premium_at, cash_claimed, login_day FROM pass_progress WHERE user_id=? ORDER BY season', uid), battlePassClaims: all(app, 'SELECT season, tier, track, claimed_at FROM pass_claims WHERE user_id=? ORDER BY season, tier, track', uid), battlePassXpLog: all(app, 'SELECT day, source, n, xp FROM pass_xp_log WHERE user_id=? ORDER BY day, source', uid) }),
+  (app, uid) => { for (const t of ['skins_owned', 'skins_equipped', 'pass_progress', 'pass_claims', 'pass_xp_log']) del(app, `DELETE FROM ${t} WHERE user_id=?`, uid); },
+  'owned skins, worn skins and battle pass progress are deleted and cannot be restored; ledger entries for skin purchases, premium and pass rewards stay (anonymised)');

@@ -29,6 +29,8 @@ import * as clubs from './clubs.js';
 import * as throws from './throws.js';
 import * as weather from './weather.js';
 import * as events from './events.js';
+import * as skins from './skins.js';
+import * as pass from './pass.js';
 import * as signup from './signup.js';
 import * as office from './office.js';
 import * as account from './account.js';
@@ -161,6 +163,16 @@ route('GET', '/api/weather', { auth: 'user' }, (c) => weather.view(c.app, c.uid)
 route('POST', '/api/admin/weather', { auth: 'admin' }, (c) => weather.force(c.app, c.body.state));
 route('GET', '/api/events', { auth: 'user' }, (c) => events.view(c.app, c.uid));
 route('POST', '/api/events/buy', { auth: 'user' }, (c) => events.buy(c.app, c.uid, String(c.body.event || ''), String(c.body.item || ''), c.body.idem));
+// skins shop (avatar, car, home looks) and the battle pass: GAME MONEY ONLY, see server/core/skins.js, pass.js and docs/PASS_SKINS.md
+route('GET', '/api/skins/catalogue', (c) => skins.catalogue(c.app));
+route('GET', '/api/skins', { auth: 'user' }, (c) => skins.view(c.app, c.uid));
+route('POST', '/api/skins/buy', { auth: 'user' }, (c) => skins.buy(c.app, c.uid, String(c.body.skin || ''), c.body.idem));
+route('POST', '/api/skins/equip', { auth: 'user' }, (c) => skins.equip(c.app, c.uid, String(c.body.skin || '')));
+route('POST', '/api/skins/unequip', { auth: 'user' }, (c) => skins.unequip(c.app, c.uid, String(c.body.kind || '')));
+route('GET', '/api/pass', { auth: 'user' }, (c) => pass.view(c.app, c.uid));
+route('POST', '/api/pass/login', { auth: 'user' }, (c) => pass.login(c.app, c.uid));
+route('POST', '/api/pass/premium', { auth: 'user' }, (c) => pass.buyPremium(c.app, c.uid, c.body.idem));
+route('POST', '/api/pass/claim', { auth: 'user' }, (c) => pass.claim(c.app, c.uid, c.body.tier, c.body.track));
 route('POST', '/api/events/claim', { auth: 'user' }, (c) => events.claim(c.app, c.uid, String(c.body.event || ''), c.body.idem));
 // jewelry store + cap store (wearables): public catalogue, the shop window, buy, wear, take off, (optional) sell back
 route('GET', '/api/wearables/catalogue', (c) => wear.catalogue(c.app));

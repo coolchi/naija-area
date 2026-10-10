@@ -19,6 +19,8 @@ export const cashId = (uid) => `u:${uid}`;
 export const savId = (uid) => `s:${uid}`;
 export function balanceOf(db, accountId) { const r = db.prepare('SELECT balance FROM accounts WHERE id=?').get(accountId); return r ? r.balance : 0; }
 
+/** hooks run after every posted transaction (not after a duplicate-key replay is skipped by them): (app, { reason, ref, userId }, { txId, duplicate }). Used by the battle pass for XP. They must not throw into the payment. */
+export const postHooks = [];
 /** legs: [{account, amount}] must sum to 0. Returns {txId, duplicate}. Throws GameError INSUFFICIENT_FUNDS. */
 export function post(app, { reason, ref = null, userId = null, idemKey = null, legs }) {
   const { db } = app; const now = app.clock.now();
@@ -43,7 +45,7 @@ export function post(app, { reason, ref = null, userId = null, idemKey = null, l
     }
     return { txId, duplicate: false };
   });
-  return run();
+  const res = run(); for (const hk of postHooks) hk(app, { reason, ref, userId }, res); return res;
 }
 /** move `amount` from one account to another */
 export function move(app, { from, to, amount, reason, ref, userId, idemKey }) {

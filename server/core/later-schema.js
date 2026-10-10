@@ -37,6 +37,12 @@ CREATE TABLE IF NOT EXISTS club_cooldowns (user_id INTEGER PRIMARY KEY, until_ms
   { n: 8, name: 'events', sql: `
 CREATE TABLE IF NOT EXISTS event_stock (event_key TEXT NOT NULL, item_id TEXT NOT NULL, sold INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (event_key, item_id));
 CREATE TABLE IF NOT EXISTS event_buys (user_id INTEGER NOT NULL, event_key TEXT NOT NULL, item_id TEXT NOT NULL, qty INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, event_key, item_id));
-CREATE TABLE IF NOT EXISTS event_claims (user_id INTEGER NOT NULL, event_key TEXT NOT NULL, claimed_at INTEGER NOT NULL, amount INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, event_key));` }
+CREATE TABLE IF NOT EXISTS event_claims (user_id INTEGER NOT NULL, event_key TEXT NOT NULL, claimed_at INTEGER NOT NULL, amount INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, event_key));` },
+  { n: 20, name: 'pass_skins', sql: `
+CREATE TABLE IF NOT EXISTS skins_owned (user_id INTEGER NOT NULL, skin_id TEXT NOT NULL, how TEXT NOT NULL, price_paid INTEGER NOT NULL DEFAULT 0, acquired_at INTEGER NOT NULL, PRIMARY KEY (user_id, skin_id));
+CREATE TABLE IF NOT EXISTS skins_equipped (user_id INTEGER NOT NULL, slot TEXT NOT NULL, skin_id TEXT NOT NULL, PRIMARY KEY (user_id, slot));
+CREATE TABLE IF NOT EXISTS pass_progress (user_id INTEGER NOT NULL, season TEXT NOT NULL, xp INTEGER NOT NULL DEFAULT 0, premium INTEGER NOT NULL DEFAULT 0, premium_at INTEGER, cash_claimed INTEGER NOT NULL DEFAULT 0, login_day TEXT, PRIMARY KEY (user_id, season));
+CREATE TABLE IF NOT EXISTS pass_claims (user_id INTEGER NOT NULL, season TEXT NOT NULL, tier INTEGER NOT NULL, track TEXT NOT NULL, claimed_at INTEGER NOT NULL, PRIMARY KEY (user_id, season, tier, track));
+CREATE TABLE IF NOT EXISTS pass_xp_log (user_id INTEGER NOT NULL, day TEXT NOT NULL, source TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, xp INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day, source));` }
 ];
 export function applyLater(db) { for (const c of LATER) db.exec(c.sql); }

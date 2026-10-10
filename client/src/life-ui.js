@@ -2,7 +2,7 @@
 // GAME MONEY ONLY. Mixed into UI.prototype (see ui.js). Each section is a function (ui) => Promise<Element[]>; add a section to SECTIONS to add a tab.
 import { get, post, fmtN, h } from './api.js';
 
-const money = (n) => '₦' + fmtN(n);
+const money = (n) => fmtN(n); // fmtN already carries the ₦ sign
 const SECTIONS = [];
 export const lifeUi = {
   async tab_life() {
@@ -58,7 +58,7 @@ addLifeSection({ id: 'clubs', label: '👥 Clubs', async draw(ui, redraw) {
     const kind = h('select', { class: 'sheet-input', 'data-f': 'ckind' }, d.rules.kinds.map(k => h('option', { value: k }, k === 'club' ? 'Club' : 'Crew')));
     return [h('p', { class: 'mut' }, 'Join a club or crew to chat with its members and meet at the Clubhouse. Up to ' + d.rules.maxMembers + ' members each.'),
       ...(d.invites.length ? [h('b', {}, 'Invitations'), ...d.invites.map(i => h('div', { class: 'row sp' }, h('span', {}, `${i.club.name} [${i.club.tag}] from @${i.by}`), h('span', { class: 'row' }, h('button', { class: 'btn small', 'data-accept-invite': i.club.id, onclick: act('join', { clubId: i.club.id }) }, 'Join'), h('button', { class: 'btn small ghost', onclick: act('decline', { clubId: i.club.id }) }, 'No'))))] : []),
-      h('b', {}, `Found one (₦${fmtN(d.rules.createFee)})`), h('div', { class: 'row' }, name, tag, kind), h('button', { class: 'btn small', 'data-found-club': '1', disabled: d.cash < d.rules.createFee, onclick: act('create', () => ({ name: name.value, tag: tag.value, kind: kind.value })) }, 'Found it'),
+      h('b', {}, `Found one (${fmtN(d.rules.createFee)})`), h('div', { class: 'row' }, name, tag, kind), h('button', { class: 'btn small', 'data-found-club': '1', disabled: d.cash < d.rules.createFee, onclick: act('create', () => ({ name: name.value, tag: tag.value, kind: kind.value })) }, 'Found it'),
       h('b', {}, 'Clubs you can join'), h('div', { class: 'list' }, (dir?.clubs || []).length ? dir.clubs.map(c => h('div', { class: 'row sp', 'data-club': c.id }, h('span', {}, `[${c.tag}] ${c.name} · ${c.members}/${c.max}${c.open ? '' : ' · by request'}`, h('small', { class: 'mut' }, c.motto ? ` “${c.motto}”` : '')), h('button', { class: 'btn small', 'data-join-club': c.id, disabled: c.full, onclick: act('join', { clubId: c.id }) }, c.open ? 'Join' : 'Ask'))) : [h('p', { class: 'mut' }, 'No clubs yet. Be the first!')])];
   }
   const c = d.club; const isLead = d.role === 'leader', canMg = isLead || d.role === 'officer'; const log = h('div', { class: 'list', id: 'clubChat', style: 'max-height:180px;overflow:auto' }); const inp = h('input', { class: 'sheet-input', id: 'clubSay', maxlength: d.rules.chatMax, placeholder: 'Say something to the club…' });
@@ -85,8 +85,37 @@ addLifeSection({ id: 'events', label: '🌧 Events', async draw(ui, redraw) {
     w.fareMult > 1 ? h('div', { class: 'mut' }, `Rain: Oya Ride fares are ${Math.round((w.fareMult - 1) * 100)}% higher.`) : '', h('small', { class: 'mut' }, w.note))];
   for (const ev of e.events) {
     out.push(h('div', { class: 'card', 'data-event': ev.id }, h('div', { class: 'row sp' }, h('b', {}, `${ev.icon} ${ev.name}`), h('span', { class: 'tag ' + (ev.active ? 'amber' : '') }, ev.active ? `ON${ev.endsInMs ? ' · ends ' + ago(ev.endsInMs) : ''}` : ev.startsInMs ? `starts ${agoDays(ev.startsInMs)}` : 'not on now')), h('div', { class: 'mut' }, ev.blurb), h('small', { class: 'mut' }, ev.window),
-      ...(ev.active ? [...(ev.shop || []).map(i => h('div', { class: 'row sp' }, h('span', {}, `${i.limited ? '⭐ ' : ''}${i.name} · ₦${fmtN(i.price)} · ${i.left}/${i.stock} left${i.limited ? ' (limited edition, yours for good)' : ''} · you ${i.bought}/${i.limit}`), h('button', { class: 'btn small', 'data-ev-buy': i.id, disabled: i.left <= 0 || i.bought >= i.limit || e.cash < i.price, onclick: act('buy', { event: ev.id, item: i.id }) }, 'Buy'))),
-        ...(ev.claim ? [h('button', { class: 'btn small', 'data-ev-claim': ev.id, disabled: ev.claim.claimed, onclick: act('claim', { event: ev.id }) }, ev.claim.claimed ? (ev.claim.perDay ? 'Collected today' : 'Joined tonight') : `${ev.claim.label} (+₦${fmtN(ev.claim.cash)})`)] : [])] : [])));
+      ...(ev.active ? [...(ev.shop || []).map(i => h('div', { class: 'row sp' }, h('span', {}, `${i.limited ? '⭐ ' : ''}${i.name} · ${fmtN(i.price)} · ${i.left}/${i.stock} left${i.limited ? ' (limited edition, yours for good)' : ''} · you ${i.bought}/${i.limit}`), h('button', { class: 'btn small', 'data-ev-buy': i.id, disabled: i.left <= 0 || i.bought >= i.limit || e.cash < i.price, onclick: act('buy', { event: ev.id, item: i.id }) }, 'Buy'))),
+        ...(ev.claim ? [h('button', { class: 'btn small', 'data-ev-claim': ev.id, disabled: ev.claim.claimed, onclick: act('claim', { event: ev.id }) }, ev.claim.claimed ? (ev.claim.perDay ? 'Collected today' : 'Joined tonight') : `${ev.claim.label} (+${fmtN(ev.claim.cash)})`)] : [])] : [])));
   }
   out.push(h('p', { class: 'mut' }, e.note)); return out;
+} });
+
+// ---------------- battle pass and skins shop (item 9): game money only; the server holds every price, XP number and reward
+const ENDS = (ms) => { const d = Math.floor(ms / 86400000); return d >= 1 ? `${d} day${d > 1 ? 's' : ''}` : `${Math.max(1, Math.round(ms / 3600000))} h`; };
+addLifeSection({ id: 'pass', label: '🎟 Pass', async draw(ui, redraw) {
+  const d = await ui.guard(() => get('/api/pass')); if (!d) return [];
+  const act = (path, body) => async (e) => { if (e?.target) e.target.disabled = true; const r = await ui.guard(() => post('/api/pass/' + path, body)); if (r) { ui.toast(r.text || 'Done', r.paid || r.charged ? 'money' : undefined); ui.g.refreshMe?.(); if (r.skin) ui.g.syncSkins?.(); } redraw(); };
+  if (!d.season) return [h('p', { class: 'mut' }, d.next ? `No battle pass season right now. ${d.next.name} starts on ${d.next.from}.` : 'No battle pass season right now.'), h('p', { class: 'mut' }, d.note)];
+  const s = d.season; const out = [h('div', { class: 'card', 'data-pass': s.id }, h('div', { class: 'row sp' }, h('b', {}, `🎟 ${s.name}`), h('span', { class: 'tag ' + (s.active ? 'amber' : '') }, s.active ? `ends in ${ENDS(s.endsInMs)}` : 'ended: collect what you won')),
+    h('div', { class: 'row sp' }, h('b', { 'data-pass-tier': d.tier }, `Tier ${d.tier} of ${d.tiers}`), h('span', { class: 'mut' }, d.maxed ? 'Maxed out' : `${d.intoTier}/${d.tierXp} XP`)),
+    h('progress', { max: d.tierXp, value: d.intoTier, style: 'width:100%' }),
+    h('div', { class: 'mut' }, `XP today: ${d.xpToday}/${d.dailyXpCap}. Earn XP by working, riding, winning games, collecting business income and joining events.`),
+    h('div', { class: 'row' }, h('button', { class: 'btn small', 'data-pass-login': '1', disabled: !d.canLogin, onclick: act('login', {}) }, d.canLogin ? 'Check in (+XP)' : 'Checked in today'),
+      d.premium ? h('span', { class: 'tag amber' }, '⭐ Premium unlocked') : h('button', { class: 'btn small alt', 'data-pass-premium': '1', disabled: !s.active || d.cash < d.premiumPrice, onclick: act('premium', {}) }, `Unlock premium ${fmtN(d.premiumPrice)}`)))];
+  const cell = (r) => { const label = r.skin ? `🎨 ${r.skin.name}` : fmtN(r.cash); const can = r.reached && !r.claimed && !r.locked; return h('button', { class: 'btn small ' + (r.claimed ? 'ghost' : r.locked || !r.reached ? 'ghost' : ''), 'data-claim': `${r.tier}:${r.track}`, disabled: !can, onclick: act('claim', { tier: r.tier, track: r.track }), title: r.skin ? `${r.skin.rarity} ${r.skin.kind} skin` : '' }, r.claimed ? '✓ ' + label : r.locked ? '🔒 ' + label : label); };
+  out.push(h('div', { class: 'list', id: 'passTiers', style: 'max-height:260px;overflow:auto' }, d.free.map((f, i) => h('div', { class: 'row sp', 'data-tier': f.tier }, h('b', {}, String(f.tier)), cell(f), cell(d.premiumTrack[i])))));
+  out.push(h('small', { class: 'mut' }, 'Free track on the left, premium on the right. ' + d.realMoney.note), h('p', { class: 'mut' }, d.note)); return out;
+} });
+
+const KIND_ICON = { avatar: '🧍', car: '🚗', home: '🏠' };
+addLifeSection({ id: 'skins', label: '🎨 Skins', async draw(ui, redraw) {
+  ui.lifeSkinKind ||= 'avatar'; const d = await ui.guard(() => get('/api/skins')); if (!d) return []; const K = ui.lifeSkinKind;
+  const call = (path, body) => async (e) => { if (e?.target) e.target.disabled = true; const r = await ui.guard(() => post('/api/skins/' + path, body)); if (r) { ui.toast(r.text || 'Done', r.charged ? 'money' : undefined); ui.g.refreshMe?.(); ui.g.syncSkins?.(); ui.g.net?.nudge(); ui.g.refreshProps?.(); } redraw(); };
+  const bar = h('div', { class: 'row' }, d.kinds.map(k => h('button', { class: 'btn small ' + (K === k.id ? '' : 'ghost'), 'data-skin-kind': k.id, onclick: () => { ui.lifeSkinKind = k.id; redraw(); } }, `${KIND_ICON[k.id]} ${k.label}`)));
+  const swatch = (i) => h('span', { style: `display:inline-block;width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px;border:2px solid ${i.glow || '#0003'};background:${i.color || i.accent}` });
+  const rows = d.items.filter(i => i.kind === K).map(i => h('div', { class: 'row sp', 'data-skin': i.id }, h('span', {}, swatch(i), h('b', {}, i.name), h('small', { class: 'mut' }, ` ${i.rarity}${i.glow ? ' · glow' : ''}${i.sell === 'pass' ? ' · battle pass' : ''}`)),
+    i.owned ? (i.worn ? h('button', { class: 'btn small ghost', 'data-unequip': i.id, onclick: call('unequip', { kind: i.kind }) }, 'Take off') : h('button', { class: 'btn small', 'data-equip': i.id, disabled: i.kind === 'home' && !d.hasHome, onclick: call('equip', { skin: i.id }) }, 'Wear'))
+      : i.sell === 'pass' ? h('span', { class: 'tag' }, 'Pass reward') : h('button', { class: 'btn small alt', 'data-buy-skin': i.id, disabled: !i.canAfford, onclick: call('buy', { skin: i.id }) }, fmtN(i.price))));
+  return [h('p', { class: 'mut' }, `Cash ${fmtN(d.cash)}. ${d.note}`), bar, h('div', { class: 'list' }, rows), ...(K === 'home' && !d.hasHome ? [h('p', { class: 'mut' }, 'Get a home first to use a home skin.')] : []), h('small', { class: 'mut' }, d.realMoney.note)];
 } });

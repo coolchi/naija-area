@@ -192,13 +192,19 @@ export function buildWorld(city) {
   for (const p of city.properties) {
     const m = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({ color: 0x35c46b })); m.position.set(p.door.x, 5.2, p.door.z); root.add(m); doorMarkers[p.id] = m;
   }
+  // a home skin's accent (item 9): a coloured pole with a lantern beside the door, drawn for everybody (cosmetic)
+  const accents = {}; const poleGeo = new THREE.BoxGeometry(0.5, 4.2, 0.5).translate(0, 2.1, 0), lampGeo = new THREE.SphereGeometry(0.7, 10, 8);
+  const homeAccent = (p) => { const def = city.properties.find(x => x.id === p.id); if (!def) return; let a = accents[p.id];
+    if (!p.homeSkin) { if (a) { root.remove(a); delete accents[p.id]; } return; } const hex = new THREE.Color(p.homeSkin);
+    if (!a) { a = new THREE.Group(); a.add(new THREE.Mesh(poleGeo, new THREE.MeshLambertMaterial({ color: 0x3a3a3a }))); const lamp = new THREE.Mesh(lampGeo, new THREE.MeshBasicMaterial({ color: hex })); lamp.position.y = 4.6; lamp.name = 'lamp'; a.add(lamp); a.position.set(def.door.x + 1.6, 0, def.door.z + 0.4); root.add(a); accents[p.id] = a; }
+    a.getObjectByName('lamp').material.color.copy(hex); a.userData.hex = p.homeSkin; };
   const markerColor = { available: 0x35c46b, taken: 0x8a8f98, yours: 0xffc20e };
   const waterSpeed = { x: 0.004 };
   const fogC = new THREE.Color('#9fd3ee'); scene.fog = new THREE.Fog(fogC, 140, 520);
   let night = 0; applyLamps(0);
   const api = {
-    scene, colliders, palmSpots, boards, doorMarkers, labels, root,
-    setMarkers(props) { for (const p of props) { const m = doorMarkers[p.id]; if (m) m.material.color.setHex(markerColor[p.status] || 0x35c46b); } },
+    scene, colliders, palmSpots, boards, doorMarkers, labels, root, accents,
+    setMarkers(props) { for (const p of props) { const m = doorMarkers[p.id]; if (m) m.material.color.setHex(markerColor[p.status] || 0x35c46b); homeAccent(p); } },
     setTime(minutes) { // 0..1440
       const t = minutes / 1440; const a = (t - 0.25) * Math.PI * 2; const h = Math.sin(a); const day = Math.max(0, Math.min(1, h * 1.8 + 0.25));
       night = 1 - day; const dusk = Math.max(0, 1 - Math.abs(h) * 3.2);

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { fwd, makeAvatar, makePlayerCar, makeNameSprite } from './entities.js';
+import { fwd, makeAvatar, makePlayerCar, makeNameSprite, addSkinGlow } from './entities.js';
 import { PHYS } from './physics-config.js';
 import { PHYSX } from '../../server/config/physx.js';
 import { newJump, jumpStep } from '../../server/core/physx.js';
@@ -22,10 +22,12 @@ export class Controller {
   }
   setLook(color, name) {
     this.color = color; this.name = name; if (this.avatar) this.root.remove(this.avatar), this.root.remove(this.carObj);
-    this.avatar = makeAvatar(color); this.carObj = makePlayerCar(color); this.root.add(this.avatar, this.carObj); this.carObj.visible = false;
+    const sk = this.skinLooks || {}; this.avatar = makeAvatar(sk.avatar?.color || color); this.carObj = makePlayerCar(sk.car?.color || color); if (sk.avatar?.glow) addSkinGlow(this.avatar, sk.avatar.glow, 1.1); if (sk.car?.glow) addSkinGlow(this.carObj, sk.car.glow, 3.4); this.root.add(this.avatar, this.carObj); this.carObj.visible = false;
     if (!this.tag) { this.tag = makeNameSprite(name || 'You', '#ffe27a'); this.root.add(this.tag); }
     this.applyMode();
   }
+  /** the skins you have on (item 9): { avatar: {color, glow}, car: {color, glow} } looks from the catalogue; the body is rebuilt in those colours */
+  setSkins(looks) { const key = JSON.stringify(looks || {}); if (key === this._skKey) return false; this._skKey = key; this.skinLooks = looks || {}; this.setLook(this.color, this.name); return true; }
   applyMode() { this.avatar.visible = this.mode === 'walk'; this.carObj.visible = this.mode === 'drive'; this.tag.position.set(0, this.mode === 'drive' ? 4.2 : 3.6, 0); }
   toggleCar() { if (this.auto) { this.auto = null; this.onAuto?.('manual'); } this.mode = this.mode === 'walk' ? 'drive' : 'walk'; this.stopAll(); this.applyMode(); if (this.mode === 'drive') this.camYaw = this.ry; return this.mode; }
   teleport(x, z) { this.x = x; this.z = z; this.stopAll(); this.knockT = 99; this.lookAt = null; }

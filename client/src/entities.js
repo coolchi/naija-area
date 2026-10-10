@@ -51,6 +51,11 @@ export function makePlayerCar(colorHex) {
   const key = new THREE.Color(colorHex).getHex(); if (!carCache.has(key)) carCache.set(key, carGeo('hatch', key));
   const g = new THREE.Group(); const m = new THREE.Mesh(carCache.get(key), vcMat); m.position.y = 0.12; g.add(m); g.add(blobShadow(5.2, 2.8)); addPlayerHeadlamps(g); return g;
 }
+/** a skin's glow (item 9): a flat coloured ring on the ground under an avatar or car (null removes it) */
+export function addSkinGlow(obj, hex, r) {
+  if (obj.userData.skinGlow) { obj.remove(obj.userData.skinGlow); obj.userData.skinGlow = null; } if (!hex) return;
+  const m = new THREE.Mesh(new THREE.RingGeometry(r * 0.78, r, 28).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide })); m.position.y = 0.14; m.renderOrder = 2; obj.add(m); obj.userData.skinGlow = m;
+}
 export function makeNameSprite(text, color) {
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: nameTag(text, color), depthTest: false, transparent: true })); s.scale.set(5.5, 1.38, 1); s.renderOrder = 10; return s;
 }
@@ -142,16 +147,17 @@ export class Ghosts {
       seen.add(p.id); let g = this.map.get(p.id);
       if (!g) { g = { id: p.id, name: p.ct ? `[${p.ct}] ${p.n}` : p.n, color: p.c, mode: -1, samples: [], obj: null, tag: null, act: '' }; this.map.set(p.id, g); }
       g.mode = p.m; g.act = p.act || ''; g.wear = p.w || [];
+      const skKey = p.sk ? `${p.sk.a || ''}|${p.sk.c || ''}` : ''; if (g.skKey !== skKey) { g.skKey = skKey; g.sk = p.sk || null; if (g.root) { this.scene.remove(g.root); g.root = null; g.kind = null; } } // a new skin: rebuild the body in its colours
       for (const [off, x, z, ry] of p.s) { const t = serverNow + off; if (!g.samples.length || t > g.samples[g.samples.length - 1].t + 50) g.samples.push({ t, x, z, ry }); }
       if (g.samples.length > 60) g.samples.splice(0, g.samples.length - 60);
       this.build(g);
     }
-    for (const [id, g] of this.map) if (!seen.has(id)) { this.scene.remove(g.root); this.map.delete(id); }
+    for (const [id, g] of this.map) if (!seen.has(id)) { if (g.root) this.scene.remove(g.root); this.map.delete(id); }
   }
   build(g) {
     const want = g.mode === 1 ? 'car' : 'walk'; if (g.kind === want && g.root) return;
     if (g.root) this.scene.remove(g.root);
-    g.root = new THREE.Group(); g.obj = want === 'car' ? makePlayerCar(g.color) : makeAvatar(g.color); g.root.add(g.obj);
+    const sl = this.skinLook?.(g.sk, want) || null; g.root = new THREE.Group(); g.obj = want === 'car' ? makePlayerCar(sl?.color || g.color) : makeAvatar(sl?.color || g.color); if (sl?.glow) addSkinGlow(g.obj, sl.glow, want === 'car' ? 3.4 : 1.1); g.root.add(g.obj);
     g.tag = makeNameSprite(g.name, '#ffffff'); g.tag.position.set(0, want === 'car' ? 4.2 : 3.6, 0); g.root.add(g.tag); g.kind = want; this.scene.add(g.root); g.first = true;
   }
   update(renderT, viewer) {

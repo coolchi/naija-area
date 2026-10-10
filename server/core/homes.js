@@ -1,5 +1,6 @@
 // Homes: paint + floor colour, "love your house", guest social actions, room chat, kicking guests. Visible to the owner and to guests who were let in.
 import { typeOf } from './housing.js';
+import { homeSkinOf } from './skins.js';
 import { bad, cleanText, dayKey } from './util.js';
 import { screen } from './filter.js';
 import { notify, addMood, propDef } from './economy.js';
@@ -14,7 +15,9 @@ function access(app, uid, pid) { // -> { o, isOwner } or throws
 export const palette = (app) => ({ price: app.balance.decor.price, walls: Object.entries(app.balance.decor.walls).map(([id, [name, hex]]) => ({ id, name, hex })), floors: Object.entries(app.balance.decor.floors).map(([id, [name, hex]]) => ({ id, name, hex })) });
 export function decorOf(app, o) {
   const D = app.balance.decor; const pd = o.property_id ? app.all.propertyById?.[o.property_id] : null; const t = pd ? typeOf(app, pd) : null; const dw = D.walls[t?.wall] ? t.wall : 'cream', df = D.floors[t?.floor] ? t.floor : 'oak'; // each house type has its own default paint and floor
-  const wid = D.walls[o.wall_color] ? o.wall_color : dw, fid = D.floors[o.floor_color] ? o.floor_color : df; return { wall: { id: wid, hex: D.walls[wid][1] }, floor: { id: fid, hex: D.floors[fid][1] } };
+  const wid = D.walls[o.wall_color] ? o.wall_color : dw, fid = D.floors[o.floor_color] ? o.floor_color : df; const out = { wall: { id: wid, hex: D.walls[wid][1] }, floor: { id: fid, hex: D.floors[fid][1] } };
+  const sk = homeSkinOf(app, o.user_id); if (sk) { out.wall = { id: 'skin:' + sk.id, hex: sk.wall }; out.floor = { id: 'skin:' + sk.id, hex: sk.floor }; out.skin = { id: sk.id, name: sk.name, accent: sk.accent }; } // a home skin (item 9) repaints the whole home while it is on: cosmetic only
+  return out;
 }
 export const lovesOf = (app, pid) => app.db.prepare('SELECT COUNT(*) n FROM house_loves WHERE property_id=?').get(pid).n;
 
@@ -25,7 +28,7 @@ export function setDecor(app, uid, pid, wall, floor, idemKey) {
   return app.db.transaction(() => {
     move(app, { from: cashId(uid), to: SYS.SINK_DECOR, amount: D.price, reason: 'decor', ref: pid, userId: uid, idemKey: idemKey ? `decor:${uid}:${idemKey}` : null });
     app.db.prepare('UPDATE property_owner SET wall_color=?, floor_color=? WHERE property_id=?').run(nw, nf, pid); addMood(app, uid, 2);
-    return { ok: true, charged: D.price, cash: balanceOf(app.db, cashId(uid)), ...decorOf(app, { wall_color: nw, floor_color: nf, property_id: pid }) };
+    return { ok: true, charged: D.price, cash: balanceOf(app.db, cashId(uid)), ...decorOf(app, { wall_color: nw, floor_color: nf, property_id: pid, user_id: uid }) };
   })();
 }
 const event = (app, pid, uid, kind, text) => { const u = app.db.prepare('SELECT username FROM users WHERE id=?').get(uid); app.db.prepare('INSERT INTO room_events(property_id,user_id,username,kind,text,created_at) VALUES (?,?,?,?,?,?)').run(pid, uid, u.username, kind, text, app.clock.now()); app.db.prepare('DELETE FROM room_events WHERE property_id=? AND id<(SELECT MAX(id)-80 FROM room_events WHERE property_id=?)').run(pid, pid); };
