@@ -23,7 +23,7 @@ export class Venue {
   constructor(game) { this.g = game; this.el = $('#venue'); this.open = false; this.shotId = null; }
   async show(venueId) {
     const g = this.g; const data = await g.ui.guard(() => post('/api/venue/enter', { venueId, pos: g.pos() })); if (!data) return false;
-    this.data = data; this.id = venueId; this.open = true; g.busy = true; g.ctrl.frozen = true; this.matchId = null; this.match = null; this.dismissed = this.dismissed || new Set();
+    this.g.audio?.play('door'); this.data = data; this.id = venueId; this.open = true; g.busy = true; g.ctrl.frozen = true; this.matchId = null; this.match = null; this.dismissed = this.dismissed || new Set();
     this.el.classList.remove('hidden'); this.el.replaceChildren(); this.build(); this.chrome(); this.loop(); this.poll(); return true;
   }
   build() {

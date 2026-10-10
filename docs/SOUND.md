@@ -1,0 +1,14 @@
+# Sound effects and light music (queue batch 1, item 3)
+
+**Everything is synthesised in the browser with Web Audio.** No audio files, no samples, no streaming, no library: nothing unlicensed can be in it. (The in-car radio is separate: see `docs/RADIO.md`.)
+
+- `client/src/audio-config.js`: every number (bus levels, voice limit, per-sound minimum gaps, engine hum, music tempo) and the **effect recipes**. A recipe is a few layers of oscillator or filtered noise with a pitch, a glide, a length and a gain. Add a sound by adding a recipe and calling `ui.sfx('name')`.
+- `client/src/audio.js`: the engine. The `AudioContext` is created only after the first tap or key press; sounds asked for before that are skipped. Settings (on/off, effects and music volume) live in `localStorage` (`na_sound_v1`); nothing goes to the server. Tab hidden = audio suspended.
+- `client/src/ambient-music.js`: the **light music**, pure and deterministic: A minor pentatonic, one chord per bar (Am F C G), a soft pluck melody, bass, and by day a shaker and a quiet kick; at night the drums drop out and a pad fades in. About 98 bpm. It is composed by the code from scales and a seed, not copied from anything.
+- **Car engine hum**: a low sawtooth and square pair whose pitch and brightness follow your speed while you drive.
+- Music is quiet by default (30%), stops while the in-car radio plays, and does not play on the Lite graphics level (low-end phones) unless you set Graphics higher. The 🔊 button mutes everything; More > Sound has an on/off switch and two sliders.
+- Where sounds are used: button clicks, coins and money toasts, ok/bad, footsteps and bumps (from the physics pass), traffic horns near you (now through the engine, volume by distance), door when you enter a venue, direct-message ping, knock, and the engine. Recipes also exist for achievements, crash, camera shutter, emote pop, whoosh and ding for the coming items.
+
+**Tests:** `tests/audio.test.js` (recipes well formed, no sample files or network in the sources, music deterministic, in range, drums by day and pad by night, settings, no context before a tap, throttling, voice limit, music scheduling and quiet rules, engine, suspend) with a fake Web Audio context; `scripts/audio-smoke.mjs` runs real Web Audio in headless Chrome and reads a level meter on the master output to prove the coin, the music and the engine are really produced, and that mute and volume 0 silence them.
+
+**NOT verified:** nobody has listened to any of it on a phone speaker or headphones. The levels, the balance between effects, music and radio, and whether the music is pleasant (or annoying after an hour) are unknown; the recipes are guesses chosen from the numbers. No loop-point or glitch check has been done over long sessions; iOS Safari audio unlocking and its mute switch are untested.
