@@ -8,6 +8,7 @@ import { processEvidence, adsSnapshot } from './ads.js';
 import { knockState } from './social.js';
 import { myMatchView } from './games.js';
 import { venueTick } from './venues.js';
+import { parkedActive } from './parking.js';
 
 export function createWorld() { return { players: new Map(), chatSeq: 0 }; }
 
@@ -61,7 +62,7 @@ export function heartbeat(app, uid, body, meta = {}) {
   if (!userRow) bad('NO_PLAYER', 'Unknown player', 401);
   const p = ensurePresence(app, uid);
   p.lastSeen = now; p.headless = !!meta.headless;
-  if (body.mode === 'walk' || body.mode === 'drive') p.mode = body.mode;
+  if (body.mode === 'walk' || body.mode === 'drive') { if (body.mode === 'drive' && p.mode !== 'drive' && parkedActive(app, uid)) { /* your car is parked: it cannot be driven from elsewhere */ } else p.mode = body.mode; }
   if (typeof body.activity === 'string') p.activity = cleanText(body.activity, 24);
   applyTrail(app, p, body.trail, now); venueTick(app, p);
   if (now - p.lastPersist > 30000) { app.db.prepare('UPDATE player_state SET x=?,z=?,ry=?,mode=?,updated_at=? WHERE user_id=?').run(p.x, p.z, p.ry, p.mode, now, uid); app.db.prepare('UPDATE users SET last_seen=? WHERE id=?').run(now, uid); p.lastPersist = now; }

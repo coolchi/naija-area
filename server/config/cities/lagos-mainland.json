@@ -2469,6 +2469,71 @@
    "w": 24,
    "h": 24,
    "y": 13
+  },
+  {
+   "id": "cb_motors",
+   "surface": "carpark_board",
+   "tier": "lot",
+   "x": -63,
+   "z": 132,
+   "nx": 0,
+   "nz": -1,
+   "w": 8,
+   "h": 4,
+   "y": 5,
+   "lot": "cp_motors"
+  },
+  {
+   "id": "cb_club1",
+   "surface": "carpark_board",
+   "tier": "lot",
+   "x": 24,
+   "z": 131.5,
+   "nx": 0,
+   "nz": -1,
+   "w": 8,
+   "h": 4,
+   "y": 5,
+   "lot": "cp_club1"
+  },
+  {
+   "id": "cb_club2",
+   "surface": "carpark_board",
+   "tier": "lot",
+   "x": 166,
+   "z": 131.5,
+   "nx": 0,
+   "nz": -1,
+   "w": 8,
+   "h": 4,
+   "y": 5,
+   "lot": "cp_club2"
+  },
+  {
+   "id": "cb_joint",
+   "surface": "carpark_board",
+   "tier": "lot",
+   "x": 205.5,
+   "z": 132,
+   "nx": 0,
+   "nz": -1,
+   "w": 8,
+   "h": 4,
+   "y": 5,
+   "lot": "cp_joint"
+  },
+  {
+   "id": "cb_public",
+   "surface": "carpark_board",
+   "tier": "lot",
+   "x": 34,
+   "z": 50.2,
+   "nx": 0,
+   "nz": -1,
+   "w": 8,
+   "h": 4,
+   "y": 5,
+   "lot": "cp_public"
   }
  ],
  "spawns": [
@@ -5597,5 +5662,71 @@
    "islandR": 6
   }
  ],
- "roadFormat": 2
+ "roadFormat": 2,
+ "carParks": [
+  {
+   "id": "cp_motors",
+   "name": "Auto Mart Car Park",
+   "x": -57,
+   "z": 141.8,
+   "w": 32,
+   "d": 18,
+   "gate": "e",
+   "fee": 0,
+   "kind": "venue",
+   "venueId": "venue_motors",
+   "blurb": "Free for showroom customers (ESTIMATE rule: fee 0)."
+  },
+  {
+   "id": "cp_club1",
+   "name": "Midnight Lounge Car Park",
+   "x": 30,
+   "z": 141.3,
+   "w": 32,
+   "d": 18,
+   "gate": "e",
+   "fee": 150,
+   "kind": "venue",
+   "venueId": "venue_club1",
+   "blurb": "Night parking, small fee."
+  },
+  {
+   "id": "cp_club2",
+   "name": "Sunset Rooftop Car Park",
+   "x": 160,
+   "z": 141.3,
+   "w": 32,
+   "d": 18,
+   "gate": "w",
+   "fee": 150,
+   "kind": "venue",
+   "venueId": "venue_club2",
+   "blurb": "Night parking, small fee."
+  },
+  {
+   "id": "cp_joint",
+   "name": "Corner Joint Car Park",
+   "x": 199.5,
+   "z": 141.8,
+   "w": 32,
+   "d": 18,
+   "gate": "w",
+   "fee": 100,
+   "kind": "venue",
+   "venueId": "venue_joint",
+   "blurb": "Park and play. Small fee."
+  },
+  {
+   "id": "cp_public",
+   "name": "Surulere Public Car Park",
+   "x": 28,
+   "z": 60,
+   "w": 32,
+   "d": 18,
+   "gate": "w",
+   "fee": 100,
+   "kind": "public",
+   "blurb": "Public lot, small fee (ESTIMATE)."
+  }
+ ]
 }

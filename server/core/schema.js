@@ -233,6 +233,9 @@ export function migrate(db) {
   add('player_cars', 'serviced_at', 'INTEGER'); add('player_cars', 'serviced_until', 'INTEGER');
   add('player_cars', 'damage', 'INTEGER NOT NULL DEFAULT 0');
   add('player_state', 'health', 'REAL NOT NULL DEFAULT 100'); add('player_state', 'health_at', 'INTEGER NOT NULL DEFAULT 0'); add('player_state', 'crash_cd_until', 'INTEGER NOT NULL DEFAULT 0'); add('player_state', 'crash_roll_at', 'INTEGER NOT NULL DEFAULT 0');
+  db.exec(`CREATE TABLE IF NOT EXISTS car_parking (
+    user_id INTEGER PRIMARY KEY, car_id INTEGER NOT NULL, lot_id TEXT NOT NULL, bay INTEGER NOT NULL, x REAL NOT NULL, z REAL NOT NULL, ry REAL NOT NULL, parked_at INTEGER NOT NULL, fee INTEGER NOT NULL DEFAULT 0
+  ); CREATE UNIQUE INDEX IF NOT EXISTS ux_parking_bay ON car_parking(lot_id, bay);`);
   db.exec(`CREATE TABLE IF NOT EXISTS crash_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, at INTEGER NOT NULL, token TEXT, state TEXT NOT NULL, hit INTEGER NOT NULL DEFAULT 0,
     reason TEXT, roll REAL, vtype TEXT, mode TEXT, x REAL, z REAL, damage REAL, car_id INTEGER, car_damage INTEGER, fee INTEGER, expires_at INTEGER

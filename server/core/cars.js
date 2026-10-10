@@ -51,7 +51,7 @@ export function setActive(app, uid, carId) {
 export function sellCar(app, uid, carId, idemKey) {
   const c = app.db.prepare('SELECT * FROM player_cars WHERE id=? AND user_id=?').get(carId, uid); if (!c) bad('NO_CAR', 'That car is not yours.', 404);
   return app.db.transaction(() => {
-    const value = resaleValue(app, c); const del = app.db.prepare('DELETE FROM player_cars WHERE id=?').run(carId); if (del.changes !== 1) bad('CONFLICT', 'Already sold.', 409);
+    const value = resaleValue(app, c); const del = app.db.prepare('DELETE FROM player_cars WHERE id=?').run(carId); app.db.prepare('DELETE FROM car_parking WHERE car_id=?').run(carId); if (del.changes !== 1) bad('CONFLICT', 'Already sold.', 409);
     move(app, { from: SYS.FAUCET_CARS, to: cashId(uid), amount: value, reason: 'car_resale', ref: String(carId), userId: uid, idemKey: idemKey ? `carsell:${uid}:${idemKey}` : `carsell:${carId}` });
     if (c.active) { const next = app.db.prepare('SELECT id FROM player_cars WHERE user_id=? ORDER BY id LIMIT 1').get(uid); if (next) app.db.prepare('UPDATE player_cars SET active=1 WHERE id=?').run(next.id); }
     return { ok: true, value, cash: balanceOf(app.db, cashId(uid)) };

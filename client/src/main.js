@@ -3,6 +3,7 @@ import { get, post, $, $$, h, ApiError } from './api.js';
 import { buildWorld } from './world.js';
 import { Controller } from './player.js';
 import { Nav } from './nav.js';
+import { ParkingClient } from './parking-client.js';
 import { lampsOn } from './lamps.js';
 import { setPlayerHeadlamps } from './headlamps.js';
 import { CrashClient } from './crash.js';
@@ -46,7 +47,7 @@ class Game {
       this.progress(60, 'Putting traffic on the road…'); await new Promise(r => setTimeout(r, 30));
       this.traffic = new Traffic(this.scene, city.trafficLoops); this.traffic.onHorn = (c, car) => this.horn(c, car); this.walkers = new Walkers(this.scene, city.zones); this.ghosts = new Ghosts(this.scene);
       this.ads = new AdsClient(this.world, city, () => this.serverNow()); this.ui = new UI(this); this.net = new Net(this); this.interior = new Interior(this); this.venue = new Venue(this); this.garage = new GarageView(this);
-      this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root); this.nav = new Nav(this); this.crash = new CrashClient(this); this.traffic.crash = this.crash;
+      this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root); this.nav = new Nav(this); this.parking = new ParkingClient(this); this.crash = new CrashClient(this); this.traffic.crash = this.crash;
       addEventListener('resize', () => this.resize()); this.resize(); this.bindAuth(); this.progress(85, TIPS[Math.floor(Math.random() * TIPS.length)]);
       const me = await get('/api/me').catch(() => null); this.progress(100, 'Ready!'); await new Promise(r => setTimeout(r, 250));
       this.loop(performance.now()); $('#loading').classList.add('hidden');
@@ -79,7 +80,7 @@ class Game {
   async enter(user) {
     this.playing = true; this.user = user; $('#hud').classList.remove('hidden'); this.cfg.jobs = (await get('/api/jobs').catch(() => ({ jobs: [] }))).jobs; this.ctrl.setLook(user.color, user.username);
     const spawns = this.city.spawns; const s = spawns[user.id % spawns.length]; const p = user.pos && (user.pos.x || user.pos.z) ? user.pos : null; this.ctrl.teleport(p?.x ?? s.x, p?.z ?? s.z); this.ctrl.ry = s.ry || 0; this.ctrl.camYaw = this.ctrl.ry; this.camera.position.set(this.ctrl.x - 10, 12, this.ctrl.z + 12);
-    this.update(user); this.net.start(); this.phone2 = new PhoneSys(this); this.phone2.start(); this.refreshProps(); get('/api/plots').then(d => { this.plots = d.plots; this.refreshPlots(); }).catch(() => {});
+    this.update(user); this.parking.load(); this.net.start(); this.phone2 = new PhoneSys(this); this.phone2.start(); this.refreshProps(); get('/api/plots').then(d => { this.plots = d.plots; this.refreshPlots(); }).catch(() => {});
     this.ui.toast(user.guest ? `Welcome, ${user.username}! You are playing as a guest.` : `Welcome back, ${user.username}!`); if (!localStorage.getItem('na_tip') && !matchMedia('(pointer: coarse)').matches) { localStorage.setItem('na_tip', '1'); setTimeout(() => { if (!this.ui.sheetOpen) this.ui.toast('Tip: tap a building or the ground near a sign to open its sheet.'); }, 1800); }
   }
   async refreshProps() { const d = await get('/api/properties').catch(() => null); if (d) { this.props = d.properties; this.world.setMarkers(d.properties); } }
@@ -90,7 +91,7 @@ class Game {
   async logout() { await post('/api/auth/logout').catch(() => {}); this.playing = false; this.net.stop(); location.reload(); }
   setConn(ok) { $('#conn').classList.toggle('hidden', ok); }
   markRead() { this.ui.badge(0); this.unread = 0; }
-  toggleCar() { if (!this.playing || this.busy) return; const m = this.ctrl.toggleCar(); this.ui.sfx(m === 'drive' ? 'horn' : 'ok'); this.net.nudge(); }
+  toggleCar() { if (!this.playing || this.busy) return; if (this.parking?.blocksDriving()) return; const m = this.ctrl.toggleCar(); this.ui.sfx(m === 'drive' ? 'horn' : 'ok'); this.net.nudge(); }
 
   // ---- heartbeat results
   onHeartbeat(r) {
@@ -147,7 +148,7 @@ class Game {
       if (!this.commute) { this.ctrl.placeCamera(this.camera, dt); if (now - this.lastSample > 250) { this.lastSample = now; this.net.sample({ t: this.serverNow(), x: this.ctrl.x, z: this.ctrl.z, ry: this.ctrl.ry }); } }
       if (this.ctrl.lastTap && !this.ui.sheetOpen && !this.busy) { const tp = this.ctrl.lastTap; this.ctrl.lastTap = null; if (now - tp.t < 400) this.tapPlace(tp.x, tp.y); }
       this.ads.update(this.camera, this.size, this.ctrl, dt * 1000);
-      this.nav?.tick(dt); this.hudStep(now); this.renderer.render(this.scene, this.camera);
+      this.nav?.tick(dt); this.parking?.tick(dt * 1000); this.hudStep(now); this.renderer.render(this.scene, this.camera);
     }; requestAnimationFrame(frame);
   }
   idleCam(now) { const a = now / 9000; this.camera.position.set(Math.cos(a) * 70, 38, Math.sin(a) * 70 - 20); this.camera.lookAt(0, 4, -20); this.camera.updateMatrixWorld(); }

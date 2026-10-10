@@ -47,6 +47,7 @@ export class CityMap {
     if (L.districts) for (const d of m.districts) { c.fillStyle = d.color + '88'; c.fillRect(tx(d.x0), tz(d.z0), (d.x1 - d.x0) * k, (d.z1 - d.z0) * k); }
     c.fillStyle = '#c3c8a6'; for (const z of m.zones) c.fillRect(tx(z.x0), tz(z.z0), (z.x1 - z.x0) * k, (z.z1 - z.z0) * k);
     if (L.districts) { c.setLineDash([6, 5]); c.strokeStyle = '#6b5b3e99'; c.lineWidth = 1.2; for (const d of m.districts) c.strokeRect(tx(d.x0), tz(d.z0), (d.x1 - d.x0) * k, (d.z1 - d.z0) * k); c.setLineDash([]); }
+    if (L.landmarks) for (const p of m.items) if (p.lot) { const x = tx(p.x - p.lot.w / 2), z = tz(p.z - p.lot.d / 2); c.fillStyle = '#5d6772'; c.fillRect(x, z, p.lot.w * k, p.lot.d * k); c.strokeStyle = '#2a6fc4'; c.lineWidth = 1.5; c.strokeRect(x, z, p.lot.w * k, p.lot.d * k); }
     if (L.plots) for (const p of m.items) if (p.type === 'plot') { const x = tx(p.x - p.size / 2), z = tz(p.z - p.size / 2), s = p.size * k; c.fillStyle = '#9bc47a'; c.fillRect(x, z, s, s); c.strokeStyle = '#4f7a3a'; c.lineWidth = 1.5; c.setLineDash([5, 3]); c.strokeRect(x, z, s, s); c.setLineDash([]); c.beginPath(); for (let t = 0; t <= s; t += Math.max(6, s / 6)) { c.moveTo(x + t, z); c.lineTo(x, z + t); } c.strokeStyle = '#4f7a3a55'; c.stroke(); }
     if (L.roads) { const path = (pts) => { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(tx(p[0]), tz(p[1])) : c.moveTo(tx(p[0]), tz(p[1]))); };
       c.lineJoin = 'round';

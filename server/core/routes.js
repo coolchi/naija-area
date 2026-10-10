@@ -12,6 +12,7 @@ import * as leisure from './leisure.js';
 import * as phone from './phone/phone.js';
 import * as games from './games.js';
 import * as cars from './cars.js';
+import * as parking from './parking.js';
 import * as crash from './crash.js';
 import * as homes from './homes.js';
 import { history, checkInvariants, moneySupply, balanceOf, cashId } from './ledger.js';
@@ -107,6 +108,9 @@ route('GET', '/api/scoreboard', { auth: 'user' }, (c) => games.scoreboard(c.app,
 route('GET', '/api/garage', { auth: 'user' }, (c) => cars.garageView(c.app, c.uid));
 route('POST', '/api/garage/buy', { auth: 'user' }, (c) => cars.buyCar(c.app, c.uid, c.body.model, c.body.idemKey));
 route('POST', '/api/garage/use', { auth: 'user' }, (c) => cars.setActive(c.app, c.uid, Number(c.body.carId)));
+route('GET', '/api/parking', { auth: 'user' }, (c) => parking.view(c.app, c.uid));
+route('POST', '/api/parking/park', { auth: 'user' }, (c) => parking.park(c.app, c.uid, c.body.idemKey));
+route('POST', '/api/parking/take', { auth: 'user' }, (c) => parking.take(c.app, c.uid));
 route('GET', '/api/mechanic', { auth: 'user' }, (c) => cars.mecoCheck(c.app, c.uid));
 route('POST', '/api/crash/roll', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return crash.roll(c.app, c.uid, c.body); });
 route('POST', '/api/crash/impact', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return crash.impact(c.app, c.uid, c.body); });

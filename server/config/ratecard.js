@@ -15,6 +15,10 @@ export const RATE_CARD = {
       label: 'Airport board', size: '1024x512 (2:1)', aspect: 2, maxBoardsPerOrder: 2, positionsPerBoard: 4,
       tiers: { standard: { label: 'Airport board', weekly: 160000 } } // ESTIMATE: 2x the major road tier
     },
+    carpark_board: {
+      label: 'Car park board', size: '1024x512 (2:1)', aspect: 2, maxBoardsPerOrder: 3, positionsPerBoard: 4,
+      tiers: { lot: { label: 'Car park board', weekly: 20000 } } // ESTIMATE: below a street board, drivers see it while parking
+    },
     lagoon_plot: {
       label: 'Lagoon plot (placeholder)', size: '768x768 (square)', aspect: 1, maxBoardsPerOrder: 3, positionsPerBoard: 4,
       tiers: { plot6x6: { label: 'Lagoon plot 6x6 cells (36 cells x N300)', weekly: 36 * 300 } } // ESTIMATE N300/cell
