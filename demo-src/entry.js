@@ -50,7 +50,7 @@ async function boot() {
     const up = ads.uploadCreative(app, a.id, img, 'image/png'); const id = ads.createCampaign(app, a.id, { surface, tier, units: 1, days: 30, creativeId: up.creativeId, headline, linkUrl: 'https://example.com/', testModeAck: true }, { demo: true });
     if (app.db.prepare('SELECT status FROM ad_campaigns WHERE id=?').get(id).status === 'human_review') ads.decide(app, id, 'approve', 'demo', 'demo');
   }
-  app.runtime = { realRadio: false }; /* the demo opens from file:// where live streams are unreliable: synthesised stations only */ app.scoresProvider = mockProvider; tickScores(app).catch(() => {}); setInterval(() => { tickScores(app).catch(() => {}); }, 30000); // mock sample data only; no network in the demo
+  app.runtime = { realRadio: true }; /* real radio ON in the demo (Sherif 10 Oct 2026). From file:// some browsers block or break live streams: then the car falls through to the synthesised stations, and 'Tap to play' covers a refused play() */ app.scoresProvider = mockProvider; tickScores(app).catch(() => {}); setInterval(() => { tickScores(app).catch(() => {}); }, 30000); // mock sample data only; no network in the demo
   ads.tickAds(app); startBots(app, 6); startPracticeBot(app);
   setInterval(() => { try { ads.tickAds(app); } catch (e) { console.error(e); } }, 5000); setInterval(() => { try { tickRent(app); tickInterest(app); tickLand(app); tickGames(app); pruneWorld(app); } catch (e) { console.error(e); } }, 30000);
 }
