@@ -2,6 +2,7 @@ export class ApiError extends Error { constructor(status, data) { super(data?.me
 export async function api(method, path, body, opts = {}) {
   let res;
   try {
+    const pre = method === 'GET' && typeof window !== 'undefined' && window.__pre?.[path]; if (pre) { delete window.__pre[path]; const r0 = await pre; if (r0 && r0.ok) { try { return await r0.json(); } catch { /* fall through to a normal request */ } } }
     res = await fetch(path, { method, credentials: 'same-origin', headers: body !== undefined && !opts.raw ? { 'content-type': 'application/json', ...(opts.headers || {}) } : (opts.headers || {}), body: opts.raw ? body : body !== undefined ? JSON.stringify(body) : undefined });
   } catch (e) { throw new ApiError(0, { error: 'NETWORK', message: 'Cannot reach the server. Check your connection.' }); }
   let data = null; try { data = await res.json(); } catch { /* non-json */ }

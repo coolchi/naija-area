@@ -24,6 +24,7 @@ import { BALANCE } from './config/balance.js';
 import { PAYMENTS } from './config/payments.js';
 import { AGE } from './config/age.js';
 import { createAge, tickAge } from './core/age/index.js';
+import { staticCompress, sendJson } from './lib/compress.js';
 import { mockAgeProvider } from './core/age/providers.js';
 import { createPayments, tickPayments } from './core/payments/index.js';
 import { mockProvider, monipayProvider } from './core/payments/providers.js';
@@ -122,7 +123,7 @@ export function buildServer(opts = {}) {
       observe(app, r.status, performance.now() - t0);
       if (r.session === 'clear') res.append('Set-Cookie', `na_s=; Max-Age=0; ${cookieAttrs}`); else if (r.session) res.append('Set-Cookie', `na_s=${mkSession(r.session)}; Max-Age=${14 * 86400}; ${cookieAttrs}`);
       if (r.admin === 'clear') res.append('Set-Cookie', `na_a=; Max-Age=0; ${cookieAttrs}`); else if (r.admin) res.append('Set-Cookie', `na_a=${mkAdmin()}; Max-Age=${8 * 3600}; ${cookieAttrs}`);
-      res.setHeader('Cache-Control', 'no-store'); res.status(r.status).json(r.json);
+      res.setHeader('Cache-Control', 'no-store'); sendJson(req, res, r.status, r.json);
     } catch (e) { console.error(e); res.status(500).json({ error: 'SERVER_ERROR', message: 'Something went wrong.' }); }
   });
   ex.use((err, req, res, next) => { if (err) return res.status(err.status === 413 ? 413 : 400).json({ error: err.status === 413 ? 'TOO_BIG' : 'BAD_REQUEST', message: err.status === 413 ? 'Upload too large.' : 'Bad request.' }); next(); });
@@ -149,6 +150,7 @@ export function buildServer(opts = {}) {
   const pub = opts.publicDir || path.join(ROOT, 'public');
   const pages = { '/advertise': 'advertise.html', '/advertiser': 'advertiser.html', '/admin': 'admin.html', '/methodology': 'methodology.html', '/play': 'index.html', '/terms': 'terms.html', '/privacy': 'privacy.html', '/refunds': 'refunds.html', '/contact': 'contact.html' };
   for (const [u, f] of Object.entries(pages)) ex.get(u, (req, res) => res.sendFile(path.join(pub, f)));
+  ex.use(staticCompress(pub));
   ex.use(express.static(pub, { index: 'index.html', maxAge: '5m', extensions: ['html'] }));
   ex.use((req, res) => res.status(404).type('text/plain').send('Not found'));
 

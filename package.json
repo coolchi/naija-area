@@ -20,6 +20,7 @@
     "smoke:wordboard": "node scripts/wordboard-smoke.mjs",
     "smoke:signup": "node scripts/signup-smoke.mjs",
     "smoke:tutorial": "node scripts/tutorial-smoke.mjs",
+    "smoke:mobile": "node scripts/mobile-smoke.mjs",
     "smoke:admin": "node scripts/admin-smoke.mjs",
     "build:demo": "node tools/build-demo.mjs"
   },
