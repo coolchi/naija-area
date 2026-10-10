@@ -37,3 +37,22 @@ test('the kept list is short and every entry still exists; the data modules of b
   for (const t of Object.keys(KEPT)) assert.ok(tables.includes(t), t + ' is a real table'); assert.ok(Object.keys(KEPT).length <= 8);
   for (const n of ['businesses', 'marketplace', 'clubs', 'events', 'skinsAndBattlePass', 'seasons', 'guardian', 'moderation', 'tableGamesAndWordGames']) assert.ok(registeredNames().includes(n), n + ' is registered');
 });
+
+test('the download also lists what each later table holds about the player (a marker written into every text column of every personal table must show up in the export)', async () => {
+  const s = makeServer(); const u = await auth.signup(s.app, { username: 'dl_ada', password: 'secret-pass-1', age18: true }, 'ip');
+  const marked = []; const val = (c, t) => /user_id|leader_id|seller_id/.test(c.name) ? u : /INT/i.test(c.type) ? 1 : /REAL/i.test(c.type) ? 0 : 'MK_' + t;
+  s.db.prepare("INSERT INTO clubs(id, name, name_key, tag, color, leader_id, created_at) VALUES (1,'MK club','mkclub','MK','#fff',?,1)").run(u);   // the club listing joins to a real club
+  const NOT_LISTED = { account_deletions: 'the closure record itself (kept, not personal content)', tutorial_state: 'only internal step ticks; the download lists whether it was done, skipped and the reward' };
+  for (const t of personal) {
+    if (NOT_LISTED[t]) continue;
+    const all = info(t); const pks = all.filter(c => c.pk > 0); const rowid = pks.length === 1 && /INTEGER/i.test(pks[0].type) && pks[0].name !== 'user_id';
+    const uniq = all.filter(c => c.name === 'user_id' || (c.pk > 0 && !(rowid && c.name === pks[0].name)) || (c.notnull && c.dflt_value == null && !(rowid && c.name === pks[0].name)) || (/TEXT/i.test(c.type) && !(rowid && c.name === pks[0].name)));
+    if (!uniq.some(c => /TEXT/i.test(c.type))) continue;   // nothing to mark in an all-number table
+    const names = uniq.map(c => c.name);
+    try { s.db.prepare(`INSERT INTO ${t}(${names.join(',')}) VALUES (${names.map(() => '?').join(',')})`).run(...uniq.map(c => c.name === 'user_id' ? u : (/TEXT/i.test(c.type) ? 'MK_' + t : val(c, t)))); marked.push(t); } catch (e) { assert.fail(`could not seed ${t}: ${e.message}`); }
+  }
+  assert.ok(marked.length >= 15, 'marked ' + marked.length);
+  const json = JSON.stringify((await import('../server/core/account.js')).exportData(s.app, u));
+  const missing = marked.filter(t => !json.includes('MK_' + t));
+  assert.deepEqual(missing, [], 'these tables are not in the account download: ' + missing.join(', '));
+});
