@@ -71,6 +71,7 @@ export function heartbeat(app, uid, body, meta = {}) {
   const p = ensurePresence(app, uid);
   p.lastSeen = now; p.headless = !!meta.headless;
   if (body.mode === 'walk' || body.mode === 'drive') { if (body.mode === 'drive' && p.mode !== 'drive' && parkedActive(app, uid)) { /* your car is parked: it cannot be driven from elsewhere */ } else p.mode = body.mode; }
+  if (p.mode === 'drive') p.driveAt = now; // when the player was last in a car (the ad checks for radio spots, item 8)
   if (typeof body.activity === 'string') p.activity = cleanText(body.activity, 24);
   const fl = flightTick(app, uid); const bt = boatTick(app, uid); const flying = fl?.state === 'flying' || bt?.state === 'crossing';
   const stale = typeof body.city === 'string' && body.city !== p.city; // the client is still in the old city (it reloads on this response): its trail and evidence do not count here

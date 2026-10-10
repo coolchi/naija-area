@@ -31,8 +31,8 @@ export const png = (w = 1024, h = 512) => makePng(w, h, (x, y) => [(x * 255 / w)
 export const jobPos = (s, jobLocId) => s.app.city.jobLoc[jobLocId];
 export const HOUR = 3600000, DAY = 86400000;
 export async function newAdvertiser(s, brand = 'Test Brand') { const r = await ok(s, 'POST', '/api/advertiser/register', { body: { email: 'ads@example.com', brand } }); return r.key; }
-export async function submitAd(s, key, over = {}) {
-  const up = await ok(s, 'POST', '/api/ads/upload', { raw: png(), headers: { 'x-advertiser-key': key, 'content-type': 'image/png' } });
+export async function submitAd(s, key, { pngW = 1024, pngH = 512, ...over } = {}) {
+  const up = await ok(s, 'POST', '/api/ads/upload', { raw: png(pngW, pngH), headers: { 'x-advertiser-key': key, 'content-type': 'image/png' } });
   const body = { creativeId: up.creativeId, surface: 'road_billboard', tier: 'street', units: 1, days: 7, linkUrl: 'https://brand.example.com/promo', headline: 'Fresh deals', testModeAck: true, ...over };
   return call(s, 'POST', '/api/ads/campaigns', { body, headers: { 'x-advertiser-key': key } });
 }

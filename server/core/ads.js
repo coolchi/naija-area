@@ -1,14 +1,17 @@
 // Ad system v0: campaigns + moderation state machine + rotation + server-side impression validation + signed-redirect taps.
 import { bad, dayKey, cleanText } from './util.js';
 import { screen } from './filter.js';
-import { RATE_CARD, AD_POLICY, priceFor } from '../config/ratecard.js';
+import { RATE_CARD, AD_POLICY, AD_FORMATS, priceFor } from '../config/ratecard.js';
+import { isSpotWindow } from './adslots.js';
 import { dist } from './economy.js';
 
 export const STATES = ['submitted', 'auto_checks', 'human_review', 'approved', 'rejected', 'scheduled', 'live', 'completed'];
 const ALLOWED = { submitted: ['auto_checks'], auto_checks: ['human_review', 'rejected'], human_review: ['approved', 'rejected'], approved: ['scheduled'], scheduled: ['live'], live: ['completed'], rejected: [], completed: [] };
 const PIPELINE = ['submitted', 'auto_checks', 'human_review', 'approved', 'scheduled', 'live'];
 
-export function slotsFor(app, surface, tier, cityId) { return (app.cities[cityId] || app.city).billboards.filter(b => b.surface === surface && (!tier || b.tier === tier)); }
+export function slotsFor(app, surface, tier, cityId) { const c = app.cities[cityId] || app.city; return [...c.billboards, ...(c.adSlots || [])].filter(b => b.surface === surface && (!tier || b.tier === tier)); }
+/** a slot by id: a board on the map, or a radio / ride slot (item 8) */
+export function slotById(app, id) { if (app.all.billboardById[id]) return app.all.billboardById[id]; for (const c of Object.values(app.cities)) if (c.adSlotById?.[id]) return c.adSlotById[id]; return null; }
 export function maxUnits(app, surface, tier, cityId) { return Math.min(RATE_CARD.surfaces[surface].maxBoardsPerOrder, slotsFor(app, surface, tier, cityId).length); }
 
 // ---- images ----------------------------------------------------------
@@ -182,13 +185,14 @@ export function liveOnSlot(app, slotId, atMs) {
 export const windowOf = (ms) => Math.floor(ms / AD_POLICY.rotationMs);
 export function adsSnapshot(app, now, cityId) {
   const slots = {};
-  for (const b of (app.cities[cityId] || app.city).billboards) { const l = liveOnSlot(app, b.id, now); if (l.length) slots[b.id] = l.map(x => ({ c: x.campaign, i: x.creative, b: x.brand, h: x.headline })); }
+  const city = app.cities[cityId] || app.city; for (const b of [...city.billboards, ...(city.adSlots || [])]) { if (b.surface === 'ride_car') continue; const l = liveOnSlot(app, b.id, now); if (l.length) slots[b.id] = l.map(x => ({ c: x.campaign, i: x.creative, b: x.brand, h: x.headline })); } // the ride slot is served with the ride itself, not with the board list
   return { slots, rotationMs: AD_POLICY.rotationMs, serverNow: now };
 }
+import { rotIndex } from './adslots.js';
 export function expectedCampaign(app, slotId, win) {
   // membership is judged at the END of the window (or now, for the current window) so an ad that went live mid-window still counts
   const t = Math.min(win * AD_POLICY.rotationMs + AD_POLICY.rotationMs - 1, app.clock.now()); const list = liveOnSlot(app, slotId, t);
-  return list.length ? list[win % list.length].campaign : null;
+  return list.length ? list[rotIndex(slotId, win, AD_POLICY.rotationMs) % list.length].campaign : null;
 }
 
 // ---- impressions --------------------------------------------------------
@@ -208,24 +212,53 @@ export function processEvidence(app, p, items, now) {
     const camp = app.db.prepare('SELECT id, status FROM ad_campaigns WHERE id=?').get(e.c); if (!camp) continue;
     bumpStat(app, e.c, 'gross', 1, day);
     const reject = (r) => { bumpReason(app, e.c, 'impression', r); res.filtered[r] = (res.filtered[r] || 0) + 1; };
-    const slot = app.all.billboardById[e.slot]; const winT = e.win * P.rotationMs;
+    const slot = slotById(app, e.slot); const winT = e.win * P.rotationMs; const radio = slot?.surface === 'radio_spot';
     if (p.isBot) { reject('invalid_traffic_bot'); continue; }
     if (p.headless && app.filterHeadless) { reject('invalid_traffic_headless'); continue; }
     if (!lim.hit(`imp:${p.id}`, P.maxClaimsPerMinutePerUser, 60000, now)) { reject('rate_limit'); continue; }
     if (!slot) { reject('unknown_surface'); continue; }
+    if (slot.surface === 'ride_car') { reject('server_counted_surface'); continue; } // ride liveries are counted by the server per ride, never from client evidence
     if (winT > now + 5000 || winT < now - P.maxEvidenceAgeMs) { reject('stale_or_future_window'); continue; }
     const exp = expectedCampaign(app, e.slot, e.win);
     if (exp === null) { reject('creative_not_live_on_surface'); continue; }
     if (exp !== e.c) { reject('creative_not_scheduled_in_window'); continue; }
-    const pos = near(slot, winT + P.rotationMs / 2);
-    if (dist(pos.x, pos.z, slot.x, slot.z) > P.maxSurfaceDistance) { reject('player_too_far_from_surface'); continue; }
-    if (!(e.vis !== false && e.pct >= P.viewableMinPct && e.ms >= P.viewableMinMs && e.ms <= P.rotationMs + 500)) { reject('not_viewable'); continue; }
-    const r = app.db.prepare('INSERT OR IGNORE INTO ad_impressions(campaign_id,slot_id,user_id,win,pct,ms,created_at) VALUES (?,?,?,?,?,?,?)').run(e.c, e.slot, p.id, e.win, Math.round(e.pct), Math.round(e.ms), now);
+    if (radio) { // a radio spot: only in a spot window, only for someone who is in a car, listened long enough, one spot per player per window across every station
+      if (!isSpotWindow(e.win, P.rotationMs)) { reject('not_a_spot_window'); continue; }
+      if (slot.city !== p.city) { reject('wrong_city'); continue; }
+      if (!(p.mode === 'drive' || now - (p.driveAt || 0) <= P.maxEvidenceAgeMs)) { reject('player_not_in_a_car'); continue; }
+      if (!(e.vis !== false && e.ms >= AD_FORMATS.radio.minListenMs && e.ms <= P.rotationMs + 500)) { reject('not_listened_long_enough'); continue; }
+      if (app.db.prepare("SELECT 1 FROM ad_impressions WHERE user_id=? AND win=? AND slot_id LIKE 'radio:%'").get(p.id, e.win)) { reject('duplicate_in_window'); continue; }
+    } else {
+      const pos = near(slot, winT + P.rotationMs / 2);
+      if (dist(pos.x, pos.z, slot.x, slot.z) > P.maxSurfaceDistance) { reject('player_too_far_from_surface'); continue; }
+      if (!(e.vis !== false && e.pct >= P.viewableMinPct && e.ms >= P.viewableMinMs && e.ms <= P.rotationMs + 500)) { reject('not_viewable'); continue; }
+    }
+    const r = app.db.prepare('INSERT OR IGNORE INTO ad_impressions(campaign_id,slot_id,user_id,win,pct,ms,created_at) VALUES (?,?,?,?,?,?,?)').run(e.c, e.slot, p.id, e.win, Math.round(radio ? 100 : e.pct), Math.round(e.ms), now);
     if (r.changes !== 1) { reject('duplicate_in_window'); continue; }
     bumpStat(app, e.c, 'valid', 1, day); res.accepted++;
   }
   return res;
 }
+
+// ---- the Oya Ride livery: counted by the server alone (item 8) --------------------------------
+/** the sponsor on this city's ride cars for ride number `rideId` (rotates: ride 1 gets the first live sponsor, ride 2 the next ...). null when nobody is booked. */
+export function rideSponsor(app, cityId, rideId, now = app.clock.now()) {
+  const list = liveOnSlot(app, `ride:${cityId}`, now); if (!list.length) return null; const x = list[rideId % list.length];
+  return { c: x.campaign, i: x.creative, b: x.brand, h: x.headline };
+}
+/** the ride was requested with this sponsor on the car: a claim was made (gross) */
+export function rideSponsorShown(app, sponsor, now = app.clock.now()) { if (sponsor) bumpStat(app, sponsor.c, 'gross', 1, dayKey(now)); }
+/** the passenger got into the livered car: one valid impression for this ride, unless the player is a bot or headless. Returns true if counted. */
+export function rideSponsorBoarded(app, uid, rideId, sponsor, cityId, now = app.clock.now()) {
+  if (!sponsor) return false; const p = app.world.players.get(uid); const day = dayKey(now); const slot = `ride:${cityId}`;
+  const camp = app.db.prepare('SELECT status FROM ad_campaigns WHERE id=?').get(sponsor.c); if (!camp) return false;
+  const reject = (r) => { bumpReason(app, sponsor.c, 'impression', r); return false; };
+  if (p?.isBot) return reject('invalid_traffic_bot'); if (p?.headless && app.filterHeadless) return reject('invalid_traffic_headless');
+  const r = app.db.prepare('INSERT OR IGNORE INTO ad_impressions(campaign_id,slot_id,user_id,win,pct,ms,created_at) VALUES (?,?,?,?,?,?,?)').run(sponsor.c, slot, uid, Math.floor(now / 1000), 100, 0, now); // `win` = the second of boarding: unique per player and campaign (ride numbers restart with the server, so they cannot be the key)
+  if (r.changes !== 1) return reject('duplicate_in_window'); bumpStat(app, sponsor.c, 'valid', 1, day); return true;
+}
+/** the ride was cancelled or never taken: the claim stays gross-only, with a reason */
+export function rideSponsorDropped(app, sponsor) { if (sponsor) bumpReason(app, sponsor.c, 'impression', 'ride_not_taken'); }
 
 // ---- taps (signed redirect) ----------------------------------------------
 export function mintTap(app, uid, campaignId, slotId) {

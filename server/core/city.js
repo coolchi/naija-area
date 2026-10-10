@@ -1,6 +1,8 @@
+import { storefrontBoards, virtualSlots } from './adslots.js';
 // City config loader/indexer. A "city" is a JSON file (roads, buildings, billboards, shops, jobs, spawns, traffic loops).
 export function indexCity(raw) {
   const c = JSON.parse(JSON.stringify(raw));
+  c.billboards = [...c.billboards, ...storefrontBoards(c)]; c.adSlots = virtualSlots(c); c.adSlotById = Object.fromEntries(c.adSlots.map(s => [s.id, s])); // item 8: shop-front signs, radio and ride slots derived from the city's own data
   c.propertyById = Object.fromEntries(c.properties.map(p => [p.id, p]));
   c.shopById = Object.fromEntries(c.shops.map(s => [s.id, s]));
   c.jobLoc = Object.fromEntries(c.jobs.map(j => [j.id, j]));

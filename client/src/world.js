@@ -146,6 +146,12 @@ export function buildWorld(city) {
   const frameMat = new THREE.MeshLambertMaterial({ color: 0x20232a });
   for (const bd of city.billboards) {
     const g = new THREE.Group(); g.position.set(bd.x, 0, bd.z); g.rotation.y = Math.atan2(bd.nx, bd.nz); root.add(g);
+    if (bd.surface === 'shop_front') { // a sponsor sign hung on the front of a shop or venue: no posts, a slim frame and a bracket (item 8)
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(bd.w + 0.5, bd.h + 0.5, 0.18), frameMat); frame.position.set(0, bd.y, 0.02); g.add(frame);
+      const mat = new THREE.MeshBasicMaterial({ color: 0xffffff }); const panel = new THREE.Mesh(new THREE.PlaneGeometry(bd.w, bd.h), mat); panel.position.set(0, bd.y, 0.13); g.add(panel);
+      for (const sx of [-1, 1]) { const br = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.4), frameMat); br.position.set(sx * bd.w * 0.4, bd.y, -0.16); g.add(br); }
+      boards[bd.id] = { def: bd, group: g, panel, mat, current: null }; continue;
+    }
     const py = bd.y; const post = (x) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.38, py + bd.h / 2, 8), frameMat); m.position.set(x, (py + bd.h / 2) / 2, -0.4); g.add(m); };
     post(-bd.w * 0.3); post(bd.w * 0.3);
     const frame = new THREE.Mesh(new THREE.BoxGeometry(bd.w + 0.9, bd.h + 0.9, 0.5), frameMat); frame.position.set(0, py, 0); g.add(frame);

@@ -216,3 +216,5 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; } .chip { border: 3px solid #d9d3bd; border-radius: 99px; background: #fff; padding: 8px 12px; font: 800 14px Nunito; cursor: pointer; color: var(--ink); } .chip.on { border-color: var(--g); background: #e6f6ec; }
 .card.inset { background: #f4f1e4; box-shadow: none; padding: 10px; margin: 6px 0; } textarea.sheet-input { resize: vertical; font-family: inherit; }
 .citycard.closed { opacity: .72; border-style: dashed; } .citycard .tag { display: inline-block; margin-left: 6px; font-size: 11px; } .openline { font-weight: 800; color: #0b6b3a; margin: 6px 0 0; }
+#radioSpot { position: fixed; left: 50%; transform: translateX(-50%); top: calc(150px + env(safe-area-inset-top, 0px)); display: flex; gap: 8px; align-items: center; background: #14181fee; border: 2px solid #e0a020; color: #fff; z-index: 30; max-width: 92vw; pointer-events: none; font-size: 0.85em; }
+#radioSpot.hidden { display: none; } #radioSpot img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; background: #222; }

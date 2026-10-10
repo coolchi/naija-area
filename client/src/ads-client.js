@@ -2,13 +2,14 @@
 // (on-screen %, continuous visible ms) for the server to validate. The client never sends counts.
 import * as THREE from 'three';
 import { houseAd, creativeTexture } from './textures.js';
+import { rotIndex } from '../../server/core/adslots.js';
 import { AssetCache, ASSET_CFG } from './assetcache.js';
 
 const V = new THREE.Vector3();
 export class AdsClient {
   constructor(world, city, serverNowMs) {
     this.world = world; this.city = city; this.now = serverNowMs; this.rot = 10000; this.slots = {}; this.cache = new AssetCache((id, ok, fail) => this.fetchImg(id, ok, fail), (id, rec) => this.release(id, rec)); this.lastSched = 0; this.users = new Map(); this.evidence = []; this.houseTex = new Map();
-    this.state = {}; this.lastKey = {}; this.maxDist = 90;
+    this.state = {}; this.lastKey = {}; this.maxDist = 90; this.radioEvery = undefined;
   }
   setSnapshot(ads) {
     if (!ads) return; this.slots = ads.slots || {}; this.rot = ads.rotationMs || 10000; this.users = new Map(); // creative id -> board ids that show it (images load on demand: see assetcache.js)
@@ -23,9 +24,9 @@ export class AdsClient {
     for (const [bid, list] of Object.entries(this.slots)) { const b = this.world.boards[bid]; if (!b || !list.length) continue; const d = Math.hypot(b.def.x - player.x, b.def.z - player.z); if (d > ASSET_CFG.loadRadius) continue; for (const a of [list[win % list.length], list[(win + 1) % list.length]]) near.set(a.i, Math.min(near.get(a.i) ?? Infinity, d)); }
     for (const [id, d] of near) this.cache.request(id, d); this.cache.tick(dmin);
   }
-  house(id, w, h) { let t = this.houseTex.get(id); if (!t) { const d = this.world.boards[id].def; t = houseAd(w >= h * 1.5 ? 1024 : 768, w >= h * 1.5 ? 512 : 768, d.surface === 'lagoon_plot' ? 'Lagoon plot' : d.surface === 'airport_board' ? 'Airport board' : 'Road billboard', 'Rent this board at /advertise', id.charCodeAt(id.length - 1)); this.houseTex.set(id, t); } return t; }
+  house(id, w, h) { let t = this.houseTex.get(id); if (!t) { const d = this.world.boards[id].def; t = houseAd(w >= h * 1.5 ? 1024 : 768, w >= h * 1.5 ? 512 : 768, d.surface === 'lagoon_plot' ? 'Lagoon plot' : d.surface === 'airport_board' ? 'Airport board' : d.surface === 'shop_front' ? 'Shop sign' : 'Road billboard', 'Rent this board at /advertise', id.charCodeAt(id.length - 1)); this.houseTex.set(id, t); } return t; }
   /** which ad is on this board right now (deterministic from server time, same rule the server uses to validate) */
-  currentFor(id, win) { const list = this.slots[id]; if (!list || !list.length) return null; return list[win % list.length]; }
+  currentFor(id, win) { const list = this.slots[id]; if (!list || !list.length) return null; return list[rotIndex(id, win, this.rot, this.radioEvery) % list.length]; }
   update(cam, size, player, dtMs) {
     const t = this.now(); const win = Math.floor(t / this.rot); if (performance.now() - this.lastSched > 400) { this.lastSched = performance.now(); this.schedule(player, win); }
     for (const [id, b] of Object.entries(this.world.boards)) {
@@ -56,7 +57,7 @@ export class AdsClient {
     if ((toCam.x - cx) * d.nx + (toCam.z - cz) * d.nz <= 0) return 0;                     // back of the board
     // occlusion by buildings (2D segment vs AABB, with height check)
     for (const c of this.world.colliders) {
-      if (c.h < 2) continue; const tt = segBox(toCam.x, toCam.z, cx, cz, c); if (tt === null) continue; const y = toCam.y + (cy - toCam.y) * tt; if (y < c.h) return 0;
+      if (c.h < 2) continue; if (cx >= c.x0 && cx <= c.x1 && cz >= c.z0 && cz <= c.z1) continue; /* the building the sign hangs on (its padded box contains the sign) never hides its own sign: the back-of-board test above covers viewing from behind */ const tt = segBox(toCam.x, toCam.z, cx, cz, c); if (tt === null) continue; const y = toCam.y + (cy - toCam.y) * tt; if (y < c.h) return 0;
     }
     const rx = d.nz, rz = -d.nx; let minX = 9, maxX = -9, minY = 9, maxY = -9;
     for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {

@@ -14,6 +14,12 @@ function makeHail(colorHex) {
   const b = new Builder(5, 0); b.box(1.1, 0.35, 0.5, 0, 0, 0, 0xffd23f, { noAO: true, jit: 0 }); const sign = new THREE.Mesh(b.build(), new THREE.MeshBasicMaterial({ vertexColors: true })); sign.position.set(-0.1, 2.0, 0); g.add(sign); // roof sign
   return g;
 }
+/** the sponsor's livery on both sides of the car (item 8): the creative as a decal, loaded when the image arrives; the brand name shows meanwhile */
+function addLivery(car, sp) {
+  if (!sp) return; const mats = []; for (const sx of [1, -1]) { const m = new THREE.MeshBasicMaterial({ color: 0xf4f1e8 }); mats.push(m); const pl = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.85), m); pl.position.set(sx * 0.94, 0.78, 0); pl.rotation.y = sx * Math.PI / 2; car.add(pl); }
+  const img = new Image(); img.onload = () => { const t = new THREE.Texture(img); t.colorSpace = THREE.SRGBColorSpace; t.needsUpdate = true; for (const m of mats) { m.map = t; m.needsUpdate = true; } car.userData.liveryLoaded = true; };
+  img.src = window.__naMedia ? window.__naMedia(sp.i) : `/media/creative/${sp.i}`; car.userData.livery = sp.b;
+}
 export class RideClient {
   constructor(game) { this.g = game; this.ride = null; this.car = null; this.path = null; this.len = 0; this.t = 0; this.busy = false; this.poll = 0;
     this.chip = h('div', { id: 'rideChip', class: 'pill hidden' }, h('button', { id: 'rideBtn', class: 'park-btn', onclick: () => this.act() }, ''), h('button', { id: 'rideCancel', class: 'park-btn dim', onclick: () => this.cancel() }, '✕')); document.body.appendChild(this.chip); }
@@ -26,7 +32,7 @@ export class RideClient {
     for (const c of startCandidates(from[0], from[1], r.driverDist)) { if (!roadAt(g.city, c[0], c[1], 0)) continue; const rt = findRoute(grid, c, from, 'drive'); if (rt && rt.length > r.driverDist * 0.6 && rt.length < r.driverDist * 3) { route = rt; break; } }
     const pts = route ? route.pts.slice() : [[from[0] + r.driverDist * 0.7, from[1] + r.driverDist * 0.7], from]; // fallback: straight in
     // stop a few metres short of the player so the car pulls up beside, not on top
-    const total = pathLength(pts); const stopAt = Math.max(1, total - 4.5); this.path = pts; this.len = stopAt; this.car = makeHail(new THREE.Color(r.driver.color).getHex()); g.scene.add(this.car); this.place(0);
+    const total = pathLength(pts); const stopAt = Math.max(1, total - 4.5); this.path = pts; this.len = stopAt; this.car = makeHail(new THREE.Color(r.driver.color).getHex()); addLivery(this.car, r.sponsor); g.scene.add(this.car); this.place(0);
   }
   place(d) { const p = posAlong(this.path, d); this.car.position.set(p.x, 0.02, p.z); this.car.rotation.y = p.yaw; }
   async request(placeId) { const r = await post('/api/ride/request', { placeId }); this.set(r.ride); this.g.ui.toast(r.text); return r; }
@@ -44,7 +50,7 @@ export class RideClient {
     this.t += dt; this.poll += dt; if (this.poll > 20000) { this.poll = 0; this.load(); }
     const r = this.ride; if (r && this.car) { const now = g.serverNow(); const p = driverProgress(now, r.requestedAt, r.arriveAt); this.place(this.len * p); if (now >= r.arriveAt && r.state === 'arriving') { r.state = 'arrived'; g.ui.sfx('horn'); g.ui.toast(`${r.driver.name} don reach! Look for the ${r.driver.car.toLowerCase()}.`); } if (now > r.expiresAt) { this.set(null); } }
     if (this.t < 200) return; this.t = 0; let label = null;
-    if (this.ride) { const r2 = this.ride; if (r2.state === 'arriving') label = `🚕 ${r2.driver.name} is coming · ${Math.max(0, Math.ceil((r2.arriveAt - g.serverNow()) / 1000))} s`; else { const near = Math.hypot(g.ctrl.x - r2.from.x, g.ctrl.z - r2.from.z) <= 14; label = near ? `🚕 Get in · ₦${r2.fare.toLocaleString('en-NG')} to ${r2.placeName}` : `🚕 Your driver is waiting at the pickup spot`; } }
+    if (this.ride) { const r2 = this.ride; if (r2.state === 'arriving') label = `🚕 ${r2.driver.name} is coming · ${Math.max(0, Math.ceil((r2.arriveAt - g.serverNow()) / 1000))} s${r2.sponsor ? ' · ' + r2.sponsor.b : ''}`; else { const near = Math.hypot(g.ctrl.x - r2.from.x, g.ctrl.z - r2.from.z) <= 14; label = near ? `🚕 Get in · ₦${r2.fare.toLocaleString('en-NG')} to ${r2.placeName}` : `🚕 Your driver is waiting at the pickup spot`; } }
     if (g.commute || g.busy) label = null; this.chip.classList.toggle('hidden', !label); if (label) $('#rideBtn').textContent = label; $('#rideBtn').disabled = !!this.ride && this.ride.state !== 'arrived';
   }
 }

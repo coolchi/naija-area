@@ -51,3 +51,18 @@ export const AD_POLICY = {
   restrictedKeywords: ['bet', 'betting', 'casino', 'lottery', 'alcohol', 'beer', 'vodka', 'whisky', 'tobacco', 'cigarette', 'election', 'vote', 'party politics', 'loan', 'forex', 'crypto', 'investment returns'],
   prohibitedKeywords: ['guaranteed returns', 'double your money', 'sex', 'porn', 'escort', 'weapon', 'gun sale', 'hate'],
 };
+
+// ---- AD FORMATS BEYOND BILLBOARDS (Track G item 8, 10 Oct 2026). Same advertiser portal, same moderation pipeline, same server-side counting. ALL NUMBERS ARE ESTIMATES, TEST MODE.
+//  shop_front : a sponsor sign on the front of a shop or venue (a real board on the building, derived from the city's shops and venues). Counted like a billboard (player evidence, validated).
+//  radio_spot : a sponsored spot on the four in-game (synthesised) radio stations: a card with the brand, headline and image, and a chime, every `everyMs` while a driver is tuned in. NEVER on the real
+//               stations (their streams are played as they are, see docs/RADIO.md). The client reports how long the card was up; the server checks the spot window, that the player is in a car, and the length.
+//  ride_car   : the Oya Ride driver's car wears the sponsor's livery (side panels and the pick-up card). Counted by the SERVER alone: one valid impression per ride that the passenger boards.
+export const AD_FORMATS = {
+  _note: 'ESTIMATES. Prices are placeholders; nothing is charged in test mode.',
+  shopFront: { maxPerCity: 8, w: 4.4, h: 2.2, y: 4.6, standOff: 0.35, nameSignHalf: 8 },
+  radio: { everyMs: 180000, minListenMs: 5000, stations: ['eko', 'highlife', 'gospel', 'night'] }, // a spot every 3 minutes; the card shows for one rotation window (AD_POLICY.rotationMs)
+  rideCar: { dedupePerRide: true }
+};
+RATE_CARD.surfaces.shop_front = { label: 'Shop front sign', size: '1024x512 (2:1)', aspect: 2, maxBoardsPerOrder: 3, positionsPerBoard: 4, tiers: { shop: { label: 'Shop or venue front', weekly: 25000 } } }; // ESTIMATE: below a street board
+RATE_CARD.surfaces.radio_spot = { label: 'Radio spot (in-game stations)', size: '768x768 (square)', aspect: 1, maxBoardsPerOrder: 2, positionsPerBoard: 4, tiers: { station: { label: 'In-game station, a spot every 3 minutes', weekly: 40000 } } }; // ESTIMATE
+RATE_CARD.surfaces.ride_car = { label: 'Oya Ride car livery', size: '1024x512 (2:1)', aspect: 2, maxBoardsPerOrder: 1, positionsPerBoard: 4, tiers: { fleet: { label: 'Every Oya Ride car in the city', weekly: 60000 } } }; // ESTIMATE
