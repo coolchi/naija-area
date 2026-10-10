@@ -89,7 +89,7 @@ export function decide(app, uid, userId, accept) {
 }
 export function invite(app, uid, username) {
   const m = mustMember(app, uid); if (!canManage(m)) bad('FORBIDDEN', 'Only leaders and officers can invite.', 403); const c = clubOf(app, m.club_id);
-  const t = q1(app, 'SELECT id, is_guest, is_bot FROM users WHERE username=? COLLATE NOCASE', String(username || '').replace(/^@/, '')); if (!t || t.is_bot) bad('NO_USER', 'No such player.', 404); if (t.is_guest) bad('GUEST', 'Guests cannot join clubs.', 409); if (memberOf(app, t.id)) bad('IN_CLUB', 'They are already in a club.', 409);
+  const t = q1(app, 'SELECT id, is_guest, is_bot FROM users WHERE username=?', String(username || '').replace(/^@/, '')); if (!t || t.is_bot) bad('NO_USER', 'No such player.', 404); if (t.is_guest) bad('GUEST', 'Guests cannot join clubs.', 409); if (memberOf(app, t.id)) bad('IN_CLUB', 'They are already in a club.', 409);
   if (countOf(app, c.id) >= cfg(app).maxMembers) bad('CLUB_FULL', 'Your club is full.', 409);
   if (q1(app, 'SELECT COUNT(*) n FROM club_requests WHERE club_id=?', c.id).n >= cfg(app).requestsMax) bad('TOO_MANY', 'Too many waiting invites and requests.', 409);
   run(app, 'DELETE FROM club_requests WHERE club_id=? AND user_id=?', c.id, t.id); run(app, "INSERT INTO club_requests(club_id,user_id,kind,created_at,invited_by) VALUES (?,?,'invite',?,?)", c.id, t.id, app.clock.now(), uid);
