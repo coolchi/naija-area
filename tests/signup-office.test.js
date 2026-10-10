@@ -22,7 +22,7 @@ test('who still needs set-up: registered accounts yes, guests and bots no, and d
 test('choose city, then a DIFFERENT city of interest, then interests: stored, you start in the chosen city, and the options list says what is allowed', async () => {
   const s = makeServer(); const u = mkUser(s); const o = await ok(s, 'GET', '/api/signup/options', { uid: u }); assert.equal(o.homeCity, 'lagos'); assert.equal(o.interests.length, INTEREST_OPTIONS.length); assert.equal(o.homeLocked, false);
   const r = await ok(s, 'POST', '/api/signup/profile', { uid: u, body: { homeCity: 'kano', interestCity: 'lagos', interests: ['music', 'cars'] } }); assert.equal(r.moved.cityId, 'kano'); assert.equal(cityIdOf(s.app, u), 'kano'); assert.equal(r.user.cityId, 'kano');
-  assert.deepEqual(r.signup, { needed: false, done: true, skipped: false, homeCity: 'kano', interestCity: 'lagos', interests: ['music', 'cars'] }); assert.equal((await ok(s, 'GET', '/api/signup/options', { uid: u })).homeLocked, true);
+  assert.deepEqual(r.signup, { needed: false, done: true, skipped: false, homeCity: 'kano', homeName: 'Kano', homeOpen: true, startsIn: null, interestCity: 'lagos', interests: ['music', 'cars'] }); assert.equal((await ok(s, 'GET', '/api/signup/options', { uid: u })).homeLocked, true);
 });
 test('set-up rules: unknown city or interest, same city twice, none or too many interests, and the home city cannot be changed afterwards', async () => {
   const s = makeServer(); const u = mkUser(s); const sv = (b) => post(s, u, '/api/signup/profile', b); const ints = INTEREST_OPTIONS.map(i => i.id);
