@@ -74,7 +74,8 @@ test('own buying limit: 0 blocks real-money purchases, a daily limit counts what
   await setOk(s, u, { topupDailyNgn: null }); const last = await buy('p1000'); assert.ok(!/^SPEND/.test(last.json.error || ''), 'no limit of our own any more (the shop\'s own open-payments rule may still answer)');
 });
 test('play limit: the server counts heartbeat time, then closes the game for the day (BREAK_TIME) but never blocks your own data, logout or the settings; midnight Lagos time reopens it', async () => {
-  const s = makeServer(); const u = adult(s); at(s, u, 5, 5); await beat(s, u); await setOk(s, u, { playLimitMin: 30 });
+  const s = makeServer(); s.app.clock.advance((((9 - new Date(s.app.clock.now()).getUTCHours() + 23) % 24) + 1) * 3600000 - (s.app.clock.now() % 3600000)); // start at 10:00 Lagos: the test moves the clock about 3.5 h, so late in the evening it crossed midnight and the day's counter reset (flaked after about 21:00)
+  const u = adult(s); at(s, u, 5, 5); await beat(s, u); await setOk(s, u, { playLimitMin: 30 });
   assert.equal((await ok(s, 'GET', '/api/guardian', { uid: u })).today.leftMin, 30);
   for (let i = 0; i < 20; i++) { s.app.clock.advance(30000); assert.equal((await beat(s, u)).status, 200); } // 10 minutes in 30 s beats
   const hb = (await beat(s, u)).json; assert.ok(hb.gd && hb.gd.left <= 20 && hb.gd.left >= 19, JSON.stringify(hb.gd));

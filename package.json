@@ -23,6 +23,7 @@
     "smoke:festival": "node scripts/festival-smoke.mjs",
     "smoke:planes": "node scripts/planes-smoke.mjs",
     "smoke:passskins": "node scripts/passskins-smoke.mjs",
+    "smoke:weather": "node scripts/weather-smoke.mjs",
     "smoke:adformats": "node scripts/adformats-smoke.mjs",
     "smoke:signup": "node scripts/signup-smoke.mjs",
     "smoke:tutorial": "node scripts/tutorial-smoke.mjs",

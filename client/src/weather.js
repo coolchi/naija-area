@@ -1,10 +1,10 @@
 // Weather on the client (Track G item 4): rain streaks around the camera, a greyer sky and nearer fog, lightning in storms, water sheets on flooded streets, and the speed scale for flooded zones.
 // The SERVER decides the weather (heartbeat field `wx`, GET /api/weather): this file only draws it. Pure helpers are exported for tests.
 import * as THREE from 'three';
+import { LOOK, WEATHER_VIEW, fogDistances, lightScale } from './weather-config.js';
+export { LOOK };
 
 export const STATE_NAMES = ['clear', 'cloudy', 'rain', 'storm'];
-/** how wet / dark each state looks: rain strength 0..1, sky grey mix 0..1, fog scale (1 = normal) */
-export const LOOK = { clear: { rain: 0, grey: 0, fog: 1, dim: 1 }, cloudy: { rain: 0, grey: 0.3, fog: 0.9, dim: 0.9 }, rain: { rain: 0.6, grey: 0.55, fog: 0.6, dim: 0.75 }, storm: { rain: 1, grey: 0.75, fog: 0.4, dim: 0.6 } };
 /** player point inside any flooded zone? -> flood level (0 when dry) */
 export function floodLevelAt(zones, x, z) { for (const q of zones || []) if (x >= q.x1 && x <= q.x2 && z >= q.z1 && z <= q.z2) return q.level || 1; return 0; }
 export const approach = (v, t, rate, dt) => v + (t - v) * Math.min(1, rate * dt);
@@ -13,7 +13,7 @@ export class Weather {
   constructor(scene, world, drops = 700) {
     this.scene = scene; this.world = world; this.state = 'clear'; this.flood = 0; this.k = { rain: 0, grey: 0, fog: 1, dim: 1 }; this.zones = []; this.active = new Set(); this.sheets = new Map(); this.flash = 0; this.speedByLevel = null; this.t = 0;
     const g = new THREE.BufferGeometry(); this.N = drops; this.pos = new Float32Array(drops * 6); this.seed = new Float32Array(drops * 3); for (let i = 0; i < drops; i++) { this.seed[i * 3] = Math.random() * 60 - 30; this.seed[i * 3 + 1] = Math.random() * 28; this.seed[i * 3 + 2] = Math.random() * 60 - 30; }
-    g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3)); this.rain = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xbcd4ee, transparent: true, opacity: 0.55, fog: false })); this.rain.frustumCulled = false; this.rain.visible = false; scene.add(this.rain);
+    g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3)); this.rain = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xbcd4ee, transparent: true, opacity: WEATHER_VIEW.rainOpacity, fog: false })); this.rain.frustumCulled = false; this.rain.visible = false; scene.add(this.rain);
     this.water = new THREE.MeshLambertMaterial({ color: 0x3f6f8f, transparent: true, opacity: 0.55, depthWrite: false }); this.lights = [];
   }
   /** from GET /api/weather: zone rectangles and the speed scale per level */
@@ -27,13 +27,14 @@ export class Weather {
   }
   /** called right after world.setTime (which resets sky, fog and light colours each heartbeat): remember the day/night base, then apply the weather on top */
   afterTime() {
-    const sc = this.scene; this.base = { bg: sc.background?.clone?.() || null, fog: sc.fog ? sc.fog.color.clone() : null, near: sc.fog?.near, far: sc.fog?.far };
+    const sc = this.scene; if (sc.fog && !this.fog0) this.fog0 = { near: sc.fog.near, far: sc.fog.far }; // the day's own fog distances, read ONCE (setTime resets only the colour, so re-reading each heartbeat compounds the rain fog)
+    this.base = { bg: sc.background?.clone?.() || null, fog: sc.fog ? sc.fog.color.clone() : null, near: this.fog0?.near, far: this.fog0?.far };
     if (!this.lights.length) sc.traverse(o => { if (o.isDirectionalLight || o.isHemisphereLight) this.lights.push(o); }); this.baseI = this.lights.map(l => l.intensity); this.paint();
   }
   paint() {
     const sc = this.scene, k = this.k; if (!this.base) return; const grey = new THREE.Color(0x7d8794).multiplyScalar(0.55 + 0.45 * (1 - this.world.night)); // greyer at night too
-    if (this.base.bg && sc.background?.copy) sc.background.copy(this.base.bg).lerp(grey, k.grey); if (this.base.fog) { sc.fog.color.copy(this.base.fog).lerp(grey, k.grey); sc.fog.near = this.base.near * k.fog; sc.fog.far = this.base.far * (0.4 + 0.6 * k.fog); }
-    this.lights.forEach((l, i) => { l.intensity = this.baseI[i] * k.dim * (1 + this.flash * 1.8); });
+    if (this.base.bg && sc.background?.copy) sc.background.copy(this.base.bg).lerp(grey, k.grey); if (this.base.fog) { sc.fog.color.copy(this.base.fog).lerp(grey, k.grey); const fd = fogDistances(this.base.near, this.base.far, k.fog); sc.fog.near = fd.near; sc.fog.far = fd.far; }
+    this.lights.forEach((l, i) => { l.intensity = this.baseI[i] * lightScale(k.dim, this.flash); });
   }
   /** the speed scale at a point ({walk, drive}, 1 when dry) */
   speedAt(x, z) { const lvl = floodLevelAt(this.zones, x, z); return lvl && this.speedByLevel ? this.speedByLevel[lvl] : { walk: 1, drive: 1 }; }
