@@ -17,7 +17,7 @@ export const VENUE = {
     lounge('draughts1', 'draughts', 'Draughts', 5.25, 2.6, '#6b4226'), lounge('ayo1', 'ayo', 'Ayo', 10.5, 2.6, '#6b4226'),
     lounge('football1', 'football', 'Table football', -10.5, 7, '#2e7d32'),
     lounge('chess1', 'chess', 'Chess', -5.25, 7, '#3a3a40'), lounge('wordduel1', 'wordduel', 'Word duel', 0, 7, '#c8a23d'),
-    lounge('property1', 'property', 'Lagos property game', 5.25, 7, '#b8322a', { alts: ['lagosproperty', 'propertygame', 'landlord', 'lagosland'] }), lounge('suwe1', 'suwe', 'Suwe (hopscotch)', 10.5, 7, '#e0a020', { soon: 'suwe' }),
+    lounge('property1', 'property', 'Lagos property game', 5.25, 7, '#b8322a', { alts: ['lagosproperty', 'propertygame', 'landlord', 'lagosland'] }), lounge('suwe1', 'suwe', 'Suwe (hopscotch)', 10.5, 7, '#e0a020'),
     { id: 'board', type: 'board', label: 'Weekly scoreboard', x: 12.4, z: -6, color: '#1f6f4a' },
     { id: 'rules', type: 'poster', label: 'House rules', x: -12.8, z: -0.4, color: '#f0c419', text: RULES }],
   room: { w: 28, d: 20, wall: '#e9eef2', trim: '#1f6fb5', floor: { style: 'checker', a: '#d3d9de', b: '#c2c9cf' }, windows: [{ wall: 'back', at: -6, w: 2.4 }, { wall: 'back', at: 9.5, w: 2.4 }, { wall: 'left', at: 3, w: 2 }], mood: 'bright', door: 'Enter',
