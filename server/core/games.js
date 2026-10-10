@@ -10,11 +10,12 @@ import * as ludo from './games/ludo.js';
 import * as dominoes from './games/dominoes.js';
 import * as draughts from './games/draughts.js';
 import * as ayo from './games/ayo.js';
+import * as football from './games/football.js';
 
 // Every engine except Whot (the original, 'a'/'b' sides) shares one contract: newGame(n, rng), play(st, seat, move, rng) -> {ok,won}|{error}, forfeit(st, seat), view(st, seat), bot(st, seat, rng).
 // State carries n (players), turn (seat index), winner (null | seat | 'draw').
 export const GAMES = { whot: { label: 'Whot', min: 2, max: 2, eng: whot }, ludo: { label: 'Ludo', min: 2, max: 4, eng: ludo }, dominoes: { label: 'Dominoes', min: 2, max: 4, eng: dominoes },
-  draughts: { label: 'Draughts', min: 2, max: 2, eng: draughts }, ayo: { label: 'Ayo', min: 2, max: 2, eng: ayo } };
+  draughts: { label: 'Draughts', min: 2, max: 2, eng: draughts }, ayo: { label: 'Ayo', min: 2, max: 2, eng: ayo }, football: { label: 'Table football', min: 2, max: 2, eng: football } };
 const DAY = 86400000, WEEK = 7 * DAY;
 export const weekOf = (ms) => Math.floor((ms - 4 * DAY) / WEEK);   // weeks start Monday 00:00 UTC (1970-01-05 was a Monday)
 export const weekInfo = (app) => { const w = weekOf(app.clock.now()); return { week: w, endsAt: 4 * DAY + (w + 1) * WEEK }; };

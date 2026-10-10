@@ -6,11 +6,16 @@ import { notify } from './economy.js';
 import { move as ledgerMove, cashId, SYS } from './ledger.js';
 import * as merge from './casual/merge.js';
 import * as memory from './casual/memory.js';
+import * as match3 from './casual/match3.js';
+import * as danfo from './casual/danfo.js';
+import { DANFO_LEVELS } from '../config/danfo-levels.js';
 import { ANSWERS, VALID } from '../config/words.js';
 
 export const CASUAL = [
   { id: 'merge', name: 'Merge Am', blurb: 'Slide the tiles. Equal tiles join. Chase the big number.', where: 'Viewing Centre' },
   { id: 'memory', name: 'Pair Am', blurb: 'Flip the cards and find the pairs in few tries.', where: 'Corner Joint' },
+  { id: 'match3', name: 'Chop Am', blurb: 'Swap snacks to line up three or more. 20 moves, chase big chains.', where: 'Viewing Centre' },
+  { id: 'danfo', name: 'Clear the Go-Slow', blurb: 'Slide the stuck vehicles so the yellow danfo can get out. Fewest moves wins.', where: 'Mama Put' },
   { id: 'word', name: 'Word of the Day', blurb: 'Guess the 5-letter word in six tries. One word a day for everybody.', where: 'Mama Put' }
 ];
 const cfg = (app) => app.balance.casual;
@@ -76,6 +81,38 @@ export function memoryFlip(app, uid, runId, i) {
     if (p.paid) notify(app, uid, 'casual', `Pair Am: done in ${st.moves} tries, +₦${p.paid} (game money).`);
   } else app.db.prepare('UPDATE casual_runs SET state=? WHERE id=?').run(JSON.stringify(st), run.id);
   return out;
+}
+
+// ---------------------------------------------------------------- match-3 ("Chop Am")
+export function match3Start(app, uid) { const seed = seedOf(app); const id = openRun(app, uid, 'match3', seed); return { runId: id, seed, size: match3.SIZE, kinds: match3.KINDS, moves: match3.MOVES, snacks: match3.SNACKS, note: 'Play locally; the server replays your swaps from the seed it dealt.' }; }
+export function match3Submit(app, uid, runId, moves) {
+  const C = cfg(app).match3; const run = getRun(app, uid, runId, 'match3'); const log = String(moves || ''); const n = log.length / 3;
+  if (n < C.minMoves) bad('TOO_SHORT', `Play at least ${C.minMoves} swaps for a counted game.`);
+  const r = match3.replay(run.seed, log, match3.MOVES); if (!r.ok) bad(r.error, 'That move list does not match the board we dealt you.');
+  const elapsed = app.clock.now() - run.started_at; if (elapsed < r.moves * C.minMsPerMove) bad('TOO_FAST', 'That was faster than a human can play. Try again.');
+  const want = Math.min(C.perRunCap, Math.floor(r.score / C.scorePerNaira)); app.db.prepare("UPDATE casual_runs SET status='done', score=?, finished_at=? WHERE id=?").run(r.score, app.clock.now(), run.id);
+  const p = payout(app, uid, run.id, want); app.db.prepare('UPDATE casual_runs SET reward=? WHERE id=?').run(p.paid, run.id);
+  if (p.paid) notify(app, uid, 'casual', `Chop Am: score ${r.score}, +₦${p.paid} (game money).`);
+  return { score: r.score, moves: r.moves, bestChain: r.best, over: r.over, reward: p.paid, note: p.note, earnedToday: p.earnedToday, dailyCap: p.dailyCap, personalBest: Math.max(best(app, uid, 'match3'), r.score) };
+}
+
+// ---------------------------------------------------------------- traffic-jam puzzle ("Clear the Go-Slow")
+export const danfoLevel = (id) => { const l = DANFO_LEVELS.find(x => x.id === Number(id)); return l ? { ...l, vehicles: l.vehicles.map(([kind, r, c, len, dir]) => ({ kind, r, c, len, dir })) } : null; };
+const clearedLevels = (app, uid) => new Set(app.db.prepare("SELECT DISTINCT seed FROM casual_runs WHERE user_id=? AND kind='danfo' AND status='done'").all(uid).map(r => r.seed));
+/** levels open to this player: every level up to one past the last they cleared in order (so they can replay old ones and try the next) */
+export function danfoProgress(app, uid) { const done = clearedLevels(app, uid); let next = 1; while (done.has(next)) next++; return { done, next: Math.min(next, DANFO_LEVELS.length), unlocked: Math.min(next, DANFO_LEVELS.length), total: DANFO_LEVELS.length }; }
+export function danfoStart(app, uid, level) {
+  const pr = danfoProgress(app, uid); const id = level == null || level === '' ? pr.next : Number(level); const L = danfoLevel(id); if (!L) bad('NO_LEVEL', 'No such level.', 404); if (id > pr.unlocked) bad('LOCKED', `Clear level ${pr.unlocked} first.`, 403);
+  const runId = openRun(app, uid, 'danfo', id); return { runId, level: { id: L.id, name: L.name, par: L.par, vehicles: L.vehicles }, cleared: pr.done.has(id), unlocked: pr.unlocked, total: pr.total };
+}
+export function danfoSubmit(app, uid, runId, moves) {
+  const C = cfg(app).danfo; const run = getRun(app, uid, runId, 'danfo'); const L = danfoLevel(run.seed); const r = danfo.replay(L.vehicles, String(moves || ''), C.maxMoves); if (!r.ok) bad(r.error, r.error === 'NOT_SOLVED' ? 'The danfo is still stuck. Keep sliding.' : 'That move list does not work on this level.');
+  const elapsed = app.clock.now() - run.started_at; if (elapsed < r.moves * C.minMsPerMove) bad('TOO_FAST', 'That was faster than a human can play. Try again.');
+  const first = !app.db.prepare("SELECT 1 FROM casual_runs WHERE user_id=? AND kind='danfo' AND seed=? AND status='done'").get(uid, L.id); // only the FIRST clear of a level pays
+  const extra = Math.max(0, r.moves - L.par); const score = Math.max(10, 1000 - extra * 60); const full = Math.min(C.perRunCap, C.perLevelBase + C.perPar * L.par); const want = first ? Math.max(C.floor, full - extra * C.perExtraMove) : 0;
+  app.db.prepare("UPDATE casual_runs SET status='done', score=?, finished_at=? WHERE id=?").run(score, app.clock.now(), run.id); const p = payout(app, uid, run.id, want); app.db.prepare('UPDATE casual_runs SET reward=? WHERE id=?').run(p.paid, run.id);
+  if (p.paid) notify(app, uid, 'casual', `Clear the Go-Slow ${L.id}: ${r.moves} moves (par ${L.par}), +₦${p.paid} (game money).`); const pr = danfoProgress(app, uid);
+  return { moves: r.moves, par: L.par, perfect: r.moves === L.par, firstClear: first, reward: p.paid, note: first ? p.note : 'Already cleared: replays are for fun and a better score, not game money.', earnedToday: p.earnedToday, dailyCap: p.dailyCap, next: pr.next, unlocked: pr.unlocked, total: pr.total };
 }
 
 // ---------------------------------------------------------------- word of the day

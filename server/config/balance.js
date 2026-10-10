@@ -93,7 +93,10 @@ export const BALANCE = {
   casual: { dailyCap: 300, startPerMin: 8, minAccountAgeMs: num('NA_CASUAL_MIN_AGE_MS', 5 * 60 * 1000), staleRunMs: 6 * 3600000,
     merge: { size: 4, scorePerNaira: 120, perRunCap: 60, minMoves: 20, maxMoves: 4000, minMsPerMove: 150 },
     memory: { pairs: 8, perRunCap: 40, perExtraMove: 4, floor: 5, minMsPerFlip: 250, maxMs: 30 * 60000 },
-    word: { length: 5, maxGuesses: 6, rewards: [60, 50, 40, 30, 20, 10] } },
+    word: { length: 5, maxGuesses: 6, rewards: [60, 50, 40, 30, 20, 10] },
+    // match-3 ("Chop Am") and the traffic-jam puzzle ("Clear the Go-Slow"): reward numbers are ESTIMATE placeholders like the rest
+    match3: { scorePerNaira: 60, perRunCap: 50, minMoves: 5, minMsPerMove: 700 },
+    danfo: { perLevelBase: 8, perPar: 2, perRunCap: 45, perExtraMove: 2, floor: 4, minMsPerMove: 350, maxMoves: 200 } },
   // ---- cars (fictional models, placeholder ESTIMATE prices). 'borrowed' is what you drive until you buy one. fuel = perM per metre.
   cars: {
     borrowed: { name: 'Borrowed car', base: 60, perM: 0.35, speed: 10, mood: 0 },
