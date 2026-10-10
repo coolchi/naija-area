@@ -6,11 +6,12 @@ import { dist, gameTime, addMood } from './economy.js';
 import * as games from './games.js';
 import * as leisure from './leisure.js';
 import { stadiumAct } from './stadium.js';
+import { wearIds } from './wearables.js';
 
 export const venueDef = (app, id) => app.all.venueById[id];
 const hourNow = (app) => gameTime(app, app.clock.now()).hour;
 export function isOpen(app, v) { if (!v.hours) return true; if (!app.balance.shops.enforceHours) return true; const h = hourNow(app); return h >= v.hours[0] && h < v.hours[1]; }
-export const occupants = (app, venueId) => { const cut = app.clock.now() - app.balance.heartbeat.activeWindowMs; return [...app.world.players.values()].filter(p => p.venue === venueId && p.lastSeen >= cut).map(p => ({ id: p.id, username: p.name, color: p.color, bot: p.isBot })); };
+export const occupants = (app, venueId) => { const cut = app.clock.now() - app.balance.heartbeat.activeWindowMs; return [...app.world.players.values()].filter(p => p.venue === venueId && p.lastSeen >= cut).map(p => ({ id: p.id, username: p.name, color: p.color, bot: p.isBot, w: wearIds(app, p) })); };
 
 export function venuesList(app, uid) {
   return ((uid ? cityOf(app, uid) : app.city).venues || []).map(v => ({ id: v.id, name: v.name, blurb: v.blurb, x: v.x, z: v.z, hours: v.hours, open: isOpen(app, v), inside: occupants(app, v.id).length }));
@@ -23,7 +24,7 @@ export function venueView(app, uid, venueId) {
     if (st.type === 'car') o.price = app.balance.cars.models[st.model]?.price;
     return o;
   });
-  return { id: v.id, name: v.name, blurb: v.blurb, hours: v.hours, open: isOpen(app, v), shopId: v.shopId || null, sign: v.sign, room: v.room || { w: 9, d: 9 }, kind: v.kind || null, stations, occupants: occupants(app, venueId), stakes: app.balance.games.stakes, week: games.weekInfo(app) };
+  return { id: v.id, name: v.name, blurb: v.blurb, hours: v.hours, open: isOpen(app, v), shopId: v.shopId || null, wearShop: v.wearShop || null, sign: v.sign, room: v.room || { w: 9, d: 9 }, kind: v.kind || null, stations, occupants: occupants(app, venueId), stakes: app.balance.games.stakes, week: games.weekInfo(app) };
 }
 export function enterVenue(app, uid, venueId, pos) {
   const v = venueDef(app, venueId); if (!v) bad('NO_VENUE', 'Unknown place.', 404);

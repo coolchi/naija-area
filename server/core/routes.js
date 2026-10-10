@@ -21,6 +21,7 @@ import * as bus from './bus.js';
 import * as ride from './ride.js';
 import * as crash from './crash.js';
 import * as homes from './homes.js';
+import * as wear from './wearables.js';
 import { history, checkInvariants, moneySupply, balanceOf, cashId } from './ledger.js';
 import { RATE_CARD, AD_POLICY } from '../config/ratecard.js';
 import { GAME_NAME, GAME_TAGLINE, MIN_AGE } from '../config/game.js';
@@ -108,6 +109,14 @@ route('POST', '/api/phone/call/start', { auth: 'user' }, (c) => phone.callStart(
 route('POST', '/api/phone/call/act', { auth: 'user' }, (c) => phone.callAct(c.app, c.uid, c.body.callId, c.body.action));
 route('POST', '/api/phone/call/signal', { auth: 'user' }, (c) => phone.callSignal(c.app, c.uid, c.body.callId, c.body));
 route('POST', '/api/phone/call/stats', { auth: 'user' }, (c) => phone.reportCallEnded(c.app, c.uid, c.body.callId, c.body.icePath));
+// jewelry store + cap store (wearables): public catalogue, the shop window, buy, wear, take off, (optional) sell back
+route('GET', '/api/wearables/catalogue', (c) => wear.catalogue(c.app));
+route('GET', '/api/wearables/shop', { auth: 'user' }, (c) => wear.shopView(c.app, c.uid, String(c.query.venueId || '')));
+route('GET', '/api/wearables/mine', { auth: 'user' }, (c) => wear.wearView(c.app, c.uid));
+route('POST', '/api/wearables/buy', { auth: 'user' }, (c) => wear.buy(c.app, c.uid, c.body.venueId, c.body.itemId, c.body.idem));
+route('POST', '/api/wearables/equip', { auth: 'user' }, (c) => wear.equip(c.app, c.uid, c.body.itemId));
+route('POST', '/api/wearables/unequip', { auth: 'user' }, (c) => wear.unequip(c.app, c.uid, c.body.slot));
+route('POST', '/api/wearables/sell', { auth: 'user' }, (c) => wear.sell(c.app, c.uid, c.body.itemId, c.body.idem));
 route('GET', '/api/salon', { auth: 'user' }, (c) => leisure.salonMenu(c.app, c.uid, String(c.query.venueId || '')));
 route('POST', '/api/salon/style', { auth: 'user' }, (c) => leisure.salonStyle(c.app, c.uid, c.body.venueId, c.body.stationId, c.body.styleId, c.body.idem));
 route('POST', '/api/game/sit', { auth: 'user' }, (c) => games.sit(c.app, c.uid, c.body.venueId, c.body.stationId, Number(c.body.stake) || 0));
