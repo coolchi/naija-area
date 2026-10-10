@@ -157,6 +157,6 @@ export const tickGames = (app) => expireStale(app);
 
 export function scoreboard(app, { kind, weekOffset = 0 } = {}) {
   const w = weekOf(app.clock.now()) - Math.max(0, Math.min(8, weekOffset | 0)); const kinds = kind && GAMES[kind] ? [kind] : Object.keys(GAMES);
-  const rows = app.db.prepare(`SELECT u.username, SUM(s.wins) wins, SUM(s.losses) losses, SUM(s.draws) draws, SUM(s.points) points FROM game_scores s JOIN users u ON u.id=s.user_id WHERE s.week=? AND s.kind IN (${kinds.map(() => '?').join(',')}) GROUP BY s.user_id ORDER BY points DESC, wins DESC, u.username LIMIT 10`).all(w, ...kinds);
+  const rows = app.db.prepare(`SELECT u.username, SUM(s.wins) wins, SUM(s.losses) losses, SUM(s.draws) draws, SUM(s.points) points FROM game_scores s JOIN users u ON u.id=s.user_id WHERE s.week=? AND s.kind IN (${kinds.map(() => '?').join(',')}) GROUP BY s.user_id, u.username ORDER BY points DESC, wins DESC, u.username LIMIT 10`).all(w, ...kinds);
   return { week: w, endsAt: 4 * DAY + (w + 1) * WEEK, kind: kind || 'all', rows: rows.map((r, i) => ({ rank: i + 1, ...r })), scoring: `Win ${app.balance.games.pointsWin}, draw ${app.balance.games.pointsDraw}, loss 0. Game money only.` };
 }

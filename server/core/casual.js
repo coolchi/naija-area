@@ -26,7 +26,7 @@ function payout(app, uid, runId, want) {
   else { const left = Math.max(0, C.dailyCap - d.earned); paid = Math.min(want, left); if (paid < want) note = left <= 0 ? 'Daily game-money cap reached. You can still play for fun.' : 'Reward trimmed to your daily cap.'; }
   app.db.transaction(() => {
     if (paid > 0) { ledgerMove(app, { from: SYS.FAUCET_CASUAL, to: cashId(uid), amount: paid, reason: 'casual_reward', ref: `run:${runId}`, userId: uid, idemKey: `casual:${runId}` }); }
-    app.db.prepare('INSERT INTO casual_daily(user_id,day,earned,plays) VALUES (?,?,?,1) ON CONFLICT(user_id,day) DO UPDATE SET earned=earned+excluded.earned, plays=plays+1').run(uid, day, paid);
+    app.db.prepare('INSERT INTO casual_daily(user_id,day,earned,plays) VALUES (?,?,?,1) ON CONFLICT(user_id,day) DO UPDATE SET earned=casual_daily.earned+excluded.earned, plays=casual_daily.plays+1').run(uid, day, paid);
   })();
   return { paid, note, earnedToday: d.earned + paid, dailyCap: C.dailyCap };
 }

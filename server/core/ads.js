@@ -192,8 +192,8 @@ export function expectedCampaign(app, slotId, win) {
 }
 
 // ---- impressions --------------------------------------------------------
-const bumpStat = (app, cid, col, n = 1, day) => app.db.prepare(`INSERT INTO ad_stats(campaign_id,day,${col}) VALUES (?,?,?) ON CONFLICT(campaign_id,day) DO UPDATE SET ${col}=${col}+?`).run(cid, day, n, n);
-const bumpReason = (app, cid, kind, reason) => app.db.prepare('INSERT INTO ad_filter_reasons(campaign_id,kind,reason,n) VALUES (?,?,?,1) ON CONFLICT(campaign_id,kind,reason) DO UPDATE SET n=n+1').run(cid, kind, reason);
+const bumpStat = (app, cid, col, n = 1, day) => app.db.prepare(`INSERT INTO ad_stats(campaign_id,day,${col}) VALUES (?,?,?) ON CONFLICT(campaign_id,day) DO UPDATE SET ${col}=ad_stats.${col}+?`).run(cid, day, n, n);
+const bumpReason = (app, cid, kind, reason) => app.db.prepare('INSERT INTO ad_filter_reasons(campaign_id,kind,reason,n) VALUES (?,?,?,1) ON CONFLICT(campaign_id,kind,reason) DO UPDATE SET n=ad_filter_reasons.n+1').run(cid, kind, reason);
 
 /** evidence item: {slot, win, c, pct, ms, vis}. Client sends evidence, never counts. */
 export function processEvidence(app, p, items, now) {

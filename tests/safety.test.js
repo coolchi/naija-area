@@ -1,5 +1,5 @@
 import test from 'node:test'; import assert from 'node:assert/strict';
-import { makeServer, mkUser, call, ok, at } from './helpers.js';
+import { makeServer, mkUser, call, ok, at, PG_URL } from './helpers.js';
 import { screen, profane } from '../server/core/filter.js';
 import { checkInvariants } from '../server/core/ledger.js';
 
@@ -65,5 +65,6 @@ test('reports: house name, chat, ad creative; validation, duplicates, own-conten
 });
 test('reports are rate limited per user and migrations are idempotent', async () => {
   const s = makeServer(); const u = mkUser(s); let last; for (let i = 0; i < 12; i++) last = await call(s, 'POST', '/api/report', { uid: u, body: { kind: 'chat', target: i + 1, reason: 'abusive' } }); assert.equal(last.json.error, 'RATE_LIMIT');
+  if (PG_URL) return; // the in-code SQLite migrate()/PRAGMA part: Postgres migrations are tested in postgres.test.js
   const { migrate } = await import('../server/core/schema.js'); migrate(s.db); migrate(s.db); assert.ok(s.db.prepare('PRAGMA table_info(property_items)').all().some(c => c.name === 'rot'));
 });

@@ -88,7 +88,7 @@ export function nextDelay(app, now, r, fixtures) {
   const C = cfg(app); const left = callsLeft(app, r); if (left <= 0) return Math.max(1, endOfDay(now) - now);
   const spread = (endOfDay(now) - now) / left; let base = C.refreshMs;
   const near = (fixtures || []).some((f) => f.state === 'live' || (f.state === 'upcoming' && f.kickoff - now < 3600000)); if (!near) base = C.idleRefreshMs;
-  return Math.max(base, spread);
+  return Math.ceil(Math.max(base, spread)); // whole ms: the column is an integer (Postgres refuses 12.5)
 }
 
 /** The one job. Safe to call as often as you like: it only calls the provider when it is due and under the cap. Returns what happened (for tests and logs). */

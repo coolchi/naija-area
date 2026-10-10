@@ -355,10 +355,10 @@ export function netWorth(app, uid) {
 export function leaderboard(app) {
   const now = app.clock.now(); const lb = app.balance.leaderboard;
   if (app.lbCache && now - app.lbCache.at < lb.cacheMs) return app.lbCache.rows;
-  const rows = app.db.prepare(`SELECT u.id, u.username, u.is_guest,
+  const rows = app.db.prepare(`SELECT * FROM (SELECT u.id, u.username, u.is_guest,
       (SELECT balance FROM accounts WHERE id='u:'||u.id) cash, (SELECT balance FROM accounts WHERE id='s:'||u.id) sav,
-      COALESCE((SELECT CAST(paid_price*? AS INTEGER) FROM property_owner po WHERE po.user_id=u.id AND po.mode='own'),0) prop
-    FROM users u WHERE u.is_bot=0 ORDER BY (cash + sav + prop) DESC LIMIT ?`).all(app.balance.housing.sellBackFraction, lb.size)
+      COALESCE((SELECT CAST(FLOOR(paid_price*CAST(? AS DOUBLE PRECISION)) AS INTEGER) FROM property_owner po WHERE po.user_id=u.id AND po.mode='own'),0) prop
+    FROM users u WHERE u.is_bot=0) t ORDER BY (cash + sav + prop) DESC LIMIT ?`).all(app.balance.housing.sellBackFraction, lb.size)
     .map((r, i) => ({ rank: i + 1, name: r.username, guest: !!r.is_guest, netWorth: r.cash + r.sav + r.prop }));
   app.lbCache = { at: now, rows }; return rows;
 }

@@ -104,7 +104,7 @@ export function threadView(app, uid, withName, after = 0, markRead = true) {
   const t = threadFor(app, uid, o.id, false); if (!t) return { with: o.username, state: presenceOf(app, uid, o.id), friends: areFriends(app, uid, o.id), messages: [], readByThem: 0 };
   const hide = mutedBy(app, uid, o.id); let rows = app.db.prepare('SELECT * FROM phone_messages WHERE thread_id=? AND id>? AND deleted_at IS NULL ORDER BY id DESC LIMIT ?').all(t.id, Number(after) || 0, P(app).threadPage).reverse();
   if (hide) rows = rows.filter(r => r.sender_id === uid); // a muted player's messages are never shown (system lines stay)
-  if (markRead && rows.length) { const mx = Math.max(...rows.map(r => r.id)); app.db.prepare('INSERT INTO phone_reads(thread_id,user_id,last_read_message_id) VALUES (?,?,?) ON CONFLICT(thread_id,user_id) DO UPDATE SET last_read_message_id=MAX(last_read_message_id, excluded.last_read_message_id)').run(t.id, uid, mx); push(app, o.id, { type: S2C.MESSAGE_READ, from: nameOf(app, uid), upTo: mx }); }
+  if (markRead && rows.length) { const mx = Math.max(...rows.map(r => r.id)); app.db.prepare('INSERT INTO phone_reads(thread_id,user_id,last_read_message_id) VALUES (?,?,?) ON CONFLICT(thread_id,user_id) DO UPDATE SET last_read_message_id=MAX(phone_reads.last_read_message_id, excluded.last_read_message_id)').run(t.id, uid, mx); push(app, o.id, { type: S2C.MESSAGE_READ, from: nameOf(app, uid), upTo: mx }); }
   const theirRead = app.db.prepare('SELECT last_read_message_id l FROM phone_reads WHERE thread_id=? AND user_id=?').get(t.id, o.id)?.l || 0;
   return { with: o.username, state: presenceOf(app, uid, o.id), friends: areFriends(app, uid, o.id), messages: rows.map(r => msgView(app, r, uid)), readByThem: theirRead };
 }

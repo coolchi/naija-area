@@ -93,7 +93,7 @@ export function travel(app, uid, placeId, mode, idemKey, override = null) {
   if (mode === 'ride' && !override) bad('BAD_MODE', 'Call a ride from the phone.');
   if (mode === 'walk') bad('WALK', 'Walking needs no ticket: just set a waypoint and go.');
   const q = travelQuote(app, uid, placeId); const m = override || q.modes.find(x => x.id === mode); if (!m) bad('BAD_MODE', 'Pick keke, danfo or car.');
-  if (app.db.prepare("SELECT 1 FROM shifts WHERE user_id=? AND status='active' AND 0").get(uid)) bad('BUSY', 'Busy.');
+  if (app.db.prepare("SELECT 1 FROM shifts WHERE user_id=? AND status='active' AND 1=0").get(uid)) bad('BUSY', 'Busy.');
   const pl = cityOf(app, uid).placeById[placeId]; const now = app.clock.now();
   return app.db.transaction(() => {
     if (m.fare > 0) move(app, { from: cashId(uid), to: SYS.SINK_TRANSPORT, amount: m.fare, reason: 'transport', ref: `${mode}:${placeId}`, userId: uid, idemKey: idemKey ? `trip:${uid}:${idemKey}` : null });
