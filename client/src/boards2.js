@@ -1,6 +1,7 @@
 // Boards for the word and board games added in Track C (chess, word duel, Omo Onile, Suwe). Mixed into Venue.prototype (see venue.js). The server owns every rule:
 // these functions only draw what the server sends in v.board and forward taps through this.move(v, {...}). GAME MONEY ONLY.
 import { h, post, fmtN } from './api.js';
+import { suweArena } from './suwe-ui.js';
 import { SQUARES, GROUPS } from '../../server/config/landlord-board.js';
 
 const GLYPH = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
@@ -39,7 +40,7 @@ export const boards2 = {
     const total = h('div', { class: 'row sp' }, h('b', {}, `You ${b.total[me]} - ${b.total[1 - me]} @${opp}`), h('span', { class: 'mut' }, `Round ${b.round} of ${b.rounds}`));
     const play = b.mine ? [h('p', { class: 'mut' }, `Make ONE word of ${b.minLen} to ${b.maxLen} letters from these 7 letters. Your opponent has the same letters. Small numbers are letter points; longer words get a bonus.`), tiles, word,
       h('div', { class: 'row' }, h('button', { class: 'btn small', id: 'wdBack', onclick: () => { this.wdWord.pop(); redraw(); } }, '⌫'), h('button', { class: 'btn small ghost', onclick: () => { this.wdWord = []; redraw(); } }, 'Clear'), h('button', { class: 'btn small alt', id: 'wdSubmit', disabled: cur.length < b.minLen, onclick: submit }, 'Play this word'), h('button', { class: 'btn small ghost', id: 'wdPass', onclick: () => this.move(v, { pass: true }) }, 'Pass (0)')), this.wdMsg ? h('p', { class: 'tag amber' }, this.wdMsg) : '']
-      : [h('p', { class: 'mut' }, b.played ? `You played ${b.yourWord ? b.yourWord.toUpperCase() : 'a pass'}. Waiting for @${opp}…` : 'Waiting…')];
+      : b.letters === null ? [] : [h('p', { class: 'mut' }, b.played ? `You played ${b.yourWord ? b.yourWord.toUpperCase() : 'a pass'}. Waiting for @${opp}…` : 'Waiting…')];
     return h('div', { class: 'wordduel' }, total, ...play, ...hist);
   },
 
@@ -73,5 +74,21 @@ export const boards2 = {
     const roster = h('div', { class: 'lroster' }, b.players.map(p => h('div', { class: `lpl ${p.seat === b.turn ? 'now' : ''} ${p.out ? 'out' : ''}`, 'data-seat': p.seat }, h('em', { class: 'ltok2', style: `background:${SEATC[p.seat]}` }, String(p.seat + 1)), h('b', {}, nameOf(p.seat)), h('span', { class: 'mut' }, ` ${p.out ? 'bankrupt' : money(p.cash)} · ${p.props} props${p.slow ? ' · in Go-Slow' : ''}${p.pass ? ' · free pass' : ''}`))));
     const log = h('div', { class: 'llog', id: 'lLog' }, b.log.slice(-6).map(l => h('div', {}, txt(l.text))));
     return h('div', { class: 'landlord' }, board, bar, tr, form, det, roster, log, h('p', { class: 'mut' }, 'Play money only inside the match. The table stake is the only real game money, and the winner takes the pot. Working title; Monopoly-style, not Monopoly.'));
+  },
+
+  holdRender(v) { // the Suwe rhythm screen must not be rebuilt by the 3-second poll while somebody is mid-hop
+    const L = this.suweLive; return !!(L && v.kind === 'suwe' && v.status === 'active' && v.board?.mine && L.key === `${v.id}:${v.board.turnNo}` && L.busy);
+  },
+  suweBoard(v) {
+    const b = v.board; const me = v.youSeat; const opp = v.players.find(p => p.seat === 1 - me)?.name; const key = `${v.id}:${b.turnNo}`; this.suweLive?.arena?.destroy?.();
+    const head = h('div', { class: 'row sp' }, h('b', {}, `Houses: you ${b.won[me]} - ${b.won[1 - me]} @${opp}`), h('span', { class: 'mut' }, `Turn ${b.turnNo + 1} of ${b.maxTurns} · first to ${b.housesToEnd} houses on the street ends it`));
+    const l = b.last; const lt = l ? (l.kind === 'house' ? `${l.who === me ? 'You' : '@' + opp}: ${l.message}` : `${l.who === me ? 'You' : '@' + opp} on stage ${l.stage}: ${l.ok ? `clean! ${l.perfect} perfect hops` : l.message}`) : '';
+    const prog = h('p', { class: 'mut' }, `You: ${b.phase === 'house' ? 'house throw next' : `stage ${b.stage} of ${b.stages}`} · lap ${b.lap}. Stages cleared: you ${b.progress[me]}, @${opp} ${b.progress[1 - me]}.`);
+    if (b.mine && b.plan) {
+      const house = b.phase === 'house'; const arena = suweArena({ labels: b.labels, houses: b.houses, you: me, plan: house ? { aimTol: b.plan.tol, aimPeriodMs: b.plan.aimPeriodMs } : b.plan, house: house ? { tol: b.plan.tol, aimPeriodMs: b.plan.aimPeriodMs } : null, onDone: (inp) => { this.suweLive = { key, busy: false, arena }; this.move(v, inp); } });
+      this.suweLive = { key, busy: true, arena }; return h('div', { class: 'suweboard' }, head, prog, lt ? h('p', { class: 'mut', id: 'suweLast' }, lt) : '', arena.el, h('p', { class: 'mut' }, 'Rules vary by area: this is one common version. Yoruba text is placeholder for local review. Game money only.'));
+    }
+    this.suweLive = null; const st = suweArena({ labels: b.labels, houses: b.houses, you: me, plan: { events: [{ box: 0, at: 0, kind: 'hop' }], stoneBox: -1, aimTol: 0.2, aimPeriodMs: 1400, beatMs: 600, leadMs: 2400, windowMs: 150 }, static: true });
+    return h('div', { class: 'suweboard' }, head, prog, lt ? h('p', { class: 'mut', id: 'suweLast' }, lt) : '', st.el, h('p', { class: 'mut' }, `Waiting for @${v.turn} to hop…`));
   }
 };

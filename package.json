@@ -17,6 +17,7 @@
     "smoke:phone": "node scripts/phone-smoke.mjs",
     "smoke:payments": "node scripts/payments-smoke.mjs",
     "smoke:age": "node scripts/age-smoke.mjs",
+    "smoke:wordboard": "node scripts/wordboard-smoke.mjs",
     "build:demo": "node tools/build-demo.mjs"
   },
   "dependencies": {

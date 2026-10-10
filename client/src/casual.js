@@ -4,8 +4,9 @@ import { get, post, fmtN, h } from './api.js';
 import * as M from '../../server/core/casual/merge.js';
 import * as M3 from '../../server/core/casual/match3.js';
 import * as D from '../../server/core/casual/danfo.js';
+import { suweArena } from './suwe-ui.js';
 
-const NAMES = { merge: 'Merge Am', memory: 'Pair Am', word: 'Word of the Day', match3: 'Chop Am', danfo: 'Clear the Go-Slow', wordsearch: 'Find Am (word search)' };
+const NAMES = { merge: 'Merge Am', memory: 'Pair Am', word: 'Word of the Day', match3: 'Chop Am', danfo: 'Clear the Go-Slow', wordsearch: 'Find Am (word search)', suwe: 'Suwe (street hopscotch)' };
 const SNACK = { puffpuff: '🍩', chinchin: '🍪', suya: '🍢', zobo: '🍹', plantain: '🍌' }; // puff-puff, chin chin, suya, zobo, plantain
 const VEH = { danfo: ['🚌', '#f2c200'], keke: ['🛺', '#2e9b5e'], car: ['🚗', '#2e7dd1'], bus: ['🚐', '#8a5ad6'], lorry: ['🚚', '#6b7280'], molue: ['🚍', '#d6402f'] };
 const SYM = { danfo: '🚌', keke: '🛺', suya: '🍢', akara: '🥯', ankara: '🧵', naira: '₦', agbada: '👘', gele: '👑' };
@@ -21,7 +22,7 @@ export async function hub(ui) {
 
 export function play(ui, id) {
   const body = h('div', { class: 'casual' }); let stop = null; ui.openSheet(NAMES[id], body, () => stop?.());
-  if (id === 'merge') stop = mergeGame(ui, body); else if (id === 'memory') stop = memoryGame(ui, body); else if (id === 'match3') stop = match3Game(ui, body); else if (id === 'danfo') stop = danfoGame(ui, body); else if (id === 'wordsearch') stop = wordsearchGame(ui, body); else wordGame(ui, body);
+  if (id === 'merge') stop = mergeGame(ui, body); else if (id === 'memory') stop = memoryGame(ui, body); else if (id === 'match3') stop = match3Game(ui, body); else if (id === 'danfo') stop = danfoGame(ui, body); else if (id === 'wordsearch') stop = wordsearchGame(ui, body); else if (id === 'suwe') stop = suweGame(ui, body); else wordGame(ui, body);
 }
 
 function resultBox(ui, r, label) {
@@ -139,4 +140,22 @@ function wordsearchGame(ui, body) {
   (async () => { const r = await ui.guard(() => get('/api/casual/wordsearch')); if (!r) return; st = r; draw(); if (st.status === 'done') msg.replaceChildren(h('p', { class: 'mut' }, 'You finished today\'s puzzle. Come back tomorrow for a new one.')); })();
   body.replaceChildren(h('p', { class: 'mut' }, 'Find the hidden Lagos words. Tap the first letter, then the last letter. Words run in any direction. One puzzle a day.'), grid, list, msg, h('small', { class: 'mut' }, 'Game money only. Small reward, inside your daily cap. Word list is placeholder content.'));
   return () => { delete window.__wsearch; };
+}
+
+// ------------------------------------------------------------------ Suwe (street hopscotch), single player: 3 lives, 12 stages, then a house throw. The server judges every tap log.
+function suweGame(ui, body) {
+  let run = null, arena = null, over = false; const stage = h('div', {}); const info = h('div', { class: 'row sp' }); const msg = h('div', {});
+  const draw = () => {
+    arena?.destroy(); if (!run) return; const house = run.phase === 'house'; info.replaceChildren(h('b', { id: 'suweInfo' }, house ? 'House throw!' : `Stage ${run.stage} of ${run.stages}`), h('span', { class: 'mut' }, `Lives ${'❤'.repeat(run.lives)}${'·'.repeat(3 - run.lives)} · cleared ${run.cleared}`));
+    arena = suweArena({ labels: run.labels, houses: run.houses, you: 0, plan: house ? { aimTol: run.plan.tol, aimPeriodMs: run.plan.aimPeriodMs } : run.plan, house: house ? { tol: run.plan.tol, aimPeriodMs: run.plan.aimPeriodMs } : null, onDone: submit }); stage.replaceChildren(arena.el);
+  };
+  const submit = async (inp) => {
+    const r = await ui.guard(() => post('/api/casual/suwe/play', { runId: run.runId, ...inp })); if (!r) { msg.replaceChildren(h('p', { class: 'mut' }, 'That did not go through. Start a new run.'), h('button', { class: 'btn alt', onclick: start }, 'New run')); return; }
+    const res = r.result; run = r; const line = res.kind === 'house' ? res.message : res.ok ? `Clean! ${res.perfect} perfect hops.` : res.message;
+    if (r.done) { over = true; arena?.destroy(); stage.replaceChildren(); msg.replaceChildren(h('p', { id: 'suweMsg2' }, line), resultBox(ui, r, `${r.cleared} stage${r.cleared === 1 ? '' : 's'} cleared${r.houses?.some(x => x >= 0) ? ' · you built a house!' : ''}`), h('button', { class: 'btn alt', id: 'suweAgain', onclick: start }, 'Play again')); return; }
+    msg.replaceChildren(h('p', { id: 'suweMsg2' }, line), h('button', { class: 'btn alt', id: 'suweNext', onclick: () => { msg.replaceChildren(); draw(); } }, 'Next ▶'));
+  };
+  const start = async () => { const r = await ui.guard(() => post('/api/casual/suwe/start')); if (!r) return; run = r; over = false; msg.replaceChildren(); draw(); };
+  body.replaceChildren(h('p', { class: 'mut' }, 'Throw the stone, then hop the boxes in rhythm. Tap on each ring. Rules vary by area; this is one common version (Yoruba text is placeholder for local review). Game money only, small reward inside your daily cap.'), info, stage, msg);
+  start(); window.__suweRun = { get run() { return run; }, get over() { return over; } }; return () => { arena?.destroy(); delete window.__suweRun; };
 }

@@ -30,7 +30,7 @@ export function play(st, seat, mv = {}) {
   if (!st.subs[other]) { st.turn = other; st.last = { who: seat, waiting: true }; return { ok: true, info: st.last, won: st.winner }; }
   const best = allWords(letters)[0]; const res = { letters: letters.join(''), words: st.subs.map(s => s.word), scores: st.subs.map(s => s.score), best: best.word, bestScore: best.score };
   st.results.push(res); st.total[0] += res.scores[0]; st.total[1] += res.scores[1]; st.last = { who: seat, resolved: st.round, ...res }; st.round++; st.subs = [null, null];
-  if (st.round >= ROUNDS) { st.winner = st.total[0] === st.total[1] ? 'draw' : st.total[0] > st.total[1] ? 0 : 1; st.turn = st.first; } else st.turn = (st.first + st.round) % 2;
+  if (st.round >= ROUNDS) { st.winner = st.total[0] === st.total[1] ? 'draw' : st.total[0] > st.total[1] ? 0 : 1; st.turn = st.first; st.why = `Final totals ${st.total[0]} to ${st.total[1]}`; } else st.turn = (st.first + st.round) % 2;
   return { ok: true, info: st.last, won: st.winner };
 }
 export function forfeit(st, seat) { if (st.winner == null) st.winner = 1 - seat; return { ok: true, won: st.winner }; }
