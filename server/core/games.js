@@ -14,11 +14,12 @@ import * as football from './games/football.js';
 import * as chess from './games/chess.js';
 import * as wordduel from './games/wordduel.js';
 import * as landlord from './games/landlord.js';
+import * as suwe from './games/suwe.js';
 
 // Every engine except Whot (the original, 'a'/'b' sides) shares one contract: newGame(n, rng), play(st, seat, move, rng) -> {ok,won}|{error}, forfeit(st, seat), view(st, seat), bot(st, seat, rng).
 // State carries n (players), turn (seat index), winner (null | seat | 'draw').
 export const GAMES = { whot: { label: 'Whot', min: 2, max: 2, eng: whot }, ludo: { label: 'Ludo', min: 2, max: 4, eng: ludo }, dominoes: { label: 'Dominoes', min: 2, max: 4, eng: dominoes },
-  draughts: { label: 'Draughts', min: 2, max: 2, eng: draughts }, ayo: { label: 'Ayo', min: 2, max: 2, eng: ayo }, football: { label: 'Table football', min: 2, max: 2, eng: football }, chess: { label: 'Chess', min: 2, max: 2, eng: chess }, wordduel: { label: 'Word duel', min: 2, max: 2, eng: wordduel }, landlord: { label: 'Landlord Lagos', min: 2, max: 4, eng: landlord } };
+  draughts: { label: 'Draughts', min: 2, max: 2, eng: draughts }, ayo: { label: 'Ayo', min: 2, max: 2, eng: ayo }, football: { label: 'Table football', min: 2, max: 2, eng: football }, chess: { label: 'Chess', min: 2, max: 2, eng: chess }, wordduel: { label: 'Word duel', min: 2, max: 2, eng: wordduel }, landlord: { label: 'Landlord Lagos', min: 2, max: 4, eng: landlord }, suwe: { label: 'Suwe', min: 2, max: 2, eng: suwe } };
 const DAY = 86400000, WEEK = 7 * DAY;
 export const weekOf = (ms) => Math.floor((ms - 4 * DAY) / WEEK);   // weeks start Monday 00:00 UTC (1970-01-05 was a Monday)
 export const weekInfo = (app) => { const w = weekOf(app.clock.now()); return { week: w, endsAt: 4 * DAY + (w + 1) * WEEK }; };
@@ -111,7 +112,7 @@ export function playMove(app, uid, id, mv = {}) {
     if (m.status !== 'active') bad('NOT_ACTIVE', m.status === 'waiting' ? 'Waiting for the game to start.' : 'This game is over.', 409); if (me.out) bad('NOT_ACTIVE', 'You left this game.', 409);
     const sd = side(m, me.seat); const st = JSON.parse(m.state); let r;
     if (m.kind === 'whot') r = mv.action === 'draw' ? whot.draw(st, sd, rngOf(app)) : whot.play(st, sd, String(mv.card || ''), mv.shape, rngOf(app));
-    else r = GAMES[m.kind].eng.play(st, sd, mv, rngOf(app));
+    else r = GAMES[m.kind].eng.play(st, sd, mv, rngOf(app), { now: app.clock.now(), turnStart: m.updated_at, bot: !!app.db.prepare('SELECT is_bot FROM users WHERE id=?').get(uid)?.is_bot });
     if (r.error) bad(r.error, r.message || 'That move is not allowed.', r.error === 'NOT_YOUR_TURN' ? 409 : 400);
     persist(app, m, st, uid); return viewFor(app, uid, row(app, id));
   })();

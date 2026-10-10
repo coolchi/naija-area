@@ -98,7 +98,9 @@ export const BALANCE = {
     match3: { scorePerNaira: 60, perRunCap: 50, minMoves: 5, minMsPerMove: 700 },
     danfo: { perLevelBase: 8, perPar: 2, perRunCap: 45, perExtraMove: 2, floor: 4, minMsPerMove: 350, maxMoves: 200 },
     // word search (Find Am): one puzzle a day, ESTIMATE reward like the rest
-    wordsearch: { perRunCap: 30, minMsPerWord: 4000, linesPerMin: 40 } },
+    wordsearch: { perRunCap: 30, minMsPerWord: 4000, linesPerMin: 40 },
+    // Suwe street hopscotch: ESTIMATE rewards, a run pays at the end (stages cleared and a house), small cap, inside the shared daily cap
+    suwe: { perStage: 2, perHouse: 6, perRunCap: 30, startsPerMin: 8, slackMs: 600 } },
   // ---- cars (fictional models, placeholder ESTIMATE prices). 'borrowed' is what you drive until you buy one. fuel = perM per metre.
   cars: {
     borrowed: { name: 'Borrowed car', base: 60, perM: 0.35, speed: 10, mood: 0 },

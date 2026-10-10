@@ -5707,6 +5707,125 @@
     ],
     "detailV2": true
    }
+  },
+  {
+   "id": "venue_yard",
+   "name": "Compound Yard (Suwe)",
+   "blurb": "Hop Suwe, the old street game, on the chalked boxes. Rules vary by area. Whot and the board are here too.",
+   "x": 62,
+   "z": 82,
+   "hours": [
+    7,
+    19
+   ],
+   "sign": "#c98f3a",
+   "stations": [
+    {
+     "id": "suwe1",
+     "type": "game",
+     "game": "suwe",
+     "label": "Suwe boxes (2 players)",
+     "x": 2.6,
+     "z": 0.4,
+     "color": "#c98f3a"
+    },
+    {
+     "id": "suwe_solo",
+     "type": "casual",
+     "game": "suwe",
+     "label": "Suwe practice run",
+     "x": -2.6,
+     "z": 0.4,
+     "color": "#c98f3a"
+    },
+    {
+     "id": "board",
+     "type": "board",
+     "label": "Weekly board",
+     "x": 3.4,
+     "z": -3.2,
+     "color": "#c8553d"
+    },
+    {
+     "id": "poster",
+     "type": "poster",
+     "label": "How we play Suwe",
+     "x": -3.4,
+     "z": -3.2,
+     "color": "#8a5a2b",
+     "text": "Suwe (Yoruba hopscotch): throw a stone into box 1, hop through the other boxes on one foot without touching the lines, pick the stone up, then go again from box 2. Finish the boxes and throw the stone over your shoulder to build a house: if it lands on the same number on both sides, that box is yours. Most houses wins. In this game you tap in rhythm. Rules vary by area; this is one common version. (Yoruba text and chants are placeholders for a local reviewer.)"
+    }
+   ],
+   "room": {
+    "w": 10,
+    "d": 10,
+    "wall": "#d8c39a",
+    "trim": "#a67c52",
+    "floor": {
+     "style": "plain",
+     "a": "#c9a46b"
+    },
+    "windows": [],
+    "mood": "warm",
+    "detailV2": true,
+    "decor": [
+     {
+      "k": "suwegrid",
+      "x": 0,
+      "z": 0.2,
+      "seed": 5
+     },
+     {
+      "k": "plant",
+      "x": -4.2,
+      "z": -4.2
+     },
+     {
+      "k": "plant",
+      "x": 4.2,
+      "z": 4.2
+     },
+     {
+      "k": "crowd",
+      "x": -3.6,
+      "z": 3.2,
+      "n": 2,
+      "r": 0.7,
+      "yaw": -0.8,
+      "seed": 9
+     },
+     {
+      "k": "menu",
+      "x": 0,
+      "z": -4.6,
+      "text": "COMPOUND YARD"
+     },
+     {
+      "k": "bench",
+      "x": -3.4,
+      "z": -1.2,
+      "w": 2.0
+     },
+     {
+      "k": "bench",
+      "x": 3.6,
+      "z": -1.2,
+      "w": 2.0
+     },
+     {
+      "k": "stool",
+      "x": -3.2,
+      "z": 1.8,
+      "c": "#e63946"
+     },
+     {
+      "k": "stool",
+      "x": 3.0,
+      "z": 2.8,
+      "c": "#457b9d"
+     }
+    ]
+   }
   }
  ],
  "roundabouts": [

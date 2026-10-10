@@ -110,6 +110,15 @@ Object.assign(D, {
   toolCart(g) { put(g, PR.toolCart()); },
   workbench(g) { put(g, PR.workbench(2.4)); },
   generator(g) { put(g, PR.generator()); },
+  suwegrid(g, k, o, R, anim) { // Suwe: the hopscotch grid chalked on the ground (2 columns x 6 rows, numbered 1-6 up one side and 6-1 back down the other) and a child hopping the U route
+    const cw = 0.9, ch = 0.9, W = cw * 2, H = ch * 6; const col = 0xfff8e1; const line = (w, d, x, z) => k.box(w, 0.012, d, col, x, 0.012, z);
+    for (let r = 0; r <= 6; r++) line(W + 0.06, 0.06, 0, -H / 2 + r * ch); for (let c = 0; c <= 2; c++) line(0.06, H + 0.06, -W / 2 + c * cw, 0);
+    for (let n = 1; n <= 6; n++) { for (const side of [0, 1]) { const x = -W / 2 + cw * (side + 0.5), z = -H / 2 + ch * (n - 0.5); const m = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4), new THREE.MeshBasicMaterial({ map: canvasTex((c) => { c.clearRect(0, 0, 128, 128); c.fillStyle = 'rgba(255,248,225,.95)'; c.font = 'bold 96px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(side === 0 ? n : n), 64, 70); }), transparent: true })); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.02, z); g.add(m); } }
+    k.sph(0.07, 0x9a9a9a, 0.35, 0.07, -H / 2 + ch * 2.5); // the stone
+    const SC = 0.64, ig = new THREE.Group(); ig.scale.setScalar(SC); g.add(ig); const cr = new Crowd(ig, 1, o.seed || 5); cr.parts && Object.values(cr.parts).forEach(m => { m.frustumCulled = false; });
+    const route = []; for (let n = 1; n <= 6; n++) route.push([-W / 2 + cw * 0.5, -H / 2 + ch * (n - 0.5)]); for (let n = 6; n >= 1; n--) route.push([-W / 2 + cw * 1.5, -H / 2 + ch * (n - 0.5)]);
+    anim.push(t => { const u = (t * 1.6) % route.length; const i = Math.floor(u), f = u - i; const a = route[i], b = route[(i + 1) % route.length]; const x = a[0] + (b[0] - a[0]) * f, z = a[1] + (b[1] - a[1]) * f; const yaw = Math.atan2(b[0] - a[0], b[1] - a[1]); cr.pose(0, x / SC, Math.sin(f * Math.PI) * 0.22, z / SC, yaw, t * 9, 0.45); cr.commit(); });
+  },
   crowd(g, k, o, R, anim) { // ambient people (same human shape as the street walkers): standing chatters, or dancers on a club floor
     const n = o.n || 4, SC = 0.64, ig = new THREE.Group(); ig.scale.setScalar(SC); g.add(ig); const cr = new Crowd(ig, n, o.seed || 3); cr.parts && Object.values(cr.parts).forEach(m => { m.frustumCulled = false; });
     const at = (i) => { const a = i / n * Math.PI * 2 + (o.seed || 0); const rr = (o.r || 1) * (0.55 + 0.45 * ((i * 37) % 10) / 10); return [Math.cos(a) * rr / SC, Math.sin(a) * rr / SC, a]; }; // venue avatars are drawn at about this scale

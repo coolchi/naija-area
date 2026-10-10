@@ -36,7 +36,7 @@ test('merge routes: server-issued seed, the move log is replayed, tampering/too-
 test('daily cap across all casual games, small per-run caps, and a very new account plays without a payout', async () => {
   const s = makeServer(); s.app.balance.casual.dailyCap = 100; const u = adult(s, 0); let paid = 0;
   for (let k = 0; k < 5; k++) { const st = await ok(s, 'POST', '/api/casual/merge/start', { uid: u }); const { log } = playMerge(st.seed, 600); s.app.clock.advance(log.length * 200); const r = await ok(s, 'POST', '/api/casual/merge/submit', { uid: u, body: { runId: st.runId, moves: log } }); paid += r.reward; assert.ok(r.reward <= s.app.balance.casual.merge.perRunCap); assert.ok(r.earnedToday <= 100); }
-  assert.ok(paid <= 100 && paid > 0); assert.equal(balanceOf(s.db, cashId(u)), paid); const ov = await ok(s, 'GET', '/api/casual', { uid: u }); assert.equal(ov.earnedToday, paid); assert.equal(ov.games.length, 6);
+  assert.ok(paid <= 100 && paid > 0); assert.equal(balanceOf(s.db, cashId(u)), paid); const ov = await ok(s, 'GET', '/api/casual', { uid: u }); assert.equal(ov.earnedToday, paid); assert.equal(ov.games.length, 7);
   s.app.clock.advance(DAY); assert.equal((await ok(s, 'GET', '/api/casual', { uid: u })).earnedToday, 0, 'a new day resets the cap');
   const sf = makeServer(); const nu = mkUser(sf, { cash: 0 }); const st2 = await ok(sf, 'POST', '/api/casual/merge/start', { uid: nu }); const l2 = playMerge(st2.seed, 600).log; sf.app.clock.advance(l2.length * 200); const r2 = await ok(sf, 'POST', '/api/casual/merge/submit', { uid: nu, body: { runId: st2.runId, moves: l2 } }); assert.equal(r2.reward, 0); assert.match(r2.note, /account/i);
   assert.equal(checkInvariants(s.db).ok, true);
@@ -68,6 +68,6 @@ test('word of the day: marks handle repeated letters, same word for everyone, ch
   s.app.clock.advance(DAY); const days = new Set(); for (let i = 0; i < 12; i++) { days.add(wordOfDay(s.app, `2026-11-${10 + i}`)); } assert.ok(days.size > 4, 'the daily word varies'); assert.equal((await ok(s, 'GET', '/api/casual/word', { uid: a })).status, 'playing'); assert.equal(checkInvariants(s.db).ok, true);
 });
 test('casual stations exist in the venues and the games list is reachable from the phone endpoint', async () => {
-  const s = makeServer(); const u = adult(s); const all = s.app.city.venues.flatMap(v => v.stations.filter(x => x.type === 'casual').map(x => `${v.id}:${x.game}`)); assert.deepEqual(all.sort(), ['venue_joint:memory', 'venue_mamaput:danfo', 'venue_mamaput:word', 'venue_mamaput:wordsearch', 'venue_viewing:match3', 'venue_viewing:merge']);
-  const ov = await ok(s, 'GET', '/api/casual', { uid: u }); assert.deepEqual(ov.games.map(g => g.id), ['merge', 'memory', 'match3', 'danfo', 'wordsearch', 'word']); assert.equal(ov.dailyCap, s.app.balance.casual.dailyCap);
+  const s = makeServer(); const u = adult(s); const all = s.app.city.venues.flatMap(v => v.stations.filter(x => x.type === 'casual').map(x => `${v.id}:${x.game}`)); assert.deepEqual(all.sort(), ['venue_joint:memory', 'venue_mamaput:danfo', 'venue_mamaput:word', 'venue_mamaput:wordsearch', 'venue_viewing:match3', 'venue_viewing:merge', 'venue_yard:suwe']);
+  const ov = await ok(s, 'GET', '/api/casual', { uid: u }); assert.deepEqual(ov.games.map(g => g.id), ['merge', 'memory', 'match3', 'danfo', 'suwe', 'wordsearch', 'word']); assert.equal(ov.dailyCap, s.app.balance.casual.dailyCap);
 });

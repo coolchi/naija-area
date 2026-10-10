@@ -11,12 +11,14 @@ import * as danfo from './casual/danfo.js';
 import { DANFO_LEVELS } from '../config/danfo-levels.js';
 import { ANSWERS, VALID } from '../config/words.js';
 import * as wordsearch from './casual/wordsearch.js';
+import * as suwe from './casual/suwe.js';
 
 export const CASUAL = [
   { id: 'merge', name: 'Merge Am', blurb: 'Slide the tiles. Equal tiles join. Chase the big number.', where: 'Viewing Centre' },
   { id: 'memory', name: 'Pair Am', blurb: 'Flip the cards and find the pairs in few tries.', where: 'Corner Joint' },
   { id: 'match3', name: 'Chop Am', blurb: 'Swap snacks to line up three or more. 20 moves, chase big chains.', where: 'Viewing Centre' },
   { id: 'danfo', name: 'Clear the Go-Slow', blurb: 'Slide the stuck vehicles so the yellow danfo can get out. Fewest moves wins.', where: 'Mama Put' },
+  { id: 'suwe', name: 'Suwe (street hopscotch)', blurb: 'Tap in rhythm to hop the chalked boxes. Three lives, build a house at the end.', where: 'the Compound Yard' },
   { id: 'wordsearch', name: 'Find Am (word search)', blurb: 'Find the 8 hidden Lagos words in today\'s grid. One puzzle a day for everybody.', where: 'Mama Put' },
   { id: 'word', name: 'Word of the Day', blurb: 'Guess the 5-letter word in six tries. One word a day for everybody.', where: 'Mama Put' }
 ];
@@ -169,4 +171,40 @@ export function wordsearchLine(app, uid, r1, c1, r2, c2) {
   const pay = payout(app, uid, run.id, want); app.db.prepare('UPDATE casual_runs SET reward=? WHERE id=?').run(pay.paid, run.id);
   if (pay.paid) notify(app, uid, 'casual', `Find Am: all ${p.words.length} words found! +₦${pay.paid} (game money).`);
   return { ...out, reward: pay.paid, note: pay.note, earnedToday: pay.earnedToday, dailyCap: pay.dailyCap };
+}
+
+// ---------------------------------------------------------------- Suwe (Yoruba hopscotch) single-player run: 3 lives, up to 12 stages, then a house throw. The server owns the seed and judges every tap log.
+const SUWE_STAGES = 12, SUWE_LIVES = 3;
+const suweView = (run, st, extra = {}) => {
+  const phase = st.phase; const base = { runId: run.id, status: run.status, phase, stage: st.stage, stages: SUWE_STAGES, lives: st.lives, cleared: st.cleared, houses: st.houses, labels: suwe.LABELS, lap: 1, perfect: st.perfect };
+  if (run.status === 'open') base.plan = phase === 'house' ? { aimPeriodMs: suwe.AIM_PERIOD_MS, tol: suwe.HOUSE_TOL } : suwe.publicPlan(suwe.fullPlan({ seed: `${run.seed}:${st.attempt}`, stage: st.stage, seat: 0, houses: st.houses }));
+  return { ...base, ...extra };
+};
+export function suweCurrent(app, uid) { const run = app.db.prepare("SELECT * FROM casual_runs WHERE user_id=? AND kind='suwe' AND status='open' ORDER BY id DESC LIMIT 1").get(uid); return run ? suweView(run, JSON.parse(run.state)) : null; }
+export function suweStart(app, uid) {
+  const C = cfg(app).suwe; if (!app.limiter.hit(`suwe:${uid}`, C.startsPerMin, 60000, app.clock.now())) bad('RATE_LIMIT', 'Slow down a little.', 429);
+  const open = app.db.prepare("SELECT * FROM casual_runs WHERE user_id=? AND kind='suwe' AND status='open' ORDER BY id DESC").all(uid); for (const r of open) app.db.prepare("UPDATE casual_runs SET status='abandoned', finished_at=? WHERE id=?").run(app.clock.now(), r.id);
+  const seed = Math.floor((app.rng || Math.random)() * 4294967296) >>> 0; const st = { stage: 1, lives: SUWE_LIVES, cleared: 0, perfect: 0, houses: Array(suwe.PAIRS).fill(-1), phase: 'stage', attempt: 0, issuedAt: app.clock.now() };
+  const id = app.db.prepare('INSERT INTO casual_runs(user_id,kind,seed,state,status,day,started_at) VALUES (?,?,?,?,?,?,?)').run(uid, 'suwe', seed, JSON.stringify(st), 'open', dayKey(app.clock.now()), app.clock.now()).lastInsertRowid;
+  return suweView(app.db.prepare('SELECT * FROM casual_runs WHERE id=?').get(id), st);
+}
+export function suwePlay(app, uid, runId, input) {
+  const C = cfg(app).suwe; const run = app.db.prepare("SELECT * FROM casual_runs WHERE id=? AND user_id=? AND kind='suwe'").get(Number(runId), uid); if (!run) bad('NO_RUN', 'No such game.', 404); if (run.status !== 'open') bad('RUN_OVER', 'This run is over. Start a new one.', 409);
+  const st = JSON.parse(run.state); const now = app.clock.now(); let out;
+  if (st.phase === 'house') {
+    const r = suwe.resolveHouse({ seed: `${run.seed}:${st.attempt}`, lap: 1, seat: 0, houses: st.houses }, input); if (r.bad) bad('BAD_INPUT', 'Bad throw.');
+    if (r.claimed) { st.houses[r.pair - 1] = 0; } out = { kind: 'house', ...r }; st.phase = 'end'; st.attempt++;
+  } else {
+    const args = { seed: `${run.seed}:${st.attempt}`, stage: st.stage, seat: 0, houses: st.houses }; const r = suwe.resolveStage(args, input); if (r.bad) bad('BAD_INPUT', 'Bad input.');
+    if (now - st.issuedAt < suwe.minDurationMs(suwe.fullPlan(args)) - C.slackMs) bad('TOO_FAST', 'That was faster than a person can hop it. Play it in time!', 429);
+    out = { kind: 'stage', stage: st.stage, ok: r.ok, reason: r.reason || null, message: r.message, perfect: r.perfect, good: r.good, hops: r.hops, failedAt: r.failedAt ?? null, aim: r.aim }; st.attempt++;
+    if (r.ok) { st.cleared++; st.perfect += r.perfect; st.stage++; if (st.stage > SUWE_STAGES) st.phase = 'house'; } else st.lives--;
+  }
+  const over = st.phase === 'end' || st.lives <= 0; st.issuedAt = now;
+  if (!over) { app.db.prepare('UPDATE casual_runs SET state=? WHERE id=?').run(JSON.stringify(st), run.id); return { result: out, ...suweView(run, st) }; }
+  const houses = st.houses.filter(x => x >= 0).length; const want = Math.min(C.perRunCap, st.cleared * C.perStage + houses * C.perHouse);
+  app.db.prepare("UPDATE casual_runs SET status='done', state=?, score=?, finished_at=? WHERE id=?").run(JSON.stringify(st), st.cleared, now, run.id);
+  const pay = want > 0 ? payout(app, uid, run.id, want) : { paid: 0, note: 'Clear a stage to earn.', earnedToday: undefined }; app.db.prepare('UPDATE casual_runs SET reward=? WHERE id=?').run(pay.paid, run.id);
+  if (pay.paid) notify(app, uid, 'casual', `Suwe: ${st.cleared} stage${st.cleared === 1 ? '' : 's'}${houses ? ' and a house' : ''}! +₦${pay.paid} (game money).`);
+  return { result: out, ...suweView({ ...run, status: 'done' }, st), done: true, houses: st.houses, reward: pay.paid, note: pay.note, earnedToday: pay.earnedToday, dailyCap: pay.dailyCap, score: st.cleared };
 }
