@@ -33,6 +33,9 @@ try {
   // a coming-soon table says so and cannot be sat at
   const data = await g(page, () => fetch(`/api/venue?id=${window.__game.venue.id}`).then(r => r.json())); const soon = data.stations.find(x => x.soon);
   if (soon) { await tap(soon.id); assert.match(await g(page, () => document.querySelector('.vpanel').textContent), /Coming soon/); const r = await g(page, (id, st) => fetch('/api/game/sit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ venueId: id, stationId: st, stake: 0 }) }).then(r => r.json()), data.id, soon.id); assert.equal(r.error, 'COMING_SOON'); ok(`"${soon.label}" shows coming soon and the server refuses a seat`); }
+  // the four lounge slots are real tables now (chess, Word Duel, Lagos property game, Suwe are registered): not coming soon, and the sit panel opens like any other table
+  for (const [id, label] of [['chess1', 'Chess'], ['wordduel1', 'Word'], ['property1', 'property'], ['suwe1', 'Suwe']]) { const st = data.stations.find(x => x.id === id); assert.ok(st && !st.soon, `${id} is open`); await tap(id); const txt = await g(page, () => document.querySelector('.vpanel').textContent); assert.ok(!/Coming soon/.test(txt), `${id} panel is not coming soon: ${txt.slice(0, 80)}`); assert.ok(new RegExp(label, 'i').test(txt), `${id} panel names the game: ${txt.slice(0, 80)}`); }
+  ok('lounge tables (chess, Word Duel, property game, Suwe) are open for sitting, not coming soon');
   const playOne = async (stationId, level, tag) => {
     await tap(stationId); await page.waitForSelector(`[data-level="${level}"]`, { timeout: 8000 }); await snap(page, `${tag}-sit`); await page.evaluate((l) => document.querySelector(`[data-level="${l}"]`).click(), level);
     await page.waitForSelector('#rlHit', { timeout: 8000 }); await sleep(900); await snap(page, `${tag}-start`);
