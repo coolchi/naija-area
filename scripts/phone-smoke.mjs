@@ -14,6 +14,8 @@ async function player(name) {
   const ctx = await browser.createBrowserContext(); await ctx.overridePermissions(base, ['microphone']); const p = await ctx.newPage(); p.on('pageerror', e => errors.push(String(e))); p.on('console', m => { if (m.type() === 'error' && !/favicon|40[14]|409|429|WebGL|GPU stall|swiftshader|Failed to load resource/i.test(m.text())) errors.push(m.text()); });
   await p.goto(base, { waitUntil: 'domcontentloaded' }); await p.waitForSelector('#auth:not(.hidden)', { timeout: 60000 });
   const r = await g(p, async (n) => { const x = await fetch('/api/auth/signup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: n, password: 'password123', age18: true }) }); return x.status; }, name); assert.equal(r, 200);
+  // a registered account is shown the sign-up set-up screens (city, city of interest, interests) over the game until it is done or skipped: skip it like a player who taps "Skip for now"
+  assert.equal(await g(p, async () => (await fetch('/api/signup/profile', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ skip: true }) })).status), 200);
   await p.reload({ waitUntil: 'domcontentloaded' }); await p.waitForSelector('#hud:not(.hidden)', { timeout: 30000 }); await sleep(1500); return p;
 }
 let failed = false;
