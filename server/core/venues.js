@@ -5,6 +5,7 @@ import { ensurePresence, syncPos } from './world.js';
 import { dist, gameTime, addMood } from './economy.js';
 import * as games from './games.js';
 import * as leisure from './leisure.js';
+import { stadiumAct } from './stadium.js';
 
 export const venueDef = (app, id) => app.all.venueById[id];
 const hourNow = (app) => gameTime(app, app.clock.now()).hour;
@@ -46,6 +47,7 @@ export function act(app, uid, venueId, stationId, body = {}) {
   const p = ensurePresence(app, uid); if (p.venue !== venueId) bad('NOT_INSIDE', 'Step inside first.', 409);
   if (['dance', 'dj', 'bar', 'songs', 'vip'].includes(st.type)) return leisure.clubAct(app, uid, v, st, body);
   if (st.type === 'basin') return leisure.basinAct(app, uid, v, st);
+  if (['ticket', 'seat', 'scores'].includes(st.type)) return stadiumAct(app, uid, st, body);
   if (st.type !== 'tv') bad('NOT_AN_ACTION', 'Nothing to do with that.');
   const now = app.clock.now(); p.lastTv ||= 0; if (now - p.lastTv < 60000) bad('COOLDOWN', 'The match is still on: relax small.', 429, { waitMs: 60000 - (now - p.lastTv) });
   p.lastTv = now; const mood = addMood(app, uid, st.mood || app.balance.mood.tv); return { ok: true, mood, text: 'Wetin dey happen for the match! 🙌' };

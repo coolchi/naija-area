@@ -5,10 +5,11 @@ import { get, post, fmtN, h, $ } from './api.js';
 import { makeAvatar, makePlayerCar, makeNameSprite } from './entities.js';
 import { venueShell, decorate, stationModel } from './rooms.js';
 import * as PR from './props.js';
+import { stateLabel, scoreText, kickoffText, sourceLine, groupByLeague } from './scores-view.js';
 
 const SHAPE = { circle: ['●', '#d6402f'], triangle: ['▲', '#2e7dd1'], cross: ['✚', '#2e9b5e'], square: ['■', '#8a5ad1'], star: ['★', '#e0a020'], whot: ['W', '#222'] };
 const hash = (s) => { let x = 7; for (const c of String(s)) x = (x * 31 + c.charCodeAt(0)) >>> 0; return x; };
-const ICON = { dance: '💃', dj: '🎧', bar: '🥤', songs: '🎵', vip: '👑', style: '✂️', basin: '🚿', eat: '🍲', game: '🎲', board: '🏆', poster: '📜', tv: '📺', car: '🚗', check: '🔍', service: '🔧' };
+const ICON = { dance: '💃', dj: '🎧', bar: '🥤', songs: '🎵', vip: '👑', style: '✂️', basin: '🚿', eat: '🍲', game: '🎲', board: '🏆', poster: '📜', tv: '📺', ticket: '🎟️', scores: '📊', seat: '🪑', car: '🚗', check: '🔍', service: '🔧' };
 
 const GAME_NAME = { whot: 'Whot', ludo: 'Ludo', dominoes: 'Dominoes', draughts: 'Draughts', ayo: 'Ayo' };
 export class Venue {
@@ -21,7 +22,7 @@ export class Venue {
   build() {
     const d = this.data; const R = d.room; this.canvas = h('canvas'); this.el.append(this.canvas);
     this.r = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true }); this.r.setPixelRatio(Math.min(devicePixelRatio, 2)); this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x1d2b25);
-    this.cam = new THREE.PerspectiveCamera(42, 1, 0.1, 100); this.yaw = Math.PI / 5; this.pitch = 0.82; this.dist = 15;
+    this.cam = new THREE.PerspectiveCamera(42, 1, 0.1, 100); this.yaw = Math.PI / 5; this.pitch = 0.82; this.dist = Math.max(15, Math.round(Math.max(d.room?.w || 9, d.room?.d || 9) * 1.15));
     this.hemi = new THREE.HemisphereLight(0xffffff, 0x887766, 1.0); const sun = this.sun = new THREE.DirectionalLight(0xfff0d0, 1.0); sun.position.set(5, 10, 6); this.scene.add(this.hemi, sun);
     this.anim = []; this.t0 = performance.now(); this.lights = { hemi: this.hemi, sun: this.sun }; venueShell(this.scene, R, d.room, d.sign, this.anim, this.lights); const decor = new THREE.Group(); this.scene.add(decor); decorate(decor, d.room?.decor, R, this.anim);
     this.stations = new THREE.Group(); this.scene.add(this.stations); this.people = new THREE.Group(); this.scene.add(this.people); this.meshes = {};
@@ -70,7 +71,15 @@ export class Venue {
     else if (st.type === 'casual') ui.playCasual(st.game);
     else if (['dance', 'dj', 'bar', 'songs', 'vip', 'basin'].includes(st.type)) this.leisureAct(st);
     else if (st.type === 'style') this.salonSheet(st);
+    else if (['ticket', 'seat'].includes(st.type)) { const r = await ui.guard(() => post('/api/venue/act', { venueId: this.id, stationId: st.id, idem: crypto.randomUUID?.() })); if (r) { ui.toast(r.text, r.charged ? 'money' : undefined); this.g.refreshMe?.(); this.g.net.nudge(); } }
+    else if (st.type === 'scores') this.scoresSheet(st);
     else if (st.type === 'game') this.sitPanel(st);
+  }
+  async scoresSheet(st) {
+    const ui = this.g.ui; const draw = async () => { const v = await ui.guard(() => get('/api/stadium/scores')); if (!v) return; const now = v.checkedAt; const kids = [h('div', { class: 'tag amber' }, 'TEST · plain names, no logos · not for publishing'), h('p', { class: 'mut', id: 'scoresSource' }, sourceLine(v, now))];
+      for (const g of groupByLeague(v.fixtures)) kids.push(h('b', {}, g.league), h('div', { class: 'list' }, g.fixtures.map(f => h('div', { class: `fx ${f.state}`, 'data-state': f.state }, h('span', {}, `${f.home}`), h('b', {}, scoreText(f)), h('span', {}, `${f.away}`), h('small', { class: 'mut' }, f.state === 'upcoming' ? kickoffText(f) : stateLabel(f))))));
+      kids.push(h('p', { class: 'mut' }, v.hasTicket ? '🎟️ You have today’s ticket: take a seat in the stands.' : '🎟️ Buy a ticket at the booth, then take a seat.'), h('p', { class: 'mut' }, `Everyone reads the same saved copy (the server asked the feed ${v.apiCallsToday} of ${v.apiCallsCap} times today).`), h('button', { class: 'btn small', id: 'scoresRefresh', onclick: () => draw() }, 'Reload saved copy'));
+      ui.openSheet(st.label, kids); }; await draw();
   }
   async board(kind = 'all') {
     const ui = this.g.ui; const d = await ui.guard(() => get('/api/scoreboard' + (kind === 'all' ? '' : `?kind=${kind}`))); if (!d) return; const left = Math.max(0, d.endsAt - this.g.serverNow());

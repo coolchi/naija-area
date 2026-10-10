@@ -11,6 +11,22 @@ const POSTER = (text) => ({ type: 'poster', label: 'House rules', color: '#f0c41
 const RULES = 'Game money only. 18+. No alcohol is simulated in this version. Be respectful: you can be reported, muted or blocked. Prices are ESTIMATE placeholders.';
 
 // ---- venue specs -------------------------------------------------------------------------------------------------
+
+// ---- stadium (10 Oct 2026): the visitable stadium venue. Fictional name, no logos or kits. Live scores are served by core/scores.js.
+function stadiumVenue(api, pre, b) {
+  const shop = eatery(api, pre, 'Stadium Snacks', b); shop.desc = 'Suya, chin chin and cold zobo at stadium prices (game money, ESTIMATE).'; shop.items = [{ id: 'suya', name: 'Suya stick', price: 1200, hunger: 40, energy: 6 }, { id: 'chinchin', name: 'Chin chin', price: 500, hunger: 20, energy: 4 }, { id: 'zobo', name: 'Zobo drink', price: 300, hunger: 5, energy: 6 }];
+  return api.venue(`${pre}_venue_stadium`, b, { name: 'Naija Area City Stadium', blurb: 'A football ground: buy a ticket, take a seat, watch the score board and grab snacks. Fictional club and league names.', hours: [8, 23], sign: '#1b6e3a', kind: 'stadium', shopId: shop.id,
+    stations: [
+      { id: 'ticket', type: 'ticket', label: 'Ticket booth', x: -8.6, z: 5.4, color: '#1b6e3a' },
+      { id: 'snack1', type: 'eat', label: 'Snack stall', x: -8.6, z: 1.6, color: '#c8553d', shopId: shop.id },
+      { id: 'snack2', type: 'eat', label: 'Drinks stall', x: -8.6, z: -2, color: '#2a9d8f', shopId: shop.id },
+      { id: 'scores', type: 'scores', label: 'Score board', x: -8.6, z: -5.6, color: '#10131a' },
+      { id: 'seat', type: 'seat', label: 'Take a seat (ticket)', x: 2.5, z: -3.0, color: '#d6402f' },
+      { id: 'brand', type: 'poster', label: 'Brand board spot', x: 6.5, z: 5.7, color: '#e0a020', text: 'Brand board spot (placeholder). Ad slots around the ground are planned; the real ad system is on the Advertise page.' },
+      { id: 'rules', ...POSTER(RULES), x: 9.6, z: 5.7 }],
+    room: { w: 22, d: 16, wall: '#d7d9db', trim: '#1b6e3a', floor: { style: 'checker', a: '#b9bcc0', b: '#aeb1b5' }, windows: [], mood: 'warm', door: 'Enter',
+      decor: [{ k: 'pitch', x: 2.5, z: 0.8, w: 14, d: 7.2 }, { k: 'stands', x: 2.5, z: -5.7, w: 16, d: 4.6, tiers: 3 }, { k: 'adboards', x: 2.5, z: 4.8, w: 14 }, { k: 'crowd', x: -6.6, z: 3.4, n: 3, r: 1.0, seed: 5 }, { k: 'plant', x: -10.2, z: 7, h: 1.5 }], detailV2: true } });
+}
 function hotelVenue(api, pre, name, b, o) {
   const shop = eatery(api, pre, `${name} Restaurant`, b); const v = api.venue(`${pre}_venue_${o.key}`, b, { name, blurb: o.blurb, hours: [6, 24], sign: o.sign, kind: 'hotel', shopId: shop.id,
     stations: [{ id: 'desk', type: 'poster', label: 'Reception', x: 0, z: -4.2, color: o.sign, text: `${o.blurb} Short stays and event bookings are coming (placeholder).` }, { id: 'restaurant', type: 'eat', label: 'Restaurant counter', x: 4.4, z: -3, color: '#8a5a2b', shopId: shop.id }, { id: 'lounge', type: 'tv', label: 'Lounge TV', x: -4.6, z: -3, color: '#222', mood: 3 }, { id: 'word', type: 'casual', game: 'word', label: 'Word of the Day board', x: -4.6, z: 2.2, color: '#c8a23d' }, { id: 'rules', ...POSTER(RULES), x: 4.6, z: 2.6 }],
@@ -116,12 +132,15 @@ const marketStall = (api, pre, x, z, nm) => { const s = clone(MARKET_SHOP); Obje
     homeNames: ['Phase 1 Court', 'Palm Estate Flat', 'Admiralty Flats', 'Lekki Gardens Rooms', 'Estate Duplex', 'Ocean Close', 'Coral Court', 'Lagoon View Flats', 'Pearl Estate', 'Sunrise Close', 'Marina Estate', 'Orchid Court'], maxHomes: 16,
     curves: [curveRoad('lk_cv1', 'Palm Crescent', [80, -105], [130, -60], [180, -105], 10)],
     districts: [{ id: 'd_lk1', name: 'Lekki Phase 1', x0: -240, x1: 80, z0: -200, z1: 90, color: '#d4d8b8' }, { id: 'd_lkest', name: 'Lekki estates', x0: 80, x1: 260, z0: -200, z1: 90, color: '#c8d9b8' }, { id: 'd_lkbeach', name: 'Eleko Beach', x0: 80, x1: 260, z0: 90, z1: 170, color: '#f1e2b0' }, { id: 'd_lkjetty', name: 'Tarkwa Bay jetty', x0: -240, x1: 80, z0: 90, z1: 170, color: '#e3e6c8' }],
-    spawns: spawnsAround([[-120, 45], [20, 45], [140, 45]]),
+    spawns: spawnsAround([[-120, 45], [20, 45], [200, 58]]),
     links: [link('to-bridge', 'Lekki-Ikoyi Bridge road', 'lagos-bridge', -226, 0, 268, 0, 3.14)],
     fill: (i, j) => ({ '0,0': ['houses', ['duplex', 'flat2', 'mansion'], 1.6, 2], '1,0': ['houses', ['duplex', 'mansion', 'flat2'], 1.7, 2], '2,0': ['houses', ['mansion', 'duplex'], 1.9, 2], '3,0': ['houses', ['duplex', 'mansion'], 1.8, 2], '4,0': ['houses', ['bungalow', 'duplex'], 1.6, 2], '0,1': ['houses', ['flat2', 'bungalow'], 1.4, 2], '1,1': ['houses', ['duplex', 'flat2'], 1.5, 2], '3,1': ['houses', ['duplex', 'mansion'], 1.7, 2], '4,1': ['houses', ['bungalow', 'flat2'], 1.4, 2], '0,2': 'none', '1,2': 'none' }[`${i},${j}`]),
     billboards: 7, build(a) {
       const m = a.shop('shop_mart', 'lk_shop_mart', 20, 30, [0, -1], 'Lekki Mart'); a.job('job_shop', m.s.x - 8, m.s.z, 'Lekki Mart (staff entrance)'); a.job('job_rider', -100, 40, 'Rider Dispatch Hub');
-      const cb = a.venueBuilding('office', 'Beach Canteen', 130, 38, 26, 18, 6, [0, -1], '#c8553d'); const ms = eatery(a, 'lk', 'Beach Canteen', cb); a.venue('lk_venue_canteen', cb, { name: 'Beach Canteen', blurb: 'Eat, then challenge somebody to Whot or Ayo.', hours: [6, 22], sign: '#c8553d', shopId: ms.id, stations: clone(MAMAPUT.stations).map(s => (s.shopId ? { ...s, shopId: ms.id } : s)), room: clone(MAMAPUT.room) });
+      const cb = a.venueBuilding('office', 'Beach Canteen', 222, 38, 26, 18, 6, [0, -1], '#c8553d'); const ms = eatery(a, 'lk', 'Beach Canteen', cb); a.venue('lk_venue_canteen', cb, { name: 'Beach Canteen', blurb: 'Eat, then challenge somebody to Whot or Ayo.', hours: [6, 22], sign: '#c8553d', shopId: ms.id, stations: clone(MAMAPUT.stations).map(s => (s.shopId ? { ...s, shopId: ms.id } : s)), room: clone(MAMAPUT.room) });
+      const sb = a.venueBuilding('stadium', 'City Stadium', 130, 45, 80, 66, 16, [0, -1], '#d7d4cc', { model: 'stadium', nocollideCheck: false }); stadiumVenue(a, 'lk', sb);
+      a.city.carParks.push({ id: 'lk_cp_stadium', name: 'Stadium Car Park', x: 222, z: 70, w: 32, d: 18, gate: 'w', fee: 0, kind: 'venue', venueId: 'lk_venue_stadium', blurb: 'Free for match-goers (ESTIMATE rule: fee 0).' });
+      a.billboard('road_billboard', 'major', 100, -12, 0, 1, 12, 6, 9); a.billboard('road_billboard', 'major', 160, -12, 0, 1, 12, 6, 9); // stadium-side ad inventory
       clinic(a, 'lk', -200, 40, [1, 0]); const pos = a.add({ kind: 'kiosk', x: -60, z: 40, w: 10, d: 8, h: 4, floors: 1, color: '#4aa3ff', face: [0, -1] }); a.job('job_pos', pos.x, pos.z + 7, 'POS kiosk');
       a.city.landmarks.push({ id: 'plaza', kind: 'plaza', name: 'Lekki Phase 1 Roundabout Garden', x: 20, z: -58, cx: 20, cz: -55, size: 44 });
       a.city.landmarks.push({ id: 'eleko', kind: 'beach', name: 'Eleko Beach', x: 170, z: 135, cx: 170, cz: 135, w: 150, d: 66, huts: 6 });

@@ -218,6 +218,9 @@ CREATE TABLE IF NOT EXISTS casual_runs (
   score INTEGER NOT NULL DEFAULT 0, reward INTEGER NOT NULL DEFAULT 0, day TEXT NOT NULL, started_at INTEGER NOT NULL, finished_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS ix_casual_user ON casual_runs(user_id, kind, id);
+-- stadium: one row of cached live-score data (the call counter lives here so a restart cannot reset the daily cap) and match-day tickets
+CREATE TABLE IF NOT EXISTS scores_cache (id INTEGER PRIMARY KEY CHECK (id = 1), day TEXT NOT NULL, calls INTEGER NOT NULL DEFAULT 0, payload TEXT, source TEXT, good_at INTEGER NOT NULL DEFAULT 0, tried_at INTEGER NOT NULL DEFAULT 0, next_at INTEGER NOT NULL DEFAULT 0, error TEXT, error_code TEXT);
+CREATE TABLE IF NOT EXISTS stadium_tickets (user_id INTEGER NOT NULL, venue_id TEXT NOT NULL, day TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (user_id, venue_id, day));
 CREATE TABLE IF NOT EXISTS casual_daily (user_id INTEGER NOT NULL, day TEXT NOT NULL, earned INTEGER NOT NULL DEFAULT 0, plays INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day));
 `;
 

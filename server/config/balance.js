@@ -145,6 +145,11 @@ export const BALANCE = {
   flight: { enabled: true, gateRadiusM: 70, departEveryMs: 90000, minLeadMs: 20000, slotsShown: 3, flightMs: 45000, cooldownMs: 120000, cancelRefundPct: 80, fares: { sameState: 4500, otherState: 9000 }, _note: 'Fares and times are ESTIMATES. departEveryMs is real time between scheduled departures.' },
   // Road links between districts/cities (10 Oct 2026). ESTIMATE placeholders.
   link: { enabled: true, fare: 200, gateRadiusM: 16, perMin: 6, _note: 'ESTIMATE. A link gate moves you to the next district by road; the fare goes through the ledger.' },
+  // Stadium (10 Oct 2026). ESTIMATE placeholders. Live scores are a TEST: see core/scores.js and docs/STADIUM.md.
+  stadium: {
+    ticketFee: 500, ticketMood: 4, seatMood: 6, seatCdMs: 120000, _note: 'ESTIMATE. A match-day ticket lasts until the end of the real UTC day and is paid through the ledger.',
+    scores: { enabled: true, provider: 'mock', refreshMs: 300000, idleRefreshMs: 1800000, blockedRetryMs: 21600000, dailyCap: 100, reserve: 5, staleMs: 7200000, maxFixtures: 10, _note: 'ESTIMATE. One server job polls; viewers read the stored copy. 5 min cannot fit 100 calls a day, so the delay is stretched to spread the remaining calls over the rest of the UTC day.' },
+  },
   bus: { enabled: true, waitMinMs: 10000, waitMaxMs: 24000, rushMult: 1.5, callExpireMs: 90000, rangeM: 12, callsPerMin: 4, _note: 'ESTIMATE placeholders: wait times; the fare is the normal danfo fare (transport.modes.danfo)' },
   parking: { enabled: true, takeRangeM: 9, lotPadM: 1, maxParkedMs: 3 * 24 * 3600 * 1000, _note: 'ESTIMATE placeholders: lot fees live in the city JSON (carParks[].fee)' },
   crash: {

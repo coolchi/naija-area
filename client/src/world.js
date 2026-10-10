@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Builder, mulberry32 } from '../sample/builder.js';
 import { wallTextures, roadTexture, groundTexture, waterTexture, tex2 } from './textures.js';
 import { roadPts, isCurved, offsetPoly, polyLen } from './roadgeom.js';
-import { strut, subtractRects, creekVisual, creekColliders, drawExtraBuilding, drawBeach, drawJetty, drawLink, drawBeamBridge, drawCableBridge } from './landmarks3d.js';
+import { strut, subtractRects, creekVisual, creekColliders, drawExtraBuilding, drawBeach, drawJetty, drawLink, drawBeamBridge, drawCableBridge, drawStadium } from './landmarks3d.js';
 import { lampPositions, lampLevel, lampsOn, LAMP } from './lamps.js';
 
 const lerpC = (a, b, t) => new THREE.Color(a).lerp(new THREE.Color(b), t);
@@ -118,6 +118,8 @@ export function buildWorld(city) {
     } else if (b.kind === 'office' || b.kind === 'kiosk') {
       walls.box(b.w, b.h, b.d, b.x, 0, b.z, b.color); plain.box(b.w + 0.6, 0.3, b.d + 0.6, b.x, b.h, b.z, 0x6b6d70);
       if (b.label) { const [sx, sz] = frontPos(b, 0.12); addSign(b.label, '#0b6b3a', sx, b.h - 1.3, sz, Math.min(b.w - 1, 14), 2.2, b.face); }
+    } else if (b.kind === 'stadium') {
+      drawStadium(b, { plain, walls, addSign, frontPos, root, rnd: mulberry32(7) });
     } else if (b.kind === 'hotel' || b.kind === 'landmark') {
       drawExtraBuilding(b, { plain, walls, glassB, addSign, frontPos });
     } else if (b.kind === 'airport') {

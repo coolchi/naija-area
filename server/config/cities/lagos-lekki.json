@@ -216,7 +216,7 @@
   },
   {
    "kind": "office",
-   "x": 130,
+   "x": 222,
    "z": 38,
    "w": 26,
    "d": 18,
@@ -229,6 +229,24 @@
    ],
    "label": "Beach Canteen",
    "id": "lk_b2"
+  },
+  {
+   "kind": "stadium",
+   "x": 130,
+   "z": 45,
+   "w": 80,
+   "d": 66,
+   "h": 16,
+   "floors": 4,
+   "color": "#d7d4cc",
+   "face": [
+    0,
+    -1
+   ],
+   "label": "City Stadium",
+   "model": "stadium",
+   "nocollideCheck": false,
+   "id": "lk_b3"
   },
   {
    "kind": "office",
@@ -244,7 +262,7 @@
     0
    ],
    "label": "Community Clinic",
-   "id": "lk_b3"
+   "id": "lk_b4"
   },
   {
    "kind": "kiosk",
@@ -259,7 +277,7 @@
     0,
     -1
    ],
-   "id": "lk_b4"
+   "id": "lk_b5"
   },
   {
    "kind": "house",
@@ -276,7 +294,7 @@
     0,
     -1
    ],
-   "id": "lk_b5",
+   "id": "lk_b6",
    "propertyId": "lk_h01"
   },
   {
@@ -294,7 +312,7 @@
     0,
     1
    ],
-   "id": "lk_b6",
+   "id": "lk_b7",
    "propertyId": "lk_h02"
   },
   {
@@ -312,7 +330,7 @@
     0,
     -1
    ],
-   "id": "lk_b7",
+   "id": "lk_b8",
    "propertyId": "lk_h03"
   },
   {
@@ -330,7 +348,7 @@
     0,
     -1
    ],
-   "id": "lk_b8",
+   "id": "lk_b9",
    "propertyId": "lk_h04"
   },
   {
@@ -348,7 +366,7 @@
     0,
     1
    ],
-   "id": "lk_b9",
+   "id": "lk_b10",
    "propertyId": "lk_h05"
   },
   {
@@ -366,7 +384,7 @@
     0,
     1
    ],
-   "id": "lk_b10",
+   "id": "lk_b11",
    "propertyId": "lk_h06"
   },
   {
@@ -384,7 +402,7 @@
     0,
     -1
    ],
-   "id": "lk_b11",
+   "id": "lk_b12",
    "propertyId": "lk_h07"
   },
   {
@@ -402,7 +420,7 @@
     0,
     -1
    ],
-   "id": "lk_b12",
+   "id": "lk_b13",
    "propertyId": "lk_h08"
   },
   {
@@ -420,7 +438,7 @@
     0,
     1
    ],
-   "id": "lk_b13",
+   "id": "lk_b14",
    "propertyId": "lk_h09"
   },
   {
@@ -438,7 +456,7 @@
     0,
     1
    ],
-   "id": "lk_b14",
+   "id": "lk_b15",
    "propertyId": "lk_h10"
   },
   {
@@ -456,7 +474,7 @@
     0,
     -1
    ],
-   "id": "lk_b15",
+   "id": "lk_b16",
    "propertyId": "lk_h11"
   },
   {
@@ -474,7 +492,7 @@
     0,
     -1
    ],
-   "id": "lk_b16",
+   "id": "lk_b17",
    "propertyId": "lk_h12"
   },
   {
@@ -492,7 +510,7 @@
     0,
     1
    ],
-   "id": "lk_b17",
+   "id": "lk_b18",
    "propertyId": "lk_h13"
   },
   {
@@ -510,7 +528,7 @@
     0,
     1
    ],
-   "id": "lk_b18",
+   "id": "lk_b19",
    "propertyId": "lk_h14"
   },
   {
@@ -528,7 +546,7 @@
     0,
     -1
    ],
-   "id": "lk_b19",
+   "id": "lk_b20",
    "propertyId": "lk_h15"
   },
   {
@@ -546,7 +564,7 @@
     0,
     1
    ],
-   "id": "lk_b20",
+   "id": "lk_b21",
    "propertyId": "lk_h16"
   },
   {
@@ -564,7 +582,7 @@
     0,
     -1
    ],
-   "id": "lk_b21",
+   "id": "lk_b22",
    "propertyId": "lk_h17"
   },
   {
@@ -582,7 +600,7 @@
     0,
     -1
    ],
-   "id": "lk_b22",
+   "id": "lk_b23",
    "propertyId": "lk_h18"
   },
   {
@@ -600,14 +618,14 @@
     0,
     -1
    ],
-   "id": "lk_b23",
+   "id": "lk_b24",
    "propertyId": "lk_h19"
   }
  ],
  "properties": [
   {
    "id": "lk_h01",
-   "buildingId": "lk_b5",
+   "buildingId": "lk_b6",
    "name": "Phase 1 Court",
    "tier": 3,
    "tierLabel": "Duplex",
@@ -622,7 +640,7 @@
   },
   {
    "id": "lk_h02",
-   "buildingId": "lk_b6",
+   "buildingId": "lk_b7",
    "name": "Palm Estate Flat",
    "tier": 3,
    "tierLabel": "Mansion",
@@ -637,7 +655,7 @@
   },
   {
    "id": "lk_h03",
-   "buildingId": "lk_b7",
+   "buildingId": "lk_b8",
    "name": "Admiralty Flats",
    "tier": 3,
    "tierLabel": "Duplex",
@@ -652,7 +670,7 @@
   },
   {
    "id": "lk_h04",
-   "buildingId": "lk_b8",
+   "buildingId": "lk_b9",
    "name": "Lekki Gardens Rooms",
    "tier": 3,
    "tierLabel": "Mansion",
@@ -667,7 +685,7 @@
   },
   {
    "id": "lk_h05",
-   "buildingId": "lk_b9",
+   "buildingId": "lk_b10",
    "name": "Estate Duplex",
    "tier": 3,
    "tierLabel": "Duplex",
@@ -682,7 +700,7 @@
   },
   {
    "id": "lk_h06",
-   "buildingId": "lk_b10",
+   "buildingId": "lk_b11",
    "name": "Ocean Close",
    "tier": 3,
    "tierLabel": "Mansion",
@@ -697,7 +715,7 @@
   },
   {
    "id": "lk_h07",
-   "buildingId": "lk_b11",
+   "buildingId": "lk_b12",
    "name": "Coral Court",
    "tier": 3,
    "tierLabel": "Mansion",
@@ -712,7 +730,7 @@
   },
   {
    "id": "lk_h08",
-   "buildingId": "lk_b12",
+   "buildingId": "lk_b13",
    "name": "Lagoon View Flats",
    "tier": 3,
    "tierLabel": "Duplex",
@@ -727,7 +745,7 @@
   },
   {
    "id": "lk_h09",
-   "buildingId": "lk_b13",
+   "buildingId": "lk_b14",
    "name": "Pearl Estate",
    "tier": 3,
    "tierLabel": "Duplex",
@@ -742,7 +760,7 @@
   },
   {
    "id": "lk_h10",
-   "buildingId": "lk_b14",
+   "buildingId": "lk_b15",
    "name": "Sunrise Close",
    "tier": 3,
    "tierLabel": "Mansion",
@@ -757,7 +775,7 @@
   },
   {
    "id": "lk_h11",
-   "buildingId": "lk_b15",
+   "buildingId": "lk_b16",
    "name": "Marina Estate",
    "tier": 3,
    "tierLabel": "Duplex",
@@ -772,7 +790,7 @@
   },
   {
    "id": "lk_h12",
-   "buildingId": "lk_b16",
+   "buildingId": "lk_b17",
    "name": "Orchid Court",
    "tier": 3,
    "tierLabel": "Mansion",
@@ -787,7 +805,7 @@
   },
   {
    "id": "lk_h13",
-   "buildingId": "lk_b17",
+   "buildingId": "lk_b18",
    "name": "Phase 1 Court",
    "tier": 3,
    "tierLabel": "Mansion",
@@ -802,7 +820,7 @@
   },
   {
    "id": "lk_h14",
-   "buildingId": "lk_b18",
+   "buildingId": "lk_b19",
    "name": "Palm Estate Flat",
    "tier": 3,
    "tierLabel": "Duplex",
@@ -817,7 +835,7 @@
   },
   {
    "id": "lk_h15",
-   "buildingId": "lk_b19",
+   "buildingId": "lk_b20",
    "name": "Admiralty Flats",
    "tier": 2,
    "tierLabel": "Bungalow",
@@ -832,7 +850,7 @@
   },
   {
    "id": "lk_h16",
-   "buildingId": "lk_b20",
+   "buildingId": "lk_b21",
    "name": "Lekki Gardens Rooms",
    "tier": 2,
    "tierLabel": "Bungalow",
@@ -847,7 +865,7 @@
   },
   {
    "id": "lk_h17",
-   "buildingId": "lk_b21",
+   "buildingId": "lk_b22",
    "name": "Estate Duplex",
    "tier": 2,
    "tierLabel": "2-bedroom flat",
@@ -862,7 +880,7 @@
   },
   {
    "id": "lk_h18",
-   "buildingId": "lk_b22",
+   "buildingId": "lk_b23",
    "name": "Ocean Close",
    "tier": 3,
    "tierLabel": "Duplex",
@@ -877,7 +895,7 @@
   },
   {
    "id": "lk_h19",
-   "buildingId": "lk_b23",
+   "buildingId": "lk_b24",
    "name": "Coral Court",
    "tier": 2,
    "tierLabel": "Bungalow",
@@ -928,7 +946,7 @@
    "id": "lk_shop_2",
    "name": "Beach Canteen",
    "desc": "Jollof, rice and stew (game prices, ESTIMATE).",
-   "x": 130,
+   "x": 222,
    "z": 26,
    "items": [
     {
@@ -944,6 +962,37 @@
      "price": 1100,
      "hunger": 45,
      "energy": 6
+    },
+    {
+     "id": "zobo",
+     "name": "Zobo drink",
+     "price": 300,
+     "hunger": 5,
+     "energy": 6
+    }
+   ],
+   "channel": "supermarket"
+  },
+  {
+   "id": "lk_shop_3",
+   "name": "Stadium Snacks",
+   "desc": "Suya, chin chin and cold zobo at stadium prices (game money, ESTIMATE).",
+   "x": 130,
+   "z": 9,
+   "items": [
+    {
+     "id": "suya",
+     "name": "Suya stick",
+     "price": 1200,
+     "hunger": 40,
+     "energy": 6
+    },
+    {
+     "id": "chinchin",
+     "name": "Chin chin",
+     "price": 500,
+     "hunger": 20,
+     "energy": 4
     },
     {
      "id": "zobo",
@@ -980,6 +1029,30 @@
   {
    "id": "lk_bb01",
    "surface": "road_billboard",
+   "tier": "major",
+   "x": 100,
+   "z": -12,
+   "nx": 0,
+   "nz": 1,
+   "w": 12,
+   "h": 6,
+   "y": 9
+  },
+  {
+   "id": "lk_bb02",
+   "surface": "road_billboard",
+   "tier": "major",
+   "x": 160,
+   "z": -12,
+   "nx": 0,
+   "nz": 1,
+   "w": 12,
+   "h": 6,
+   "y": 9
+  },
+  {
+   "id": "lk_bb03",
+   "surface": "road_billboard",
    "tier": "mega",
    "x": -197.16,
    "z": -12,
@@ -990,7 +1063,7 @@
    "y": 11
   },
   {
-   "id": "lk_bb02",
+   "id": "lk_bb04",
    "surface": "road_billboard",
    "tier": "major",
    "x": -106.53,
@@ -1002,7 +1075,7 @@
    "y": 9
   },
   {
-   "id": "lk_bb03",
+   "id": "lk_bb05",
    "surface": "road_billboard",
    "tier": "major",
    "x": 19.25,
@@ -1014,25 +1087,13 @@
    "y": 9
   },
   {
-   "id": "lk_bb04",
-   "surface": "road_billboard",
-   "tier": "street",
-   "x": 137.77,
-   "z": 12,
-   "nx": 0,
-   "nz": -1,
-   "w": 12,
-   "h": 6,
-   "y": 9
-  },
-  {
-   "id": "lk_bb05",
+   "id": "lk_bb06",
    "surface": "road_billboard",
    "tier": "street",
    "x": 225.74,
-   "z": -12,
+   "z": 12,
    "nx": 0,
-   "nz": 1,
+   "nz": -1,
    "w": 12,
    "h": 6,
    "y": 9
@@ -1050,8 +1111,8 @@
    "ry": 0
   },
   {
-   "x": 140,
-   "z": 45,
+   "x": 200,
+   "z": 58,
    "ry": 0
   }
  ],
@@ -2247,7 +2308,7 @@
    "name": "Beach Canteen",
    "blurb": "Eat, then challenge somebody to Whot or Ayo.",
    "buildingId": "lk_b2",
-   "x": 130,
+   "x": 222,
    "z": 26,
    "hours": [
     6,
@@ -2436,11 +2497,154 @@
     "detailV2": true
    },
    "shopId": "lk_shop_2"
+  },
+  {
+   "id": "lk_venue_stadium",
+   "name": "Naija Area City Stadium",
+   "blurb": "A football ground: buy a ticket, take a seat, watch the score board and grab snacks. Fictional club and league names.",
+   "buildingId": "lk_b3",
+   "x": 130,
+   "z": 9,
+   "hours": [
+    8,
+    23
+   ],
+   "sign": "#1b6e3a",
+   "stations": [
+    {
+     "id": "ticket",
+     "type": "ticket",
+     "label": "Ticket booth",
+     "x": -8.6,
+     "z": 5.4,
+     "color": "#1b6e3a"
+    },
+    {
+     "id": "snack1",
+     "type": "eat",
+     "label": "Snack stall",
+     "x": -8.6,
+     "z": 1.6,
+     "color": "#c8553d",
+     "shopId": "lk_shop_3"
+    },
+    {
+     "id": "snack2",
+     "type": "eat",
+     "label": "Drinks stall",
+     "x": -8.6,
+     "z": -2,
+     "color": "#2a9d8f",
+     "shopId": "lk_shop_3"
+    },
+    {
+     "id": "scores",
+     "type": "scores",
+     "label": "Score board",
+     "x": -8.6,
+     "z": -5.6,
+     "color": "#10131a"
+    },
+    {
+     "id": "seat",
+     "type": "seat",
+     "label": "Take a seat (ticket)",
+     "x": 2.5,
+     "z": -3,
+     "color": "#d6402f"
+    },
+    {
+     "id": "brand",
+     "type": "poster",
+     "label": "Brand board spot",
+     "x": 6.5,
+     "z": 5.7,
+     "color": "#e0a020",
+     "text": "Brand board spot (placeholder). Ad slots around the ground are planned; the real ad system is on the Advertise page."
+    },
+    {
+     "id": "rules",
+     "type": "poster",
+     "label": "House rules",
+     "color": "#f0c419",
+     "text": "Game money only. 18+. No alcohol is simulated in this version. Be respectful: you can be reported, muted or blocked. Prices are ESTIMATE placeholders.",
+     "x": 9.6,
+     "z": 5.7
+    }
+   ],
+   "room": {
+    "w": 22,
+    "d": 16,
+    "wall": "#d7d9db",
+    "trim": "#1b6e3a",
+    "floor": {
+     "style": "checker",
+     "a": "#b9bcc0",
+     "b": "#aeb1b5"
+    },
+    "windows": [],
+    "mood": "warm",
+    "door": "Enter",
+    "decor": [
+     {
+      "k": "pitch",
+      "x": 2.5,
+      "z": 0.8,
+      "w": 14,
+      "d": 7.2
+     },
+     {
+      "k": "stands",
+      "x": 2.5,
+      "z": -5.7,
+      "w": 16,
+      "d": 4.6,
+      "tiers": 3
+     },
+     {
+      "k": "adboards",
+      "x": 2.5,
+      "z": 4.8,
+      "w": 14
+     },
+     {
+      "k": "crowd",
+      "x": -6.6,
+      "z": 3.4,
+      "n": 3,
+      "r": 1,
+      "seed": 5
+     },
+     {
+      "k": "plant",
+      "x": -10.2,
+      "z": 7,
+      "h": 1.5
+     }
+    ],
+    "detailV2": true
+   },
+   "kind": "stadium",
+   "shopId": "lk_shop_3"
   }
  ],
  "roundabouts": [],
  "roadFormat": 2,
- "carParks": [],
+ "carParks": [
+  {
+   "id": "lk_cp_stadium",
+   "name": "Stadium Car Park",
+   "x": 222,
+   "z": 70,
+   "w": 32,
+   "d": 18,
+   "gate": "w",
+   "fee": 0,
+   "kind": "venue",
+   "venueId": "lk_venue_stadium",
+   "blurb": "Free for match-goers (ESTIMATE rule: fee 0)."
+  }
+ ],
  "busStops": [],
  "links": [
   {

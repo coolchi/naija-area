@@ -9,6 +9,7 @@ import { createApp } from './core/app.js';
 import { nodePlatform } from './platform-node.js';
 import { dispatch } from './core/routes.js';
 import { getCreative, handleTap, tickAds } from './core/ads.js';
+import { tickScores } from './core/scores.js';
 import { tickRent, tickInterest } from './core/economy.js';
 import { pruneWorld } from './core/world.js';
 import { tickLand } from './core/social.js';
@@ -118,6 +119,8 @@ export function buildServer(opts = {}) {
   });
   const timers = [];
   function startTimers() {
+    tickScores(app).catch((e) => console.error('tickScores', e));
+    timers.push(setInterval(() => { tickScores(app).catch((e) => console.error('tickScores', e)); }, 30000)); // one job for all viewers; it only calls the provider when due and under the daily cap
     timers.push(setInterval(() => { try { tickCalls(app); } catch (e) { console.error('tickCalls', e); } }, 1000));
     timers.push(setInterval(() => { try { tickAds(app); } catch (e) { console.error('tickAds', e); } }, 5000));
     timers.push(setInterval(() => { try { tickRent(app); tickInterest(app); tickLand(app); tickGames(app); pruneWorld(app); tickVoice(app); } catch (e) { console.error('tick', e); } }, 30000));

@@ -25,6 +25,9 @@ Environment: `PORT`, `HOST` (default 127.0.0.1: put a TLS proxy in front before 
 - Five Lagos districts joined by road links (Mainland, Lagos Island, Victoria Island and Ikoyi, the Lekki-Ikoyi Bridge, Lekki): hotels, clubs, an arts venue, a cafe, mosque, cathedral, National Theatre, Falomo Bridge, Banana Island, Eleko Beach, Tarkwa Bay jetty, and a cable-stayed Lekki-Ikoyi Bridge you can walk or drive across. See `docs/DISTRICTS.md` and `docs/BRIDGE.md`.
 - Regenerate with `node tools/gen-lagos-districts.mjs`; check layouts with `node tools/check-city-layout.mjs`; smoke: `node scripts/districts-smoke.mjs` (screenshots `screenshots/district-*.png`).
 
+## Stadium and live scores test (10 Oct 2026)
+A fictional City Stadium in Lekki: buy a ticket, take a seat, snacks, a score board. Scores come from ONE server job that saves a copy (mock provider by default; API-Football free plan when `NA_SCORES_PROVIDER=api-football` and `APIFOOTBALL_KEY` are set), with a daily call guard (100 a day, stops at 95) and a fictional-league fallback. Viewers never trigger a call. See `docs/STADIUM.md`; test only, not a launch decision.
+
 ## Cities and the airport (10 Oct 2026)
 - More than one city is supported: `server/config/cities/index.json` lists them, `tools/new-city.mjs` makes a valid skeleton, and everything per player (presence, chat, ads, shops, jobs, venues) follows the player's city. See `docs/CITIES.md`. Only Lagos is enabled; start with `NA_PREVIEW_CITIES=1` to also load a fictional preview town.
 - The Lagos airport has a departure board, tickets through the ledger, a visible plane that takes off and circles, and landing in the other city. See `docs/AIRPORT.md`. Smokes: `node scripts/cities-smoke.mjs`, `node scripts/airport-smoke.mjs`.

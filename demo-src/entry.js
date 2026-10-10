@@ -14,6 +14,7 @@ import lekki from '../server/config/cities/lagos-lekki.json';
 import * as ads from '../server/core/ads.js';
 import { tickRent, tickInterest } from '../server/core/economy.js';
 import { tickLand } from '../server/core/social.js';
+import { tickScores, mockProvider } from '../server/core/scores.js';
 import { tickGames } from '../server/core/games.js';
 import { pruneWorld } from '../server/core/world.js';
 import { startBots } from '../server/bots.js';
@@ -44,6 +45,7 @@ async function boot() {
     const up = ads.uploadCreative(app, a.id, img, 'image/png'); const id = ads.createCampaign(app, a.id, { surface, tier, units: 1, days: 30, creativeId: up.creativeId, headline, linkUrl: 'https://example.com/', testModeAck: true }, { demo: true });
     if (app.db.prepare('SELECT status FROM ad_campaigns WHERE id=?').get(id).status === 'human_review') ads.decide(app, id, 'approve', 'demo', 'demo');
   }
+  app.scoresProvider = mockProvider; tickScores(app).catch(() => {}); setInterval(() => { tickScores(app).catch(() => {}); }, 30000); // mock sample data only; no network in the demo
   ads.tickAds(app); startBots(app, 6); startPracticeBot(app);
   setInterval(() => { try { ads.tickAds(app); } catch (e) { console.error(e); } }, 5000); setInterval(() => { try { tickRent(app); tickInterest(app); tickLand(app); tickGames(app); pruneWorld(app); } catch (e) { console.error(e); } }, 30000);
 }

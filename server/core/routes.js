@@ -1,5 +1,6 @@
 // Transport-agnostic route table. Express adapts it (server/index.js); the static demo adapts it to an in-browser fetch mock.
 import * as flight from './flight.js';
+import { viewScores, buyTicket } from './stadium.js';
 import { cityOf, publicCity, cityList, onlineByCity, useLink } from './cities.js';
 import { GameError, bad, cleanText } from './util.js';
 import * as auth from './auth.js';
@@ -80,6 +81,8 @@ route('GET', '/api/venues', { auth: 'user' }, (c) => ({ venues: venues.venuesLis
 route('GET', '/api/venue', { auth: 'user' }, (c) => venues.venueView(c.app, c.uid, String(c.query.id)));
 route('POST', '/api/venue/enter', { auth: 'user' }, (c) => venues.enterVenue(c.app, c.uid, c.body.venueId, c.body.pos));
 route('POST', '/api/venue/leave', { auth: 'user' }, (c) => venues.leaveVenue(c.app, c.uid));
+route('GET', '/api/stadium/scores', { auth: 'user' }, (c) => viewScores(c.app, c.uid));
+route('POST', '/api/stadium/ticket', { auth: 'user' }, (c) => buyTicket(c.app, c.uid, c.body.idem));
 route('POST', '/api/venue/act', { auth: 'user' }, (c) => venues.act(c.app, c.uid, c.body.venueId, c.body.stationId, c.body));
 route('GET', '/api/phone/friends', { auth: 'user' }, (c) => phone.friendsView(c.app, c.uid));
 route('POST', '/api/phone/friends/request', { auth: 'user' }, (c) => phone.friendRequest(c.app, c.uid, c.body.username));

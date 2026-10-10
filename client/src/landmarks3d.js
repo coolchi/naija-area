@@ -93,3 +93,44 @@ export function drawCableBridge(br, ctx) {
   const seg = []; for (const s of zs) for (const side of [-1, 1]) for (let i = 0; i < 7; i++) { const t = i / 6, hh = H * (0.55 + 0.42 * (1 - t)); const legZ = z0 + s * (hh < hW ? waist + (base - waist) * (1 - hh / hW) : waist + (top - waist) * ((hh - hW) / (H - hW))); const ax = px + side * (7 + i * 5.2), az = z0 + s * (W / 2 - 0.2); seg.push(px, hh, legZ, ax, 0.4, az); }
   return seg;
 }
+
+/** The stadium (10 Oct 2026): a simplified ring of four stepped tiers around a pitch, outer wall, roofs on the long sides, corner floodlights and an instanced crowd.
+ *  Generic: no club colours, logos or names (fictional). About 70 merged boxes + ONE instanced mesh, so it costs 2 draw calls. Pitch is long along x. */
+export const STADIUM = { pitchHx: 20, pitchHz: 12, track: 4, tierW: 3.5, tiers: 4 };
+export function stadiumTiers(b) { // pure: the tier rings, so a test can check that they fit inside the building and that every tier is higher than the one inside it
+  const S = STADIUM; const out = []; for (let k = 0; k < S.tiers; k++) out.push({ k, hx0: S.pitchHx + S.track + S.tierW * k, hz0: S.pitchHz + S.track + S.tierW * k, hx1: S.pitchHx + S.track + S.tierW * (k + 1), hz1: S.pitchHz + S.track + S.tierW * (k + 1), h: 2 + 2 * k }); return out;
+}
+export function stadiumCrowd(b, n, rnd) { // pure given rnd: spectator spots on tiers 0 to 2 (never on the outermost), each {x,y,z}
+  const T = stadiumTiers(b).slice(0, 3); const out = [];
+  for (let i = 0; i < n; i++) { const t = T[Math.floor(rnd() * T.length)]; const side = Math.floor(rnd() * 4); const u = (rnd() * 2 - 1); const v = t.hz0 + 0.3 + rnd() * (t.hz1 - t.hz0 - 0.6); const w = t.hx0 + 0.3 + rnd() * (t.hx1 - t.hx0 - 0.6);
+    if (side < 2) out.push({ x: u * (t.hx1 - 1), y: t.h, z: (side ? 1 : -1) * v }); else out.push({ x: (side === 2 ? 1 : -1) * w, y: t.h, z: u * (t.hz0 - 0.5) }); }
+  return out;
+}
+export function drawStadium(b, ctx) {
+  const { plain, walls, addSign, root, rnd = Math.random } = ctx; const S = STADIUM; const cx = b.x, cz = b.z; const P = (w, h, d, x, y, z, c, o) => plain.box(w, h, d, cx + x, y, cz + z, c, o || { noAO: true });
+  const hw = b.w / 2, hd = b.d / 2;
+  P(b.w, 0.2, b.d, 0, 0, 0, 0xb9b4a8); // concourse slab
+  // pitch with line markings and goals
+  P(S.pitchHx * 2 + 2 * S.track, 0.15, S.pitchHz * 2 + 2 * S.track, 0, 0.1, 0, 0xb5543a); P(S.pitchHx * 2, 0.25, S.pitchHz * 2, 0, 0.12, 0, 0x3f9b4a);
+  for (let i = -3; i <= 3; i++) P(S.pitchHx * 2 / 7, 0.02, S.pitchHz * 2, i * S.pitchHx * 2 / 7, 0.38, 0, i % 2 ? 0x3a9244 : 0x47a553); // mown stripes
+  const wl = (w, d, x, z) => P(w, 0.03, d, x, 0.4, z, 0xf4f4ef); wl(S.pitchHx * 2, 0.25, 0, S.pitchHz); wl(S.pitchHx * 2, 0.25, 0, -S.pitchHz); wl(0.25, S.pitchHz * 2, S.pitchHx, 0); wl(0.25, S.pitchHz * 2, -S.pitchHx, 0); wl(0.25, S.pitchHz * 2, 0, 0); wl(10, 0.25, S.pitchHx - 5, 5.5); wl(10, 0.25, S.pitchHx - 5, -5.5); wl(10, 0.25, -S.pitchHx + 5, 5.5); wl(10, 0.25, -S.pitchHx + 5, -5.5);
+  for (const sx of [-1, 1]) { P(0.25, 2.4, 0.25, sx * S.pitchHx, 0.4, -3.6, 0xf4f4ef); P(0.25, 2.4, 0.25, sx * S.pitchHx, 0.4, 3.6, 0xf4f4ef); P(0.25, 0.25, 7.2, sx * S.pitchHx, 2.8, 0, 0xf4f4ef); }
+  // stepped tiers (rings of four boxes, each ring higher than the one inside it)
+  const cols = [0x1b6e3a, 0xf1f1ea, 0x1b6e3a, 0xd0d0c8];
+  for (const t of stadiumTiers(b)) { const c = cols[t.k % cols.length]; const dz = t.hz1 - t.hz0, dx = t.hx1 - t.hx0;
+    for (const sz of [-1, 1]) P(t.hx1 * 2, t.h, dz, 0, 0, sz * (t.hz0 + dz / 2), c); for (const sx of [-1, 1]) P(dx, t.h, t.hz0 * 2, sx * (t.hx0 + dx / 2), 0, 0, c); }
+  // outer wall (the building footprint) and roofs over the long sides
+  const WH = 11; for (const sz of [-1, 1]) P(b.w, WH, 1, 0, 0, sz * (hd - 0.5), 0xd7d4cc); for (const sx of [-1, 1]) P(1, WH, b.d - 2, sx * (hw - 0.5), 0, 0, 0xd7d4cc);
+  P(b.w, 0.8, 1.4, 0, WH, -(hd - 0.7), 0x1b6e3a); P(b.w, 0.8, 1.4, 0, WH, hd - 0.7, 0x1b6e3a); P(1.4, 0.8, b.d - 2, -(hw - 0.7), WH, 0, 0x1b6e3a); P(1.4, 0.8, b.d - 2, hw - 0.7, WH, 0, 0x1b6e3a);
+  const rz = (S.pitchHz + S.track + S.tierW * 2.5); for (const sz of [-1, 1]) { P(b.w - 8, 0.5, 10, 0, 10.2, sz * rz, 0xe8e8e2); for (const x of [-30, -15, 0, 15, 30]) P(0.7, 10, 0.7, x, 0, sz * (rz + 4.2), 0x8a8f95); }
+  // floodlight masts
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const mx = sx * (hw - 4), mz = sz * (hd - 4); P(0.9, 26, 0.9, mx, 0, mz, 0x8a8f95); P(5, 2.4, 0.8, mx, 26, mz, 0xfff6c8, { noAO: true, jit: 0 }); P(5, 2.4, 0.8, mx, 28.6, mz, 0xfff6c8, { noAO: true, jit: 0 }); }
+  // gate canopy and signs on the front face
+  const gz = b.face[1] < 0 ? -hd : hd; const gs = b.face[1] < 0 ? -1 : 1; P(16, 0.6, 6, 0, 5.2, gz + gs * 2.5, 0x1b6e3a); for (const sx of [-1, 1]) P(0.8, 5.2, 0.8, sx * 7.4, 0, gz + gs * 4.8, 0xf1f1ea);
+  const [sx, sz] = ctx.frontPos(b, 0.2); addSign((b.label || 'CITY STADIUM').toUpperCase(), '#1b6e3a', sx, WH - 1.6, sz, 30, 3.2, b.face); addSign('LIVE SCORES INSIDE · TEST', '#10131a', sx, 6.9, sz, 20, 1.8, b.face);
+  // brand boards around the ground: plain white panels (an ad slot placeholder, not the ad system)
+  for (const sz2 of [-1, 1]) for (let i = -2; i <= 2; i++) P(7, 1.1, 0.25, i * 8, 0.4, sz2 * (S.pitchHz + 1.4), [0xe0a020, 0x2e7dd1, 0xd6402f, 0x2e9b5e, 0x8a5ad1][(i + 2 + (sz2 > 0 ? 2 : 0)) % 5], { noAO: true });
+  if (root) { const spots = stadiumCrowd(b, 520, rnd); const geo = new THREE.BoxGeometry(0.5, 1.1, 0.5); const mat = new THREE.MeshLambertMaterial({ color: 0xffffff }); const im = new THREE.InstancedMesh(geo, mat, spots.length); const m = new THREE.Matrix4(); const col = new THREE.Color();
+    const pal = [0xe0a020, 0xd6402f, 0x2e7dd1, 0xf1f1ea, 0x1b6e3a, 0x8a5ad1, 0x222222, 0xf4a6c0]; spots.forEach((s, i) => { m.makeTranslation(cx + s.x, s.y + 0.65, cz + s.z); im.setMatrixAt(i, m); im.setColorAt(i, col.setHex(pal[Math.floor(rnd() * pal.length)])); }); im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; root.add(im); }
+  void walls;
+}
