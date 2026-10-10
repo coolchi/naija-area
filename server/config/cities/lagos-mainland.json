@@ -4198,6 +4198,15 @@
      "z": 2.2,
      "color": "#f0c419",
      "text": "GAME MONEY ONLY. Stakes are pretend naira with no cash value and no cash-out. 18+. Be respectful: you can be reported, muted or blocked."
+    },
+    {
+     "id": "danfo1",
+     "type": "casual",
+     "game": "danfo",
+     "label": "Clear the Go-Slow",
+     "x": 3.4,
+     "z": 0.9,
+     "color": "#f2c200"
     }
    ],
    "room": {
@@ -4401,6 +4410,15 @@
      "z": 2.2,
      "color": "#f0c419",
      "text": "GAME MONEY ONLY. Stakes are pretend naira with no cash value and no cash-out. 18+. Be respectful: you can be reported, muted or blocked."
+    },
+    {
+     "id": "match1",
+     "type": "casual",
+     "game": "match3",
+     "label": "Chop Am (match-3)",
+     "x": -3.4,
+     "z": -3.3,
+     "color": "#e0572b"
     }
    ],
    "room": {
@@ -4579,6 +4597,15 @@
      "z": 2.2,
      "color": "#f0c419",
      "text": "GAME MONEY ONLY. Stakes are pretend naira with no cash value and no cash-out. 18+. Be respectful: you can be reported, muted or blocked."
+    },
+    {
+     "id": "football1",
+     "type": "game",
+     "game": "football",
+     "label": "Table football",
+     "x": 3.2,
+     "z": -2.2,
+     "color": "#2e7d32"
     }
    ],
    "room": {

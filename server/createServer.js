@@ -75,7 +75,7 @@ export function buildServer(opts = {}) {
   const ex = express(); ex.disable('x-powered-by'); ex.set('trust proxy', env.NA_TRUST_PROXY === '1');
   ex.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'same-origin'); res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; font-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; font-src 'self'; media-src 'self' data: blob: https://*.streamguys1.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
     next();
   });
   // ---- cookies (HMAC signed; no external cookie lib)

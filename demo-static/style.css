@@ -162,3 +162,7 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #boatChip.hidden, #boatCancel.hidden { display: none; } #boatChip .park-btn { color: #fff; }
 #boatBanner { position: fixed; left: 50%; transform: translateX(-50%); top: calc(70px + env(safe-area-inset-top, 0px)); background: #0f5f86ee; color: #fff; z-index: 31; } #boatBanner.hidden { display: none; }
 #boatChip .park-btn { background: transparent; border: 0; font-weight: 700; }
+/* in-car radio chip (10 Oct 2026) */
+#radioChip { position: fixed; left: 50%; transform: translateX(-50%); top: calc(108px + env(safe-area-inset-top, 0px)); display: flex; gap: 6px; align-items: center; background: #14181fee; border: 2px solid var(--rc, #e0a020); color: #fff; z-index: 30; pointer-events: auto; max-width: 96vw; }
+#radioChip.hidden { display: none; } #radioChip .park-btn { background: transparent; border: 0; color: #fff; font-size: 1.05em; padding: 2px 6px; } #radioChip .park-btn.on { background: var(--rc, #e0a020); border-radius: 8px; color: #111; }
+#radioChip .radio-label { min-width: 150px; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85em; } #radioChip input[type=range] { width: 70px; }
