@@ -85,6 +85,7 @@ export function transition(app, id, to, actor, note = null) {
   const r = app.db.prepare('UPDATE ad_campaigns SET status=?, updated_at=? WHERE id=? AND status=?').run(to, now, id, c.status);
   if (r.changes !== 1) bad('CONFLICT', 'Campaign changed, retry.', 409);
   app.db.prepare('INSERT INTO ad_transitions(campaign_id,from_status,to_status,actor,note,created_at) VALUES (?,?,?,?,?,?)').run(id, c.status, to, actor, note, now);
+  if (to === 'rejected' && app.onCampaignRejected) app.onCampaignRejected(id); // a paid ad that is rejected is refunded (payments module)
   return to;
 }
 function hostOk(u) {
@@ -109,7 +110,7 @@ export function createCampaign(app, advertiserId, p, opts = {}) {
   if (!av.ok) bad('SOLD_OUT', `Not enough free ad positions for those dates (${av.free} free).`, 409);
   return app.db.transaction(() => {
     const r = app.db.prepare(`INSERT INTO ad_campaigns(advertiser_id,creative_id,surface,tier,units,days,link_url,headline,price_net,price_vat,price_total,payment_status,status,requested_start,is_demo,created_at,updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'submitted',?,?,?,?)`).run(advertiserId, p.creativeId, p.surface, p.tier, p.units, p.days, link, headline, q.net, q.vat, q.total, 'test_mode_no_payment', reqStart, opts.demo ? 1 : 0, now, now);
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'submitted',?,?,?,?)`).run(advertiserId, p.creativeId, p.surface, p.tier, p.units, p.days, link, headline, q.net, q.vat, q.total, app.payments && app.payments.cfg.adsRequirePayment ? 'awaiting_payment' : 'test_mode_no_payment', reqStart, opts.demo ? 1 : 0, now, now);
     const id = Number(r.lastInsertRowid); app.db.prepare('UPDATE ad_campaigns SET city_id=? WHERE id=?').run(cityId, id);
     app.db.prepare('INSERT INTO ad_transitions(campaign_id,from_status,to_status,actor,note,created_at) VALUES (?,?,?,?,?,?)').run(id, null, 'submitted', 'advertiser', 'TEST MODE checkout: no payment taken', now);
     runAutoChecks(app, id);
@@ -145,6 +146,9 @@ const bump = (app) => { app.adsVersion = (app.adsVersion || 0) + 1; };
 export function scheduleCampaign(app, id) {
   const c = app.db.prepare('SELECT * FROM ad_campaigns WHERE id=?').get(id); if (c.status !== 'approved') return false;
   const now = app.clock.now(); const per = RATE_CARD.surfaces[c.surface].positionsPerBoard;
+  if (app.payments?.cfg.adsRequirePayment && !['paid', 'test_mode_no_payment'].includes(c.payment_status)) { // approved ads wait for payment; tickAds retries and schedules once the money is confirmed
+    const fl = JSON.parse(c.flags || '[]'); if (!fl.includes('waiting_for_payment')) app.db.prepare('UPDATE ad_campaigns SET flags=? WHERE id=?').run(JSON.stringify([...fl, 'waiting_for_payment']), id); return false;
+  }
   return app.db.transaction(() => {
     const load = app.db.prepare('SELECT slot_id, COUNT(*) n FROM ad_assignments GROUP BY slot_id').all(); const lm = Object.fromEntries(load.map(r => [r.slot_id, r.n]));
     const cands = slotsFor(app, c.surface, c.tier, c.city_id).filter(s => (lm[s.id] || 0) < per).sort((a, b) => (lm[a.id] || 0) - (lm[b.id] || 0));

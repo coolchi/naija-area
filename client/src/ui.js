@@ -4,6 +4,7 @@ import { get, post, fmtN, h, $, $$, ApiError } from './api.js';
 import { healthNow } from './crash.js';
 import * as casualUi from './casual.js';
 import { CityMap } from './map.js';
+import { buyCard, checkReturn } from './pay-ui.js';
 
 // ---- pidgin toasts (tone: playful, never about real money) ----
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -42,6 +43,7 @@ export class UI {
       o.type = kind === 'horn' ? 'sawtooth' : 'triangle'; gn.gain.setValueAtTime(0.08, t); for (const [f, d] of T) { o.frequency.setValueAtTime(f, t); t += d; } gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.05); o.start(); o.stop(t + 0.08); } catch { /* audio is optional */ }
   }
   haptic(ms = 15) { try { navigator.vibrate?.(ms); } catch { /* optional */ } }
+  checkPayReturn() { return checkReturn(this); }
   toast(text, kind = '') { const el = h('div', { class: `toast ${kind}` }, text); const box = $('#toasts'); box.append(el); while (box.children.length > 3) box.firstChild.remove(); setTimeout(() => el.remove(), 4300); if (kind === 'bad') this.sfx('bad'); else if (kind === 'money') { this.sfx('coin'); this.haptic(); } }
   error(e) { if (e instanceof ApiError) { if (e.status === 401 && e.code === 'LOGIN_REQUIRED') { this.g.sessionLost(); return; } const f = ERR[e.code]; this.toast(f ? f() : e.message, 'bad'); } else { console.error(e); this.toast('Something went wrong. Try again.', 'bad'); } }
   showChat() { $('#chatForm').classList.add('on'); $('#chatInput').focus(); } hideChat() { $('#chatForm').classList.remove('on'); $('#game').focus(); }
@@ -241,7 +243,8 @@ export class UI {
     return [h('div', { class: 'row sp' }, h('div', {}, h('div', { class: 'mut' }, 'Cash'), h('b', { style: 'font-size:26px' }, fmtN(u.cash))), h('div', {}, h('div', { class: 'mut' }, 'Savings (≈0.5%/day, ESTIMATE)'), h('b', { style: 'font-size:22px' }, fmtN(u.savings))), h('div', {}, h('div', { class: 'mut' }, 'Net worth'), h('b', {}, fmtN(u.netWorth)))),
       cashIn, h('div', { class: 'row' }, h('button', { class: 'btn', onclick: bank('deposit') }, 'Save'), h('button', { class: 'btn ghost', onclick: bank('withdraw') }, 'Withdraw'), h('button', { class: 'btn alt', onclick: async () => { const r = await this.guard(() => post('/api/transfer', { to: to.value.replace('@', ''), amount: Math.floor(Number(cashIn.value)), idem: crypto.randomUUID?.() || String(Math.random()) })); if (r) { g.update(r.user); this.toast('Sent!', 'money'); } } }, 'Send money')), to,
       h('p', { class: 'mut' }, 'Transfers are capped and rate-limited. New accounts wait a few minutes. Guests cannot send money.'),
-      h('div', { class: 'card', style: 'box-shadow:none;border:2px dashed #cfc8ac;padding:12px;margin:10px 0' }, h('b', {}, 'Test top-up'), h('div', { class: 'mut' }, 'TEST MODE: adds pretend ₦, no payment is taken. Real payments (Monipay) come later.'), h('div', { class: 'chips' }, (g.cfg.topupOptions || []).map(a => h('button', { class: 'chip', onclick: async () => { const r = await this.guard(() => post('/api/topup/test', { amount: a, idem: crypto.randomUUID?.() || String(Math.random()) })); if (r) { g.update(r.user); this.toast(`+${fmtN(a)} (test)`, 'money'); } } }, `+${fmtN(a)}`)))),
+      h('div', { class: 'card', style: 'box-shadow:none;border:2px dashed #cfc8ac;padding:12px;margin:10px 0' }, h('b', {}, 'Test top-up'), h('div', { class: 'mut' }, 'TEST MODE: adds pretend ₦, no payment is taken. Paid test purchases are below.'), h('div', { class: 'chips' }, (g.cfg.topupOptions || []).map(a => h('button', { class: 'chip', onclick: async () => { const r = await this.guard(() => post('/api/topup/test', { amount: a, idem: crypto.randomUUID?.() || String(Math.random()) })); if (r) { g.update(r.user); this.toast(`+${fmtN(a)} (test)`, 'money'); } } }, `+${fmtN(a)}`)))),
+      buyCard(this) || '',
       h('b', {}, 'Recent activity'), h('div', { class: 'list' }, (rows?.rows || []).slice(0, 12).map(r => h('div', {}, h('span', {}, r.reason.replaceAll('_', ' ')), h('b', { style: `color:${r.amount < 0 ? '#d6402f' : '#0b7a49'}` }, (r.amount > 0 ? '+' : '') + fmtN(r.amount)))))];
   }
   async tab_jobs() { const d = await this.guard(() => get('/api/jobs')); if (!d) return []; return [h('p', { class: 'mut' }, 'Tap a job to set a waypoint. Start shifts at the job location.'), h('div', { class: 'list' }, d.jobs.map(j => h('div', {}, h('div', {}, h('b', {}, j.name), h('div', { class: 'mut' }, `${fmtN(j.wage)} · ${j.durationSec}s · ${j.place}${j.locked ? ' · 🔒' : ''}`)), h('button', { class: 'btn small ghost', onclick: () => { this.g.setWaypoint(j.x, j.z, j.name); this.closeSheet(); } }, '📍'))))]; }

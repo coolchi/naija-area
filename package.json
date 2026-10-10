@@ -13,6 +13,7 @@
     "smoke": "node scripts/e2e-smoke.mjs",
     "smoke:interiors": "node scripts/interiors-smoke.mjs",
     "smoke:phone": "node scripts/phone-smoke.mjs",
+    "smoke:payments": "node scripts/payments-smoke.mjs",
     "build:demo": "node tools/build-demo.mjs"
   },
   "dependencies": {

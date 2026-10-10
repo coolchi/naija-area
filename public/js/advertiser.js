@@ -12,8 +12,16 @@ function card(c, key) {
   return `<div class="card"><div class="row"><b>#${c.id} · ${esc(c.headline || '(no headline)')}</b><span class="tag ${cls}">${NICE[c.status] || c.status}</span><span class="mut">${c.surface.replace('_', ' ')} · ${c.units} board(s) · ${c.days} days</span></div>
   <div class="grid" style="margin-top:8px"><div><img class="prev" src="/media/creative/${c.creativeId}?key=${encodeURIComponent(key)}" alt="creative"></div>
   <div><table><tr><td>Valid impressions</td><th>${s.validImpressions.toLocaleString()}</th></tr><tr><td>Unique players</td><td>${s.uniquePlayers.toLocaleString()}</td></tr><tr><td>Filtered out (invalid)</td><td>${s.filteredOut.toLocaleString()} of ${s.grossImpressions.toLocaleString()} gross</td></tr><tr><td>Valid taps / CTR</td><td>${s.tapsValid} / ${s.ctrPct}%</td></tr><tr><td>Price (test)</td><td>${fmt(c.priceTotal)} incl. VAT</td></tr><tr><td>Boards</td><td>${c.slots.join(', ') || 'not assigned yet'}</td></tr></table></div></div>
+  ${c.payment === 'awaiting_payment' ? `<p><b>Payment due: ${fmt(c.priceTotal)}</b> <span class="mut">(${fmt(c.priceNet)} + VAT ${fmt(c.priceVat)}). TEST MODE: no real money.</span> <button class="paybtn" data-id="${c.id}">Pay now (test)</button></p>` : c.payment === 'paid' ? `<p class="ok">Paid (test mode): ${fmt(c.priceTotal)} incl. VAT ${fmt(c.priceVat)}</p>` : c.payment === 'refunded' ? '<p class="mut">Refunded</p>' : ''}
   ${c.rejectReason ? `<p class="err">Reason: ${esc(c.rejectReason)}</p>` : ''}${c.flags.length ? `<p class="mut">Flags: ${c.flags.map(esc).join(', ')}</p>` : ''}
   ${s.filterReasons.length ? `<details><summary>Why impressions were filtered</summary><table>${s.filterReasons.map(r => `<tr><td>${esc(r.reason)}</td><td>${r.n}</td></tr>`).join('')}</table></details>` : ''}
   <details><summary>History</summary><table>${c.transitions.map(t => `<tr><td>${new Date(t.created_at).toLocaleString('en-NG')}</td><td>${esc(t.from_status || '')} → ${esc(t.to_status)}</td><td>${esc(t.actor)}${t.note ? ': ' + esc(t.note) : ''}</td></tr>`).join('')}</table></details></div>`;
 }
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest?.('.paybtn'); if (!b) return; const key = localStorage.getItem('na_adv_key'); b.disabled = true;
+  const r = await fetch(`/api/advertiser/campaigns/${b.dataset.id}/pay`, { method: 'POST', headers: { 'x-advertiser-key': key, 'content-type': 'application/json' }, body: '{}' }); const d = await r.json().catch(() => ({}));
+  if (!r.ok) { $('#err').textContent = d.message || 'Could not start the payment'; b.disabled = false; return; }
+  if (d.payment.authorizationUrl && !d.payment.authorizationUrl.startsWith('/pay/mock')) { location.href = d.payment.authorizationUrl; return; }
+  await fetch('/api/payments/mock/pay', { method: 'POST', headers: { 'x-advertiser-key': key, 'content-type': 'application/json' }, body: JSON.stringify({ ref: d.payment.ref }) }); load();
+});
 $('#go').onclick = load; load();

@@ -17,6 +17,9 @@ import { tickGames } from './core/games.js';
 import { GameError } from './core/util.js';
 import { voiceAudio as phoneVoice, tickVoice, tickCalls } from './core/phone/phone.js';
 import { BALANCE } from './config/balance.js';
+import { PAYMENTS } from './config/payments.js';
+import { createPayments, tickPayments } from './core/payments/index.js';
+import { mockProvider, monipayProvider } from './core/payments/providers.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(here, '..');
@@ -40,6 +43,11 @@ export function buildServer(opts = {}) {
   const prod = env.NODE_ENV === 'production';
   const app = createApp({ db, platform, ...(opts.cityJson ? { cityJson: opts.cityJson, extraCities: opts.extraCities || [] } : loadRegistry()), balance: opts.balance || BALANCE, clock: opts.clock, filterHeadless: opts.filterHeadless ?? env.NA_FILTER_HEADLESS !== '0' });
   if (voiceDir) { fs.mkdirSync(voiceDir, { recursive: true }); const f = (k) => path.join(voiceDir, Buffer.from(k).toString('base64url')); app.voiceStore = { put: (k, b) => fs.writeFileSync(f(k), b), get: (k) => { try { return fs.readFileSync(f(k)); } catch { return null; } }, del: (k) => { try { fs.unlinkSync(f(k)); } catch { /* already gone */ } } }; }
+  // payments (TEST MODE ONLY): provider chosen by NA_PAYMENTS_PROVIDER (mock | monipay with pri_test_ keys), or injected by tests
+  { const pcfg = opts.paymentsConfig || PAYMENTS; const prov = opts.paymentsProvider || (pcfg.provider === 'monipay'
+      ? monipayProvider({ platform, secretKey: env.MONIPAY_SECRET_KEY, publicKey: env.MONIPAY_PUBLIC_KEY, webhookSecret: env.MONIPAY_WEBHOOK_SECRET, baseUrl: pcfg.baseUrl })
+      : mockProvider({ platform, now: () => app.clock.now() }));
+    if (opts.payments !== false) createPayments(app, { provider: prov, cfg: pcfg }); }
   app.devRoutes = opts.dev ?? env.NA_DEV === '1';
   // admin password: env var; a fixed default exists ONLY outside production, with a loud warning
   app.adminPassword = opts.adminPassword ?? env.ADMIN_PASSWORD ?? (prod ? null : 'admin-dev-only');
@@ -68,6 +76,7 @@ export function buildServer(opts = {}) {
     try { const uid = readSession(parseCookies(req.headers.cookie).na_s); if (!uid) return res.status(401).json({ error: 'AUTH' }); const a = phoneVoice(app, uid, req.params.id); res.setHeader('Content-Type', a.mime); res.setHeader('Cache-Control', 'private, max-age=3600'); res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox"); res.setHeader('Content-Length', a.data.length); res.end(a.data); }
     catch (e) { if (e instanceof GameError) return res.status(e.status).json({ error: e.code, message: e.message }); console.error(e); res.status(500).end(); }
   });
+  ex.use('/api/payments/webhook', express.raw({ type: () => true, limit: '100kb' })); // the signature is over the exact bytes, so keep them raw
   ex.use('/api', express.json({ limit: '100kb' }));
   ex.use('/api', express.raw({ type: ['image/png', 'image/jpeg', 'image/webp', 'application/octet-stream', 'audio/webm', 'audio/ogg', 'audio/mp4'], limit: '1.2mb' }));
   ex.use('/api', async (req, res) => {
@@ -121,6 +130,7 @@ export function buildServer(opts = {}) {
   function startTimers() {
     tickScores(app).catch((e) => console.error('tickScores', e));
     timers.push(setInterval(() => { tickScores(app).catch((e) => console.error('tickScores', e)); }, 30000)); // one job for all viewers; it only calls the provider when due and under the daily cap
+    timers.push(setInterval(() => { tickPayments(app).catch((e) => console.error('tickPayments', e)); }, 15000)); // asks the provider about payments whose webhook never came; sends recorded refunds
     timers.push(setInterval(() => { try { tickCalls(app); } catch (e) { console.error('tickCalls', e); } }, 1000));
     timers.push(setInterval(() => { try { tickAds(app); } catch (e) { console.error('tickAds', e); } }, 5000));
     timers.push(setInterval(() => { try { tickRent(app); tickInterest(app); tickLand(app); tickGames(app); pruneWorld(app); tickVoice(app); } catch (e) { console.error('tick', e); } }, 30000));
