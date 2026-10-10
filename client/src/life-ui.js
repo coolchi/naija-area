@@ -30,3 +30,20 @@ addLifeSection({ id: 'business', label: '🏪 Business', async draw(ui, redraw) 
   const free = d.forSale.filter(t => !t.owned); if (free.length && d.owned.length < d.rules.maxPerPlayer) out.push(h('b', {}, 'Start a business'), ...free.map(t => h('div', { class: 'row sp' }, h('span', {}, `${t.icon} ${t.name} · ${money(t.cost)}`, h('small', { class: 'mut' }, ` ${t.blurb}`)), h('button', { class: 'btn small', 'data-buy-biz': t.id, disabled: d.cash < t.cost, onclick: act('buy', { type: t.id }) }, 'Open'))));
   out.push(h('p', { class: 'mut' }, d.note)); return out;
 } });
+
+// ---------------- marketplace
+addLifeSection({ id: 'market', label: '🛒 Market', async draw(ui, redraw) {
+  ui.lifeMarket ||= { view: 'browse', kind: '' }; const M = ui.lifeMarket;
+  const bar = h('div', { class: 'tabrow' }, [['browse', 'Browse'], ['sell', 'Sell'], ['mine', 'My listings']].map(([id, t]) => h('button', { class: M.view === id ? 'on' : '', 'data-mview': id, onclick: () => { M.view = id; redraw(); } }, t)));
+  const call = (path, body) => async (e) => { if (e?.target) e.target.disabled = true; const r = await ui.guard(() => post('/api/market/' + path, body)); if (r) { ui.toast(r.text || 'Done'); ui.g.refreshMe?.(); } redraw(); };
+  if (M.view === 'browse') {
+    const d = await ui.guard(() => get('/api/market' + (M.kind ? '?kind=' + M.kind : ''))); if (!d) return [bar];
+    const kinds = h('div', { class: 'row' }, [['', 'All'], ['car', 'Cars'], ['wearable', 'Clothes & jewelry']].map(([k, t]) => h('button', { class: 'btn small ' + (M.kind === k ? '' : 'ghost'), onclick: () => { M.kind = k; redraw(); } }, t)));
+    return [bar, h('p', { class: 'mut' }, `Cash ${money(d.cash)}. Players set the prices; sale fee ${d.rules.saleFeePercent}% comes off the seller. ${d.note}`), kinds, h('div', { class: 'list' }, d.listings.length ? d.listings.map(l => h('div', { class: 'card', 'data-listing': l.id }, h('div', { class: 'row sp' }, h('b', {}, `${l.kind === 'car' ? '🚗' : '💎'} ${l.title}`), h('b', {}, money(l.ask))), h('div', { class: 'mut' }, `${l.details} · seller @${l.seller} · worth about ${money(l.baseValue)}`), l.warn ? h('div', { class: 'tag amber' }, l.warn) : '', l.mine ? h('small', { class: 'mut' }, 'Your listing') : h('button', { class: 'btn small', 'data-buy-listing': l.id, disabled: d.cash < l.ask, onclick: call('buy', { id: l.id, expect: l.ask }) }, `Buy for ${money(l.ask)}`))) : [h('p', { class: 'mut' }, 'Nothing for sale right now. Be the first to list something.')])];
+  }
+  const m = await ui.guard(() => get('/api/market/mine')); if (!m) return [bar];
+  if (M.view === 'sell') return [bar, h('p', { class: 'mut' }, `Your car or item goes into escrow while it is listed. Listing fee ${m.rules.listingFeePercent}% (not refunded), sale fee ${m.rules.saleFeePercent}%. You can list ${m.rules.maxActiveListings} things at a time; listings last ${m.rules.ttlHours} h.`),
+    h('div', { class: 'list' }, m.sellable.length ? m.sellable.map(x => { const inp = h('input', { class: 'sheet-input', type: 'number', min: 1, value: x.value, 'data-ask': x.ref, style: 'width:8em' }); return h('div', { class: 'row sp', 'data-sellable': x.ref }, h('span', {}, `${x.kind === 'car' ? '🚗' : '💎'} ${x.title} · worth ${money(x.value)}`), h('span', { class: 'row' }, inp, h('button', { class: 'btn small', 'data-list': x.ref, onclick: call('list', { kind: x.kind, ref: x.ref, ask: Number(inp.value) }) }, 'List'))); }) : [h('p', { class: 'mut' }, 'You have no cars or tradeable items yet.')])];
+  return [bar, h('div', { class: 'list' }, m.listings.length ? m.listings.map(l => h('div', { class: 'row sp', 'data-mine': l.id }, h('span', {}, `${l.title} · ${money(l.ask)} · ${l.status}`), h('button', { class: 'btn small ghost', onclick: call('cancel', { id: l.id }) }, 'Take back'))) : [h('p', { class: 'mut' }, 'No listings.')]),
+    ...(m.history.length ? [h('b', {}, 'Recent trades'), ...m.history.map(l => h('div', { class: 'mut' }, `${l.role === 'sold' ? 'Sold' : 'Bought'} ${l.title} for ${money(l.ask)}`))] : [])];
+} });

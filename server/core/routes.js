@@ -24,6 +24,7 @@ import * as crash from './crash.js';
 import * as homes from './homes.js';
 import * as wear from './wearables.js';
 import * as business from './business.js';
+import * as market from './market.js';
 import * as signup from './signup.js';
 import * as office from './office.js';
 import * as account from './account.js';
@@ -127,6 +128,12 @@ route('POST', '/api/business/fire', { auth: 'user' }, (c) => business.fire(c.app
 route('POST', '/api/business/upgrade', { auth: 'user' }, (c) => business.upgrade(c.app, c.uid, c.body.id, c.body.idem));
 route('POST', '/api/business/rename', { auth: 'user' }, (c) => business.rename(c.app, c.uid, c.body.id, c.body.name));
 route('POST', '/api/business/sell', { auth: 'user' }, (c) => business.sell(c.app, c.uid, c.body.id, c.body.idem));
+// marketplace: players sell cars and wearables to each other (escrow in the listing, fees, limits): see server/core/market.js
+route('GET', '/api/market', { auth: 'user' }, (c) => market.browse(c.app, c.uid, c.query));
+route('GET', '/api/market/mine', { auth: 'user' }, (c) => market.mine(c.app, c.uid));
+route('POST', '/api/market/list', { auth: 'user' }, (c) => market.list(c.app, c.uid, String(c.body.kind || ''), c.body.ref, c.body.ask, c.body.idem));
+route('POST', '/api/market/cancel', { auth: 'user' }, (c) => market.cancel(c.app, c.uid, c.body.id));
+route('POST', '/api/market/buy', { auth: 'user' }, (c) => market.buy(c.app, c.uid, c.body.id, c.body.expect, c.body.idem));
 // jewelry store + cap store (wearables): public catalogue, the shop window, buy, wear, take off, (optional) sell back
 route('GET', '/api/wearables/catalogue', (c) => wear.catalogue(c.app));
 route('GET', '/api/wearables/shop', { auth: 'user' }, (c) => wear.shopView(c.app, c.uid, String(c.query.venueId || '')));

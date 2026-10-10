@@ -19,6 +19,11 @@ CREATE TABLE IF NOT EXISTS account_deletions (user_id INTEGER PRIMARY KEY, delet
 CREATE TABLE IF NOT EXISTS businesses (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, type TEXT NOT NULL, city_id TEXT NOT NULL, name TEXT NOT NULL, level INTEGER NOT NULL DEFAULT 1, paid INTEGER NOT NULL, bought_at INTEGER NOT NULL, settled_at INTEGER NOT NULL, accrued_gross INTEGER NOT NULL DEFAULT 0, accrued_costs INTEGER NOT NULL DEFAULT 0, day TEXT NOT NULL DEFAULT '', day_net INTEGER NOT NULL DEFAULT 0, earned_total INTEGER NOT NULL DEFAULT 0, UNIQUE (user_id, type));
 CREATE INDEX IF NOT EXISTS ix_businesses_user ON businesses(user_id);
 CREATE TABLE IF NOT EXISTS business_staff (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER NOT NULL, name TEXT NOT NULL, skill INTEGER NOT NULL, wage INTEGER NOT NULL, hired_at INTEGER NOT NULL);
-CREATE INDEX IF NOT EXISTS ix_business_staff_biz ON business_staff(business_id);` }
+CREATE INDEX IF NOT EXISTS ix_business_staff_biz ON business_staff(business_id);` },
+  { n: 6, name: 'market', sql: `
+CREATE TABLE IF NOT EXISTS market_listings (id INTEGER PRIMARY KEY AUTOINCREMENT, seller_id INTEGER NOT NULL, kind TEXT NOT NULL, item_ref TEXT NOT NULL, snapshot TEXT NOT NULL, ask INTEGER NOT NULL, base_value INTEGER NOT NULL, listing_fee INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'open', created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, buyer_id INTEGER, sold_at INTEGER, sale_fee INTEGER NOT NULL DEFAULT 0, returned_at INTEGER);
+CREATE INDEX IF NOT EXISTS ix_market_open ON market_listings(status, kind, ask);
+CREATE INDEX IF NOT EXISTS ix_market_seller ON market_listings(seller_id, status);
+CREATE INDEX IF NOT EXISTS ix_market_buyer ON market_listings(buyer_id);` }
 ];
 export function applyLater(db) { for (const c of LATER) db.exec(c.sql); }

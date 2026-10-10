@@ -5,7 +5,7 @@ import { buildServer } from '../server/createServer.js'; import { move, cashId, 
 const CHROME = process.env.CHROME || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find(p => fs.existsSync(p));
 if (!CHROME) { console.error('No Chrome found. Set CHROME=/path/to/chrome'); process.exit(2); }
 fs.mkdirSync('screenshots', { recursive: true });
-const s = buildServer({ dbPath: ':memory:', quiet: true, adminPassword: 'smoke-admin', dev: true }); s.startTimers(); s.app.balance.shops.enforceHours = false; s.app.balance.casual.minAccountAgeMs = 0; { const { BUSINESS } = await import('../server/config/business.js'); s.app.balance.business = { ...BUSINESS, guestsMay: true, minAccountAgeMs: 0 }; }
+const s = buildServer({ dbPath: ':memory:', quiet: true, adminPassword: 'smoke-admin', dev: true }); s.startTimers(); s.app.balance.shops.enforceHours = false; s.app.balance.casual.minAccountAgeMs = 0; { const { BUSINESS } = await import('../server/config/business.js'); s.app.balance.business = { ...BUSINESS, guestsMay: true, minAccountAgeMs: 0 }; const { MARKET } = await import('../server/config/market.js'); s.app.balance.market = { ...MARKET, guestsMay: true, minAccountAgeMs: 0, minBuyerAgeMs: 0 }; }
 await new Promise(r => s.server.listen(0, '127.0.0.1', r)); const base = `http://127.0.0.1:${s.server.address().port}`;
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--window-size=1280,760'] });
 const errors = []; const ok = (m) => console.log(`  ✓ ${m}`); const sleep = (ms) => new Promise(r => setTimeout(r, ms)); const g = (page, fn, ...a) => page.evaluate(fn, ...a);
@@ -22,7 +22,7 @@ try {
   const page = await newPage(); await page.goto(base, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#auth:not(.hidden)', { timeout: 60000 }); await page.click('#age18'); await page.click('#authGo'); await page.waitForSelector('#hud:not(.hidden)', { timeout: 20000 }); await sleep(2500);
   const me = async () => (await g(page, () => fetch('/api/me').then(r => r.json()))).user; const uid = (await me()).id; move(s.app, { from: SYS.FAUCET_TESTTOPUP, to: cashId(uid), amount: 5000000, reason: 'test_topup', userId: uid });
-  const openLife = async (tab) => { await page.click('#phoneBtn'); await page.waitForSelector('.pgrid .papp[data-app="life"]', { timeout: 8000 }); await page.evaluate(() => document.querySelector('.papp[data-app="life"]').click()); await page.waitForSelector('#lifeTabs', { timeout: 8000 }); if (tab) { await page.evaluate((t) => document.querySelector(`[data-life="${t}"]`).click(), tab); await sleep(500); } };
+  const openLife = async (tab) => { if (!(await page.$('#lifeTabs'))) { await page.click('#phoneBtn'); await page.waitForSelector('.pgrid .papp[data-app="life"]', { timeout: 8000 }); await page.evaluate(() => document.querySelector('.papp[data-app="life"]').click()); await page.waitForSelector('#lifeTabs', { timeout: 8000 }); } if (tab) { await page.evaluate((t) => document.querySelector(`[data-life="${t}"]`).click(), tab); await sleep(500); } };
   const clickSel = async (sel) => { await page.waitForSelector(sel, { timeout: 8000 }); await page.evaluate((sel) => document.querySelector(sel).click(), sel); await sleep(600); };
   // ---- 1. businesses
   await openLife('business'); await clickSel('[data-buy-biz="barber"]'); await page.waitForSelector('[data-biz]', { timeout: 8000 }); ok('bought a Barbing Salon through the phone');
@@ -32,6 +32,13 @@ try {
   const waiting = await g(page, () => document.querySelector('[data-collect]').disabled); assert.equal(waiting, false, 'something is waiting after 8 hours away'); await snap(page, 'business'); await clickSel('[data-collect]'); await sleep(500);
   const cash1 = (await me()).cash; assert.ok(cash1 > cash0, `collected: ${cash0} -> ${cash1}`); ok(`collected the income through the phone (+${cash1 - cash0})`);
   const { checkInvariants } = await import('../server/core/ledger.js'); assert.equal(checkInvariants(s.app.db).ok, true);
+  // ---- 2. marketplace: list a wearable from the Sell tab, buy it as a second player through the API, see it gone
+  s.app.db.prepare('INSERT INTO wearables_owned(user_id,item_id,price_paid,bought_at) VALUES (?,?,?,?)').run(uid, 'neck_rope', 400000, Date.now()); s.app.db.prepare('UPDATE users SET created_at=? WHERE id=?').run(Date.now() - 2 * 3600000, uid);
+  await openLife('market'); await clickSel('[data-mview="sell"]'); await clickSel('[data-list="neck_rope"]'); await page.evaluate(() => document.querySelector('[data-mview="mine"]').click()); await sleep(600); await page.waitForSelector('[data-mine]', { timeout: 8000 }); await snap(page, 'market'); ok('listed a wearable through the Sell tab (escrow)');
+  { const { default: auth } = await import('../server/core/auth.js').then(m => ({ default: m })); const buyer = auth.newPlayer(s.app, { username: 'Buyer_' + (Date.now() % 100000), isGuest: false, ageConfirmed: true, cash: 2000000 }); s.app.db.prepare('UPDATE users SET created_at=? WHERE id=?').run(Date.now() - 2 * 3600000, buyer);
+    const { dispatch } = await import('../server/core/routes.js'); const lst = s.app.db.prepare("SELECT id, ask FROM market_listings WHERE status='open'").get(); const r = await dispatch(s.app, { method: 'POST', path: '/api/market/buy', query: {}, body: { id: lst.id, expect: lst.ask }, headers: {}, ip: '10.0.0.2', uid: buyer }); assert.equal(r.status, 200, JSON.stringify(r.json)); }
+  await page.evaluate(() => document.querySelector('[data-mview="mine"]').click()); await sleep(600); assert.match(await g(page, () => document.querySelector('#lifeBody').textContent), /Sold Rope chain|Sold .*for/); ok('the sale shows in my trades; fees went to the sink');
+  assert.equal(checkInvariants(s.app.db).ok, true);
   //@@NEXT@@
   const real = errors.filter(e => !/GPU/i.test(e) && !/HTTP 401 GET \/api\/me/.test(e) && !/status of 401/.test(e)); assert.equal(real.length, 0, 'console errors: ' + real.join(' || ')); ok('no console/page errors'); console.log('TRACK G SMOKE PASSED');
 } catch (e) { failed = true; console.error('TRACK G SMOKE FAILED:', e.message, errors.slice(0, 5)); try { await snap((await browser.pages()).at(-1), 'fail'); } catch { /* ignore */ } }
