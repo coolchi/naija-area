@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Builder, mulberry32 } from '../sample/builder.js';
 import { wallTextures, roadTexture, groundTexture, waterTexture, tex2 } from './textures.js';
 import { roadPts, isCurved, offsetPoly, polyLen } from './roadgeom.js';
-import { strut, subtractRects, creekVisual, creekColliders, drawExtraBuilding, drawBeach, drawJetty, drawLink, drawBeamBridge, drawCableBridge, drawStadium, drawHill, drawWall, drawDyePits, drawMotorPark } from './landmarks3d.js';
+import { strut, subtractRects, creekVisual, creekColliders, drawExtraBuilding, drawBeach, drawJetty, drawLink, drawBeamBridge, drawCableBridge, drawStadium, drawHill, drawWall, drawDyePits, drawMotorPark, drawFarm, drawPen, drawWell, drawPalmLine } from './landmarks3d.js';
 import { lampPositions, lampLevel, lampsOn, LAMP } from './lamps.js';
 
 const lerpC = (a, b, t) => new THREE.Color(a).lerp(new THREE.Color(b), t);
@@ -120,7 +120,7 @@ export function buildWorld(city) {
       if (b.label) { const [sx, sz] = frontPos(b, 0.12); addSign(b.label, '#0b6b3a', sx, b.h - 1.3, sz, Math.min(b.w - 1, 14), 2.2, b.face); }
     } else if (b.kind === 'stadium') {
       drawStadium(b, { plain, walls, addSign, frontPos, root, rnd: mulberry32(7) });
-    } else if (b.kind === 'hotel' || b.kind === 'landmark') {
+    } else if (b.kind === 'hotel' || b.kind === 'landmark' || b.kind === 'hut') {
       drawExtraBuilding(b, { plain, walls, glassB, addSign, frontPos });
     } else if (b.kind === 'airport') {
       walls.box(b.w, b.h, b.d, b.x, 0, b.z, b.color); plain.box(b.w + 6, 0.8, b.d + 6, b.x, b.h, b.z, 0x8895a3); plain.box(b.w * 0.9, 2.2, 3, b.x, 3, b.z + b.d / 2 + 0.3, 0x4a6b86, { noAO: true });
@@ -156,7 +156,7 @@ export function buildWorld(city) {
       for (const z of [v.z0, v.z1]) if (Math.abs(z) < 1000 && v.z0 === c.z0 && v.z1 === c.z1) plain.box(w, -wy + 0.6, 0.7, (v.x0 + v.x1) / 2, wy - 0.2, z, 0xa9a396, { noAO: true });
       for (const r of creekColliders(c)) colliders.push(r); }
     for (const br of city.bridges || []) { if (br.type === 'cable') cableSegs.push(...drawCableBridge(br, ex)); else drawBeamBridge(br, ex); }
-    for (const l of city.landmarks) { if (l.kind === 'beach') drawBeach(l, ex); else if (l.kind === 'jetty') drawJetty(l, ex); else if (l.kind === 'hill') drawHill(l, ex); else if (l.kind === 'wall') drawWall(l, ex); else if (l.kind === 'dyepits') drawDyePits(l, ex); else if (l.kind === 'motorpark') drawMotorPark(l, ex); }
+    for (const l of city.landmarks) { if (l.kind === 'beach') drawBeach(l, ex); else if (l.kind === 'jetty') drawJetty(l, ex); else if (l.kind === 'hill') drawHill(l, ex); else if (l.kind === 'wall') drawWall(l, ex); else if (l.kind === 'dyepits') drawDyePits(l, ex); else if (l.kind === 'motorpark') drawMotorPark(l, ex); else if (l.kind === 'farm') drawFarm(l, ex); else if (l.kind === 'pen') drawPen(l, ex); else if (l.kind === 'well') drawWell(l, ex); else if (l.kind === 'palmline') drawPalmLine(l, ex); }
     for (const l of city.links || []) drawLink(l, ex, city.bounds); }
   if (cableSegs.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(cableSegs, 3)); const cab = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xf2f2ee })); cab.frustumCulled = false; root.add(cab); }
   // ---- water (lagoon)
@@ -166,7 +166,9 @@ export function buildWorld(city) {
   if (city.water) plain.box(city.bounds.maxX - city.bounds.minX + 40, 1.2, 4, 0, -0.9, B.maxZ - 1, 0x9a927f, { noAO: true }); // sea wall
   // far skyline silhouettes (Third-Mainland-style bridge + towers) as backdrop
   const sky = new Builder(31, 0.05);
-  for (let i = 0; i < 26; i++) { const x = -420 + i * 34 + rnd() * 10; sky.box(14 + rnd() * 14, 30 + rnd() * 70, 14, x, -2, -340 - rnd() * 40, 0x7a8da3, { noAO: true }); }
+  const SK = city.skyline || 'towers'; // 'towers' (Lagos), 'lowrise' (Kano), 'hills' (Ogun towns and villages): the far backdrop matches the place
+  if (SK === 'hills') for (let i = 0; i < 16; i++) { const x = -430 + i * 58 + rnd() * 14, r = 55 + rnd() * 50; sky.cyl(r * 0.45, r, 14 + rnd() * 16, 9, x, -2, -350 - rnd() * 50, [0x7f9276, 0x74886e, 0x8a9b80][i % 3], { noAO: true }); }
+  else for (let i = 0; i < 26; i++) { const x = -420 + i * 34 + rnd() * 10; const tall = SK === 'lowrise' ? 6 + rnd() * 16 : 30 + rnd() * 70; sky.box(14 + rnd() * 14, tall, 14, x, -2, -340 - rnd() * 40, SK === 'lowrise' ? 0xa89c88 : 0x7a8da3, { noAO: true }); }
   if (city.id === 'lagos-mainland') for (let i = 0; i < 20; i++) { const x = -330 + i * 34; sky.box(26, 1.6, 6, x, 12, 310, 0x8a8d92, { noAO: true }); if (i % 4 === 0) sky.box(2, 26, 2, x, -2, 310, 0x8a8d92, { noAO: true }); } // bridge across the lagoon
   const skyMesh = new THREE.Mesh(sky.build(), new THREE.MeshLambertMaterial({ vertexColors: true, fog: true })); root.add(skyMesh);
   // ---- merge + add

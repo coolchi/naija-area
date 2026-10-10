@@ -1988,6 +1988,7 @@
    "id": "oldwall_s",
    "kind": "wall",
    "name": "Old City wall (generic)",
+   "x": 0,
    "x0": -244,
    "x1": 244,
    "z": 168,
@@ -2005,6 +2006,7 @@
    "name": "Old City wall (generic)",
    "axis": "z",
    "x": -244,
+   "z": -38,
    "z0": -244,
    "z1": 168,
    "t": 5,
@@ -2515,6 +2517,7 @@
    "ry": 0
   }
  },
+ "skyline": "lowrise",
  "contentRules": {
   "noAlcohol": true,
   "noBetting": true,

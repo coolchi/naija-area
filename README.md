@@ -28,6 +28,12 @@ Environment: `PORT`, `HOST` (default 127.0.0.1: put a TLS proxy in front before 
 ## Stadium and live scores test (10 Oct 2026)
 A fictional City Stadium in Lekki: buy a ticket, take a seat, snacks, a score board. Scores come from ONE server job that saves a copy (mock provider by default; API-Football free plan when `NA_SCORES_PROVIDER=api-football` and `APIFOOTBALL_KEY` are set), with a daily call guard (100 a day, stops at 95) and a fictional-league fallback. Viewers never trigger a call. See `docs/STADIUM.md`; test only, not a launch decision.
 
+## In-car radio (10 Oct 2026)
+Drive a car and a dashboard chip appears: four fictional stations (Eko FM, Highlife 102, Grace Gospel, Night Owl) with synthesised music generated in your browser, station idents, a tuning burst when you switch, mute and volume. Keys: R on/off, N next, B previous. Sound starts only after you press a key or tap, and stops when you leave the car. Everyone hears the same song at the same time (it follows the server clock). See `docs/RADIO.md`.
+
+## Kano, Ogun towns and Abule (10 Oct 2026)
+Kano is the second air hub (fly from the Lagos terminal) with its own content rules: no clubs, bars, betting or alcohol, and restricted-category ads are auto-rejected there. Shagamu, Abeokuta and Ijebu Ode are reached by road from Lagos (Lagos to Shagamu, then on); Abule is a light village off the Ijebu Ode road with a farm job and the cheapest homes. All fictional layouts with real names, to be reviewed by locals. See `docs/KANO.md`, `docs/OGUN.md`, `docs/ABULE.md`. Generators: `tools/gen-kano.mjs`, `gen-ogun.mjs`, `gen-abule.mjs`.
+
 ## Call a boat (10 Oct 2026)
 Jetties in Lekki and on Lagos Island: call a boat, board (fare through the ledger), cross with a chase camera. Tarkwa Bay island is now a place you can only reach by boat; a ferry links Lagos Island and Lekki. See `docs/BOATS.md`.
 

@@ -1,10 +1,10 @@
 // Pure (no DOM) model behind the full city map: everything is derived from the city JSON, so a new district or city file shows up with no code change.
 // Used by map.js (drawing + input) and by tests/map.test.js.
-export const KIND_COL = { house: '#8fb0c9', kiosk: '#9bc59d', market: '#e0a85c', office: '#9aa3b8', tower: '#6c7aa6', shop: '#f0c04a', airport: '#cfd8e3', hotel: '#d8b46a', landmark: '#c59be0', stadium: '#7fc08a' };
-export const KIND_NAME = { house: 'House', kiosk: 'Kiosk', market: 'Market', office: 'Office block', tower: 'Tower block', shop: 'Shop', airport: 'Airport terminal', hotel: 'Hotel', landmark: 'Landmark', stadium: 'Stadium' };
-export const MODEL_ICON = { mosque: '🕌', cathedral: '⛪', theatre: '🎭' };
-export const KIND_ICON = { stadium: '🏟️', hotel: '🏨', club: '🎵', salon: '✂️', arts: '🎭' };
-export const LM_ICON = { plaza: '⛲', clinic: '🏥', beach: '🏖️', jetty: '⛴️' };
+export const KIND_COL = { house: '#8fb0c9', kiosk: '#9bc59d', market: '#e0a85c', office: '#9aa3b8', tower: '#6c7aa6', shop: '#f0c04a', airport: '#cfd8e3', hotel: '#d8b46a', landmark: '#c59be0', stadium: '#7fc08a', hut: '#c8a47a' };
+export const KIND_NAME = { house: 'House', kiosk: 'Kiosk', market: 'Market', office: 'Office block', tower: 'Tower block', shop: 'Shop', airport: 'Airport terminal', hotel: 'Hotel', landmark: 'Landmark', stadium: 'Stadium', hut: 'Hut' };
+export const MODEL_ICON = { mosque: '🕌', cathedral: '⛪', theatre: '🎭', chapel: '⛪', rock: '🪨' };
+export const KIND_ICON = { hut: '🛖', stadium: '🏟️', hotel: '🏨', club: '🎵', salon: '✂️', arts: '🎭' };
+export const LM_ICON = { plaza: '⛲', clinic: '🏥', beach: '🏖️', jetty: '⛴️', hill: '⛰️', wall: '🧱', dyepits: '🎨', rock: '🪨', motorpark: '🚌', well: '🪣', farm: '🌾', pen: '🐐' };
 export const VENUE_ICON = { venue_mamaput: '🍲', venue_viewing: '📺', venue_joint: '🎲', venue_meco: '🔧', venue_motors: '🚗' };
 export const LAYERS = [['districts', 'Districts', '#d9c7a3'], ['roads', 'Roads and names', '#3d4046'], ['buildings', 'Buildings', '#8fb0c9'], ['venues', 'Venues and shops', '#ffc20e'], ['jobs', 'Jobs', '#4aa3ff'], ['homes', 'Homes for rent', '#e56b6f'],
   ['plots', 'Land plots', '#7fb069'], ['landmarks', 'Landmarks', '#b44cff'], ['billboards', 'Billboard spots', '#35c46b'], ['players', 'Players nearby', '#ffffff']];
@@ -20,7 +20,7 @@ export function buildModel(city) {
   for (const v of city.venues || []) items.push({ type: 'venue', id: v.id, name: v.name, x: v.x, z: v.z, icon: VENUE_ICON[v.id] || KIND_ICON[v.kind] || (v.shopId ? '🍲' : '🎲'), lines: [v.blurb || 'A place to hang out.', v.hours ? `Open ${v.hours[0]}:00 to ${v.hours[1]}:00` : ''], placeId: v.id, group: 'Venues' });
   for (const s of city.shops || []) if (!(city.venues || []).some(v => v.shopId === s.id)) items.push({ type: 'shop', id: s.id, name: s.name, x: s.x, z: s.z, icon: '🛒', lines: [s.desc || 'Shop'], placeId: s.id, group: 'Shops' });
   for (const j of city.jobs || []) items.push({ type: 'job', id: j.id, name: j.label, x: j.x, z: j.z, icon: '💼', lines: ['Job: start a shift here'], placeId: j.id, group: 'Jobs' });
-  for (const l of city.landmarks || []) items.push({ type: 'landmark', id: l.id, name: l.name, x: l.x, z: l.z, icon: LM_ICON[l.kind] || '⛲', lines: [l.note || 'Landmark'], placeId: placeOf(l.id) ? l.id : null, group: 'Landmarks' });
+  for (const l of city.landmarks || []) if (l.kind !== 'palmline' && Number.isFinite(l.x) && Number.isFinite(l.z)) items.push({ type: 'landmark', id: l.id, name: l.name, x: l.x, z: l.z, icon: LM_ICON[l.kind] || '⛲', lines: [l.note || 'Landmark'], placeId: placeOf(l.id) ? l.id : null, group: 'Landmarks' });
   for (const s of city.boat?.stops || []) items.push({ type: 'landmark', id: s.id, name: s.name, x: s.x, z: s.z, icon: '⛵', lines: ['Boat jetty', 'Call a boat here. Fares are placeholders.'] });
   for (const l of city.carParks || []) items.push({ type: 'landmark', id: l.id, name: l.name, x: l.x, z: l.z, lot: { w: l.w, d: l.d }, icon: '🅿️', lines: ['Car park', l.fee ? `Fee ₦${l.fee} (ESTIMATE)` : 'Free parking', l.blurb || ''], placeId: null, group: 'Car parks' });
   for (const b of city.busStops || []) items.push({ type: 'landmark', id: b.id, name: b.name, x: b.x, z: b.z, icon: '🚏', lines: ['Bus stop: wait here and a danfo will stop for you.', 'Ride fares are the normal danfo fare.'], placeId: b.id, group: 'Bus stops' });

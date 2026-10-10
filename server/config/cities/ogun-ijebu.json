@@ -1882,6 +1882,21 @@
     "z": 50,
     "ry": 0
    }
+  },
+  {
+   "id": "to-abule",
+   "name": "Abule Road",
+   "to": "ogun-abule",
+   "x": 194,
+   "z": 65,
+   "r": 16,
+   "fare": 300,
+   "arrive": {
+    "x": -100,
+    "z": 0,
+    "ry": 0
+   }
   }
- ]
+ ],
+ "skyline": "hills"
 }

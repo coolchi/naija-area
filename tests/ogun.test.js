@@ -16,8 +16,8 @@ test('the three towns are registered, valid, in Ogun State, road-only (no airpor
 });
 test('everything is reachable by road: Lagos to each town in at most two hops, every link has a way back and arrives outside its gate', () => {
   const s = makeServer(); const g = (id) => s.app.cities[id].links.map(l => l.to); const seen = new Map([['lagos-mainland', 0]]); const q = ['lagos-mainland']; while (q.length) { const c = q.shift(); for (const t of g(c)) if (!seen.has(t)) { seen.set(t, seen.get(c) + 1); q.push(t); } }
-  assert.equal(seen.get('ogun-shagamu'), 1); assert.ok(seen.get('ogun-abeokuta') <= 2 && seen.get('ogun-ijebu') <= 2);
-  for (const id of IDS) for (const l of s.app.cities[id].links) { const back = s.app.cities[l.to].links.find(b => b.to === id); assert.ok(back, `${l.to} links back to ${id}`); assert.ok(Math.hypot(l.arrive.x - back.x, l.arrive.z - back.z) > back.r + 8); assert.ok(l.fare >= 400); }
+  assert.equal(seen.get('ogun-shagamu'), 1); assert.ok(seen.get('ogun-abeokuta') <= 2 && seen.get('ogun-ijebu') <= 2); assert.equal(seen.get('ogun-abule'), 3, 'Abule is a village off the Ijebu Ode road');
+  for (const id of IDS) for (const l of s.app.cities[id].links) { const back = s.app.cities[l.to].links.find(b => b.to === id); assert.ok(back, `${l.to} links back to ${id}`); assert.ok(Math.hypot(l.arrive.x - back.x, l.arrive.z - back.z) > back.r + 8); assert.ok(l.fare >= 300); }
 });
 test('driving out of Lagos: the road link to Shagamu then on to Abeokuta, each fare through the ledger, and back', async () => {
   const s = makeServer(); const u = mkUser(s, { cash: 5000, ageMs: 10 * 60000 }); await hb(s, u); let c0 = balanceOf(s.db, cashId(u));

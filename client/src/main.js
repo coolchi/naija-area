@@ -10,6 +10,7 @@ import { Tour } from './tour.js';
 import { AirportClient } from './airport-client.js';
 import { LinkClient } from './link-client.js';
 import { BoatClient } from './boat-client.js';
+import { RadioClient } from './radio-client.js';
 import { lampsOn } from './lamps.js';
 import { setPlayerHeadlamps } from './headlamps.js';
 import { CrashClient } from './crash.js';
@@ -53,7 +54,7 @@ class Game {
       this.progress(60, 'Putting traffic on the road…'); await new Promise(r => setTimeout(r, 30));
       this.traffic = new Traffic(this.scene, city.trafficLoops, city.busStops || []); this.traffic.onHorn = (c, car) => this.horn(c, car); this.walkers = new Walkers(this.scene, city.zones); this.ghosts = new Ghosts(this.scene);
       this.ads = new AdsClient(this.world, city, () => this.serverNow()); this.ui = new UI(this); this.net = new Net(this); this.interior = new Interior(this); this.venue = new Venue(this); this.garage = new GarageView(this);
-      this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root); this.nav = new Nav(this); this.parking = new ParkingClient(this); this.bus = new BusStops(this); this.rideSvc = new RideClient(this); this.links = new LinkClient(this); this.boats = new BoatClient(this); this.air = new AirportClient(this); this.crash = new CrashClient(this); this.traffic.crash = this.crash;
+      this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root); this.nav = new Nav(this); this.parking = new ParkingClient(this); this.bus = new BusStops(this); this.rideSvc = new RideClient(this); this.links = new LinkClient(this); this.boats = new BoatClient(this); this.radio = new RadioClient(this); this.air = new AirportClient(this); this.crash = new CrashClient(this); this.traffic.crash = this.crash;
       addEventListener('resize', () => this.resize()); this.resize(); this.bindAuth(); this.progress(85, TIPS[Math.floor(Math.random() * TIPS.length)]);
       const me = await get('/api/me').catch(() => null); this.progress(100, 'Ready!'); await new Promise(r => setTimeout(r, 250));
       this.loop(performance.now()); $('#loading').classList.add('hidden');
@@ -160,7 +161,7 @@ class Game {
       if (!this.commute && !this.air?.flying && !this.boats?.aboard) { this.ctrl.placeCamera(this.camera, dt); if (now - this.lastSample > 250) { this.lastSample = now; this.net.sample({ t: this.serverNow(), x: this.ctrl.x, z: this.ctrl.z, ry: this.ctrl.ry }); } }
       if (this.ctrl.lastTap && !this.ui.sheetOpen && !this.busy) { const tp = this.ctrl.lastTap; this.ctrl.lastTap = null; if (now - tp.t < 400) this.tapPlace(tp.x, tp.y); }
       this.ads.update(this.camera, this.size, this.ctrl, dt * 1000);
-      this.nav?.tick(dt); this.parking?.tick(dt * 1000); this.bus?.tick(dt * 1000, now); this.rideSvc?.tick(dt * 1000); this.air?.tick(dt * 1000); this.links?.tick(dt * 1000); this.boats?.tick(dt * 1000); this.hudStep(now); this.renderer.render(this.scene, this.camera);
+      this.nav?.tick(dt); this.parking?.tick(dt * 1000); this.bus?.tick(dt * 1000, now); this.rideSvc?.tick(dt * 1000); this.air?.tick(dt * 1000); this.links?.tick(dt * 1000); this.boats?.tick(dt * 1000); this.radio?.tick(dt * 1000); this.hudStep(now); this.renderer.render(this.scene, this.camera);
     }; requestAnimationFrame(frame);
   }
   idleCam(now) { const a = now / 9000; this.camera.position.set(Math.cos(a) * 70, 38, Math.sin(a) * 70 - 20); this.camera.lookAt(0, 4, -20); this.camera.updateMatrixWorld(); }

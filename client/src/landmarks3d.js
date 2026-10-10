@@ -51,6 +51,11 @@ export function drawExtraBuilding(b, ctx) {
     const R = Math.min(b.w, b.d) * 0.46; const tiers = [[R, R * 0.86, 9, 0x8a7f72, 0, 0], [R * 0.72, R * 0.6, 8, 0x9a8f80, -R * 0.08, R * 0.05], [R * 0.5, R * 0.34, 7, 0x8d8274, R * 0.1, -R * 0.06], [R * 0.3, R * 0.14, 5, 0xa09484, 0, 0]]; let y = 0;
     for (const [rb, rt, h, c, ox, oz] of tiers) { plain.cyl(rt, rb, h, 9, b.x + ox, y, b.z + oz, c, { noAO: true }); y += h - 1; }
     for (let i = 0; i < 9; i++) { const ang = i * 2.1 + 0.5, rr = R * (0.7 + (i % 3) * 0.12); plain.sphere(3.2 + (i % 4), b.x + Math.cos(ang) * rr, 2 + (i % 3), b.z + Math.sin(ang) * rr, [0x7d7367, 0x968a7b, 0x6f665b][i % 3], { noAO: true }); }
+  } else if (b.kind === 'hut') { // a round mud hut under a thatch cone (decor; the footprint box is the collider)
+    const R = Math.min(b.w, b.d) * 0.46; plain.cyl(R, R, b.h, 10, b.x, 0, b.z, b.color, { noAO: true }); plain.cone(R * 1.4, 2.8, 10, b.x, b.h - 0.2, b.z, 0xb08a4a, { noAO: true }); at(0, V(R - 0.1), 2.0, 0, 1.0, 0.25, 0x5b3d22);
+  } else if (b.model === 'chapel') { // a small gabled chapel with a bell tower and a cross: plain, respectful, generic
+    walls.box(b.w, 5, b.d, b.x, 0, b.z, b.color); plain.gable(b.w + 1, b.d + 1, 3.2, b.x, 5, b.z, 0x8a6a45, { noAO: true }); const [tx, tz] = [b.x - fx * (hw - 2), b.z - fz * (hd - 2)]; plain.box(3.2, 9, 3.2, tx, 0, tz, 0xefe9d9, { noAO: true }); plain.cone(2.4, 2.8, 4, tx, 9, tz, 0x8a6a45, { noAO: true }); plain.box(0.25, 1.8, 0.25, tx, 11.8, tz, 0xefe9d9, { noAO: true }); plain.box(1.1, 0.25, 0.25, tx, 12.9, tz, 0xefe9d9, { noAO: true });
+    at(0, V(hd + 0.05), 2.4, 0, 1.6, 0.2, 0x5b3d22);
   } else if (b.model === 'theatre') { // a wide round hall under a flared cap roof with two lower wings (simplified)
     const wing = b.w * 0.3; for (const s of [-1, 1]) walls.box(wing, 7, b.d * 0.8, b.x + (alongX ? s * (hw - wing / 2) : 0), 0, b.z + (alongX ? 0 : s * (hw - wing / 2)), b.color);
     const R = Math.min(b.d, b.w * 0.4) * 0.5; walls.cyl(R, R, 9, 28, b.x, 0, b.z, STONE); plain.cyl(R * 1.45, R * 0.95, 4, 28, b.x, 9, b.z, 0xbfb8aa); plain.cyl(R * 0.7, R * 1.45, 1.6, 28, b.x, 13, b.z, 0xcfc8ba);
@@ -168,4 +173,32 @@ export function motorParkBuses(l) { const out = []; const n = Math.floor(l.w / 9
 export function drawMotorPark(l, ctx) {
   const { plain } = ctx; for (const p of motorParkBuses(l)) { plain.box(6.2, 2.6, 2.3, p.x, 0.5, p.z, 0xf2c230, { noAO: true }); plain.box(6.25, 0.5, 2.35, p.x, 1.4, p.z, 0x222222, { noAO: true }); plain.box(2.0, 1.0, 2.2, p.x + 2.2, 1.8, p.z, 0x9cc7d9, { noAO: true }); for (const dx of [-2, 2]) for (const dz of [-1.2, 1.2]) plain.cyl(0.5, 0.5, 0.35, 8, p.x + dx, 0.05, p.z + dz, 0x1b1b1b, { noAO: true }); }
   const z = l.cz - l.d / 2 - 7; plain.box(l.w, 0.3, 5, l.cx, 4.6, z, 0xb8b2a6, { noAO: true }); for (let x = l.cx - l.w / 2 + 2; x <= l.cx + l.w / 2 - 2; x += 14) for (const dz of [-2, 2]) plain.box(0.3, 4.6, 0.3, x, 0, z + dz, 0x6b6b6b, { noAO: true });
+}
+
+// ---- Abule village scenery (10 Oct 2026): generic shapes ----------------------------------------------------------------------------------------
+/** crop rows on tilled soil, a scarecrow; walkable (no collider) */
+export function cropRows(l) { const out = []; for (let r = 0; r < l.rows; r++) { const z = l.cz - l.d / 2 + (r + 0.5) * l.d / l.rows; const n = Math.floor(l.w / 3.2); for (let i = 0; i < n; i++) out.push({ x: l.cx - l.w / 2 + 1.6 + i * 3.2, z, r }); } return out; }
+export function drawFarm(l, ctx) {
+  const { plain } = ctx; plain.box(l.w, 0.12, l.d, l.cx, 0.02, l.cz, 0x7a5a3a, { noAO: true });
+  for (let r = 0; r < l.rows; r++) { const z = l.cz - l.d / 2 + (r + 0.5) * l.d / l.rows; plain.box(l.w - 2, 0.35, 1.2, l.cx, 0.1, z, 0x5e4228, { noAO: true }); }
+  for (const p of cropRows(l)) plain.cone(0.55, 1.2 + (p.r % 3) * 0.25, 5, p.x, 0.4, p.z, p.r % 2 ? 0x5fa043 : 0x7fb84a, { noAO: true });
+  plain.box(0.15, 2.4, 0.15, l.cx, 0, l.cz, 0x6b4a2b, { noAO: true }); plain.box(1.8, 0.15, 0.15, l.cx, 1.7, l.cz, 0x6b4a2b, { noAO: true }); plain.sphere(0.35, l.cx, 2.7, l.cz, 0xd9c08a, { noAO: true });
+}
+/** a goat pen: a low fence round a yard and a few goats */
+export function drawPen(l, ctx) {
+  const { plain } = ctx; const fence = (w, d, x, z) => plain.box(w, 0.9, d, x, 0, z, 0x8a6a45, { noAO: true }); plain.box(l.w, 0.05, l.d, l.cx, 0.01, l.cz, 0xb89b6c, { noAO: true });
+  fence(l.w, 0.15, l.cx, l.cz - l.d / 2); fence(l.w, 0.15, l.cx, l.cz + l.d / 2); fence(0.15, l.d, l.cx - l.w / 2, l.cz); fence(0.15, l.d, l.cx + l.w / 2, l.cz);
+  for (let i = 0; i < l.n; i++) { const x = l.cx - l.w / 2 + 3 + (i % 3) * (l.w - 6) / 2.2, z = l.cz - l.d / 4 + Math.floor(i / 3) * l.d / 2.3; plain.box(1.1, 0.6, 0.45, x, 0.35, z, i % 2 ? 0xe8e0d0 : 0x7a5a3a, { noAO: true }); plain.box(0.35, 0.4, 0.3, x + 0.65, 0.65, z, i % 2 ? 0xe8e0d0 : 0x7a5a3a, { noAO: true }); for (const dx of [-0.4, 0.4]) for (const dz of [-0.15, 0.15]) plain.box(0.1, 0.35, 0.1, x + dx, 0, z + dz, 0x3a2a1a, { noAO: true }); }
+}
+/** a stone well with two posts and a little roof */
+export function drawWell(l, ctx) {
+  const { plain } = ctx; plain.cyl(1.5, 1.6, 1.0, 12, l.cx, 0, l.cz, 0x9a9488, { noAO: true }); plain.cyl(1.0, 1.0, 0.1, 12, l.cx, 0.95, l.cz, 0x1d3a5a, { noAO: true });
+  for (const s of [-1, 1]) plain.box(0.2, 2.6, 0.2, l.cx + s * 1.3, 0, l.cz, 0x6b4a2b, { noAO: true }); plain.box(3.4, 0.2, 2.2, l.cx, 2.6, l.cz, 0xb08a4a, { noAO: true }); plain.box(0.1, 0.1, 2.0, l.cx, 2.0, l.cz, 0x4a3a2a, { noAO: true });
+}
+/** palms on both sides of a road, skipping the given [a, b] x ranges (the stream, the well road). Pure: returns the palm spots, so tests can check them. */
+export function palmSpots(l) {
+  const out = []; for (let x = l.x0; x <= l.x1; x += l.step) { if ((l.skip || []).some(([a, b]) => x > a && x < b)) continue; for (const s of [-1, 1]) out.push({ x, z: l.z + s * l.off }); } return out;
+}
+export function drawPalmLine(l, ctx) {
+  const { plain } = ctx; palmSpots(l).forEach((p, i) => { const hgt = 5.5 + (i % 3) * 0.7; plain.cyl(0.18, 0.28, hgt, 6, p.x, 0, p.z, 0x8a6a45, { noAO: true }); plain.cone(2.0, 1.4, 7, p.x, hgt - 0.3, p.z, 0x3f8f3a, { noAO: true }); plain.cone(1.4, 1.0, 7, p.x, hgt + 0.7, p.z, 0x4fa645, { noAO: true }); });
 }

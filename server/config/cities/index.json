@@ -48,6 +48,11 @@
       "enabled": true
     },
     {
+      "id": "ogun-abule",
+      "file": "ogun-abule.json",
+      "enabled": true
+    },
+    {
       "id": "preview-town",
       "file": "preview-town.json",
       "enabled": false,
