@@ -4,6 +4,8 @@ import { gapAhead, stepSpeed, decide, YIELD_CFG } from './yield.js';
 import { Headlamps, addPlayerHeadlamps } from './headlamps.js';
 import { stopsOnLoop, serves, newStop, stopStep, pickupStart, STOP_CFG } from './busstops.js';
 import * as THREE from 'three';
+import { PHYS } from './physics-config.js';
+import { ambientLean, damp, clamp as kclamp } from './kinematics.js';
 import { Builder, mulberry32 } from '../sample/builder.js';
 import { danfoGeo, kekeGeo, okadaGeo, carGeo } from '../sample/vehicles.js';
 import { nameTag, glowTexture } from './textures.js';
@@ -65,6 +67,13 @@ export class Traffic {
       this.cars.push({ g: sg, P: first?.P, speed: 8, off: 0, type: 'danfo', stopsS: [], serve: true, stop: newStop(), special: true, idle: true }); this.special = this.cars[this.cars.length - 1]; }
     this.tmp = {}; this.heads = new Headlamps(scene, this.cars.length); this.lightLevel = 0;
   }
+  /** two circles per ambient car near (x,z), for the player's car to bump (client feel only; the server's crash rules are untouched). Reuses its arrays. */
+  obstaclesNear(x, z, range) {
+    const out = this._obs || (this._obs = []); out.length = 0; this._obsPool ||= []; let n = 0;
+    for (const c of this.cars) { if (c.idle || !c.g.visible) continue; const px = c.g.position.x, pz = c.g.position.z; if (Math.abs(px - x) > range || Math.abs(pz - z) > range) continue; const y = c.g.rotation.y, fx = Math.cos(y) * PHYS.collide.npcOffset, fz = -Math.sin(y) * PHYS.collide.npcOffset;
+      for (const sgn of [1, -1]) { const o = this._obsPool[n] || (this._obsPool[n] = { x: 0, z: 0, r: 0 }); n++; o.x = px + fx * sgn; o.z = pz + fz * sgn; o.r = c.type === 'okada' ? PHYS.collide.npcR * 0.6 : PHYS.collide.npcR; out.push(o); } }
+    return out;
+  }
   /** a player's danfo: appears about 85 m before the stop, drives in, stands at the stop until released. Returns true if started */
   dispatch(stop) { const L = this.loops.get(stop.loop); const c = this.special; if (!L || !c || !c.idle) return false; const e = L.stopsS.find(x => x.id === stop.id); if (!e) return false;
     c.P = L.P; c.stopsS = [e]; c.s = pickupStart(e.s, L.P.length); c.st = { v: STOP_CFG.pickupLead > 0 ? 8 : 0, wait: 0, limit: 3 }; c.stop = newStop(); c.stop.hold = true; c.holdT = 0; c.idle = false; c.stopId = stop.id; c.g.visible = true; atPath(c.P, c.s, this.tmp); c.g.position.set(this.tmp.x, 0.02, this.tmp.z); c.g.rotation.y = this.tmp.yaw; return true; }
@@ -90,6 +99,9 @@ export class Traffic {
       c.st = stepSpeed(c.st, cruise, hit, step); if (c.hold > 0) { c.hold -= step; c.st.v = 0; } c.s += c.st.v * step; if (lag < -2 && !c.special) c.s = ideal; // never get ahead of the shared timeline
       if (c.st.v < 0.2 && hit) this.stopped++; if (c.st.honk && this.onHorn) this.onHorn(c, car);
       atPath(c.P, c.s, this.tmp); c.g.position.set(this.tmp.x, 0.02, this.tmp.z); c.g.rotation.y = this.tmp.yaw;
+      // body lean in bends and nose-dip under braking (visual only, derived from the car's own motion; the shared timeline is untouched)
+      const m = c.g.children[0]; if (m && c.pyaw !== undefined && step > 1e-4) { const l = ambientLean(c.pyaw, this.tmp.yaw, c.pv, c.st.v, step); const S = PHYS.susp, k = damp(6, step); c.lr = (c.lr || 0) + (kclamp(-l.ay * S.rollK, -S.maxRoll, S.maxRoll) - (c.lr || 0)) * k; c.lp = (c.lp || 0) + (kclamp(l.ax * S.pitchK, -S.maxPitch, S.maxPitch) - (c.lp || 0)) * k; m.rotation.x = c.lr; m.rotation.z = c.lp; }
+      c.pyaw = this.tmp.yaw; c.pv = c.st.v;
     }
   }
 }

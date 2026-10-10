@@ -3,7 +3,7 @@
 // (3) tells the server when it really reached the player, then shows the result. Ambient vehicles themselves are never charged: they are not accounts.
 import { post, h, $, fmtN } from './api.js';
 
-export const CRASH_UI = { rollGapM: 13, minSpeed: 3, clientMinIntervalMs: 5600, holdSeconds: 1.6, knockM: 3, stunSeconds: 0.9, contactPadM: 2.0 };
+export const CRASH_UI = { rollGapM: 13, minSpeed: 3, clientMinIntervalMs: 5600, holdSeconds: 1.6, knockM: 3, /* kept for reference: the slide distance now lives in physics-config.js knock.distance */ stunSeconds: 0.9, contactPadM: 2.0 };
 /** pure: has the vehicle reached the player? car/player are {x,z}; r = the player's body radius */
 export const reached = (car, p, r = 0.6, pad = CRASH_UI.contactPadM) => Math.hypot(car.x - p.x, car.z - p.z) < pad + r;
 /** health shown now: the server value plus natural recovery since it was received */
@@ -26,7 +26,7 @@ export class CrashClient {
   contact(c, car, blockers) { const me = blockers.find(b => b.local); if (me && reached(car, me, me.r)) this.impact(c, car); }
   async impact(c, car) {
     const tok = c.crashTok; c.crashTok = null; if (!tok) return; c.hold = CRASH_UI.holdSeconds; const g = this.g, ctrl = g.ctrl;
-    const yaw = car.yaw; const kx = Math.cos(yaw) * CRASH_UI.knockM, kz = -Math.sin(yaw) * CRASH_UI.knockM; ctrl.teleport(ctrl.x + kx, ctrl.z + kz); ctrl.stun = CRASH_UI.stunSeconds; g.nav?.cancel('stopped', true);
+    const yaw = car.yaw; ctrl.knock(Math.cos(yaw), -Math.sin(yaw)); ctrl.stun = CRASH_UI.stunSeconds; /* a quick slide (physics-config.js knock.distance), not a teleport */ g.nav?.cancel('stopped', true);
     this.flash.classList.add('on'); setTimeout(() => this.flash.classList.remove('on'), 450); g.ui.sfx?.('bad');
     let r = null; try { r = await post('/api/crash/impact', { token: tok.token, pos: g.pos() }); } catch (e) { return; } if (r) this.apply(r);
   }
