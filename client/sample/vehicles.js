@@ -73,6 +73,11 @@ export function carGeo(kind, color) {
   b.quad([cx + cl / 2 + 0.01, 0.3 + H + 0.05, 0.75], [cx + cl / 2 + 0.01, 0.3 + H + 0.05, -0.75], [cx + cl / 2 - 0.35, 0.3 + H + ch - 0.05, -0.72], [cx + cl / 2 - 0.35, 0.3 + H + ch - 0.05, 0.72], GLASS, { noAO: true });
   b.quad([cx - cl / 2 - 0.01, 0.3 + H + 0.05, -0.75], [cx - cl / 2 - 0.01, 0.3 + H + 0.05, 0.75], [cx - cl / 2 + 0.3, 0.3 + H + ch - 0.05, 0.72], [cx - cl / 2 + 0.3, 0.3 + H + ch - 0.05, -0.72], GLASS, { noAO: true });
   b.box(0.15, 0.25, 1.86, L / 2, 0.22, 0, 0x2b2b2b); b.box(0.15, 0.25, 1.86, -L / 2, 0.22, 0, 0x2b2b2b);
+  // polish: wheel arches, side skirts, mirrors, grille and number plates (about ten small boxes)
+  for (const wx of [L * 0.32, -L * 0.32]) for (const z of [0.93, -0.93]) b.box(0.95, 0.5, 0.04, wx, 0.28, z, 0x1b1b1f, { noAO: true, jit: 0 });
+  for (const z of [0.93, -0.93]) b.box(L * 0.55, 0.1, 0.05, 0, 0.3, z, 0x24242a, { noAO: true, jit: 0 });
+  for (const z of [0.96, -0.96]) b.box(0.12, 0.12, 0.18, cx + cl / 2 - 0.15, 0.3 + H + 0.12, z, color, { jit: 0 });
+  b.box(0.04, 0.18, 0.9, L / 2 + 0.07, 0.48, 0, 0x16161a, { noAO: true, jit: 0 }); b.box(0.04, 0.12, 0.42, L / 2 + 0.09, 0.28, 0, 0xf2f2ee, { noAO: true, jit: 0 }); b.box(0.04, 0.12, 0.42, -L / 2 - 0.09, 0.28, 0, 0xf2f2ee, { noAO: true, jit: 0 });
   for (const z of [0.65, -0.65]) { b.box(0.05, 0.16, 0.36, L / 2 + 0.02, 0.7, z, 0xfff4cc, { noAO: true }); b.box(0.05, 0.16, 0.34, -L / 2 - 0.02, 0.7, z, 0xe53935, { noAO: true }); }
   return b.build();
 }
