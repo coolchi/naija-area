@@ -9,7 +9,7 @@ import { spotClock } from '../client/src/radio-spot.js';
 const sq = (over) => (over?.surface === 'radio_spot' ? { pngW: 768, pngH: 768, ...over } : over);
 const live = async (s, over) => { const key = await newAdvertiser(s); const r = await submitAd(s, key, sq(over)); assert.equal(r.status, 200, JSON.stringify(r.json)); const id = r.json.campaign.id; return { key, id, r }; };
 const approve = async (s, id) => { await ok(s, 'POST', `/api/admin/campaigns/${id}/decision`, { admin: true, body: { decision: 'approve' } }); tickAds(s.app); };
-const toSpotWindow = (s) => { const P = AD_POLICY.rotationMs; for (let i = 0; i < 400 && !isSpotWindow(windowOf(s.app.clock.now()), P); i++) s.app.clock.advance(P); assert.ok(isSpotWindow(windowOf(s.app.clock.now()), P)); s.app.clock.advance(1000); };
+const toSpotWindow = (s) => { const P = AD_POLICY.rotationMs; let w = windowOf(s.app.clock.now()) + 1; for (let i = 0; i < 400 && !isSpotWindow(w, P); i++) w++; assert.ok(isSpotWindow(w, P)); s.app.clock.advance(w * P + 1000 - s.app.clock.now()); assert.ok(isSpotWindow(windowOf(s.app.clock.now()), P)); };   // always land 1 s into the NEXT spot window (the old version could land in the last second of one, so a 1 s advance fell out of it: a rare flake on the slow database)
 const ev = (s, slot, c, over = {}) => ({ slot, win: windowOf(s.app.clock.now()), c, pct: 100, ms: 8000, vis: true, ...over });
 
 test('rate card: the three new surfaces are priced from the card (ESTIMATES), with the same VAT and quote path', async () => {
