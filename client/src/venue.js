@@ -5,11 +5,13 @@ import { get, post, fmtN, h, $ } from './api.js';
 import { makeAvatar, makePlayerCar, makeNameSprite } from './entities.js';
 import { venueShell, decorate, stationModel } from './rooms.js';
 import * as PR from './props.js';
+import { wearSheet } from './wear-ui.js';
+import { applyWear } from './wear-models.js';
 import { stateLabel, scoreText, kickoffText, sourceLine, groupByLeague } from './scores-view.js';
 
 const SHAPE = { circle: ['●', '#d6402f'], triangle: ['▲', '#2e7dd1'], cross: ['✚', '#2e9b5e'], square: ['■', '#8a5ad1'], star: ['★', '#e0a020'], whot: ['W', '#222'] };
 const hash = (s) => { let x = 7; for (const c of String(s)) x = (x * 31 + c.charCodeAt(0)) >>> 0; return x; };
-const ICON = { dance: '💃', dj: '🎧', bar: '🥤', songs: '🎵', vip: '👑', style: '✂️', basin: '🚿', eat: '🍲', game: '🎲', board: '🏆', poster: '📜', tv: '📺', ticket: '🎟️', scores: '📊', seat: '🪑', car: '🚗', check: '🔍', service: '🔧' };
+const ICON = { wear: '💎', dance: '💃', dj: '🎧', bar: '🥤', songs: '🎵', vip: '👑', style: '✂️', basin: '🚿', eat: '🍲', game: '🎲', board: '🏆', poster: '📜', tv: '📺', ticket: '🎟️', scores: '📊', seat: '🪑', car: '🚗', check: '🔍', service: '🔧' };
 
 const GAME_NAME = { whot: 'Whot', ludo: 'Ludo', dominoes: 'Dominoes', draughts: 'Draughts', ayo: 'Ayo', football: 'Table football' };
 export class Venue {
@@ -45,9 +47,9 @@ export class Venue {
     grp.position.set(st.x, 0, st.z); if (st.type === 'poster') grp.rotation.y = 0; grp.traverse(o => { o.userData.stationId = st.id; }); this.stations.add(grp); this.meshes[st.id] = grp;
   }
   people_refresh() {
-    this.people.clear(); const d = this.data; const names = new Set(); const put = (u, color, x, z) => { if (names.has(u)) return; names.add(u); const a = makeAvatar(color || '#2e9b5e'); a.scale.setScalar(0.55); a.position.set(x, 0, z); const t = makeNameSprite('@' + u, '#ffffff'); t.scale.set(1.6, 0.4, 1); t.position.y = 2.2; a.add(t); this.people.add(a); };
+    this.people.clear(); const d = this.data; const names = new Set(); const put = (u, color, x, z, wear) => { if (names.has(u)) return; names.add(u); const a = makeAvatar(color || '#2e9b5e'); a.scale.setScalar(0.55); applyWear(a, wear || [], this.g.wearCat); a.position.set(x, 0, z); const t = makeNameSprite('@' + u, '#ffffff'); t.scale.set(1.6, 0.4, 1); t.position.y = 2.2; a.add(t); this.people.add(a); };
     for (const st of d.stations) if (st.type === 'game' && st.match) { const m = st.match; m.players.forEach((u, k) => put(u, null, st.x + [-1.25, 1.25, -0.5, 0.5][k], st.z + (k < 2 ? 0.5 : 1.5))); }
-    for (const o of d.occupants) { const hx = hash(o.username); put(o.username, o.color, -3 + (hx % 7) * 1.0, d.room.d / 2 - 1.1 - ((hx >> 4) % 2) * 0.8); }
+    for (const o of d.occupants) { const hx = hash(o.username); put(o.username, o.color, -3 + (hx % 7) * 1.0, d.room.d / 2 - 1.1 - ((hx >> 4) % 2) * 0.8, o.w); }
   }
   chrome() {
     const d = this.data; this.strip = h('div', { class: 'vstrip' }); this.panel = h('div', { class: 'vpanel hidden' });
@@ -71,6 +73,7 @@ export class Venue {
     else if (st.type === 'casual') ui.playCasual(st.game);
     else if (['dance', 'dj', 'bar', 'songs', 'vip', 'basin'].includes(st.type)) this.leisureAct(st);
     else if (st.type === 'style') this.salonSheet(st);
+    else if (st.type === 'wear') wearSheet(this.g, this.id, st);
     else if (['ticket', 'seat'].includes(st.type)) { const r = await ui.guard(() => post('/api/venue/act', { venueId: this.id, stationId: st.id, idem: crypto.randomUUID?.() })); if (r) { ui.toast(r.text, r.charged ? 'money' : undefined); this.g.refreshMe?.(); this.g.net.nudge(); } }
     else if (st.type === 'scores') this.scoresSheet(st);
     else if (st.type === 'game') this.sitPanel(st);

@@ -9,6 +9,7 @@ import { ambientLean, damp, clamp as kclamp } from './kinematics.js';
 import { Builder, mulberry32 } from '../sample/builder.js';
 import { danfoGeo, kekeGeo, okadaGeo, carGeo } from '../sample/vehicles.js';
 import { nameTag, glowTexture } from './textures.js';
+import { applyWear, wearLod } from './wear-models.js';
 
 const vcMat = new THREE.MeshLambertMaterial({ vertexColors: true });
 const shadowTex = glowTexture();
@@ -131,7 +132,7 @@ export class Ghosts {
     for (const p of list) {
       seen.add(p.id); let g = this.map.get(p.id);
       if (!g) { g = { id: p.id, name: p.n, color: p.c, mode: -1, samples: [], obj: null, tag: null, act: '' }; this.map.set(p.id, g); }
-      g.mode = p.m; g.act = p.act || '';
+      g.mode = p.m; g.act = p.act || ''; g.wear = p.w || [];
       for (const [off, x, z, ry] of p.s) { const t = serverNow + off; if (!g.samples.length || t > g.samples[g.samples.length - 1].t + 50) g.samples.push({ t, x, z, ry }); }
       if (g.samples.length > 60) g.samples.splice(0, g.samples.length - 60);
       this.build(g);
@@ -144,13 +145,14 @@ export class Ghosts {
     g.root = new THREE.Group(); g.obj = want === 'car' ? makePlayerCar(g.color) : makeAvatar(g.color); g.root.add(g.obj);
     g.tag = makeNameSprite(g.name, '#ffffff'); g.tag.position.set(0, want === 'car' ? 4.2 : 3.6, 0); g.root.add(g.tag); g.kind = want; this.scene.add(g.root); g.first = true;
   }
-  update(renderT) {
+  update(renderT, viewer) {
     for (const g of this.map.values()) {
       const S = g.samples; if (!S.length || !g.root) continue; let a = S[0], b = S[S.length - 1];
       if (renderT <= S[0].t) { a = b = S[0]; } else if (renderT >= S[S.length - 1].t) { a = b = S[S.length - 1]; } else for (let i = 0; i < S.length - 1; i++) if (S[i].t <= renderT && S[i + 1].t >= renderT) { a = S[i]; b = S[i + 1]; break; }
       const k = a === b ? 0 : (renderT - a.t) / (b.t - a.t || 1); const x = a.x + (b.x - a.x) * k, z = a.z + (b.z - a.z) * k;
       let dy = b.ry - a.ry; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); const ry = a.ry + dy * k;
       g.root.position.set(x, 0, z); g.root.rotation.y = ry;
+      if (g.kind === 'walk') { applyWear(g.obj, g.wear, this.cat); if (viewer) wearLod(g.obj, Math.hypot(x - viewer.x, z - viewer.z) < 45); } // jewelry and caps: one merged mesh, hidden when far
       const moving = Math.hypot(b.x - a.x, b.z - a.z) > 0.05 && a !== b; if (g.kind === 'walk') g.obj.userData.body.position.y = moving ? Math.abs(Math.sin(renderT / 140)) * 0.08 : 0;
     }
   }
