@@ -47,6 +47,10 @@ export function drawExtraBuilding(b, ctx) {
     const tw = 9; const tx = b.x + (alongX ? 0 : fs * (hw - tw / 2)), tz = b.z + (alongX ? fs * (hd - tw / 2) : 0); walls.box(tw, 24, tw, tx, 0, tz, STONE); plain.box(tw + 0.8, 0.6, tw + 0.8, tx, 24, tz, 0x8a8075); plain.cone(tw * 0.62, 12, 4, tx, 24.6, tz, 0x6d5a4a, { ry: Math.PI / 4 }); plain.box(0.25, 3, 0.25, tx, 36.4, tz, 0xd4af37); plain.box(1.4, 0.25, 0.25, tx, 38, tz, 0xd4af37);
     for (let i = -2; i <= 2; i++) for (const s of [-1, 1]) at(s * (hw + 0.3), i * b.d * 0.17, 6, 0, 0.7, 1.4, 0xbfb7a2); // buttresses
     at(0, V(hd + 0.15), 2.4, 3.2, 2.6, 0.2, 0x3b6ea5, { noAO: true }); const [sx, sz] = frontPos(b, 0.12); addSign(b.label, '#4a3b2f', sx, 2.6, sz, 24, 2.2, b.face);
+  } else if (b.model === 'rock') { // a granite outcrop: stacked rounded tiers and boulders (generic; not a copy of any real rock). Its footprint box is the collider.
+    const R = Math.min(b.w, b.d) * 0.46; const tiers = [[R, R * 0.86, 9, 0x8a7f72, 0, 0], [R * 0.72, R * 0.6, 8, 0x9a8f80, -R * 0.08, R * 0.05], [R * 0.5, R * 0.34, 7, 0x8d8274, R * 0.1, -R * 0.06], [R * 0.3, R * 0.14, 5, 0xa09484, 0, 0]]; let y = 0;
+    for (const [rb, rt, h, c, ox, oz] of tiers) { plain.cyl(rt, rb, h, 9, b.x + ox, y, b.z + oz, c, { noAO: true }); y += h - 1; }
+    for (let i = 0; i < 9; i++) { const ang = i * 2.1 + 0.5, rr = R * (0.7 + (i % 3) * 0.12); plain.sphere(3.2 + (i % 4), b.x + Math.cos(ang) * rr, 2 + (i % 3), b.z + Math.sin(ang) * rr, [0x7d7367, 0x968a7b, 0x6f665b][i % 3], { noAO: true }); }
   } else if (b.model === 'theatre') { // a wide round hall under a flared cap roof with two lower wings (simplified)
     const wing = b.w * 0.3; for (const s of [-1, 1]) walls.box(wing, 7, b.d * 0.8, b.x + (alongX ? s * (hw - wing / 2) : 0), 0, b.z + (alongX ? 0 : s * (hw - wing / 2)), b.color);
     const R = Math.min(b.d, b.w * 0.4) * 0.5; walls.cyl(R, R, 9, 28, b.x, 0, b.z, STONE); plain.cyl(R * 1.45, R * 0.95, 4, 28, b.x, 9, b.z, 0xbfb8aa); plain.cyl(R * 0.7, R * 1.45, 1.6, 28, b.x, 13, b.z, 0xcfc8ba);
@@ -157,4 +161,11 @@ export function drawDyePits(l, ctx) {
   const { plain } = ctx; plain.box(l.w + 6, 0.12, l.d + 6, l.cx, 0.02, l.cz, 0xcdbb98, { noAO: true }); const liquids = [0x1f3f8f, 0x2e4a8a, 0x6a3a8a, 0x8a5a2b, 0x2f7a5a, 0x1b2f6a];
   dyePitSpots(l).forEach((p, i) => { plain.cyl(p.r + 0.35, p.r + 0.35, 0.5, 14, p.x, 0.02, p.z, 0x9c8a68, { noAO: true }); plain.cyl(p.r, p.r, 0.12, 14, p.x, 0.43, p.z, liquids[i % liquids.length], { noAO: true }); });
   for (const s of [-1, 1]) for (let i = 0; i < 4; i++) { const x = l.cx - l.w / 2 + 4 + i * (l.w - 8) / 3; plain.box(0.2, 3.2, 0.2, x, 0, l.cz + s * (l.d / 2 + 2), 0x6b4a2b, { noAO: true }); plain.box(0.2, 3.2, 0.2, x + 5, 0, l.cz + s * (l.d / 2 + 2), 0x6b4a2b, { noAO: true }); plain.box(5, 1.8, 0.05, x + 2.5, 1.2, l.cz + s * (l.d / 2 + 2), [0x1f3f8f, 0xefe6d2, 0x6a3a8a, 0x2e4a8a][i], { noAO: true }); }
+}
+
+/** a motor park (10 Oct 2026): rows of yellow minibuses and a long open shed beside the car park lot; the lot itself is drawn by the parking code */
+export function motorParkBuses(l) { const out = []; const n = Math.floor(l.w / 9); for (const side of [-1, 1]) for (let i = 0; i < n; i++) out.push({ x: l.cx - l.w / 2 + 5 + i * 9, z: l.cz + side * (l.d / 2 + 7), side }); return out; }
+export function drawMotorPark(l, ctx) {
+  const { plain } = ctx; for (const p of motorParkBuses(l)) { plain.box(6.2, 2.6, 2.3, p.x, 0.5, p.z, 0xf2c230, { noAO: true }); plain.box(6.25, 0.5, 2.35, p.x, 1.4, p.z, 0x222222, { noAO: true }); plain.box(2.0, 1.0, 2.2, p.x + 2.2, 1.8, p.z, 0x9cc7d9, { noAO: true }); for (const dx of [-2, 2]) for (const dz of [-1.2, 1.2]) plain.cyl(0.5, 0.5, 0.35, 8, p.x + dx, 0.05, p.z + dz, 0x1b1b1b, { noAO: true }); }
+  const z = l.cz - l.d / 2 - 7; plain.box(l.w, 0.3, 5, l.cx, 4.6, z, 0xb8b2a6, { noAO: true }); for (let x = l.cx - l.w / 2 + 2; x <= l.cx + l.w / 2 - 2; x += 14) for (const dz of [-2, 2]) plain.box(0.3, 4.6, 0.3, x, 0, z + dz, 0x6b6b6b, { noAO: true });
 }

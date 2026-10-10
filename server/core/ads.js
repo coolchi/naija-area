@@ -123,7 +123,9 @@ export function runAutoChecks(app, id) {
   const hit = (list) => list.filter(k => new RegExp(`(^|[^a-z])${k.replace(/ /g, '\\s+')}([^a-z]|$)`).test(text));
   const prohibited = hit(AD_POLICY.prohibitedKeywords);
   if (prohibited.length) { app.db.prepare('UPDATE ad_campaigns SET reject_reason=?, flags=? WHERE id=?').run(`Auto-rejected: prohibited content (${prohibited.join(', ')})`, JSON.stringify(['prohibited:' + prohibited.join('|')]), id); transition(app, id, 'rejected', 'system', 'prohibited keyword'); return 'rejected'; }
-  for (const k of hit(AD_POLICY.restrictedKeywords)) flags.push('restricted_category:' + k);
+  const restricted = hit(AD_POLICY.restrictedKeywords); const rules = app.cities[c.city_id]?.contentRules;
+  if (restricted.length && rules?.rejectRestrictedAds) { app.db.prepare('UPDATE ad_campaigns SET reject_reason=?, flags=? WHERE id=?').run(`Auto-rejected: this city does not allow ${restricted.join(', ')} ads`, JSON.stringify(['city_rule:' + restricted.join('|')]), id); transition(app, id, 'rejected', 'system', 'city content rule'); return 'rejected'; }
+  for (const k of restricted) flags.push('restricted_category:' + k);
   if (flags.length) flags.push('needs_regulator_paperwork_check');
   const dup = app.db.prepare('SELECT COUNT(*) n FROM ad_creatives WHERE sha256=(SELECT sha256 FROM ad_creatives WHERE id=?) AND id!=?').get(c.creative_id, c.creative_id).n;
   if (dup) flags.push('duplicate_creative_seen_before');

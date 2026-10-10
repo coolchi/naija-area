@@ -5868,6 +5868,20 @@
     "z": -10,
     "ry": 0
    }
+  },
+  {
+   "id": "to-shagamu",
+   "name": "Lagos-Ibadan Expressway (to Ogun State)",
+   "to": "ogun-shagamu",
+   "x": 0,
+   "z": -226,
+   "r": 16,
+   "fare": 800,
+   "arrive": {
+    "x": -170,
+    "z": -40,
+    "ry": 0
+   }
   }
  ]
 }

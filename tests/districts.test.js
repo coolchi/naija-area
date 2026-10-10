@@ -11,7 +11,7 @@ const hb = (s, u) => ok(s, 'POST', '/api/heartbeat', { uid: u, body: {} });
 const adult = (s, cash = 50000) => mkUser(s, { cash, ageMs: 10 * 60000 });
 
 test('all five Lagos districts are loaded by the registry, valid, and link to each other', () => {
-  const s = makeServer(); assert.deepEqual(Object.keys(s.app.cities), IDS);
+  const s = makeServer(); assert.deepEqual(Object.keys(s.app.cities).filter(k => k.startsWith('lagos-')), IDS);
   for (const id of IDS) { const raw = JSON.parse(fs.readFileSync(new URL(`../server/config/cities/${id}.json`, import.meta.url))); assert.deepEqual(validateCity(raw), [], id); assert.equal(s.app.cities[id].state, 'Lagos'); }
   for (const c of Object.values(s.app.cities)) for (const l of c.links || []) { assert.ok(s.app.cities[l.to], `${c.id} -> ${l.to}`); const back = s.app.cities[l.to].links.find(b => b.to === c.id); assert.ok(back, `${l.to} links back to ${c.id}`); assert.ok(Math.hypot(l.arrive.x - back.x, l.arrive.z - back.z) > back.r + 8, 'you arrive outside the gate you came through'); }
 });

@@ -28,6 +28,26 @@
       "enabled": true
     },
     {
+      "id": "kano",
+      "file": "kano.json",
+      "enabled": true
+    },
+    {
+      "id": "ogun-shagamu",
+      "file": "ogun-shagamu.json",
+      "enabled": true
+    },
+    {
+      "id": "ogun-abeokuta",
+      "file": "ogun-abeokuta.json",
+      "enabled": true
+    },
+    {
+      "id": "ogun-ijebu",
+      "file": "ogun-ijebu.json",
+      "enabled": true
+    },
+    {
       "id": "preview-town",
       "file": "preview-town.json",
       "enabled": false,
