@@ -23,10 +23,12 @@ import * as ride from './ride.js';
 import * as crash from './crash.js';
 import * as homes from './homes.js';
 import * as wear from './wearables.js';
+import * as business from './business.js';
 import * as signup from './signup.js';
 import * as office from './office.js';
 import * as account from './account.js';
-import './gamedata.js';   // registers what the table games and the word/board games hold about a player with the account download/closing module (docs/ACCOUNT_DATA.md)
+import './gamedata.js';
+import './playerdata-g.js';   // registers what the table games and the word/board games hold about a player with the account download/closing module (docs/ACCOUNT_DATA.md)
 import { checkAdminLogin } from './admin-guard.js';
 import { history, checkInvariants, moneySupply, balanceOf, cashId } from './ledger.js';
 import { RATE_CARD, AD_POLICY } from '../config/ratecard.js';
@@ -116,6 +118,15 @@ route('POST', '/api/phone/call/start', { auth: 'user' }, (c) => phone.callStart(
 route('POST', '/api/phone/call/act', { auth: 'user' }, (c) => phone.callAct(c.app, c.uid, c.body.callId, c.body.action));
 route('POST', '/api/phone/call/signal', { auth: 'user' }, (c) => phone.callSignal(c.app, c.uid, c.body.callId, c.body));
 route('POST', '/api/phone/call/stats', { auth: 'user' }, (c) => phone.reportCallEnded(c.app, c.uid, c.body.callId, c.body.icePath));
+// player-owned businesses (Mama Put, barber, shop, car wash): see server/core/business.js
+route('GET', '/api/business', { auth: 'user' }, (c) => business.view(c.app, c.uid));
+route('POST', '/api/business/buy', { auth: 'user' }, (c) => business.buy(c.app, c.uid, String(c.body.type || ''), c.body.name, c.body.idem));
+route('POST', '/api/business/collect', { auth: 'user' }, (c) => business.collect(c.app, c.uid, c.body.id, c.body.idem));
+route('POST', '/api/business/hire', { auth: 'user' }, (c) => business.hire(c.app, c.uid, c.body.id, c.body.candidate));
+route('POST', '/api/business/fire', { auth: 'user' }, (c) => business.fire(c.app, c.uid, c.body.id, c.body.staffId));
+route('POST', '/api/business/upgrade', { auth: 'user' }, (c) => business.upgrade(c.app, c.uid, c.body.id, c.body.idem));
+route('POST', '/api/business/rename', { auth: 'user' }, (c) => business.rename(c.app, c.uid, c.body.id, c.body.name));
+route('POST', '/api/business/sell', { auth: 'user' }, (c) => business.sell(c.app, c.uid, c.body.id, c.body.idem));
 // jewelry store + cap store (wearables): public catalogue, the shop window, buy, wear, take off, (optional) sell back
 route('GET', '/api/wearables/catalogue', (c) => wear.catalogue(c.app));
 route('GET', '/api/wearables/shop', { auth: 'user' }, (c) => wear.shopView(c.app, c.uid, String(c.query.venueId || '')));

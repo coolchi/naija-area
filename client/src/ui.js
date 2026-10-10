@@ -8,6 +8,7 @@ import { buyCard, checkReturn } from './pay-ui.js';
 import { setupFlow } from './setup-ui.js';
 import { officeSheet } from './office-ui.js';
 import { downloadData, closeAccountSheet } from './account-ui.js';
+import { lifeUi } from './life-ui.js';
 
 // ---- pidgin toasts (tone: playful, never about real money) ----
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -275,3 +276,4 @@ export class UI {
 }
 const dist2 = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const typeLabel = (t) => ({ venue: 'Place to hang out', shop: 'Shop', job: 'Work', house: 'House', plot: 'Land plot', landmark: 'Landmark' }[t] || t);
+Object.assign(UI.prototype, lifeUi); // Track G: City life app (businesses, market, clubs, events, pass)
