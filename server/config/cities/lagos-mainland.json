@@ -4633,6 +4633,15 @@
      "x": 3.2,
      "z": -2.2,
      "color": "#2e7d32"
+    },
+    {
+     "id": "landlord1",
+     "type": "game",
+     "game": "landlord",
+     "label": "Landlord Lagos board",
+     "x": -2.6,
+     "z": -2.4,
+     "color": "#2e7d32"
     }
    ],
    "room": {
