@@ -22,4 +22,4 @@ const sport = { id: 'tennis', label: 'Tennis', cfg, shots, serves, secondServe: 
   scoreView(st) { const [pa, pb] = pointText(st.points[0], st.points[1]); return { points: [pa, pb], raw: st.points.slice(), games: st.games.slice(), sets: st.sets.slice(), gameNo: st.gameNo, setsToWin: st.setsToWin, gamesToWin: GAMES_TO_WIN, text: `Games ${st.games[0]}-${st.games[1]} · ${pa}-${pb}${st.sets[0] + st.sets[1] ? ` · sets ${st.sets[0]}-${st.sets[1]}` : ''}` }; },
   standing: (st) => [st.sets[0] * 10000 + st.games[0] * 100 + st.points[0], st.sets[1] * 10000 + st.games[1] * 100 + st.points[1]] };
 const eng = makeEngine(sport);
-export const { newGame, play, forfeit, view, bot } = eng; export default eng; export { shots, serves, cfg, sport };
+export const { newGame, play, forfeit, view, bot, legal } = eng; export default eng; export { shots, serves, cfg, sport };

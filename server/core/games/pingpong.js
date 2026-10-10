@@ -22,4 +22,4 @@ const sport = { id: 'pingpong', label: 'Ping pong', cfg, shots, serves, secondSe
   scoreView(st) { return { points: st.points.slice(), games: st.games.slice(), gameNo: st.gameNo, to: GAME_POINTS, gamesToWin: GAMES_TO_WIN, text: `Game ${st.gameNo}: ${st.points[0]}-${st.points[1]} · games ${st.games[0]}-${st.games[1]}` }; },
   standing: (st) => [st.games[0] * 100 + st.points[0], st.games[1] * 100 + st.points[1]] };
 const eng = makeEngine(sport);
-export const { newGame, play, forfeit, view, bot } = eng; export default eng; export { shots, serves, cfg, sport };
+export const { newGame, play, forfeit, view, bot, legal } = eng; export default eng; export { shots, serves, cfg, sport };
