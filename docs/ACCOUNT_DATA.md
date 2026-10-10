@@ -14,10 +14,10 @@ Closes the "data-subject rights gap" in `docs/LAUNCH.md` §8 (NDPA 2023 access a
 - The old session cookie stops working immediately (checked on every request).
 
 ## For other builders (new games and tables)
-Anything holding per-player data must call `registerPlayerData(name, exportFn, eraseFn, keepNote)` from `server/core/account.js` (see the test `modules can register their own player data`). **Track branches (chess, word games, property game, Suwe, sports hall) have their own tables: after merging, register them, or players' closed accounts will leave rows behind.** Nobody has done that yet.
+Anything holding per-player data must call `registerPlayerData(name, exportFn, eraseFn, keepNote)` from `server/core/account.js` (see the test `modules can register their own player data`). **Done for the Track C and D games** (`server/core/gamedata.js`, registered as `tableGamesAndWordGames`, test `tests/accountgames.test.js`): chess, Word Duel, Landlord Lagos, Suwe, ping pong and tennis, Find Am. They added **no tables of their own**: they use `game_matches`, `game_players`, `game_scores` (scores are erased by the core routine) and `casual_runs`/`casual_daily` (erased by the core routine). The download adds a list of the table matches you sat at and your Find Am/Suwe street runs. On closing, finished matches stay (the other player's record and the ledger need them) with your @name in the result text replaced by "a player". Any future game that adds a table must register it the same way.
 
 ## NOT verified
 - No lawyer has confirmed what must be kept or the retention periods; whether blanking the phone message text but keeping the thread shell is enough.
-- Tables added by the merged tracks are not yet registered (above). Backups still contain the data until they rotate (retention of backups is not defined).
+- Match state (for example the words you played in a Word Duel, your Landlord moves) stays inside the finished match rows, attached to an anonymised player id; it is not listed in the download. Backups still contain the data until they rotate (retention of backups is not defined).
 - A WebSocket or open page of the closed account may keep running until its next request.
 - Not tried on Postgres by hand beyond the automated parity run; not tried by a human on a phone.

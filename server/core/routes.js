@@ -26,6 +26,7 @@ import * as wear from './wearables.js';
 import * as signup from './signup.js';
 import * as office from './office.js';
 import * as account from './account.js';
+import './gamedata.js';   // registers what the table games and the word/board games hold about a player with the account download/closing module (docs/ACCOUNT_DATA.md)
 import { checkAdminLogin } from './admin-guard.js';
 import { history, checkInvariants, moneySupply, balanceOf, cashId } from './ledger.js';
 import { RATE_CARD, AD_POLICY } from '../config/ratecard.js';
