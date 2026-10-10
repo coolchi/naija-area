@@ -1,6 +1,7 @@
 // Car parks (10 Oct 2026). A player who is DRIVING their own (owned, active) car inside a lot can park it in a bay for the lot's small fee (game money, through the ledger).
 // The parked car stays in its bay for everyone to see until its owner takes it back (walk up to it), sells it, or 3 days pass (then it simply returns to the garage, no fee).
 // While your active car is parked you cannot drive it somewhere else: the server ignores the 'drive' mode in the heartbeat. Ambient cars fill the other bays (deterministic, client side).
+import { assertNotFlying } from './flight.js';
 import { cityOf } from './cities.js';
 import { bad } from './util.js';
 import { notify } from './economy.js';
@@ -27,6 +28,7 @@ export function view(app, uid) {
 }
 
 export function park(app, uid, idemKey) {
+  assertNotFlying(app, uid);
   const P = app.balance.parking; if (!P.enabled) bad('OFF', 'Parking is switched off.', 409);
   const p = ensurePresence(app, uid); if (p.mode !== 'drive') bad('NOT_DRIVING', 'Drive your car into the car park first.', 409);
   const car = carFor(app, uid); if (!car.owned) bad('NO_OWN_CAR', 'Only your own car can be parked here. Buy one at Naija Auto Mart.', 409);

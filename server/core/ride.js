@@ -1,5 +1,6 @@
 // Oya Ride (in-game ride-hailing, a generic placeholder name; no real brand). The player picks a destination in the phone app, gets a fare and arrival estimate, a driver car
 // (an AI driver) drives to the player's spot, the player gets in and the trip uses the normal server travel flow (position move, fare through the ledger). All numbers are ESTIMATE placeholders in balance.ride.
+import { assertNotFlying } from './flight.js';
 import { cityOf } from './cities.js';
 import { bad } from './util.js';
 import { ensurePresence } from './world.js';
@@ -22,6 +23,7 @@ function refresh(app, uid) { const r = rides(app).get(uid); if (!r) return null;
 const view = (app, r) => r && ({ id: r.id, state: r.state, placeId: r.placeId, placeName: cityOf(app, r.uid).placeById[r.placeId]?.name, fare: r.fare, from: r.from, requestedAt: r.requestedAt, arriveAt: r.arriveAt, expiresAt: r.expiresAt, driver: r.driver, driverDist: r.driverDist, estimate: true });
 export const status = (app, uid) => ({ ride: view(app, refresh(app, uid)), service: app.balance.ride.name });
 export function request(app, uid, placeId) {
+  assertNotFlying(app, uid);
   const R = app.balance.ride; if (!R.enabled) bad('OFF', 'Oya Ride is switched off.', 409); const p = ensurePresence(app, uid); if (p.mode === 'drive') bad('DRIVING', 'Park your car first.', 409); if (p.venue) bad('INSIDE', 'Step outside first.', 409);
   if (refresh(app, uid)) bad('ACTIVE', 'You already have a ride on the way.', 409); const q = quote(app, uid, placeId); if (q.distance < R.minDistanceM) bad('TOO_CLOSE', 'That is very near. Just walk.', 409);
   if (!app.limiter.hit(`ride:${uid}`, R.requestsPerMin, 60000, app.clock.now())) bad('RATE_LIMIT', 'Easy, one ride at a time.', 429);

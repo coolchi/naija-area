@@ -1,5 +1,6 @@
 // Presence + heartbeat. Plain-HTTP polling: client posts its movement trail + ad-view evidence, server answers with nearby
 // players' trails, state, world time, notifications and the recommended next interval (load adaptive).
+import { tick as flightTick, mini as flightMini } from './flight.js';
 import { bad, clamp, cleanText } from './util.js';
 import { screen } from './filter.js';
 import { hiddenFrom, chatMuted } from './safety.js';
@@ -64,12 +65,13 @@ export function heartbeat(app, uid, body, meta = {}) {
   p.lastSeen = now; p.headless = !!meta.headless;
   if (body.mode === 'walk' || body.mode === 'drive') { if (body.mode === 'drive' && p.mode !== 'drive' && parkedActive(app, uid)) { /* your car is parked: it cannot be driven from elsewhere */ } else p.mode = body.mode; }
   if (typeof body.activity === 'string') p.activity = cleanText(body.activity, 24);
+  const fl = flightTick(app, uid); const flying = fl?.state === 'flying';
   const stale = typeof body.city === 'string' && body.city !== p.city; // the client is still in the old city (it reloads on this response): its trail and evidence do not count here
-  if (!stale) applyTrail(app, p, body.trail, now); venueTick(app, p);
+  if (!stale && !flying) applyTrail(app, p, body.trail, now); venueTick(app, p);
   if (now - p.lastPersist > 30000) { app.db.prepare('UPDATE player_state SET x=?,z=?,ry=?,mode=?,updated_at=? WHERE user_id=?').run(p.x, p.z, p.ry, p.mode, now, uid); app.db.prepare('UPDATE users SET last_seen=? WHERE id=?').run(now, uid); p.lastPersist = now; }
   // ad evidence (validated server-side; client sends evidence, never counts)
   let adResult = null;
-  if (!stale && Array.isArray(body.evidence) && body.evidence.length) adResult = processEvidence(app, p, body.evidence.slice(0, 40), now);
+  if (!stale && !flying && Array.isArray(body.evidence) && body.evidence.length) adResult = processEvidence(app, p, body.evidence.slice(0, 40), now);
   // other players near me
   const hb = app.balance.heartbeat; const since = Number.isFinite(body.since) ? body.since : 0; const cutoff = now - hb.activeWindowMs;
   const cand = [];
@@ -92,7 +94,7 @@ export function heartbeat(app, uid, body, meta = {}) {
     .filter(m => m.city_id === p.city && dist(m.x, m.z, p.x, p.z) <= app.balance.chat.radius && !hidden.has(m.user_id)).map(m => ({ id: m.id, u: m.username, t: m.text, at: m.created_at }));
   const chatMax = app.db.prepare('SELECT COALESCE(MAX(id),0) m FROM chat_messages').get().m;
   const me = profile(app, uid);
-  const resp = { now, interval, ccu, city: p.city, shed: interval >= 20000, world: gameTime(app, now), me, players, notifs, chat, chatCursor: chatMax,
+  const resp = { now, interval, ccu, city: p.city, flight: flightMini(app, uid), shed: interval >= 20000, world: gameTime(app, now), me, players, notifs, chat, chatCursor: chatMax,
     knocks: knockState(app, uid), game: myMatchView(app, uid), venue: p.venue || null, teleport: p.force || undefined, adsVersion: app.adsVersion, ads: body.adsVersion === app.adsVersion ? undefined : adsSnapshot(app, now, p.city), adResult };
   p.force = undefined;
   return resp;

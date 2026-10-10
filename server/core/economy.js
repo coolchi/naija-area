@@ -1,4 +1,5 @@
 // Economy v0. ALL amounts live in config/balance.js (ESTIMATES). Everything that moves money goes through ledger.post.
+import { assertNotFlying } from './flight.js';
 import { cityOf, cityIdOf } from './cities.js';
 import { bad, clamp, cleanText, dayKey } from './util.js';
 import { screen } from './filter.js';
@@ -57,6 +58,7 @@ export function jobsFor(app, uid) {
 }
 export function activeShift(app, uid) { return app.db.prepare("SELECT * FROM shifts WHERE user_id=? AND status='active'").get(uid); }
 export function startShift(app, uid, jobId) {
+  assertNotFlying(app, uid);
   const job = jobDef(app, jobId); if (!job) bad('NO_JOB', 'Unknown job.', 404);
   return app.db.transaction(() => {
     const now = app.clock.now(); const st = refreshNeeds(app, uid);

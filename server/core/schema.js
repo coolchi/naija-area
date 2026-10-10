@@ -227,6 +227,8 @@ export function migrate(db) {
   const add = (t, c, def) => { if (!cols(t).includes(c)) db.exec(`ALTER TABLE ${t} ADD COLUMN ${c} ${def}`); };
   add('property_items', 'x', 'INTEGER NOT NULL DEFAULT 0'); add('property_items', 'z', 'INTEGER NOT NULL DEFAULT 0'); add('property_items', 'rot', 'INTEGER NOT NULL DEFAULT 0');
   add('player_state', 'city_id', "TEXT NOT NULL DEFAULT 'lagos-mainland'"); add('chat_messages', 'city_id', "TEXT NOT NULL DEFAULT 'lagos-mainland'"); add('ad_campaigns', 'city_id', "TEXT NOT NULL DEFAULT 'lagos-mainland'");
+  db.exec(`CREATE TABLE IF NOT EXISTS flights (user_id INTEGER PRIMARY KEY, from_city TEXT NOT NULL, to_city TEXT NOT NULL, state TEXT NOT NULL, fare INTEGER NOT NULL, departs_at INTEGER NOT NULL, arrive_at INTEGER NOT NULL, created_at INTEGER NOT NULL)`);
+  add('player_state', 'last_flight_at', 'INTEGER NOT NULL DEFAULT 0');
   add('users', 'chat_muted_until', 'INTEGER NOT NULL DEFAULT 0');
   add('property_owner', 'name_hidden', 'INTEGER NOT NULL DEFAULT 0'); add('property_owner', 'wall_color', "TEXT NOT NULL DEFAULT 'cream'"); add('property_owner', 'floor_color', "TEXT NOT NULL DEFAULT 'oak'");
   add('player_state', 'mood', 'REAL NOT NULL DEFAULT 60'); add('player_state', 'hair', 'TEXT'); add('player_state', 'hair_at', 'INTEGER NOT NULL DEFAULT 0');

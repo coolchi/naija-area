@@ -5810,5 +5810,30 @@
    "loop": "cv2-loop",
    "ry": 1.49
   }
- ]
+ ],
+ "state": "Lagos",
+ "airport": {
+  "id": "ap_lagos",
+  "name": "Lagos Airport (placeholder)",
+  "door": {
+   "x": 183,
+   "z": -169
+  },
+  "apron": {
+   "x": 262,
+   "z": -200
+  },
+  "runway": {
+   "x0": 300,
+   "z0": -130,
+   "x1": 300,
+   "z1": -470,
+   "width": 26
+  },
+  "arrive": {
+   "x": 183,
+   "z": -165,
+   "ry": 0
+  }
+ }
 }

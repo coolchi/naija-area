@@ -1,4 +1,5 @@
 // House presence, the visitor knock flow, DMs, travel (fare + timed commute) and land plots.
+import { assertNotFlying } from './flight.js';
 import { cityOf } from './cities.js';
 import { bad, cleanText } from './util.js';
 import { maxGuestsOf, plotStage } from './housing.js';
@@ -88,6 +89,7 @@ export function travelQuote(app, uid, placeId) {
   return { place: { id: pl.id, name: pl.name, type: pl.type, area: pl.area }, distance: Math.round(d), traffic: rush ? 'Go-slow (rush hour)' : 'Free road', rush, modes: [{ id: 'walk', label: 'Walk', fare: 0, seconds: Math.round(d / 5.2) }, ...modes] };
 }
 export function travel(app, uid, placeId, mode, idemKey, override = null) {
+  assertNotFlying(app, uid);
   if (mode === 'ride' && !override) bad('BAD_MODE', 'Call a ride from the phone.');
   if (mode === 'walk') bad('WALK', 'Walking needs no ticket: just set a waypoint and go.');
   const q = travelQuote(app, uid, placeId); const m = override || q.modes.find(x => x.id === mode); if (!m) bad('BAD_MODE', 'Pick keke, danfo or car.');

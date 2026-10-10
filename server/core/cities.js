@@ -15,7 +15,7 @@ export const cityList = (app, uid) => Object.values(app.cities).map(c => ({ id: 
 /** Move a player into another city at one of its spawn points. Used by the airport and by tests. Server-authoritative; the client reloads its world on the next heartbeat. */
 export function enterCity(app, uid, cityId, spawnIdx = 0) {
   const c = app.cities[cityId]; if (!c || c.enabled === false) bad('NO_CITY', 'That place is not open yet.', 404);
-  const sp = c.spawns[((spawnIdx % c.spawns.length) + c.spawns.length) % c.spawns.length]; const now = app.clock.now();
+  const sp = typeof spawnIdx === 'object' && spawnIdx ? spawnIdx : c.spawns[((spawnIdx % c.spawns.length) + c.spawns.length) % c.spawns.length]; const now = app.clock.now(); // spawnIdx may also be an explicit {x,z,ry} (the airport arrival point)
   const p = app.world.players.get(uid);
   if (p) { p.city = cityId; p.x = sp.x; p.z = sp.z; p.ry = sp.ry || 0; p.mode = 'walk'; p.venue = null; p.trail = [{ t: now, x: sp.x, z: sp.z, ry: p.ry }]; p.force = { x: sp.x, z: sp.z }; }
   app.db.prepare("UPDATE player_state SET city_id=?, x=?, z=?, ry=?, mode='walk', updated_at=? WHERE user_id=?").run(cityId, sp.x, sp.z, sp.ry || 0, now, uid);

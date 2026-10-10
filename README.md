@@ -21,6 +21,10 @@ node scripts/loadtest.mjs 50,200,500 40   # measured bot load test (real HTTP he
 
 Environment: `PORT`, `HOST` (default 127.0.0.1: put a TLS proxy in front before exposing), `NA_DB` (SQLite file, default `data/naija-area.db`), `ADMIN_PASSWORD` (admin at `/admin`; a dev-only default is used with a warning if unset), `NA_DEV=1` (enables `/api/dev/*` teleport/cash helpers, never in production), `NA_LAND_DAY_MS` (shorten the land "day" to watch growth), `BOTS`.
 
+## Cities and the airport (10 Oct 2026)
+- More than one city is supported: `server/config/cities/index.json` lists them, `tools/new-city.mjs` makes a valid skeleton, and everything per player (presence, chat, ads, shops, jobs, venues) follows the player's city. See `docs/CITIES.md`. Only Lagos is enabled; start with `NA_PREVIEW_CITIES=1` to also load a fictional preview town.
+- The Lagos airport has a departure board, tickets through the ledger, a visible plane that takes off and circles, and landing in the other city. See `docs/AIRPORT.md`. Smokes: `node scripts/cities-smoke.mjs`, `node scripts/airport-smoke.mjs`.
+
 ## How to play (also shown by the in-game "?" tour)
 - **Move:** WASD / arrows (Shift = run), drag to orbit the camera, wheel to zoom, **C** car, **T** chat, **P** phone, **M** map. On phones: on-screen joystick and tap. First-run tour (6 cards), a **?** button to reopen it, and a one-line "what to do next" hint.
 - **Tap a place** (building, sign, door, ground near one): bottom sheet with name, hours and travel chips (walk, keke, danfo, your car, **Oya Ride** from the phone) with fares and a big **Go** button. The big **map** (minimap tap / phone) is detailed and searchable, shows your house, and can auto-navigate you (walk or drive yourself) with ETA.

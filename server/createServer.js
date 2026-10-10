@@ -22,8 +22,8 @@ export const ROOT = path.resolve(here, '..');
 
 export function loadCity(file = path.join(here, 'config/cities/lagos-mainland.json')) { return JSON.parse(fs.readFileSync(file, 'utf8')); }
 /** city registry (config/cities/index.json): the default city plus every other enabled city */
-export function loadRegistry(dir = path.join(here, 'config/cities')) {
-  const reg = JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8')); const on = reg.cities.filter(c => c.enabled !== false); const def = on.find(c => c.id === reg.default) || on[0];
+export function loadRegistry(dir = path.join(here, 'config/cities'), env = process.env) {
+  const reg = JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8')); const on = reg.cities.filter(c => c.enabled !== false || (c.preview && env.NA_PREVIEW_CITIES === '1')); /* preview cities only load when NA_PREVIEW_CITIES=1 */ const def = on.find(c => c.id === reg.default) || on[0];
   return { cityJson: loadCity(path.join(dir, def.file)), extraCities: on.filter(c => c !== def).map(c => loadCity(path.join(dir, c.file))) };
 }
 

@@ -1,4 +1,5 @@
 // Transport-agnostic route table. Express adapts it (server/index.js); the static demo adapts it to an in-browser fetch mock.
+import * as flight from './flight.js';
 import { cityOf, publicCity, cityList, onlineByCity } from './cities.js';
 import { GameError, bad, cleanText } from './util.js';
 import * as auth from './auth.js';
@@ -112,6 +113,9 @@ route('GET', '/api/scoreboard', { auth: 'user' }, (c) => games.scoreboard(c.app,
 route('GET', '/api/garage', { auth: 'user' }, (c) => cars.garageView(c.app, c.uid));
 route('POST', '/api/garage/buy', { auth: 'user' }, (c) => cars.buyCar(c.app, c.uid, c.body.model, c.body.idemKey));
 route('POST', '/api/garage/use', { auth: 'user' }, (c) => cars.setActive(c.app, c.uid, Number(c.body.carId)));
+route('GET', '/api/flights', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, undefined); return flight.view(c.app, c.uid); });
+route('POST', '/api/flights/buy', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return flight.buy(c.app, c.uid, String(c.body.to || ''), c.body.departAt, c.body.idem); });
+route('POST', '/api/flights/cancel', { auth: 'user' }, (c) => flight.cancel(c.app, c.uid));
 route('GET', '/api/ride', { auth: 'user' }, (c) => ride.status(c.app, c.uid));
 route('GET', '/api/ride/quote', { auth: 'user' }, (c) => ride.quote(c.app, c.uid, String(c.query.place || '')));
 route('POST', '/api/ride/request', { auth: 'user' }, (c) => ride.request(c.app, c.uid, String(c.body.placeId || '')));

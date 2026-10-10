@@ -53,3 +53,9 @@ Client `client/src/`: `main.js` (game loop and wiring), `world.js` (city, lights
 
 ## Measured load (this box only)
 See `docs/LOADTEST.md`: a separate server process, real HTTP guests and heartbeats; CPU, memory and latency measured on an 8-core sandbox, not a production forecast.
+
+
+## Multi-city and flights (added 10 Oct 2026)
+- `server/core/cities.js`: `cityOf(app, uid)` is the one way server code asks "which city is this player in". `app.city` is only the default city; `app.cities` has all; `app.all` has merged by-id lookups (house, venue, bus stop, car park, plot, billboard ids are unique across cities). New code that lists things for a player must use `cityOf`.
+- `server/core/flight.js`: tickets and flights in the `flights` table, advanced lazily from the heartbeat; arrival calls `enterCity`.
+- The client builds the world for one city only and reloads when the server says the player's city changed.
