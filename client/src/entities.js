@@ -146,19 +146,21 @@ export class Ghosts {
     for (const p of list) {
       seen.add(p.id); let g = this.map.get(p.id);
       if (!g) { g = { id: p.id, name: p.ct ? `[${p.ct}] ${p.n}` : p.n, color: p.c, mode: -1, samples: [], obj: null, tag: null, act: '' }; this.map.set(p.id, g); }
-      g.mode = p.m; g.act = p.act || ''; g.wear = p.w || [];
+      g.mode = p.m; g.act = p.act || ''; g.e = p.e || ''; g.wear = p.w || []; if ((p.t || '') !== (g.title || '')) { g.title = p.t || ''; if (g.root) this.retag(g); }
       const skKey = p.sk ? `${p.sk.a || ''}|${p.sk.c || ''}` : ''; if (g.skKey !== skKey) { g.skKey = skKey; g.sk = p.sk || null; if (g.root) { this.scene.remove(g.root); g.root = null; g.kind = null; } } // a new skin: rebuild the body in its colours
       for (const [off, x, z, ry] of p.s) { const t = serverNow + off; if (!g.samples.length || t > g.samples[g.samples.length - 1].t + 50) g.samples.push({ t, x, z, ry }); }
       if (g.samples.length > 60) g.samples.splice(0, g.samples.length - 60);
       this.build(g);
     }
-    for (const [id, g] of this.map) if (!seen.has(id)) { if (g.root) this.scene.remove(g.root); this.map.delete(id); }
+    for (const [id, g] of this.map) if (!seen.has(id)) { this.emotes?.clear(g); if (g.root) this.scene.remove(g.root); this.map.delete(id); }
   }
+  /** the name tag shows the name and, when the player has one, their title (achievements.js on the server) */
+  retag(g) { const y = g.tag?.position.y ?? 3.6; if (g.tag) { g.root.remove(g.tag); g.tag.material.map?.dispose?.(); g.tag.material.dispose?.(); } g.tag = makeNameSprite(g.title ? `${g.name} · ${g.title}` : g.name, '#ffffff'); g.tag.position.set(0, y, 0); g.root.add(g.tag); }
   build(g) {
     const want = g.mode === 1 ? 'car' : 'walk'; if (g.kind === want && g.root) return;
     if (g.root) this.scene.remove(g.root);
     const sl = this.skinLook?.(g.sk, want) || null; g.root = new THREE.Group(); g.obj = want === 'car' ? makePlayerCar(sl?.color || g.color) : makeAvatar(sl?.color || g.color); if (sl?.glow) addSkinGlow(g.obj, sl.glow, want === 'car' ? 3.4 : 1.1); g.root.add(g.obj);
-    g.tag = makeNameSprite(g.name, '#ffffff'); g.tag.position.set(0, want === 'car' ? 4.2 : 3.6, 0); g.root.add(g.tag); g.kind = want; this.scene.add(g.root); g.first = true;
+    g.tag = makeNameSprite(g.title ? `${g.name} · ${g.title}` : g.name, '#ffffff'); g.tag.position.set(0, want === 'car' ? 4.2 : 3.6, 0); g.root.add(g.tag); g.kind = want; this.scene.add(g.root); g.first = true;
   }
   update(renderT, viewer) {
     for (const g of this.map.values()) {
@@ -169,6 +171,7 @@ export class Ghosts {
       g.root.position.set(x, 0, z); g.root.rotation.y = ry;
       if (g.kind === 'walk') { applyWear(g.obj, g.wear, this.cat); if (viewer) wearLod(g.obj, Math.hypot(x - viewer.x, z - viewer.z) < 45); } // jewelry and caps: one merged mesh, hidden when far
       const moving = Math.hypot(b.x - a.x, b.z - a.z) > 0.05 && a !== b; if (g.kind === 'walk') g.obj.userData.body.position.y = moving ? Math.abs(Math.sin(renderT / 140)) * 0.08 : 0;
+      if (this.emotes) this.emotes.step(g, g.e || '', moving, g.kind === 'walk' ? { y: g.obj.userData.body.position.y, rx: 0, rz: 0 } : undefined, g.kind === 'walk' ? 3.6 : 4.2); // emoji bubble and dance of other players
     }
   }
   dispose() { for (const g of this.map.values()) this.scene.remove(g.root); this.map.clear(); }

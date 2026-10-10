@@ -1,5 +1,6 @@
 // Economy v0. ALL amounts live in config/balance.js (ESTIMATES). Everything that moves money goes through ledger.post.
 import { assertNotFlying } from './flight.js';
+import * as guardian from './guardian.js';
 import { cityOf, cityIdOf } from './cities.js';
 import { bad, clamp, cleanText, dayKey } from './util.js';
 import { screen } from './filter.js';
@@ -315,6 +316,7 @@ export function transfer(app, uid, toUsername, amount, idemKey) {
   const t = app.balance.transfer; const now = app.clock.now();
   const me = app.db.prepare('SELECT id, username, is_guest, created_at FROM users WHERE id=?').get(uid);
   if (me.is_guest && !t.allowGuests) bad('GUEST_NOT_ALLOWED', 'Guests cannot send money. Create an account.', 403);
+  guardian.assertTransfer(app, uid);
   // plan 07: closed loop. Game money that was bought with real money must not be passed to other players, so buyers cannot send transfers (a conservative rule until a lawyer says otherwise)
   if (app.payments?.cfg.blockTransfersAfterPurchase && app.db.prepare("SELECT 1 FROM payment_intents WHERE user_id=? AND status IN ('paid','partially_refunded')").get(uid)) bad('PURCHASED_CURRENCY', 'Accounts that bought ₦ cannot send money to other players.', 403);
   if (!Number.isInteger(amount) || amount < t.minAmount) bad('BAD_AMOUNT', `Minimum transfer is ₦${t.minAmount}.`);

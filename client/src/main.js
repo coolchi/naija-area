@@ -10,6 +10,13 @@ import { BusStops } from './bus-client.js';
 import { RideClient } from './ride-client.js';
 import { Tour } from './tour.js';
 import { setupFlow } from './setup-ui.js';
+import { TutorialCard } from './tutorial-ui.js';
+import * as Q from './quality.js';
+import { GameAudio } from './audio.js';
+import { readyCount } from './missions-ui.js';
+import { GuardianWatch, showBreak } from './guardian-ui.js';
+import { EmoteSystem, emoteSheet } from './emotes.js';
+import { PhotoMode } from './photo.js';
 import { AirportClient } from './airport-client.js';
 import { LinkClient } from './link-client.js';
 import { BoatClient } from './boat-client.js';
@@ -48,6 +55,7 @@ class Game {
   }
   horn(c, car) {
     const now = performance.now(); if (now - (this.lastHorn || 0) < 3000 || !this.ctrl || Math.hypot(car.x - this.ctrl.x, car.z - this.ctrl.z) > 30) return; this.lastHorn = now;
+    if (this.audio?.running) { this.audio.play('horn', 0.35 * (1 - Math.hypot(car.x - this.ctrl.x, car.z - this.ctrl.z) / 34)); return; }
     try { const A = (this.hornCtx ||= new (window.AudioContext || window.webkitAudioContext)()); const o = A.createOscillator(), gn = A.createGain(); o.type = 'square'; o.frequency.value = c.type === 'danfo' ? 330 : 440; gn.gain.value = 0.015; o.connect(gn).connect(A.destination); o.start(); o.stop(A.currentTime + 0.18); } catch {}
   }
   serverNow() { return Date.now() + this.clockOffset; }
@@ -59,14 +67,15 @@ class Game {
     try {
       this.progress(8, 'Reaching the server…'); const [cfg, city] = await Promise.all([get('/api/config'), get('/api/city')]); this.cfg = cfg; this.city = city; get('/api/wearables/catalogue').then(c => { this.wearCat = indexCatalogue(c); if (this.ghosts) this.ghosts.cat = this.wearCat; this.syncWear(this.user?.wear); }).catch(() => {}); const legacy = (x, z) => (z > 125 ? 'Lagoon Front' : x < 0 && z < 0 ? 'Yaba' : x >= 0 && z < 0 ? 'Ikeja' : x < 0 ? 'Surulere' : 'Lekki Phase 1'); city.area = (x, z) => city.districts?.find(d => x >= d.x0 && x < d.x1 && z >= d.z0 && z < d.z1)?.name || (city.id === 'lagos-mainland' ? legacy(x, z) : city.cityName); $('#tagline').textContent = cfg.tagline || ''; document.title = cfg.name;
       this.progress(30, 'Building the district…'); await new Promise(r => setTimeout(r, 30));
-      this.renderer = new THREE.WebGLRenderer({ canvas: $('#game'), antialias: devicePixelRatio < 2, powerPreference: 'high-performance' }); this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+      this.qualityChoice = Q.readChoice(localStorage); this.governor = new Q.Governor(); const q0 = Q.profileFor(Q.resolve(this.qualityChoice, Q.readEnv())); this.renderer = new THREE.WebGLRenderer({ canvas: $('#game'), antialias: q0.antialias && devicePixelRatio < 2, powerPreference: 'high-performance' }); this.renderer.setPixelRatio(Math.min(devicePixelRatio, q0.pixelRatio));
       this.camera = new THREE.PerspectiveCamera(58, 1, 0.5, 900); this.camera.position.set(0, 14, 20);
       this.world = buildWorld(city); this.scene = this.world.scene; this.decorate(); this.weather = new Weather(this.scene, this.world);
       this.progress(60, 'Putting traffic on the road…'); await new Promise(r => setTimeout(r, 30));
-      this.traffic = new Traffic(this.scene, city.trafficLoops, city.busStops || []); this.traffic.onHorn = (c, car) => this.horn(c, car); this.walkers = new Walkers(this.scene, city.zones); this.ghosts = new Ghosts(this.scene); this.ghosts.cat = this.wearCat; this.ghosts.skinLook = (sk, want) => this.skinLookOf(want === 'car' ? sk?.c : sk?.a);
-      this.ads = new AdsClient(this.world, city, () => this.serverNow()); this.ui = new UI(this); this.net = new Net(this); this.interior = new Interior(this); this.venue = new Venue(this); this.garage = new GarageView(this);
-      this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root); this.setupPhysx(city); applyServerLimits(this.cfg.movement); this.ctrl.onStep = (k) => this.ui.sfx('step', PHYS.audio.footstepVol * (0.6 + 0.4 * k)); this.ctrl.onBump = (imp) => this.ui.sfx('thud', PHYS.audio.thudVol * Math.min(1.4, 0.4 + imp / 12)); this.ctrl.obstacles = (x, z, r) => this.traffic.obstaclesNear(x, z, r); this.nav = new Nav(this); this.parking = new ParkingClient(this); this.bus = new BusStops(this); this.rideSvc = new RideClient(this); this.links = new LinkClient(this); this.boats = new BoatClient(this); this.radio = new RadioClient(this); this.radioSpots = new RadioSpots(this); this.air = new AirportClient(this); this.crash = new CrashClient(this); this.traffic.crash = this.crash;
-      addEventListener('resize', () => this.resize()); this.resize(); this.bindAuth(); this.progress(85, TIPS[Math.floor(Math.random() * TIPS.length)]);
+      this.traffic = new Traffic(this.scene, city.trafficLoops, city.busStops || []); this.traffic.onHorn = (c, car) => this.horn(c, car); this.walkers = new Walkers(this.scene, city.zones, q0.walkers); this.ghosts = new Ghosts(this.scene); this.ghosts.cat = this.wearCat; this.ghosts.skinLook = (sk, want) => this.skinLookOf(want === 'car' ? sk?.c : sk?.a);
+      this.audio = new GameAudio({ isLowEnd: () => this.qualityLevel === 'low', radioPlaying: () => !!this.radio?.state?.playing, night: () => lampsOn(this.world.night) > 0.5 }); const unlock = () => this.audio.unlock(); addEventListener('pointerdown', unlock, true); addEventListener('keydown', unlock, true); document.addEventListener('visibilitychange', () => this.audio.visibility(document.hidden)); document.addEventListener('click', (e) => { if (e.target.closest?.('button, .btn, .round')) this.audio.play('click'); }, true);
+      this.ads = new AdsClient(this.world, city, () => this.serverNow()); this.ui = new UI(this); this.guardian = new GuardianWatch(this); window.addEventListener('na-break', (ev) => showBreak(this, ev.detail)); if (this.audio.set.on === false) { $('#muteBtn').textContent = '🔇'; this.ui.sfxOn = false; } this.net = new Net(this); this.interior = new Interior(this); this.venue = new Venue(this); this.garage = new GarageView(this);
+      this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root); this.setupPhysx(city); applyServerLimits(this.cfg.movement); this.ctrl.onStep = (k) => this.ui.sfx('step', PHYS.audio.footstepVol * (0.6 + 0.4 * k)); this.ctrl.onBump = (imp) => this.ui.sfx('thud', PHYS.audio.thudVol * Math.min(1.4, 0.4 + imp / 12)); this.ctrl.obstacles = (x, z, r) => this.traffic.obstaclesNear(x, z, r); this.nav = new Nav(this); this.parking = new ParkingClient(this); this.bus = new BusStops(this); this.rideSvc = new RideClient(this); this.links = new LinkClient(this); this.boats = new BoatClient(this); this.radio = new RadioClient(this); this.radioSpots = new RadioSpots(this); this.air = new AirportClient(this); this.crash = new CrashClient(this); this.traffic.crash = this.crash; this.emotes = new EmoteSystem(this); this.photo = new PhotoMode(this); this.ghosts.emotes = this.emotes.view; $('#emoteBtn').onclick = () => emoteSheet(this); $('#photoBtn').onclick = () => this.photo.open();
+      addEventListener('resize', () => this.resize()); this.resize(); Q.apply(this, Q.resolve(this.qualityChoice, Q.readEnv())); this.bindAuth(); this.progress(85, TIPS[Math.floor(Math.random() * TIPS.length)]);
       const me = await get('/api/me').catch(() => null); this.progress(100, 'Ready!'); await new Promise(r => setTimeout(r, 250));
       this.loop(performance.now()); $('#loading').classList.add('hidden');
       if (me) await this.enter(me.user); else $('#auth').classList.remove('hidden');
@@ -100,7 +109,7 @@ class Game {
     if (user.cityId && this.city?.id && user.cityId !== this.city.id) { this.progress?.(10, 'Loading your city…'); location.reload(); return; } // the world is built from the player's own city only
     this.playing = true; this.user = user; setTimeout(() => this.ui.checkPayReturn?.(), 1500); $('#hud').classList.remove('hidden'); get('/api/weather').then(w => this.weather?.setZones(w.zones.map(q => ({ ...q })), w.speedByLevel)).catch(() => {}); this.cfg.jobs = (await get('/api/jobs').catch(() => ({ jobs: [] }))).jobs; this.ctrl.setLook(user.color, user.username); this.syncSkins();
     const spawns = this.city.spawns; const s = spawns[user.id % spawns.length]; const p = user.pos && (user.pos.x || user.pos.z) ? user.pos : null; this.ctrl.teleport(p?.x ?? s.x, p?.z ?? s.z); this.ctrl.ry = s.ry || 0; this.ctrl.camYaw = this.ctrl.ry; this.camera.position.set(this.ctrl.x - 10, 12, this.ctrl.z + 12);
-    this.update(user); if (user.signup?.needed && (await setupFlow(this)) === 'moved') return; this.parking.load(); this.rideSvc.load(); this.tour ||= new Tour(this); this.tour.maybeStart(); this.net.start(); this.phone2 = new PhoneSys(this); this.phone2.start(); this.refreshProps(); get('/api/plots').then(d => { this.plots = d.plots; this.refreshPlots(); }).catch(() => {});
+    this.update(user); if (user.signup?.needed && (await setupFlow(this)) === 'moved') return; this.parking.load(); this.rideSvc.load(); this.tour ||= new Tour(this); this.tour.maybeStart(); this.tutorial ||= new TutorialCard(this); this.tutorial.start(); readyCount(this).then(n => { if (n > 0) this.ui.toast(`🎯 ${n} mission reward${n === 1 ? '' : 's'} waiting: phone > Missions`, 'money'); }); this.net.start(); this.phone2 = new PhoneSys(this); this.phone2.start(); this.refreshProps(); get('/api/plots').then(d => { this.plots = d.plots; this.refreshPlots(); }).catch(() => {});
     this.ui.toast(user.guest ? `Welcome, ${user.username}! You are playing as a guest.` : `Welcome back, ${user.username}!`); if (!localStorage.getItem('na_tip') && !matchMedia('(pointer: coarse)').matches) { localStorage.setItem('na_tip', '1'); setTimeout(() => { if (!this.ui.sheetOpen) this.ui.toast('Tip: tap a building or the ground near a sign to open its sheet.'); }, 1800); }
   }
   async refreshProps() { const d = await get('/api/properties').catch(() => null); if (d) { this.props = d.properties; this.world.setMarkers(d.properties); } }
@@ -120,10 +129,11 @@ class Game {
 
   // ---- heartbeat results
   onHeartbeat(r) {
+    this.guardian?.onBeat(r.gd);
     this.air?.setTicket(r.flight); this.air?.setPlanes(r.pl); this.boats?.setTrip(r.boat);
     if (r.city && this.city?.id && r.city !== this.city.id && !this.cityChanging) { this.cityChanging = true; this.ui.toast('Arriving in a new city…'); setTimeout(() => location.reload(), 700); return; }
     this.update(r.me); this.worldTime = r.world; this.ui.clock(r.world); this.world.setTime(r.world.minutesOfDay); this.weather?.apply(r.wx); this.weather?.afterTime(); this.festBadge(r.fest); this.throws?.ingest(r.th); if (r.bonk) this.throws?.onBonk(r.bonk); this.ghosts.ingest(r.players, this.serverNow()); this.ads.setSnapshot(r.ads);
-    for (const c of r.chat || []) this.ui.addChat(c.u, c.t, c.id); for (const n of r.notifs || []) { if (!['knock', 'dm', 'knock_in', 'knock_no'].includes(n.kind) || true) { this.unread = (this.unread || 0) + 1; this.ui.toast(n.text, ['omo_onile'].includes(n.kind) ? 'bad' : n.kind === 'dm' ? '' : 'money'); } } this.ui.badge(this.unread || 0);
+    for (const c of r.chat || []) this.ui.addChat(c.u, c.t, c.id, c.tt); for (const n of r.notifs || []) { if (!['knock', 'dm', 'knock_in', 'knock_no'].includes(n.kind) || true) { this.unread = (this.unread || 0) + 1; this.ui.toast(n.text, ['omo_onile'].includes(n.kind) ? 'bad' : n.kind === 'dm' ? '' : 'money'); if (n.kind === 'dm') this.audio?.play('notify'); if (n.kind === 'achievement') this.audio?.play('achieve'); } } this.ui.badge(this.unread || 0);
     this.lastKnocks = r.knocks; for (const k of r.knocks?.incoming || []) this.ui.hostKnock(k);
     if (r.teleport && !r.teleport.travelMs && !this.commute) { this.ctrl.teleport(r.teleport.x, r.teleport.z); }
     if (r.me.shift && r.me.shift.endsAt <= this.serverNow() && this.lastShiftDone !== r.me.shift.id) { this.lastShiftDone = r.me.shift.id; this.ui.toast('Shift done! Open the job sheet to collect your pay.', 'money'); }
@@ -177,7 +187,7 @@ class Game {
   // ---- main loop
   loop(t0) {
     let last = t0; this.lastSample = 0; const frame = (now) => {
-      requestAnimationFrame(frame); const dt = Math.min(0.1, (now - last) / 1000); last = now;
+      requestAnimationFrame(frame); const dt = Math.min(0.1, (now - last) / 1000); if (this.qualityChoice === 'auto' && this.playing && this.governor.feed(now - last)) { const lv = Q.resolve('auto', Q.readEnv(), this.governor.steps); if (lv !== this.qualityLevel) { Q.apply(this, lv); this.ui?.toast?.(`Switched to ${this.quality.label} graphics to keep it smooth. Change it in More > Graphics.`); } } last = now;
       if (!this.playing) { this.idleCam(now); this.renderer.render(this.scene, this.camera); return; }
       if (this.interior.open || this.venue.open || this.garage.open) return;
       const sec = this.serverNow() / 1000; this.lightLevel = lampsOn(this.world.night); this.traffic.lightLevel = this.lightLevel; setPlayerHeadlamps(this.ctrl.carObj, this.lightLevel, this.ctrl.mode === 'drive'); this.traffic.update(sec, this.yieldTargets(), dt); this.walkers.update(sec, this.ctrl); this.ghosts.update(this.serverNow() - 1100, this.ctrl); this.world.animate(dt * 1000);
@@ -188,7 +198,8 @@ class Game {
       if (!this.commute && !this.air?.flying && !this.boats?.aboard) { this.ctrl.placeCamera(this.camera, dt); if (now - this.lastSample > 250) { this.lastSample = now; this.net.sample({ t: this.serverNow(), x: this.ctrl.x, z: this.ctrl.z, ry: this.ctrl.ry }); } }
       if (this.ctrl.lastTap && !this.ui.sheetOpen && !this.busy) { const tp = this.ctrl.lastTap; this.ctrl.lastTap = null; if (now - tp.t < 400) this.tapPlace(tp.x, tp.y); }
       this.ads.update(this.camera, this.size, this.ctrl, dt * 1000);
-      this.nav?.tick(dt); this.parking?.tick(dt * 1000); this.bus?.tick(dt * 1000, now); this.rideSvc?.tick(dt * 1000); this.air?.tick(dt * 1000); this.links?.tick(dt * 1000); this.boats?.tick(dt * 1000); this.radio?.tick(dt * 1000); this.radioSpots?.tick(dt * 1000); this.hudStep(now); this.weather?.update(dt, this.camera); this.throws?.update(); this.pushables?.update(dt, this.ctrl); this.ctrl.envScale = this.weather?.speedAt(this.ctrl.x, this.ctrl.z); this.renderer.render(this.scene, this.camera);
+      this.nav?.tick(dt); this.parking?.tick(dt * 1000); this.bus?.tick(dt * 1000, now); this.rideSvc?.tick(dt * 1000); this.air?.tick(dt * 1000); this.links?.tick(dt * 1000); this.boats?.tick(dt * 1000); this.radio?.tick(dt * 1000); this.radioSpots?.tick(dt * 1000); this.audio?.engine(this.ctrl.mode === 'drive' && !this.air?.flying ? this.ctrl.groundSpeed() : null); if (now - (this.lastAudioTick || 0) > 100) { this.lastAudioTick = now; this.audio?.tick(); }
+      this.emotes?.frame(); this.hudStep(now); this.weather?.update(dt, this.camera); this.throws?.update(); this.pushables?.update(dt, this.ctrl); this.ctrl.envScale = this.weather?.speedAt(this.ctrl.x, this.ctrl.z); if (Q.shouldRender(now, this.lastDraw || 0, this.quality?.maxFps)) { this.lastDraw = now; this.renderer.render(this.scene, this.camera); }
     }; requestAnimationFrame(frame);
   }
   idleCam(now) { const a = now / 9000; this.camera.position.set(Math.cos(a) * 70, 38, Math.sin(a) * 70 - 20); this.camera.lookAt(0, 4, -20); this.camera.updateMatrixWorld(); }

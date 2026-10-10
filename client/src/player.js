@@ -28,7 +28,7 @@ export class Controller {
   }
   /** the skins you have on (item 9): { avatar: {color, glow}, car: {color, glow} } looks from the catalogue; the body is rebuilt in those colours */
   setSkins(looks) { const key = JSON.stringify(looks || {}); if (key === this._skKey) return false; this._skKey = key; this.skinLooks = looks || {}; this.setLook(this.color, this.name); return true; }
-  applyMode() { this.avatar.visible = this.mode === 'walk'; this.carObj.visible = this.mode === 'drive'; this.tag.position.set(0, this.mode === 'drive' ? 4.2 : 3.6, 0); }
+  applyMode() { document.body.classList.toggle('driving', this.mode === 'drive'); if (this.mode !== 'drive') this.hand = false; this.avatar.visible = this.mode === 'walk'; this.carObj.visible = this.mode === 'drive'; this.tag.position.set(0, this.mode === 'drive' ? 4.2 : 3.6, 0); }
   toggleCar() { if (this.auto) { this.auto = null; this.onAuto?.('manual'); } this.mode = this.mode === 'walk' ? 'drive' : 'walk'; this.stopAll(); this.applyMode(); if (this.mode === 'drive') this.camYaw = this.ry; return this.mode; }
   teleport(x, z) { this.x = x; this.z = z; this.stopAll(); this.knockT = 99; this.lookAt = null; }
   /** no velocity left in any model (mode change, teleport, arriving) */
@@ -38,12 +38,17 @@ export class Controller {
   bind() {
     const kd = (e) => { if (e.target.closest('input,textarea,select')) return; const k = e.key.toLowerCase(); if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault(); this.keys.add(k); if (k === 'shift') this.run = true; if (k === ' ') this.hand = true; };
     const ku = (e) => { const k = e.key.toLowerCase(); this.keys.delete(k); if (k === 'shift') this.run = false; if (k === ' ') this.hand = false; };
-    addEventListener('keydown', kd); addEventListener('keyup', ku); addEventListener('blur', () => { this.keys.clear(); this.run = false; this.hand = false; });
+    addEventListener('keydown', kd); addEventListener('keyup', ku); addEventListener('blur', () => { this.keys.clear(); this.run = false; this.hand = false; this.handTouch = false; });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { this.keys.clear(); this.run = false; this.hand = false; this.handTouch = false; this.joy.x = this.joy.y = 0; this.joy.active = false; } });
+    // touch handbrake: hold the HAND button (only shown while driving on a touch screen)
+    const hb = document.getElementById('handBtn'); if (hb) { const on = (e) => { this.handTouch = true; hb.classList.add('on'); e.preventDefault(); e.stopPropagation(); }; const off = () => { this.handTouch = false; hb.classList.remove('on'); }; hb.addEventListener('pointerdown', on); hb.addEventListener('pointerup', off); hb.addEventListener('pointercancel', off); hb.addEventListener('pointerleave', off); hb.addEventListener('contextmenu', (e) => e.preventDefault()); }
     // camera drag (mouse or touch on the right/anywhere not on the joystick) + wheel zoom
     let drag = null;
-    this.canvas.addEventListener('pointerdown', (e) => { if (e.target !== this.canvas) return; drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0 }; this.canvas.setPointerCapture?.(e.pointerId); });
-    this.canvas.addEventListener('pointermove', (e) => { if (!drag || drag.id !== e.pointerId) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY; drag.moved += Math.abs(dx) + Math.abs(dy); this.camYaw -= dx * 0.006; this.camPitch = clamp(this.camPitch + dy * 0.004, 0.25, 1.15); this.dragT = performance.now(); });
-    const end = (e) => { if (drag && drag.id === e.pointerId) { this.lastTap = drag.moved < 6 ? { x: e.clientX, y: e.clientY, t: performance.now() } : null; drag = null; } };
+    // two fingers on the canvas = pinch to zoom the camera (touch pass, queue batch 1 item 2)
+    const pts = new Map(); let pinch0 = null; const pd = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+    this.canvas.addEventListener('pointerdown', (e) => { if (e.target !== this.canvas) return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pts.size === 2) { drag = null; pinch0 = { d: pd(), cam: this.cam }; this.lastTap = null; return; } drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0 }; this.canvas.setPointerCapture?.(e.pointerId); });
+    this.canvas.addEventListener('pointermove', (e) => { if (pts.has(e.pointerId)) pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pinch0 && pts.size === 2) { this.cam = clamp(pinch0.cam * (pinch0.d / Math.max(20, pd())), 7, 26); this.dragT = performance.now(); return; } if (!drag || drag.id !== e.pointerId) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY; drag.moved += Math.abs(dx) + Math.abs(dy); this.camYaw -= dx * 0.006; this.camPitch = clamp(this.camPitch + dy * 0.004, 0.25, 1.15); this.dragT = performance.now(); });
+    const end = (e) => { pts.delete(e.pointerId); if (pts.size < 2) pinch0 = null; if (drag && drag.id === e.pointerId) { this.lastTap = drag.moved < 6 ? { x: e.clientX, y: e.clientY, t: performance.now() } : null; drag = null; } };
     this.canvas.addEventListener('pointerup', end); this.canvas.addEventListener('pointercancel', end);
     this.canvas.addEventListener('wheel', (e) => { this.cam = clamp(this.cam + e.deltaY * 0.01, 7, 26); e.preventDefault(); }, { passive: false });
     // virtual joystick
@@ -80,7 +85,7 @@ export class Controller {
       this.x += w.vx * dt; this.z += w.vz * dt; this.v = w.speed;
     } else {
       c.x = this.x; c.z = this.z; c.ry = this.ry; const pedal = Math.abs(iy) > 0.15 ? iy : 0; const steer = Math.abs(ix) > 0.1 ? ix : 0;
-      carStep(c, { pedal, steer, hand: this.hand && !this.frozen }, dt, P.car, { cap: envCap(zoneSpeedCap(c.x, c.z, this.roundabouts, P.car), this.envScale, P.car) });
+      carStep(c, { pedal, steer, hand: (this.hand || this.handTouch) && !this.frozen }, dt, P.car, { cap: envCap(zoneSpeedCap(c.x, c.z, this.roundabouts, P.car), this.envScale, P.car) });
       this.x = c.x; this.z = c.z; this.ry = c.ry; this.v = c.v; ay = c.ay; ax = c.ax;
       if (performance.now() - this.dragT > 1500) this.camYaw += angDiff(this.camYaw, this.ry) * damp(3, dt);
     }

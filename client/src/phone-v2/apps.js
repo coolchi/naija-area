@@ -4,7 +4,7 @@ import { get, post, h, fmtN } from '../api.js';
 import { pickMime } from './phone2.js';
 
 const DOT = { online: '#2e9b5e', home: '#2a7de1', in_call: '#e0a020', dnd: '#d6402f', offline: '#aaa' };
-const APPS = [['calls', '📞', 'Phone'], ['messages', '💬', 'Messages'], ['contacts', '👥', 'Contacts'], ['wallet', '💰', 'Wallet'], ['jobs', '💼', 'Jobs'], ['home', '🏠', 'Home'], ['land', '🌍', 'Land'], ['garage', '🚗', 'Garage'], ['ride', '🚕', 'Oya Ride'], ['life', '🏙', 'City life'], ['games', '🎮', 'Games'], ['map', '🗺', 'Map'], ['ranks', '🏆', 'Ranks'], ['alerts', '🔔', 'Alerts'], ['more', '⚙️', 'Settings']];
+const APPS = [['calls', '📞', 'Phone'], ['messages', '💬', 'Messages'], ['contacts', '👥', 'Contacts'], ['wallet', '💰', 'Wallet'], ['jobs', '💼', 'Jobs'], ['home', '🏠', 'Home'], ['land', '🌍', 'Land'], ['garage', '🚗', 'Garage'], ['ride', '🚕', 'Oya Ride'], ['life', '🏙', 'City life'], ['games', '🎮', 'Games'], ['map', '🗺', 'Map'], ['ranks', '🏆', 'Ranks'], ['missions', '🎯', 'Missions'], ['me', '🏅', 'Me'], ['safe', '🛡', 'Safety'], ['alerts', '🔔', 'Alerts'], ['more', '⚙️', 'Settings']];
 const dot = (s) => h('i', { class: 'pdot', title: s, style: `background:${DOT[s] || '#aaa'}` });
 const fmtT = (ms) => new Date(ms).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' });
 const dur = (ms) => `${Math.floor(ms / 60000)}:${String(Math.round(ms / 1000) % 60).padStart(2, '0')}`;

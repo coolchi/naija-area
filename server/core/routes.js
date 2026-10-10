@@ -34,8 +34,18 @@ import * as pass from './pass.js';
 import * as signup from './signup.js';
 import * as office from './office.js';
 import * as account from './account.js';
-import './gamedata.js';
-import './playerdata-g.js';   // registers what the table games and the word/board games hold about a player with the account download/closing module (docs/ACCOUNT_DATA.md)
+import * as tutorial from './tutorial.js';
+import * as missions from './missions.js';
+import * as achievements from './achievements.js';
+import * as seasons from './seasons.js';
+import * as moderation from './moderation.js';
+import * as guardian from './guardian.js';
+import * as emotes from './emotes.js';
+import { MOD as moderationOptions } from '../config/moderation.js';
+account.registerPlayerData('seasons', seasons.exportMine, seasons.deleteMine);   // season badges: in the download, erased on closing
+account.registerPlayerData('guardian', guardian.exportMine, guardian.deleteMine);   // safety settings: in the download, erased on closing
+import './playerdata-g.js';   // registers the Track G data (businesses, marketplace, clubs, events, skins and pass) with the account download/closing module
+import './gamedata.js';   // registers what the table games and the word/board games hold about a player with the account download/closing module (docs/ACCOUNT_DATA.md)
 import { checkAdminLogin } from './admin-guard.js';
 import { history, checkInvariants, moneySupply, balanceOf, cashId } from './ledger.js';
 import { RATE_CARD, AD_POLICY, AD_FORMATS } from '../config/ratecard.js';
@@ -54,7 +64,7 @@ const realRadioOn = (app) => { const rt = (app.runtime ||= {}); if (rt.realRadio
 route('GET', '/api/admin/radio', { auth: 'admin' }, (c) => ({ realRadio: realRadioOn(c.app) }));
 route('POST', '/api/admin/radio', { auth: 'admin' }, (c) => { realRadioOn(c.app); c.app.runtime.realRadio = c.body.enabled !== false && c.body.enabled !== 'false'; return { realRadio: c.app.runtime.realRadio }; });
 route('GET', '/api/health', (c) => ({ ok: true, name: c.app.gameName, now: c.app.clock.now() }));
-route('GET', '/api/config', (c) => ({ realRadio: realRadioOn(c.app), movement: { maxWalkSpeed: c.app.balance.movement.maxWalkSpeed, maxDriveSpeed: c.app.balance.movement.maxDriveSpeed, slack: c.app.balance.movement.slack }, physx: c.app.balance.physx || null, adFormats: { radio: { everyMs: AD_FORMATS.radio.everyMs, stations: AD_FORMATS.radio.stations, minListenMs: AD_FORMATS.radio.minListenMs } }, crash: { enabled: !!c.app.balance.crash.enabled, regenPerMin: c.app.balance.crash.regenPerMin, max: c.app.balance.crash.maxHealth }, moodHappyAt: c.app.balance.mood.happyAt, name: c.app.gameName, tagline: GAME_TAGLINE, minAge: MIN_AGE, testMode: true, devRoutes: !!c.app.devRoutes, rotationMs: AD_POLICY.rotationMs, balanceNote: c.app.balance._note,
+route('GET', '/api/config', (c) => ({ realRadio: realRadioOn(c.app), movement: { maxWalkSpeed: c.app.balance.movement.maxWalkSpeed, maxDriveSpeed: c.app.balance.movement.maxDriveSpeed, slack: c.app.balance.movement.slack }, physx: c.app.balance.physx || null, adFormats: { radio: { everyMs: AD_FORMATS.radio.everyMs, stations: AD_FORMATS.radio.stations, minListenMs: AD_FORMATS.radio.minListenMs } }, crash: { enabled: !!c.app.balance.crash.enabled, regenPerMin: c.app.balance.crash.regenPerMin, max: c.app.balance.crash.maxHealth }, moodHappyAt: c.app.balance.mood.happyAt, emotes: emotes.publicList(), name: c.app.gameName, tagline: GAME_TAGLINE, minAge: MIN_AGE, testMode: true, devRoutes: !!c.app.devRoutes, rotationMs: AD_POLICY.rotationMs, balanceNote: c.app.balance._note,
   topupOptions: c.app.balance.topup.options, payments: paymentsConfig(c.app), ageCheck: ageConfig(c.app), phone: !!c.app.balance.phone.enabled, transport: c.app.balance.transport, shopChannels: c.app.balance.shops.channels, workTask: c.app.balance.work.task, land: { risk: c.app.balance.land.risk }, maxNameLen: c.app.balance.housing.maxNameLen, housing: { rentPeriodMs: c.app.balance.housing.rentPeriodMs }, furniture: c.app.balance.housing.furniture }));
 route('GET', '/api/city', (c) => publicCity(c.uid ? cityOf(c.app, c.uid) : c.app.city));
 route('POST', '/api/cities/link', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); flight.assertNotFlying(c.app, c.uid); return { ...useLink(c.app, c.uid, String(c.body.linkId || ''), c.body.idem), user: eco.profile(c.app, c.uid) }; });
@@ -72,7 +82,7 @@ route('POST', '/api/auth/signup', { rate: 'auth' }, async (c) => { const uid = a
 route('POST', '/api/auth/login', { rate: 'auth' }, async (c) => { const uid = await auth.login(c.app, c.body); c.out.session = uid; return { ok: true, user: meView(c.app, uid) }; });
 route('POST', '/api/auth/guest', { rate: 'auth' }, (c) => { const uid = auth.guest(c.app, c.body, c.ipHash); c.out.session = uid; return { ok: true, user: meView(c.app, uid) }; });
 route('POST', '/api/auth/logout', (c) => { if (c.uid) world.leaveWorld(c.app, c.uid); c.out.session = 'clear'; return { ok: true }; });
-route('GET', '/api/me', { auth: 'user' }, (c) => ({ user: meView(c.app, c.uid) }));
+route('GET', '/api/me', { auth: 'user' }, (c) => { missions.recordLogin(c.app, c.uid); achievements.evaluate(c.app, c.uid); return { user: meView(c.app, c.uid) }; });
 
 // ---- world
 route('POST', '/api/heartbeat', { auth: 'user' }, (c) => world.heartbeat(c.app, c.uid, c.body || {}, { headless: c.headless }));
@@ -182,6 +192,34 @@ route('POST', '/api/wearables/buy', { auth: 'user' }, (c) => wear.buy(c.app, c.u
 route('POST', '/api/wearables/equip', { auth: 'user' }, (c) => wear.equip(c.app, c.uid, c.body.itemId));
 route('POST', '/api/wearables/unequip', { auth: 'user' }, (c) => wear.unequip(c.app, c.uid, c.body.slot));
 route('POST', '/api/wearables/sell', { auth: 'user' }, (c) => wear.sell(c.app, c.uid, c.body.itemId, c.body.idem));
+// first-five-minutes tutorial
+route('GET', '/api/tutorial', { auth: 'user' }, (c) => tutorial.view(c.app, c.uid));
+route('POST', '/api/tutorial/ack', { auth: 'user' }, (c) => tutorial.ack(c.app, c.uid, String(c.body.step || '')));
+route('POST', '/api/tutorial/skip', { auth: 'user' }, (c) => tutorial.skip(c.app, c.uid));
+route('POST', '/api/tutorial/restart', { auth: 'user' }, (c) => tutorial.restart(c.app, c.uid));
+// daily and weekly missions, login streak
+route('GET', '/api/missions', { auth: 'user' }, (c) => missions.view(c.app, c.uid));
+route('POST', '/api/missions/claim', { auth: 'user' }, (c) => missions.claim(c.app, c.uid, String(c.body.id || '')));
+route('POST', '/api/missions/streak', { auth: 'user' }, (c) => missions.claimStreak(c.app, c.uid));
+// achievements and titles
+route('GET', '/api/seasons', { auth: 'user' }, (c) => seasons.view(c.app, c.uid));
+route('GET', '/api/achievements', { auth: 'user' }, (c) => achievements.view(c.app, c.uid));
+route('POST', '/api/achievements/title', { auth: 'user' }, (c) => achievements.selectTitle(c.app, c.uid, c.body.id === undefined ? 'auto' : c.body.id === null ? null : String(c.body.id)));
+// moderator tools (admin back end)
+route('POST', '/api/emote', { auth: 'user' }, (c) => emotes.play(c.app, c.uid, c.body.id));
+
+route('GET', '/api/guardian', { auth: 'user' }, (c) => guardian.view(c.app, c.uid));
+route('POST', '/api/guardian', { auth: 'user' }, (c) => guardian.update(c.app, c.uid, c.body));
+route('POST', '/api/guardian/pin', { auth: 'user' }, (c) => guardian.setPin(c.app, c.uid, c.body));
+route('POST', '/api/admin/guardian/reset-pin', { auth: 'admin' }, (c) => guardian.adminResetPin(c.app, c.body.who));
+
+route('GET', '/api/admin/mod/overview', { auth: 'admin' }, (c) => moderation.overview(c.app));
+route('GET', '/api/admin/mod/player', { auth: 'admin' }, (c) => moderation.lookup(c.app, c.query.q));
+route('POST', '/api/admin/mod/sanction', { auth: 'admin' }, (c) => moderation.sanction(c.app, { who: c.body.who, kind: c.body.kind, hours: c.body.hours === '' || c.body.hours == null ? null : c.body.hours, reason: c.body.reason, note: c.body.note, reportRef: c.body.reportRef || null }));
+route('POST', '/api/admin/mod/lift', { auth: 'admin' }, (c) => moderation.lift(c.app, c.body.id, { note: c.body.note }));
+route('GET', '/api/admin/mod/sanctions', { auth: 'admin' }, (c) => ({ rows: moderation.listSanctions(c.app, { active: c.query.all !== '1', kind: c.query.kind || null }) }));
+route('GET', '/api/admin/mod/audit', { auth: 'admin' }, (c) => moderation.auditLog(c.app, { actor: c.query.actor, action: c.query.action, q: c.query.q, before: c.query.before }));
+route('GET', '/api/admin/mod/options', { auth: 'admin' }, (c) => ({ reasons: moderationOptions.reasons, maxMuteHours: moderationOptions.maxMuteHours, defaultMuteHours: moderationOptions.defaultMuteHours }));
 // your data: download everything we hold, or close the account (erases and anonymises; see docs/ACCOUNT_DATA.md)
 route('GET', '/api/account/export', { auth: 'user' }, (c) => { if (!c.app.limiter.hit(`export:${c.uid}`, 5, 3600000, c.app.clock.now())) bad('RATE_LIMIT', 'You can download your data 5 times an hour.', 429); return account.exportData(c.app, c.uid); });
 route('POST', '/api/account/delete', { auth: 'user' }, async (c) => { if (!c.app.limiter.hit(`delete:${c.uid}`, 5, 3600000, c.app.clock.now())) bad('RATE_LIMIT', 'Too many attempts. Try again later.', 429); const r = await account.deleteAccount(c.app, c.uid, c.body); c.out.session = 'clear'; return r; });
@@ -323,10 +361,12 @@ export async function dispatch(app, req) {
   if (!m) return { status: 404, json: { error: 'NOT_FOUND', message: 'Unknown endpoint.' } };
   const { r, params } = m; const now = app.clock.now();
   if (req.uid && (app.deletedUsers ||= account.loadDeleted(app)).has(req.uid)) req = { ...req, uid: null }; // a closed account's old session cookie is dead
+  const banned = req.uid && r.auth === 'user' && !['/api/auth/logout', '/api/account/export', '/api/account/delete'].includes(req.path) ? moderation.activeBan(app, req.uid) : null; if (banned) return { status: 403, json: { error: 'BANNED', message: moderation.banMessage(banned), until: banned.until } }; // suspended accounts can only log out, download or delete their data
   const ctx = { app, uid: req.uid, body: req.body || {}, query: req.query || {}, params, headers: req.headers || {}, raw: req.raw, ip: req.ip, ipHash: req.ip ? app.platform.sha256(String(req.ip)).slice(0, 16) : null, headless: /headless/i.test(req.ua || ''), out: {} };
   try {
     if (r.auth === 'user' && !req.uid) throw new GameError('LOGIN_REQUIRED', 'Please log in.', 401);
     if (r.auth === 'admin' && !req.isAdmin) throw new GameError('ADMIN_REQUIRED', 'Admin login required.', 401);
+    if (req.uid && r.auth === 'user') { const g = guardian.playGuard(app, req.uid, r.path); if (g) throw new GameError(g.code, g.message, 403, g.extra); } // safety settings: daily play limit and quiet hours
     if (req.uid && r.auth === 'user' && app.agePlayGuard) { const g = app.agePlayGuard(req.uid, r.path); if (g) throw new GameError(g.code, g.message, 403); } // age mode 'play': unverified players can do nothing but verify
     if (r.rate === 'auth' && !app.limiter.hit(`auth:${req.ip}:${r.path}`, app.balance.rate.authPerMin, 60000, now)) throw new GameError('RATE_LIMIT', 'Too many attempts, wait a minute.', 429);
     if (r.method === 'POST' && req.uid && r.path !== '/api/heartbeat' && !app.limiter.hit(`act:${req.uid}`, app.balance.rate.actionsPerMin, 60000, now)) throw new GameError('RATE_LIMIT', 'Slow down a little.', 429);

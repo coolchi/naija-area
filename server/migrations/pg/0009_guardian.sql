@@ -1,0 +1,3 @@
+-- 0009: safety and family controls (limits, chat mode, stake and buying limits, optional PIN) and the play-time counter. Mirrors later-schema.js (n: 9).
+CREATE TABLE IF NOT EXISTS guardian_settings (user_id BIGINT PRIMARY KEY, chat_mode TEXT NOT NULL DEFAULT 'all', max_stake BIGINT, transfers_off BIGINT NOT NULL DEFAULT 0, topup_daily_ngn BIGINT, play_limit_min BIGINT, curfew_start BIGINT, curfew_end BIGINT, break_every_min BIGINT, pin_hash TEXT, pin_fails BIGINT NOT NULL DEFAULT 0, pin_locked_until BIGINT NOT NULL DEFAULT 0, updated_at BIGINT NOT NULL);
+CREATE TABLE IF NOT EXISTS guardian_play (user_id BIGINT NOT NULL, day BIGINT NOT NULL, ms BIGINT NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day));

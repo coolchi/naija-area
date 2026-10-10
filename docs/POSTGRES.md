@@ -54,3 +54,6 @@ The core is **synchronous** (`db.prepare(sql).get/all/run`, `db.transaction`) an
 * **One connection** (no pool), by design, for the reason above. A connection drop surfaces as an error on the next call; the process manager should restart the server.
 * Tested on PostgreSQL 17.5 only. Not tested: TLS, a managed provider, connection loss/failover, very large databases, `NA_DB_AUTOMIGRATE=0` flow beyond the unit tests.
 * Backups, retention, monitoring are the hosting provider's / ops job, not done here.
+
+## Migration numbering after merging batch 1 and batch 2
+Both build tracks added database chunks from number 5. When they were merged, batch 1 (tutorial, missions, achievements, sanctions, guardian, seasons) kept 5-10 and batch 2 was renumbered to follow: businesses 11, market 12, clubs 13, events 14, pass_skins 15. The SQLite chunks (`later-schema.js`, `n`) and the Postgres files (`server/migrations/pg/00NN_name.sql`) use the same numbers. Nothing had been deployed with the old numbers, so no live database needed converting; every statement is `IF NOT EXISTS`, so running them again on a database that already has the tables is harmless. New chunks start at 16.

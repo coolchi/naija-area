@@ -15,6 +15,7 @@ import { dispatch } from './core/routes.js';
 import { getCreative, handleTap, tickAds } from './core/ads.js';
 import { tickScores } from './core/scores.js';
 import { tickRent, tickInterest } from './core/economy.js';
+import { tickSeasons } from './core/seasons.js';
 import { pruneWorld } from './core/world.js';
 import { tickLand } from './core/social.js';
 import { tickGames } from './core/games.js';
@@ -24,6 +25,7 @@ import { BALANCE } from './config/balance.js';
 import { PAYMENTS } from './config/payments.js';
 import { AGE } from './config/age.js';
 import { createAge, tickAge } from './core/age/index.js';
+import { staticCompress, sendJson } from './lib/compress.js';
 import { mockAgeProvider } from './core/age/providers.js';
 import { createPayments, tickPayments } from './core/payments/index.js';
 import { mockProvider, monipayProvider } from './core/payments/providers.js';
@@ -122,7 +124,7 @@ export function buildServer(opts = {}) {
       observe(app, r.status, performance.now() - t0);
       if (r.session === 'clear') res.append('Set-Cookie', `na_s=; Max-Age=0; ${cookieAttrs}`); else if (r.session) res.append('Set-Cookie', `na_s=${mkSession(r.session)}; Max-Age=${14 * 86400}; ${cookieAttrs}`);
       if (r.admin === 'clear') res.append('Set-Cookie', `na_a=; Max-Age=0; ${cookieAttrs}`); else if (r.admin) res.append('Set-Cookie', `na_a=${mkAdmin()}; Max-Age=${8 * 3600}; ${cookieAttrs}`);
-      res.setHeader('Cache-Control', 'no-store'); res.status(r.status).json(r.json);
+      res.setHeader('Cache-Control', 'no-store'); sendJson(req, res, r.status, r.json);
     } catch (e) { console.error(e); res.status(500).json({ error: 'SERVER_ERROR', message: 'Something went wrong.' }); }
   });
   ex.use((err, req, res, next) => { if (err) return res.status(err.status === 413 ? 413 : 400).json({ error: err.status === 413 ? 'TOO_BIG' : 'BAD_REQUEST', message: err.status === 413 ? 'Upload too large.' : 'Bad request.' }); next(); });
@@ -149,6 +151,7 @@ export function buildServer(opts = {}) {
   const pub = opts.publicDir || path.join(ROOT, 'public');
   const pages = { '/advertise': 'advertise.html', '/advertiser': 'advertiser.html', '/admin': 'admin.html', '/methodology': 'methodology.html', '/play': 'index.html', '/terms': 'terms.html', '/privacy': 'privacy.html', '/refunds': 'refunds.html', '/contact': 'contact.html' };
   for (const [u, f] of Object.entries(pages)) ex.get(u, (req, res) => res.sendFile(path.join(pub, f)));
+  ex.use(staticCompress(pub));
   ex.use(express.static(pub, { index: 'index.html', maxAge: '5m', extensions: ['html'] }));
   ex.use((req, res) => res.status(404).type('text/plain').send('Not found'));
 
@@ -171,7 +174,7 @@ export function buildServer(opts = {}) {
     timers.push(setInterval(() => { tickPayments(app).catch((e) => console.error('tickPayments', e)); }, 15000)); // asks the provider about payments whose webhook never came; sends recorded refunds
     timers.push(setInterval(() => { try { tickCalls(app); } catch (e) { console.error('tickCalls', e); } }, 1000));
     timers.push(setInterval(() => { try { tickAds(app); } catch (e) { console.error('tickAds', e); } }, 5000));
-    timers.push(setInterval(() => { try { tickRent(app); tickInterest(app); tickLand(app); tickGames(app); pruneWorld(app); tickVoice(app); } catch (e) { console.error('tick', e); } }, 30000));
+    timers.push(setInterval(() => { try { tickRent(app); tickInterest(app); tickLand(app); tickGames(app); pruneWorld(app); tickVoice(app); tickSeasons(app); } catch (e) { console.error('tick', e); } }, 30000));
   }
   const close = () => new Promise((resolve) => { timers.forEach(clearInterval); clearInterval(loopTimer); loop.disable(); for (const s of sockets.values()) for (const ws of s) ws.terminate(); wss.close(); server.close(() => { try { db.close(); } catch {} resolve(); }); server.closeAllConnections?.(); });
   return { app, db, server, startTimers, close, sockets, ex };

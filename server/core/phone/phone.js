@@ -3,6 +3,7 @@
 import { bad, cleanText } from '../util.js';
 import { screen } from '../filter.js';
 import { isBlocked, chatMuted } from '../safety.js';
+import * as guardian from '../guardian.js';
 import { notify } from '../economy.js';
 import { S2C } from './events.js';
 
@@ -89,6 +90,7 @@ function addMessage(app, t, from, to, kind, body, voiceId = null, silent = false
 function chatChecks(app, uid, to) {
   if (!to) bad('NO_RECIPIENT', 'No player with that username.', 404); if (to.id === uid) bad('SELF', 'You cannot message yourself.'); if (isBlocked(app, uid, to.id)) bad('CANNOT_MESSAGE', 'You cannot message this player.', 403);
   if (!areFriends(app, uid, to.id)) bad('NOT_FRIENDS', 'You can only chat with friends. Send a friend request first.', 403); if (chatMuted(app, uid)) bad('CHAT_PAUSED', 'Messaging is paused for your account for a little while.', 403);
+  guardian.chatCheck(app, uid, 'private', to.id); if (!guardian.canReceive(app, uid, to.id)) bad('CANNOT_MESSAGE', 'This player is not taking messages right now.', 403);
 }
 export function sendText(app, uid, toName, text) {
   gate(app, uid); const to = userByName(app, toName); chatChecks(app, uid, to); const t = cleanText(text, P(app).textMax); if (!t) bad('EMPTY', 'Type a message.'); const sc = screen(t); if (!sc.ok) bad(sc.code, sc.message);
@@ -154,6 +156,7 @@ function endCall(app, c, reason, by = null) {
 export function callStart(app, uid, toName) {
   const me = gate(app, uid); const to = userByName(app, toName); if (!to) bad('NO_PLAYER', 'No player with that username.', 404); if (to.id === uid) bad('SELF', 'You cannot call yourself.');
   if (isBlocked(app, uid, to.id) || mutedBy(app, to.id, uid)) bad('CANNOT_CALL', 'You cannot call this player.', 403); if (!areFriends(app, uid, to.id)) bad('NOT_FRIENDS', 'You can only call friends.', 403);
+  guardian.chatCheck(app, uid, 'private', to.id); if (!guardian.canReceive(app, uid, to.id)) bad('CANNOT_CALL', 'You cannot call this player.', 403);
   if (!settingsOf(app, uid).voiceConsent) bad('CONSENT_REQUIRED', 'Please accept the voice notice first.', 403, { consent: true });
   const now = app.clock.now(); if (!app.limiter.hit(`call:${uid}`, P(app).call.startPerMin, 60000, now)) bad('RATE_LIMIT', 'Too many calls, slow down.', 429);
   if (callOf(app, uid)) bad('BUSY_SELF', 'You are already in a call.', 409); const rs = settingsOf(app, to.id); if (rs.callsFrom === 'nobody') bad('CANNOT_CALL', 'This player is not taking calls.', 403);

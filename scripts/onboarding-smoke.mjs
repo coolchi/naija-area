@@ -25,6 +25,7 @@ try {
   await page.waitForSelector('#tour', { timeout: 8000 }); ok('tour opens by itself for a new player'); await snap(page, 'onboarding-tour-1');
   for (let i = 0; i < 5; i++) { await page.click('#tourNext'); await sleep(150); } assert.match(await g(page, () => document.querySelector('.tour-card h3').textContent), /Cars/); await snap(page, 'onboarding-tour-6'); assert.equal(await g(page, () => document.querySelector('#tourNext').textContent), "Let's go"); ok('six steps, last step says Let\'s go');
   await page.click('#tourNext'); await sleep(200); assert.equal(await g(page, () => !!document.querySelector('#tour')), false); ok('tour closes');
+  await g(page, () => fetch('/api/tutorial/skip', { method: 'POST' }).then(() => window.__game.tutorial.refresh())); await sleep(300); // the tutorial card replaces the hint chip while it runs
   await page.waitForFunction(() => !document.querySelector('#hintChip').classList.contains('hidden'), { timeout: 8000 }); const hint = await g(page, () => document.querySelector('#hintChip').textContent); assert.match(hint, /first job/i); ok('hint shown: ' + hint); await snap(page, 'onboarding-hint');
   await page.click('#hintChip'); await sleep(200); assert.ok(await g(page, () => document.querySelector('#hintChip').classList.contains('hidden'))); ok('hint can be dismissed by tapping it');
   await page.click('#helpBtn'); await page.waitForSelector('#tour', { timeout: 3000 }); await page.click('#tourSkip'); ok('? button reopens the tour');

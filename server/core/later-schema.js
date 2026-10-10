@@ -15,17 +15,37 @@ CREATE INDEX IF NOT EXISTS ix_office_ideas_status ON office_ideas(status, id);
 CREATE INDEX IF NOT EXISTS ix_office_ideas_user ON office_ideas(user_id, id);` },
   { n: 4, name: 'account_deletions', sql: `
 CREATE TABLE IF NOT EXISTS account_deletions (user_id INTEGER PRIMARY KEY, deleted_at INTEGER NOT NULL, was_guest INTEGER NOT NULL DEFAULT 0, forfeited INTEGER NOT NULL DEFAULT 0, kept TEXT NOT NULL DEFAULT '');` },
-  { n: 5, name: 'businesses', sql: `
+  { n: 5, name: 'tutorial', sql: `
+CREATE TABLE IF NOT EXISTS tutorial_state (user_id INTEGER PRIMARY KEY, start_x REAL NOT NULL, start_z REAL NOT NULL, acks TEXT NOT NULL DEFAULT '[]', skipped INTEGER NOT NULL DEFAULT 0, done_at INTEGER, reward INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL);` },
+  { n: 6, name: 'missions', sql: `
+CREATE TABLE IF NOT EXISTS login_days (user_id INTEGER NOT NULL, day INTEGER NOT NULL, PRIMARY KEY (user_id, day));
+CREATE TABLE IF NOT EXISTS mission_claims (user_id INTEGER NOT NULL, mission_id TEXT NOT NULL, period INTEGER NOT NULL, reward INTEGER NOT NULL, claimed_at INTEGER NOT NULL, PRIMARY KEY (user_id, mission_id, period));
+CREATE TABLE IF NOT EXISTS streak_claims (user_id INTEGER NOT NULL, day INTEGER NOT NULL, streak INTEGER NOT NULL, reward INTEGER NOT NULL, claimed_at INTEGER NOT NULL, PRIMARY KEY (user_id, day));` },
+  { n: 7, name: 'achievements', sql: `
+CREATE TABLE IF NOT EXISTS achievements (user_id INTEGER NOT NULL, id TEXT NOT NULL, earned_at INTEGER NOT NULL, PRIMARY KEY (user_id, id));
+CREATE TABLE IF NOT EXISTS player_titles (user_id INTEGER PRIMARY KEY, title_id TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL);` },
+  { n: 8, name: 'sanctions', sql: `
+CREATE TABLE IF NOT EXISTS sanctions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, kind TEXT NOT NULL, reason TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', until_at INTEGER, actor TEXT NOT NULL, report_ref TEXT, created_at INTEGER NOT NULL, lifted_at INTEGER, lifted_by TEXT);
+CREATE INDEX IF NOT EXISTS ix_sanctions_user ON sanctions(user_id, id);
+CREATE INDEX IF NOT EXISTS ix_sanctions_kind ON sanctions(kind, lifted_at);` },
+  { n: 9, name: 'guardian', sql: `
+CREATE TABLE IF NOT EXISTS guardian_settings (user_id INTEGER PRIMARY KEY, chat_mode TEXT NOT NULL DEFAULT 'all', max_stake INTEGER, transfers_off INTEGER NOT NULL DEFAULT 0, topup_daily_ngn INTEGER, play_limit_min INTEGER, curfew_start INTEGER, curfew_end INTEGER, break_every_min INTEGER, pin_hash TEXT, pin_fails INTEGER NOT NULL DEFAULT 0, pin_locked_until INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS guardian_play (user_id INTEGER NOT NULL, day INTEGER NOT NULL, ms INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day));` },
+  { n: 10, name: 'seasons', sql: `
+CREATE TABLE IF NOT EXISTS season_awards (season INTEGER NOT NULL, board TEXT NOT NULL, user_id INTEGER NOT NULL, place INTEGER NOT NULL, score INTEGER NOT NULL, prize INTEGER NOT NULL DEFAULT 0, awarded_at INTEGER NOT NULL, PRIMARY KEY (season, board, user_id));
+CREATE INDEX IF NOT EXISTS ix_season_awards_user ON season_awards(user_id, season);
+CREATE TABLE IF NOT EXISTS season_settled (season INTEGER PRIMARY KEY, settled_at INTEGER NOT NULL);` },
+  { n: 11, name: 'businesses', sql: `
 CREATE TABLE IF NOT EXISTS businesses (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, type TEXT NOT NULL, city_id TEXT NOT NULL, name TEXT NOT NULL, level INTEGER NOT NULL DEFAULT 1, paid INTEGER NOT NULL, bought_at INTEGER NOT NULL, settled_at INTEGER NOT NULL, accrued_gross INTEGER NOT NULL DEFAULT 0, accrued_costs INTEGER NOT NULL DEFAULT 0, day TEXT NOT NULL DEFAULT '', day_net INTEGER NOT NULL DEFAULT 0, earned_total INTEGER NOT NULL DEFAULT 0, UNIQUE (user_id, type));
 CREATE INDEX IF NOT EXISTS ix_businesses_user ON businesses(user_id);
 CREATE TABLE IF NOT EXISTS business_staff (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER NOT NULL, name TEXT NOT NULL, skill INTEGER NOT NULL, wage INTEGER NOT NULL, hired_at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS ix_business_staff_biz ON business_staff(business_id);` },
-  { n: 6, name: 'market', sql: `
+  { n: 12, name: 'market', sql: `
 CREATE TABLE IF NOT EXISTS market_listings (id INTEGER PRIMARY KEY AUTOINCREMENT, seller_id INTEGER NOT NULL, kind TEXT NOT NULL, item_ref TEXT NOT NULL, snapshot TEXT NOT NULL, ask INTEGER NOT NULL, base_value INTEGER NOT NULL, listing_fee INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'open', created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, buyer_id INTEGER, sold_at INTEGER, sale_fee INTEGER NOT NULL DEFAULT 0, returned_at INTEGER);
 CREATE INDEX IF NOT EXISTS ix_market_open ON market_listings(status, kind, ask);
 CREATE INDEX IF NOT EXISTS ix_market_seller ON market_listings(seller_id, status);
 CREATE INDEX IF NOT EXISTS ix_market_buyer ON market_listings(buyer_id);` },
-  { n: 7, name: 'clubs', sql: `
+  { n: 13, name: 'clubs', sql: `
 CREATE TABLE IF NOT EXISTS clubs (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, name_key TEXT NOT NULL UNIQUE, tag TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'club', motto TEXT NOT NULL DEFAULT '', color TEXT NOT NULL, is_open INTEGER NOT NULL DEFAULT 1, leader_id INTEGER NOT NULL, created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS club_members (user_id INTEGER PRIMARY KEY, club_id INTEGER NOT NULL, role TEXT NOT NULL, joined_at INTEGER NOT NULL, muted_until INTEGER NOT NULL DEFAULT 0, hangout_at INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS ix_club_members_club ON club_members(club_id);
@@ -34,11 +54,11 @@ CREATE INDEX IF NOT EXISTS ix_club_requests_user ON club_requests(user_id);
 CREATE TABLE IF NOT EXISTS club_chat (id INTEGER PRIMARY KEY AUTOINCREMENT, club_id INTEGER NOT NULL, user_id INTEGER NOT NULL, username TEXT NOT NULL, text TEXT NOT NULL, created_at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS ix_club_chat_club ON club_chat(club_id, id);
 CREATE TABLE IF NOT EXISTS club_cooldowns (user_id INTEGER PRIMARY KEY, until_ms INTEGER NOT NULL);` },
-  { n: 8, name: 'events', sql: `
+  { n: 14, name: 'events', sql: `
 CREATE TABLE IF NOT EXISTS event_stock (event_key TEXT NOT NULL, item_id TEXT NOT NULL, sold INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (event_key, item_id));
 CREATE TABLE IF NOT EXISTS event_buys (user_id INTEGER NOT NULL, event_key TEXT NOT NULL, item_id TEXT NOT NULL, qty INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, event_key, item_id));
 CREATE TABLE IF NOT EXISTS event_claims (user_id INTEGER NOT NULL, event_key TEXT NOT NULL, claimed_at INTEGER NOT NULL, amount INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, event_key));` },
-  { n: 20, name: 'pass_skins', sql: `
+  { n: 15, name: 'pass_skins', sql: `
 CREATE TABLE IF NOT EXISTS skins_owned (user_id INTEGER NOT NULL, skin_id TEXT NOT NULL, how TEXT NOT NULL, price_paid INTEGER NOT NULL DEFAULT 0, acquired_at INTEGER NOT NULL, PRIMARY KEY (user_id, skin_id));
 CREATE TABLE IF NOT EXISTS skins_equipped (user_id INTEGER NOT NULL, slot TEXT NOT NULL, skin_id TEXT NOT NULL, PRIMARY KEY (user_id, slot));
 CREATE TABLE IF NOT EXISTS pass_progress (user_id INTEGER NOT NULL, season TEXT NOT NULL, xp INTEGER NOT NULL DEFAULT 0, premium INTEGER NOT NULL DEFAULT 0, premium_at INTEGER, cash_claimed INTEGER NOT NULL DEFAULT 0, login_day TEXT, PRIMARY KEY (user_id, season));

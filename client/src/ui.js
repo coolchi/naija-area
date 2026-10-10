@@ -1,3 +1,8 @@
+import { graphicsBlock } from './quality-ui.js';
+import { soundBlock } from './audio-ui.js';
+import { missionsBody } from './missions-ui.js';
+import { meBody } from './me-ui.js';
+import { safetyBody } from './guardian-ui.js';
 import { roadPts } from './roadgeom.js';
 import { PhoneShell } from './phone-v2/apps.js';
 import { get, post, fmtN, h, $, $$, ApiError } from './api.js';
@@ -29,7 +34,7 @@ export class UI {
   constructor(game) {
     this.g = game; this.sheetOpen = false; this.onClose = null; this.mm = $('#minimap').getContext('2d'); $('#minimap').style.cursor = 'pointer'; $('#minimap').title = 'Open the full map (M)'; $('#minimap').addEventListener('click', () => this.openMap()); this.chatOn = false; this.sfxOn = true; this.actx = null;
     $('#sheetX').onclick = () => this.closeSheet(); $('#sheetWrap').addEventListener('pointerdown', (e) => { if (e.target.id === 'sheetWrap') this.closeSheet(); });
-    $('#phoneBtn').onclick = () => this.phone(); $('#muteBtn').onclick = () => { this.sfxOn = !this.sfxOn; $('#muteBtn').textContent = this.sfxOn ? '🔊' : '🔇'; };
+    $('#phoneBtn').onclick = () => this.phone(); $('#muteBtn').onclick = () => { const on = this.g.audio ? this.g.audio.toggle() : !this.sfxOn; this.sfxOn = on; $('#muteBtn').textContent = on ? '🔊' : '🔇'; };
     $('#carBtn').onclick = () => game.toggleCar();
     $('#chatForm').addEventListener('submit', async (e) => { e.preventDefault(); const i = $('#chatInput'); const t = i.value.trim(); if (!t) return this.hideChat(); i.value = ''; this.hideChat(); try { await post('/api/chat', { text: t }); } catch (er) { this.error(er); } });
     addEventListener('keydown', (e) => {
@@ -41,17 +46,13 @@ export class UI {
     $('#actionBtn').onclick = () => game.doAction();
   }
   // ---------- audio (tiny WebAudio blips, no assets) ----------
-  sfx(kind, vol = 1) {
-    if (!this.sfxOn) return; try { this.actx ||= new (window.AudioContext || window.webkitAudioContext)(); const c = this.actx; const o = c.createOscillator(), gn = c.createGain(); o.connect(gn); gn.connect(c.destination);
-      const T = { coin: [[880, .07], [1320, .12]], ok: [[520, .08], [780, .1]], bad: [[180, .18]], horn: [[330, .22], [330, .22]], thunk: [[110, .09]], step: [[95, .035]], thud: [[70, .12]], knock: [[140, .06], [140, .06], [140, .06]] }[kind] || [[600, .08]]; let t = c.currentTime;
-      o.type = kind === 'horn' ? 'sawtooth' : 'triangle'; gn.gain.setValueAtTime(0.08 * vol, t); for (const [f, d] of T) { o.frequency.setValueAtTime(f, t); t += d; } gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.05); o.start(); o.stop(t + 0.08); } catch { /* audio is optional */ }
-  }
+  sfx(kind, vol = 1) { this.g.audio?.play(kind, vol); } // synthesised sounds live in audio.js (recipes in audio-config.js)
   haptic(ms = 15) { try { navigator.vibrate?.(ms); } catch { /* optional */ } }
   checkPayReturn() { return checkReturn(this); }
   toast(text, kind = '') { const el = h('div', { class: `toast ${kind}` }, text); const box = $('#toasts'); box.append(el); while (box.children.length > 3) box.firstChild.remove(); setTimeout(() => el.remove(), 4300); if (kind === 'bad') this.sfx('bad'); else if (kind === 'money') { this.sfx('coin'); this.haptic(); } }
   error(e) { if (e instanceof ApiError) { if (e.status === 401 && e.code === 'LOGIN_REQUIRED') { this.g.sessionLost(); return; } const f = ERR[e.code]; this.toast(f ? f() : e.message, 'bad'); } else { console.error(e); this.toast('Something went wrong. Try again.', 'bad'); } }
   showChat() { $('#chatForm').classList.add('on'); $('#chatInput').focus(); } hideChat() { $('#chatForm').classList.remove('on'); $('#game').focus(); }
-  addChat(u, t, id) { const d = h('div', { style: 'pointer-events:auto;cursor:pointer', title: 'Tap to report, mute or block', onclick: () => this.playerMenu(u, id && { kind: 'chat', target: id, text: `${u}: ${t}` }) }, `${u}: ${t}`); $('#chatlog').append(d); while ($('#chatlog').children.length > 5) $('#chatlog').firstChild.remove(); setTimeout(() => d.remove(), 14000); }
+  addChat(u, t, id, tt) { const d = h('div', { style: 'pointer-events:auto;cursor:pointer', title: 'Tap to report, mute or block', onclick: () => this.playerMenu(u, id && { kind: 'chat', target: id, text: `${u}: ${t}` }) }, `${u}${tt ? ` [${tt}]` : ''}: ${t}`); $('#chatlog').append(d); while ($('#chatlog').children.length > 5) $('#chatlog').firstChild.remove(); setTimeout(() => d.remove(), 14000); }
 
   // ---------- trust & safety UI ----------
   /** menu for a player (from chat or a house card): report the thing, mute, block */
@@ -231,12 +232,12 @@ export class UI {
   }
 
   // ---------- phone ----------
-  phone(tab) {
+  phone(tab) { this.g.tutorial?.ack('phone');
     if (this.g.cfg.phone && this.g.phone2) { this.shell ||= new PhoneShell(this); return this.shell.open(tab || 'home'); }
     return this.phoneLegacy(tab || 'wallet');
   }
   phoneLegacy(tab = 'wallet') {
-    const g = this.g; const tabs = [['wallet', '💰 Wallet'], ['jobs', '💼 Jobs'], ['home', '🏠 Home'], ['land', '🌍 Land'], ['ranks', '🏆 Ranks'], ['garage', '🚗 Garage'], ['games', '🎮 Games'], ['map', '🗺 Map'], ['alerts', '🔔 Alerts'], ['more', '⚙️ More']]; const body = h('div', {}); let cur = tab;
+    const g = this.g; const tabs = [['wallet', '💰 Wallet'], ['jobs', '💼 Jobs'], ['home', '🏠 Home'], ['land', '🌍 Land'], ['ranks', '🏆 Ranks'], ['missions', '🎯 Missions'], ['me', '🏅 Me'], ['safe', '🛡 Safety'], ['garage', '🚗 Garage'], ['games', '🎮 Games'], ['map', '🗺 Map'], ['alerts', '🔔 Alerts'], ['more', '⚙️ More']]; const body = h('div', {}); let cur = tab;
     const bar = h('div', { class: 'tabrow' }); const drawTabs = () => bar.replaceChildren(...tabs.map(([id, l]) => h('button', { class: id === cur ? 'on' : '', onclick: () => { cur = id; drawTabs(); render(); } }, l)));
     const render = async () => { body.replaceChildren(h('p', { class: 'mut' }, 'Loading…')); const fn = this['tab_' + cur]; const el = await fn.call(this); body.replaceChildren(...[].concat(el)); };
     drawTabs(); this.openSheet('Phone', [bar, body]); render();
@@ -259,7 +260,7 @@ export class UI {
   }
   async tab_land() { const d = await this.guard(() => get('/api/plots')); if (!d) return []; return [h('div', { class: 'list' }, d.plots.map(p => h('div', {}, h('div', {}, h('b', {}, p.name), h('div', { class: 'mut' }, `${p.area} · ${fmtN(p.price)} · risk ${p.risk} · ${p.status}`)), h('button', { class: 'btn small ghost', onclick: () => this.place(p.id) }, 'View'))))]; }
   async tab_ranks() { const d = await this.guard(() => get('/api/leaderboard')); if (!d) return []; return [h('p', { class: 'mut' }, 'Net worth = cash + savings + property (70%) + land (95%). Bots are hidden.'), h('div', { class: 'list' }, d.rows.map(r => h('div', {}, h('span', {}, `#${r.rank} ${r.name}${r.guest ? ' (guest)' : ''}`), h('b', {}, fmtN(r.netWorth)))))]; }
-  openMap(focusId) { this.bigmap = this.bigmap || new CityMap(this.g); if (this.sheetOpen) this.closeSheet(); this.bigmap.isOpen ? this.bigmap.close() : this.bigmap.open(focusId); }
+  openMap(focusId) { this.g.tutorial?.ack('map'); this.bigmap = this.bigmap || new CityMap(this.g); if (this.sheetOpen) this.closeSheet(); this.bigmap.isOpen ? this.bigmap.close() : this.bigmap.open(focusId); }
   async tab_map() { this.openMap(); return []; }
   async tab_games() { return casualUi.hub(this); }
   playCasual(id) { casualUi.play(this, id); }
@@ -269,8 +270,11 @@ export class UI {
     return [h('div', { class: 'row sp' }, h('b', {}, `Garage (${d.cars.length}/${d.slots})`), h('span', { class: 'mut' }, `Driving: ${d.active.label}`)), cars, h('p', { class: 'mut' }, `Resale: about ${Math.round((1 - d.resale.firstDriveOffFraction) * 100)}% on day one, then about ${Math.round(d.resale.perDayDepreciation * 100)}% less per day, never below ${Math.round(d.resale.floorFraction * 100)}%. All figures are ESTIMATES.`), h('button', { class: 'btn', id: 'openGarage', onclick: () => g.garage.show() }, '🚪 Open my garage'), motors ? h('button', { class: 'btn alt', onclick: () => { this.closeSheet(); this.place(motors.id); } }, '🏪 Visit Naija Auto Mart') : ''];
   }
   async tab_alerts() { const d = await this.guard(() => get('/api/notifications')); this.g.markRead(); if (!d) return []; return [h('div', { class: 'list' }, d.rows.map(n => h('div', {}, h('span', {}, n.text), h('span', { class: 'mut' }, new Date(n.created_at).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' })))))]; }
+  async tab_me() { return meBody(this.g, () => this.phone('me')); }
+  async tab_safe() { return safetyBody(this.g, () => this.phone('safe')); }
+  async tab_missions() { return missionsBody(this.g, () => this.phone('missions')); }
   async tab_more() {
-    const g = this.g; const bl = await this.guard(() => get('/api/social/blocks')); const blocked = h('div', { class: 'list' }, (bl?.rows || []).map(r => h('div', {}, h('span', {}, `@${r.username} · ${r.kind}`), h('button', { class: 'btn small ghost', onclick: async () => { await this.setBlock(r.username, null); this.phone('more'); } }, 'Undo')))); const wr = g.user?.wear; return [h('b', {}, '💎 Your look'), h('p', { id: 'wearStatus', class: 'mut' }, wr ? `${wr.status}${wr.ownedCount ? ` · ${wr.ownedCount} pieces owned, worth ${fmtN(wr.ownedValue)}` : ''}. Buy more at the jewelry store and cap store.` : 'Nothing yet.'), h('b', {}, '🧭 Your choices'), h('p', { id: 'choicesStatus', class: 'mut' }, g.user?.signup?.done ? `City: ${g.user.signup.homeCity}${g.user.signup.interestCity ? ` · interested in ${g.user.signup.interestCity}` : ''} · ${g.user.signup.interests.length} interests` : 'Not set yet.'), h('div', { class: 'row' }, h('button', { class: 'btn small', 'data-more': 'choices', onclick: async () => { g.ui.closeSheet?.(); await setupFlow(g, { editing: true }); } }, 'Change my choices'), h('button', { class: 'btn small alt', 'data-more': 'apply', onclick: () => officeSheet(g, 'apply') }, 'Apply to join the team'), h('button', { class: 'btn small ghost', 'data-more': 'idea', onclick: () => officeSheet(g, 'ideas') }, 'Share an idea')), h('b', {}, '🔐 Your data'), h('p', { class: 'mut' }, 'See everything we hold about you, or close your account.'), h('div', { class: 'row' }, h('button', { class: 'btn small ghost', 'data-more': 'download', onclick: () => downloadData(g) }, 'Download my data'), h('button', { class: 'btn small red', 'data-more': 'close', onclick: () => closeAccountSheet(g) }, 'Close my account')), h('b', {}, 'Muted and blocked'), (bl?.rows || []).length ? blocked : h('p', { class: 'mut' }, 'Nobody. Tap a chat line or the ⋯ on a house card to mute, block or report.'), h('div', { class: 'row' }, h('a', { class: 'btn ghost', href: '/advertise', target: '_blank', rel: 'noopener' }, 'Advertise'), h('a', { class: 'btn ghost', href: '/methodology', target: '_blank', rel: 'noopener' }, 'How ads are counted'), h('a', { class: 'btn ghost', href: '/stats.html', target: '_blank', rel: 'noopener' }, 'Stats')),
+    const g = this.g; const bl = await this.guard(() => get('/api/social/blocks')); const blocked = h('div', { class: 'list' }, (bl?.rows || []).map(r => h('div', {}, h('span', {}, `@${r.username} · ${r.kind}`), h('button', { class: 'btn small ghost', onclick: async () => { await this.setBlock(r.username, null); this.phone('more'); } }, 'Undo')))); const wr = g.user?.wear; return [...graphicsBlock(g), ...soundBlock(g), h('b', {}, '💎 Your look'), h('p', { id: 'wearStatus', class: 'mut' }, wr ? `${wr.status}${wr.ownedCount ? ` · ${wr.ownedCount} pieces owned, worth ${fmtN(wr.ownedValue)}` : ''}. Buy more at the jewelry store and cap store.` : 'Nothing yet.'), h('b', {}, '🧭 Your choices'), h('p', { id: 'choicesStatus', class: 'mut' }, g.user?.signup?.done ? `City: ${g.user.signup.homeCity}${g.user.signup.interestCity ? ` · interested in ${g.user.signup.interestCity}` : ''} · ${g.user.signup.interests.length} interests` : 'Not set yet.'), h('div', { class: 'row' }, h('button', { class: 'btn small', 'data-more': 'choices', onclick: async () => { g.ui.closeSheet?.(); await setupFlow(g, { editing: true }); } }, 'Change my choices'), h('button', { class: 'btn small alt', 'data-more': 'apply', onclick: () => officeSheet(g, 'apply') }, 'Apply to join the team'), h('button', { class: 'btn small ghost', 'data-more': 'idea', onclick: () => officeSheet(g, 'ideas') }, 'Share an idea'), h('button', { class: 'btn small ghost', 'data-more': 'tutorial', onclick: () => { g.ui.closeSheet?.(); g.tutorial?.restart(); } }, 'Replay the tutorial')), h('b', {}, '🔐 Your data'), h('p', { class: 'mut' }, 'See everything we hold about you, or close your account.'), h('div', { class: 'row' }, h('button', { class: 'btn small ghost', 'data-more': 'download', onclick: () => downloadData(g) }, 'Download my data'), h('button', { class: 'btn small red', 'data-more': 'close', onclick: () => closeAccountSheet(g) }, 'Close my account')), h('b', {}, 'Muted and blocked'), (bl?.rows || []).length ? blocked : h('p', { class: 'mut' }, 'Nobody. Tap a chat line or the ⋯ on a house card to mute, block or report.'), h('div', { class: 'row' }, h('a', { class: 'btn ghost', href: '/advertise', target: '_blank', rel: 'noopener' }, 'Advertise'), h('a', { class: 'btn ghost', href: '/methodology', target: '_blank', rel: 'noopener' }, 'How ads are counted'), h('a', { class: 'btn ghost', href: '/stats.html', target: '_blank', rel: 'noopener' }, 'Stats')),
       h('p', { class: 'mut' }, `${g.cfg.name} v0 · test build. In-game ₦ is fictional with no cash-out. 18+.`), h('div', { class: 'row' }, h('button', { class: 'btn red', onclick: () => g.logout() }, 'Log out'))];
   }
 }

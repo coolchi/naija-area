@@ -4,6 +4,7 @@ import { bad } from './util.js';
 import { ensurePresence, syncPos } from './world.js';
 import { dist, gameTime, addMood } from './economy.js';
 import * as games from './games.js';
+import * as guardian from './guardian.js';
 import * as leisure from './leisure.js';
 import { stadiumAct } from './stadium.js';
 import * as sports from './sports.js';
@@ -33,7 +34,7 @@ export function enterVenue(app, uid, venueId, pos) {
   const p = ensurePresence(app, uid); if (pos) syncPos(app, uid, pos);
   if (dist(p.x, p.z, v.x, v.z) > app.balance.games.enterRadius) bad('TOO_FAR', `Walk to the door of ${v.name} first.`);
   if (!isOpen(app, v)) bad('CLOSED', `${v.name} is closed. Opens ${v.hours[0]}:00 to ${v.hours[1]}:00.`, 409, { hours: v.hours });
-  p.venue = venueId; p.inside = null; return venueView(app, uid, venueId);
+  guardian.assertVenue(app, uid, v); p.venue = venueId; p.inside = null; return venueView(app, uid, venueId);
 }
 export function leaveVenue(app, uid) {
   const p = ensurePresence(app, uid); if (!p.venue) return { ok: true };

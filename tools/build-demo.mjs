@@ -6,7 +6,7 @@ await build({ entryPoints: ['demo-src/entry.js'], bundle: true, format: 'iife', 
 fs.cpSync('public/assets', `${out}/assets`, { recursive: true });
 const rel = (s) => s.replace(/url\('\/assets\//g, "url('./assets/");
 fs.writeFileSync(`${out}/style.css`, rel(fs.readFileSync('public/style.css', 'utf8')));
-let html = fs.readFileSync('public/index.html', 'utf8');
+let html = fs.readFileSync('public/index.html', 'utf8').replace(/<!--preload-->[\s\S]*?<!--\/preload-->/, ''); // the demo has no server to prefetch from
 html = html.replace(/href="\/(assets|style\.css)/g, 'href="./$1').replace(/src="\/assets/g, 'src="./assets').replace('<script src="/game.js"></script>', '<script src="demo.js"></script>\n<script src="game.js"></script>')
   .replace(/href="\/(advertise|advertiser|admin|methodology|terms|stats)"/g, 'href="#" title="Not part of the static demo (needs the server)"')
   .replace('<body>', '<body>\n<div id="demoRibbon" style="position:fixed;left:0;right:0;bottom:0;z-index:200;background:#ffc20e;color:#111;font:800 12px system-ui;text-align:center;padding:3px 8px;pointer-events:none">DEMO · the whole game runs inside this page · pretend money only · progress resets when you reload</div>');

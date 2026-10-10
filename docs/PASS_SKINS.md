@@ -22,7 +22,7 @@ Two new tabs in the City life app (🎨 Skins, 🎟 Pass).
 * Free track (everyone): cash on every tier (₦110 growing to ₦400) and the Sunrise Kaftan, Sunset Drive and Midnight Loft skins at tiers 5, 15 and 25. Premium track: cash on every tier (₦165 growing to ₦600) and the Midnight Senator, Emerald Express, Royal Palace and Royal Purple Lace skins at tiers 8, 12, 18 and 24. Of the 23 skins, 16 are sold in the shop and 7 only come from the pass (a test checks every pass-only skin is given exactly once).
 * Premium costs ₦25,000 game money once per season (cash to `sys:sink_cosmetics`, reason `pass_premium`) and unlocks the premium reward of every tier already reached. It pays out about ₦10,000 in cash, so premium is a net money sink.
 * Rewards: cash comes from `sys:faucet_pass` in ONE balanced ledger transaction per tier and track, with an idempotency key per user, season, tier and track; the claim row has a primary key on the same, so a double click or a race cannot pay twice. A skin tier grants the skin as owned. A per-player season cash cap (`seasonCashCap`, ₦20,000) holds even if the rewards are raised later (the claim is then cut off, not refused).
-* Tables (migration `0020_pass_skins`): `skins_owned`, `skins_equipped`, `pass_progress`, `pass_claims`, `pass_xp_log`. The account download lists them all and closing the account erases them (see `playerdata-g.js`); ledger entries stay, anonymised.
+* Tables (migration `0015_pass_skins` (renumbered from 0020 when track-f was merged; see POSTGRES.md)): `skins_owned`, `skins_equipped`, `pass_progress`, `pass_claims`, `pass_xp_log`. The account download lists them all and closing the account erases them (see `playerdata-g.js`); ledger entries stay, anonymised.
 * Routes: `GET /api/skins/catalogue` (public, looks only), `GET /api/skins`, `POST /api/skins/buy|equip|unequip`, `GET /api/pass`, `POST /api/pass/login|premium|claim`.
 
 ## Name clash to know about
@@ -35,3 +35,9 @@ Track F (player experience) also built "seasons" with leaderboards (4-week seaso
 * Skins are not shown on other people inside venues, or in the garage and showroom cards (only in the open world and on your own avatar and car).
 * The pass has no push notification or HUD badge when a tier is reached; you see it on the Pass tab.
 * **Migration numbering:** this branch's later-schema chunks are numbered 5 to 8 and 20; Track F's branch also uses 5 to 9. They need renumbering when merged (the migrations test fails on a duplicate).
+
+## Two season systems (they are independent on purpose, for now)
+Two things are called a "season" in the game and they do not talk to each other:
+* **Leaderboard seasons** (`server/core/seasons.js`, `docs/SEASONS.md`): 4-week competitions (Money Maker, Table Champ, Best Dressed) with a small cash prize and a badge for the winners. Numbers are plain integers (season 1, 2, 3...). Tables `season_awards`, `season_settled`.
+* **Battle pass seasons** (`server/core/pass.js`, this page): calendar quarters (`s1`, `s2`...) with XP, tiers and rewards. Tables `pass_progress`, `pass_claims`, `pass_xp_log`.
+They have different lengths and start dates, separate prize money (`FAUCET_MISSIONS` for the leaderboard and missions, `FAUCET_PASS` for the pass) and separate caps. A player can win one and not the other. Joining them (for example a leaderboard win giving pass XP) is a later decision; nothing here prevents it.

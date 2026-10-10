@@ -46,7 +46,10 @@
     <canvas id="minimap" width="300" height="300"></canvas>
     <button class="round" id="phoneBtn" aria-label="Phone">📱<b id="phoneBadge" class="hidden">0</b></button>
     <button class="round small" id="muteBtn" aria-label="Sound">🔊</button>
+    <button class="round small" id="emoteBtn" aria-label="Emotes">😀</button>
+    <button class="round small" id="photoBtn" aria-label="Photo mode">📷</button>
   </div>
+  <div id="festBadge" class="pill hidden"></div>
   <div id="loc" class="pill">—</div>
   <div id="waypoint" class="pill hidden"></div>
   <div id="shiftbar" class="pill hidden"></div>
@@ -54,6 +57,9 @@
   <form id="chatForm"><input id="chatInput" maxlength="140" placeholder="Say something nearby… (T)" autocomplete="off"><button class="btn small">Send</button></form>
   <button id="actionBtn" class="btn big hidden">Action</button>
   <button id="carBtn" class="round" aria-label="Car">🚗</button>
+  <button id="jumpBtn" class="round small2" aria-label="Jump (J)">⤴</button>
+  <button id="throwBtn" class="round small2" aria-label="Throw a ball (hold G)">⚽</button>
+  <button id="handBtn" class="round hand" aria-label="Handbrake (hold)">🛑<small>HAND</small></button>
   <div id="joy"><i id="joyKnob"></i></div>
   <div id="conn" class="hidden">Reconnecting…</div>
 </div>
@@ -64,6 +70,7 @@
 <div id="venue" class="hidden"></div>
 <div id="toasts"></div>
 <noscript><p style="color:#fff;padding:2em">Naija Area needs JavaScript and WebGL.</p></noscript>
+
 <script src="demo.js"></script>
 <script src="game.js"></script>
 </body>
