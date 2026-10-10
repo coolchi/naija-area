@@ -2,7 +2,7 @@
 import { build } from 'esbuild'; import fs from 'node:fs'; import path from 'node:path';
 const out = 'demo-static'; fs.mkdirSync(out, { recursive: true });
 await build({ entryPoints: ['client/src/main.js'], bundle: true, format: 'iife', outfile: `${out}/game.js`, minify: true, target: ['es2020'], logLevel: 'warning', legalComments: 'none' });
-await build({ entryPoints: ['demo-src/entry.js'], bundle: true, format: 'iife', outfile: `${out}/demo.js`, minify: true, platform: 'browser', target: ['es2020'], logLevel: 'warning', legalComments: 'none', external: ['node:*', 'fs', 'path', 'crypto'], define: { 'process.env': '{}' }, loader: { '.json': 'json' } });
+await build({ entryPoints: ['demo-src/entry.js'], bundle: true, format: 'iife', outfile: `${out}/demo.js`, minify: true, platform: 'browser', target: ['es2020'], logLevel: 'warning', legalComments: 'none', alias: { 'node:crypto': './demo-src/crypto-shim.js' }, external: ['node:*', 'fs', 'path', 'crypto'], define: { 'process.env': '{}' }, loader: { '.json': 'json' } });
 fs.cpSync('public/assets', `${out}/assets`, { recursive: true });
 const rel = (s) => s.replace(/url\('\/assets\//g, "url('./assets/");
 fs.writeFileSync(`${out}/style.css`, rel(fs.readFileSync('public/style.css', 'utf8')));
