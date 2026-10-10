@@ -14,6 +14,7 @@ import { parkedActive } from './parking.js';
 import { wearIds } from './wearables.js';
 import { titleOf } from './achievements.js';
 import * as guardian from './guardian.js';
+import { activeOf as emoteOf } from './emotes.js';
 
 export function createWorld() { return { players: new Map(), chatSeq: 0 }; }
 
@@ -86,7 +87,7 @@ export function heartbeat(app, uid, body, meta = {}) {
     // downsample trail to ~1 sample/2s newer than `since`
     const s = []; let lastT = 0; for (const t of o.trail) { if (t.t > since - 2000 && t.t - lastT >= 1800) { s.push([Math.round(t.t - now), t.x, t.z, t.ry]); lastT = t.t; } }
     if (!s.length) s.push([0, o.x, o.z, o.ry]);
-    const w = wearIds(app, o); const tt = o.isBot ? '' : titleOf(app, o.id); return { id: o.id, n: o.name, c: o.color, m: o.mode === 'drive' ? 1 : 0, act: o.activity || '', ...(w.length ? { w } : {}), ...(tt ? { t: tt } : {}), s };
+    const w = wearIds(app, o); const tt = o.isBot ? '' : titleOf(app, o.id); const em = emoteOf(o, now); return { id: o.id, n: o.name, c: o.color, m: o.mode === 'drive' ? 1 : 0, act: o.activity || '', ...(w.length ? { w } : {}), ...(tt ? { t: tt } : {}), ...(em ? { e: em } : {}), s };
   });
   const ccu = ccuNow(app); const interval = recommendedInterval(app, ccu);
   // notifications since last id

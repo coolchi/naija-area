@@ -31,6 +31,7 @@ import * as missions from './missions.js';
 import * as achievements from './achievements.js';
 import * as moderation from './moderation.js';
 import * as guardian from './guardian.js';
+import * as emotes from './emotes.js';
 import { MOD as moderationOptions } from '../config/moderation.js';
 account.registerPlayerData('guardian', guardian.exportMine, guardian.deleteMine);   // safety settings: in the download, erased on closing
 import './gamedata.js';   // registers what the table games and the word/board games hold about a player with the account download/closing module (docs/ACCOUNT_DATA.md)
@@ -52,7 +53,7 @@ const realRadioOn = (app) => { const rt = (app.runtime ||= {}); if (rt.realRadio
 route('GET', '/api/admin/radio', { auth: 'admin' }, (c) => ({ realRadio: realRadioOn(c.app) }));
 route('POST', '/api/admin/radio', { auth: 'admin' }, (c) => { realRadioOn(c.app); c.app.runtime.realRadio = c.body.enabled !== false && c.body.enabled !== 'false'; return { realRadio: c.app.runtime.realRadio }; });
 route('GET', '/api/health', (c) => ({ ok: true, name: c.app.gameName, now: c.app.clock.now() }));
-route('GET', '/api/config', (c) => ({ realRadio: realRadioOn(c.app), movement: { maxWalkSpeed: c.app.balance.movement.maxWalkSpeed, maxDriveSpeed: c.app.balance.movement.maxDriveSpeed, slack: c.app.balance.movement.slack }, crash: { enabled: !!c.app.balance.crash.enabled, regenPerMin: c.app.balance.crash.regenPerMin, max: c.app.balance.crash.maxHealth }, moodHappyAt: c.app.balance.mood.happyAt, name: c.app.gameName, tagline: GAME_TAGLINE, minAge: MIN_AGE, testMode: true, devRoutes: !!c.app.devRoutes, rotationMs: AD_POLICY.rotationMs, balanceNote: c.app.balance._note,
+route('GET', '/api/config', (c) => ({ realRadio: realRadioOn(c.app), movement: { maxWalkSpeed: c.app.balance.movement.maxWalkSpeed, maxDriveSpeed: c.app.balance.movement.maxDriveSpeed, slack: c.app.balance.movement.slack }, crash: { enabled: !!c.app.balance.crash.enabled, regenPerMin: c.app.balance.crash.regenPerMin, max: c.app.balance.crash.maxHealth }, moodHappyAt: c.app.balance.mood.happyAt, emotes: emotes.publicList(), name: c.app.gameName, tagline: GAME_TAGLINE, minAge: MIN_AGE, testMode: true, devRoutes: !!c.app.devRoutes, rotationMs: AD_POLICY.rotationMs, balanceNote: c.app.balance._note,
   topupOptions: c.app.balance.topup.options, payments: paymentsConfig(c.app), ageCheck: ageConfig(c.app), phone: !!c.app.balance.phone.enabled, transport: c.app.balance.transport, shopChannels: c.app.balance.shops.channels, workTask: c.app.balance.work.task, land: { risk: c.app.balance.land.risk }, maxNameLen: c.app.balance.housing.maxNameLen, housing: { rentPeriodMs: c.app.balance.housing.rentPeriodMs }, furniture: c.app.balance.housing.furniture }));
 route('GET', '/api/city', (c) => publicCity(c.uid ? cityOf(c.app, c.uid) : c.app.city));
 route('POST', '/api/cities/link', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); flight.assertNotFlying(c.app, c.uid); return { ...useLink(c.app, c.uid, String(c.body.linkId || ''), c.body.idem), user: eco.profile(c.app, c.uid) }; });
@@ -144,6 +145,8 @@ route('POST', '/api/missions/streak', { auth: 'user' }, (c) => missions.claimStr
 route('GET', '/api/achievements', { auth: 'user' }, (c) => achievements.view(c.app, c.uid));
 route('POST', '/api/achievements/title', { auth: 'user' }, (c) => achievements.selectTitle(c.app, c.uid, c.body.id === undefined ? 'auto' : c.body.id === null ? null : String(c.body.id)));
 // moderator tools (admin back end)
+route('POST', '/api/emote', { auth: 'user' }, (c) => emotes.play(c.app, c.uid, c.body.id));
+
 route('GET', '/api/guardian', { auth: 'user' }, (c) => guardian.view(c.app, c.uid));
 route('POST', '/api/guardian', { auth: 'user' }, (c) => guardian.update(c.app, c.uid, c.body));
 route('POST', '/api/guardian/pin', { auth: 'user' }, (c) => guardian.setPin(c.app, c.uid, c.body));

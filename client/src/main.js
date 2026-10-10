@@ -15,6 +15,8 @@ import * as Q from './quality.js';
 import { GameAudio } from './audio.js';
 import { readyCount } from './missions-ui.js';
 import { GuardianWatch, showBreak } from './guardian-ui.js';
+import { EmoteSystem, emoteSheet } from './emotes.js';
+import { PhotoMode } from './photo.js';
 import { AirportClient } from './airport-client.js';
 import { LinkClient } from './link-client.js';
 import { BoatClient } from './boat-client.js';
@@ -65,7 +67,7 @@ class Game {
       this.traffic = new Traffic(this.scene, city.trafficLoops, city.busStops || []); this.traffic.onHorn = (c, car) => this.horn(c, car); this.walkers = new Walkers(this.scene, city.zones, q0.walkers); this.ghosts = new Ghosts(this.scene); this.ghosts.cat = this.wearCat;
       this.audio = new GameAudio({ isLowEnd: () => this.qualityLevel === 'low', radioPlaying: () => !!this.radio?.state?.playing, night: () => lampsOn(this.world.night) > 0.5 }); const unlock = () => this.audio.unlock(); addEventListener('pointerdown', unlock, true); addEventListener('keydown', unlock, true); document.addEventListener('visibilitychange', () => this.audio.visibility(document.hidden)); document.addEventListener('click', (e) => { if (e.target.closest?.('button, .btn, .round')) this.audio.play('click'); }, true);
       this.ads = new AdsClient(this.world, city, () => this.serverNow()); this.ui = new UI(this); this.guardian = new GuardianWatch(this); window.addEventListener('na-break', (ev) => showBreak(this, ev.detail)); if (this.audio.set.on === false) { $('#muteBtn').textContent = '🔇'; this.ui.sfxOn = false; } this.net = new Net(this); this.interior = new Interior(this); this.venue = new Venue(this); this.garage = new GarageView(this);
-      this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root); applyServerLimits(this.cfg.movement); this.ctrl.onStep = (k) => this.ui.sfx('step', PHYS.audio.footstepVol * (0.6 + 0.4 * k)); this.ctrl.onBump = (imp) => this.ui.sfx('thud', PHYS.audio.thudVol * Math.min(1.4, 0.4 + imp / 12)); this.ctrl.obstacles = (x, z, r) => this.traffic.obstaclesNear(x, z, r); this.nav = new Nav(this); this.parking = new ParkingClient(this); this.bus = new BusStops(this); this.rideSvc = new RideClient(this); this.links = new LinkClient(this); this.boats = new BoatClient(this); this.radio = new RadioClient(this); this.air = new AirportClient(this); this.crash = new CrashClient(this); this.traffic.crash = this.crash;
+      this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root); applyServerLimits(this.cfg.movement); this.ctrl.onStep = (k) => this.ui.sfx('step', PHYS.audio.footstepVol * (0.6 + 0.4 * k)); this.ctrl.onBump = (imp) => this.ui.sfx('thud', PHYS.audio.thudVol * Math.min(1.4, 0.4 + imp / 12)); this.ctrl.obstacles = (x, z, r) => this.traffic.obstaclesNear(x, z, r); this.nav = new Nav(this); this.parking = new ParkingClient(this); this.bus = new BusStops(this); this.rideSvc = new RideClient(this); this.links = new LinkClient(this); this.boats = new BoatClient(this); this.radio = new RadioClient(this); this.air = new AirportClient(this); this.crash = new CrashClient(this); this.traffic.crash = this.crash; this.emotes = new EmoteSystem(this); this.photo = new PhotoMode(this); this.ghosts.emotes = this.emotes.view; $('#emoteBtn').onclick = () => emoteSheet(this); $('#photoBtn').onclick = () => this.photo.open();
       addEventListener('resize', () => this.resize()); this.resize(); Q.apply(this, Q.resolve(this.qualityChoice, Q.readEnv())); this.bindAuth(); this.progress(85, TIPS[Math.floor(Math.random() * TIPS.length)]);
       const me = await get('/api/me').catch(() => null); this.progress(100, 'Ready!'); await new Promise(r => setTimeout(r, 250));
       this.loop(performance.now()); $('#loading').classList.add('hidden');
@@ -177,7 +179,7 @@ class Game {
       if (this.ctrl.lastTap && !this.ui.sheetOpen && !this.busy) { const tp = this.ctrl.lastTap; this.ctrl.lastTap = null; if (now - tp.t < 400) this.tapPlace(tp.x, tp.y); }
       this.ads.update(this.camera, this.size, this.ctrl, dt * 1000);
       this.nav?.tick(dt); this.parking?.tick(dt * 1000); this.bus?.tick(dt * 1000, now); this.rideSvc?.tick(dt * 1000); this.air?.tick(dt * 1000); this.links?.tick(dt * 1000); this.boats?.tick(dt * 1000); this.radio?.tick(dt * 1000); this.audio?.engine(this.ctrl.mode === 'drive' && !this.air?.flying ? this.ctrl.groundSpeed() : null); if (now - (this.lastAudioTick || 0) > 100) { this.lastAudioTick = now; this.audio?.tick(); }
-      this.hudStep(now); if (Q.shouldRender(now, this.lastDraw || 0, this.quality?.maxFps)) { this.lastDraw = now; this.renderer.render(this.scene, this.camera); }
+      this.emotes?.frame(); this.hudStep(now); if (Q.shouldRender(now, this.lastDraw || 0, this.quality?.maxFps)) { this.lastDraw = now; this.renderer.render(this.scene, this.camera); }
     }; requestAnimationFrame(frame);
   }
   idleCam(now) { const a = now / 9000; this.camera.position.set(Math.cos(a) * 70, 38, Math.sin(a) * 70 - 20); this.camera.lookAt(0, 4, -20); this.camera.updateMatrixWorld(); }
