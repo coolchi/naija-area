@@ -6,6 +6,7 @@ import { dist, gameTime, addMood } from './economy.js';
 import * as games from './games.js';
 import * as leisure from './leisure.js';
 import { stadiumAct } from './stadium.js';
+import * as sports from './sports.js';
 import { wearIds } from './wearables.js';
 
 export const venueDef = (app, id) => app.all.venueById[id];
@@ -21,6 +22,7 @@ export function venueView(app, uid, venueId) {
   const stations = v.stations.map(st => {
     const o = { ...st };
     if (st.type === 'game') o.match = games.stationMatch(app, uid, venueId, st.id);
+    if (st.type === 'game' && !sports.kindOf(st)) o.soon = true;   // a slot for a game another builder is adding: shown, not playable yet
     if (st.type === 'car') o.price = app.balance.cars.models[st.model]?.price;
     return o;
   });

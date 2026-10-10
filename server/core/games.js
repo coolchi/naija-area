@@ -23,6 +23,7 @@ export const GAMES = { whot: { label: 'Whot', min: 2, max: 2, eng: whot }, ludo:
 const DAY = 86400000, WEEK = 7 * DAY;
 export const weekOf = (ms) => Math.floor((ms - 4 * DAY) / WEEK);   // weeks start Monday 00:00 UTC (1970-01-05 was a Monday)
 export const weekInfo = (app) => { const w = weekOf(app.clock.now()); return { week: w, endsAt: 4 * DAY + (w + 1) * WEEK }; };
+import { SPORTS_GAMES } from './sports-games.js'; import * as sports from './sports.js'; Object.assign(GAMES, SPORTS_GAMES);   // ping pong + tennis (Sports and Games Hall)
 const nameOf = (app, id) => app.db.prepare('SELECT username FROM users WHERE id=?').get(id)?.username;
 const row = (app, id) => app.db.prepare('SELECT * FROM game_matches WHERE id=?').get(id);
 const rngOf = (app) => app.rng || Math.random;
@@ -62,7 +63,7 @@ function activate(app, m, now) {
 }
 export function sit(app, uid, venueId, stationId, stake = 0) {
   const G = app.balance.games; const v = app.all.venueById[venueId]; const st = v?.stations.find(s => s.id === stationId);
-  if (!st || st.type !== 'game') bad('NO_STATION', 'No table like that here.', 404);
+  if (!st || st.type !== 'game') bad('NO_STATION', 'No table like that here.', 404); const kind = sports.kindOf(st); if (!kind) bad('COMING_SOON', 'That game is not open yet. It lights up here when it is ready.', 409);
   const p = app.world.players.get(uid); if (!p || p.venue !== venueId) bad('NOT_INSIDE', 'Step inside first.', 409);
   const now = app.clock.now(); if (!app.limiter.hit(`sit:${uid}`, G.sitPerMin, 60000, now)) bad('RATE_LIMIT', 'Slow down a little.', 429);
   expireStale(app); if (myMatch(app, uid, { onlyLive: true })) bad('ALREADY_PLAYING', 'You are already seated at a game.', 409);
@@ -86,7 +87,7 @@ export function sit(app, uid, venueId, stationId, stake = 0) {
       else if (w.kind === 'whot') activate(app, row(app, w.id), now);
       return viewFor(app, uid, row(app, w.id));
     }
-    const r = app.db.prepare("INSERT INTO game_matches(venue_id,station_id,kind,p1,stake,status,created_at,updated_at,deadline_at) VALUES (?,?,?,?,?,'waiting',?,?,?)").run(venueId, stationId, st.game, uid, useStake, now, now, now + G.waitMs);
+    const r = app.db.prepare("INSERT INTO game_matches(venue_id,station_id,kind,p1,stake,status,created_at,updated_at,deadline_at) VALUES (?,?,?,?,?,'waiting',?,?,?)").run(venueId, stationId, kind, uid, useStake, now, now, now + G.waitMs);
     const m = row(app, Number(r.lastInsertRowid)); escrowIn(app, m, uid); app.db.prepare('INSERT INTO game_players(match_id,user_id,seat) VALUES (?,?,0)').run(m.id, uid); return viewFor(app, uid, m);
   })();
 }
@@ -112,9 +113,9 @@ export function playMove(app, uid, id, mv = {}) {
     if (m.status !== 'active') bad('NOT_ACTIVE', m.status === 'waiting' ? 'Waiting for the game to start.' : 'This game is over.', 409); if (me.out) bad('NOT_ACTIVE', 'You left this game.', 409);
     const sd = side(m, me.seat); const st = JSON.parse(m.state); let r;
     if (m.kind === 'whot') r = mv.action === 'draw' ? whot.draw(st, sd, rngOf(app)) : whot.play(st, sd, String(mv.card || ''), mv.shape, rngOf(app));
-    else r = GAMES[m.kind].eng.play(st, sd, mv, rngOf(app), { now: app.clock.now(), turnStart: m.updated_at, bot: !!app.db.prepare('SELECT is_bot FROM users WHERE id=?').get(uid)?.is_bot });
+    else { const isBot = !!app.db.prepare('SELECT is_bot FROM users WHERE id=?').get(uid)?.is_bot; r = GAMES[m.kind].eng.play(st, sd, GAMES[m.kind].prep ? GAMES[m.kind].prep(app, st, mv, isBot) : mv, rngOf(app), { now: app.clock.now(), turnStart: m.updated_at, bot: isBot }); }
     if (r.error) bad(r.error, r.message || 'That move is not allowed.', r.error === 'NOT_YOUR_TURN' ? 409 : 400);
-    persist(app, m, st, uid); return viewFor(app, uid, row(app, id));
+    persist(app, m, st, uid); sports.botReplies(app, id); return viewFor(app, uid, row(app, id));
   })();
 }
 function persist(app, m, st, actor) {

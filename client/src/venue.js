@@ -7,6 +7,8 @@ import { venueShell, decorate, stationModel } from './rooms.js';
 import { declutter, shortLabel } from './labels.js';
 import * as PR from './props.js';
 import { boards2 } from './boards2.js';
+import { installSports } from './sports-ui.js';
+import { SportsStage, sportsModel } from './sports3d.js';
 import { wearSheet } from './wear-ui.js';
 import { officeSheet } from './office-ui.js';
 import { applyWear } from './wear-models.js';
@@ -16,7 +18,7 @@ const SHAPE = { circle: ['●', '#d6402f'], triangle: ['▲', '#2e7dd1'], cross:
 const hash = (s) => { let x = 7; for (const c of String(s)) x = (x * 31 + c.charCodeAt(0)) >>> 0; return x; };
 const ICON = { wear: '💎', dance: '💃', dj: '🎧', bar: '🥤', songs: '🎵', vip: '👑', style: '✂️', basin: '🚿', eat: '🍲', game: '🎲', board: '🏆', poster: '📜', tv: '📺', ticket: '🎟️', scores: '📊', seat: '🪑', car: '🚗', check: '🔍', service: '🔧' };
 
-const GAME_NAME = { whot: 'Whot', ludo: 'Ludo', dominoes: 'Dominoes', draughts: 'Draughts', ayo: 'Ayo', football: 'Table football', chess: 'Chess', wordduel: 'Word duel', landlord: 'Landlord Lagos', suwe: 'Suwe' };
+const GAME_NAME = { whot: 'Whot', ludo: 'Ludo', dominoes: 'Dominoes', draughts: 'Draughts', ayo: 'Ayo', football: 'Table football', chess: 'Chess', wordduel: 'Word duel', landlord: 'Landlord Lagos', suwe: 'Suwe', pingpong: 'Ping pong', tennis: 'Tennis' };
 export class Venue {
   constructor(game) { this.g = game; this.el = $('#venue'); this.open = false; this.shotId = null; }
   async show(venueId) {
@@ -33,12 +35,13 @@ export class Venue {
     this.stations = new THREE.Group(); this.scene.add(this.stations); this.people = new THREE.Group(); this.scene.add(this.people); this.meshes = {};
     for (const st of d.stations) this.addStation(st);
     { const ids = d.stations.filter(st => this.meshes[st.id]?.userData.label); const ys = declutter(ids.map(st => ({ x: st.x, z: st.z, y: this.meshes[st.id].userData.label.position.y }))); ids.forEach((st, i) => { this.meshes[st.id].userData.label.position.y = ys[i]; }); } // labels of close neighbours stack instead of overlapping
+    this.sportsStage = new SportsStage(this.scene, makeNameSprite, this); this.anim.push(t => this.sportsStage?.tick(t)); // Sports Hall athletes and ball (sports3d.js)
     this.bind(); this.resize(); this.onResize = () => this.resize(); addEventListener('resize', this.onResize);
   }
   addStation(st) {
     const grp = new THREE.Group(); const col = new THREE.Color(st.color || '#888'); const mat = (c) => new THREE.MeshLambertMaterial({ color: c });
     const box = (w, hh, dd, c, y) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, hh, dd), mat(c)); m.position.y = y ?? hh / 2; grp.add(m); return m; };
-    if (stationModel(st, grp, this.anim)) { /* club / salon pieces live in rooms.js */ }
+    if (sportsModel(st, grp) || stationModel(st, grp, this.anim)) { /* club / salon pieces live in rooms.js */ }
     else if (st.type === 'eat') { grp.add(PR.foodCounter(3.4, { c: col.getHex() })); }
     else if (st.type === 'game') { grp.add(PR.gameTable(0.95, { c: col.getHex() })); if (st.game === 'ludo') { box(1.5, 0.1, 1.5, 0xfaf5e6, 0.91); [0xd6402f, 0x2e9b5e, 0xe0a020, 0x2e7dd1].forEach((c, k) => { const q = box(0.6, 0.05, 0.6, c, 0.97); q.position.x = (k % 2 ? 1 : -1) * 0.45; q.position.z = (k < 2 ? -1 : 1) * 0.45; }); } else if (st.game === 'football') { box(1.7, 0.1, 1.1, 0x2e7d32, 0.93); for (const x of [-0.55, 0, 0.55]) { box(0.04, 0.04, 1.3, 0xb8bcc4, 1.0).position.x = x; for (const z of [-0.3, 0.3]) { const f = box(0.1, 0.12, 0.1, x < 0 ? 0xd6402f : 0x2e7dd1, 1.04); f.position.set(x, 1.04, z); } } } else for (let i = 0; i < 4; i++) { const c = box(0.34, 0.03, 0.5, [0xd6402f, 0x2e7dd1, 0xe0a020, 0x2e9b5e][i], 0.88); c.position.x = -0.5 + i * 0.33; c.rotation.y = 0.2 * i - 0.3; } for (const sx of [-1.25, 1.25]) { const s = PR.stool({ c: 0x8a3f28 }); s.position.set(sx, 0, 0); grp.add(s); } }
     else if (st.type === 'board') { box(2.4, 1.5, 0.12, col, 1.6).position.z = -0.1; box(2.2, 1.3, 0.14, 0x0f3b27, 1.6).position.z = -0.08; }
@@ -52,7 +55,7 @@ export class Venue {
   }
   people_refresh() {
     this.people.clear(); const d = this.data; const names = new Set(); const put = (u, color, x, z, wear) => { if (names.has(u)) return; names.add(u); const a = makeAvatar(color || '#2e9b5e'); a.scale.setScalar(0.55); applyWear(a, wear || [], this.g.wearCat); a.position.set(x, 0, z); const t = makeNameSprite('@' + u, '#ffffff'); t.scale.set(1.6, 0.4, 1); t.position.y = 2.2; a.add(t); this.people.add(a); };
-    for (const st of d.stations) if (st.type === 'game' && st.match) { const m = st.match; m.players.forEach((u, k) => put(u, null, st.x + [-1.25, 1.25, -0.5, 0.5][k], st.z + (k < 2 ? 0.5 : 1.5))); }
+    this.sportsStage?.sync(d.stations); for (const st of d.stations) if (st.type === 'game' && st.match && !st.sport) { const m = st.match; m.players.forEach((u, k) => put(u, null, st.x + [-1.25, 1.25, -0.5, 0.5][k], st.z + (k < 2 ? 0.5 : 1.5))); }
     for (const o of d.occupants) { const hx = hash(o.username); put(o.username, o.color, -3 + (hx % 7) * 1.0, d.room.d / 2 - 1.1 - ((hx >> 4) % 2) * 0.8, o.w); }
   }
   chrome() {
@@ -91,7 +94,7 @@ export class Venue {
   }
   async board(kind = 'all') {
     const ui = this.g.ui; const d = await ui.guard(() => get('/api/scoreboard' + (kind === 'all' ? '' : `?kind=${kind}`))); if (!d) return; const left = Math.max(0, d.endsAt - this.g.serverNow());
-    const tabs = h('div', { class: 'chips' }, ['all', 'whot', 'ludo', 'dominoes', 'draughts', 'ayo', 'football', 'chess', 'wordduel', 'landlord', 'suwe'].map(k => h('button', { class: `chip ${k === kind ? 'on' : ''}`, onclick: () => this.board(k) }, k === 'all' ? 'All games' : GAME_NAME[k])));
+    const tabs = h('div', { class: 'chips' }, ['all', 'whot', 'ludo', 'dominoes', 'draughts', 'ayo', 'football', 'chess', 'wordduel', 'landlord', 'suwe', 'pingpong', 'tennis'].map(k => h('button', { class: `chip ${k === kind ? 'on' : ''}`, onclick: () => this.board(k) }, k === 'all' ? 'All games' : GAME_NAME[k])));
     ui.openSheet('Weekly scoreboard', [tabs, d.rows.length ? h('div', { class: 'list' }, d.rows.map(r => h('div', {}, h('span', {}, `${r.rank}. @${r.username}`), h('span', { class: 'mut' }, `${r.wins}W ${r.draws}D ${r.losses}L · `), h('b', {}, `${r.points} pts`)))) : h('p', { class: 'mut' }, 'Nobody has played this week yet. Be the first!'), h('p', { class: 'mut' }, `${d.scoring} Resets in ${Math.floor(left / 86400000)}d ${Math.floor(left % 86400000 / 3600000)}h.`)]);
   }
   async leisureAct(st) {
@@ -136,11 +139,11 @@ export class Venue {
   focusMatch(id, view) { this.matchId = id; if (view) this.renderMatch(view); else this.pollGame(); }
   async pollGame() { if (!this.matchId) return; const v = await get(`/api/game?id=${this.matchId}`).catch(() => null); if (v) this.renderMatch(v); }
   renderMatch(v) {
-    if (this.holdRender?.(v)) { this.match = v; return; } this.match = v; if (this.dismissed.has(v.id)) return; this.matchId = v.id; const me = this.g.user?.username; const kids = []; const head = h('div', { class: 'row sp' }, h('b', {}, `${v.label} · ${v.players.map(x => x.name).join(', ')}`), h('span', { class: 'tag amber' }, v.stake ? `Stake ${fmtN(v.stake)} · pot ${fmtN(v.pot)}` : 'Friendly')); kids.push(head);
+    if (this.holdRender?.(v)) { this.match = v; return; } this.match = v; if (v.stationId && v.board?.log) this.sportsStage?.feed(v.stationId, v); if (this.dismissed.has(v.id)) return; this.matchId = v.id; const me = this.g.user?.username; const kids = []; const head = h('div', { class: 'row sp' }, h('b', {}, `${v.label} · ${v.players.map(x => x.name).join(', ')}`), h('span', { class: 'tag amber' }, v.stake ? `Stake ${fmtN(v.stake)} · pot ${fmtN(v.pot)}` : 'Friendly')); kids.push(head);
     if (v.status === 'waiting') { kids.push(h('p', {}, `Seated ${v.players.length}/${v.max} · waiting for players… ⏳`), h('div', { class: 'row' }, v.players.map(x => h('span', { class: 'tag' }, '@' + x.name))), h('p', { class: 'mut' }, 'Your stake is held safely and comes back if nobody joins.'), v.canStart ? h('button', { class: 'btn big alt', id: 'ludoStart', onclick: () => this.startMatch(v) }, `▶ Start now with ${v.players.length} players`) : v.max > 2 && v.isHost ? h('p', { class: 'mut' }, 'Need at least 2 players to start.') : '', h('button', { class: 'btn ghost', onclick: () => this.leaveMatch(v) }, 'Leave the table')); }
     else if (v.status === 'active') {
       const mine = v.board?.mine; const left = Math.max(0, Math.ceil((v.deadlineAt - this.g.serverNow()) / 1000)); kids.push(h('div', { class: 'row sp' }, h('span', { class: mine ? 'tag green' : 'tag' }, mine ? '🟢 Your turn' : `⏳ @${v.turn}'s turn`), h('span', { class: 'mut', id: 'gtimer' }, `${left}s`)));
-      kids.push(({ ludo: () => this.ludoBoard(v), dominoes: () => this.dominoBoard(v), draughts: () => this.draughtsBoard(v), ayo: () => this.ayoBoard(v), football: () => this.footballBoard(v), chess: () => this.chessBoard(v), wordduel: () => this.wordDuelBoard(v), landlord: () => this.landlordBoard(v), suwe: () => this.suweBoard(v) }[v.kind] || (() => this.whotBoard(v)))()); kids.push(h('div', { class: 'row' }, h('button', { class: 'btn small ghost', onclick: () => this.g.ui.confirm?.call(this.g.ui, v.kind === 'ludo' || v.kind === 'dominoes' ? 'Leave this game? You are out and your stake stays in the pot.' : 'Resign this game? Your opponent wins the pot.', () => this.leaveMatch(v)) }, '🏳 Resign')));
+      kids.push(({ ludo: () => this.ludoBoard(v), dominoes: () => this.dominoBoard(v), draughts: () => this.draughtsBoard(v), ayo: () => this.ayoBoard(v), football: () => this.footballBoard(v), chess: () => this.chessBoard(v), wordduel: () => this.wordDuelBoard(v), landlord: () => this.landlordBoard(v), suwe: () => this.suweBoard(v) }[v.kind] || this.sportsBoardFor(v.kind) || (() => this.whotBoard(v)))()); kids.push(h('div', { class: 'row' }, h('button', { class: 'btn small ghost', onclick: () => this.g.ui.confirm?.call(this.g.ui, v.kind === 'ludo' || v.kind === 'dominoes' ? 'Leave this game? You are out and your stake stays in the pot.' : 'Resign this game? Your opponent wins the pot.', () => this.leaveMatch(v)) }, '🏳 Resign')));
     } else { const r = v.result || {}; kids.push(h('div', { class: `banner ${r.youWon ? 'win' : r.draw ? 'draw' : 'lose'}` }, r.cancelled ? `Table closed. ${r.why || ''}` : r.draw ? '🤝 Draw' : r.youWon ? `🏆 You won! ${v.stake ? '+' + fmtN(v.pot) : ''}` : `You lost. ${r.why || ''}`), v.kind === 'wordduel' && v.board ? this.wordDuelBoard(v) : '', h('button', { class: 'btn alt', onclick: () => { this.dismissed.add(v.id); this.matchId = null; this.panel.classList.add('hidden'); this.g.net.nudge(); this.refreshVenue(); } }, 'Back to the room')); this.g.refreshMe?.(); }
     kids.push(h('p', { class: 'mut' }, '🎲 Game money only.')); this.showPanel(kids); void me;
   }
@@ -224,10 +227,11 @@ export class Venue {
     this.onKey = (e) => { if (this.open && e.key === 'Escape' && !this.g.ui.sheetOpen) this.leave(); }; addEventListener('keydown', this.onKey);
   }
   resize() { const w = this.el.clientWidth, hh = this.el.clientHeight; this.r.setSize(w, hh, false); this.cam.aspect = w / hh; this.cam.updateProjectionMatrix(); }
-  loop() { if (!this.open) return; this.cam.position.set(Math.sin(this.yaw) * Math.cos(this.pitch) * this.dist, Math.sin(this.pitch) * this.dist, Math.cos(this.yaw) * Math.cos(this.pitch) * this.dist); this.cam.lookAt(0, 0.6, 0.3); const tt = (performance.now() - this.t0) / 1000; for (const f of this.anim) f(tt); this.r.render(this.scene, this.cam); this.raf = requestAnimationFrame(() => this.loop()); }
+  loop() { if (!this.open) return; const f = this.focus || { x: 0, y: 0.6, z: 0.3 }; /* focus: the Sports Hall stage moves it to your match */ this.cam.position.set(f.x + Math.sin(this.yaw) * Math.cos(this.pitch) * this.dist, f.y + Math.sin(this.pitch) * this.dist, f.z + Math.cos(this.yaw) * Math.cos(this.pitch) * this.dist); this.cam.lookAt(f.x, f.y, f.z); const tt = (performance.now() - this.t0) / 1000; for (const f of this.anim) f(tt); this.r.render(this.scene, this.cam); this.raf = requestAnimationFrame(() => this.loop()); }
   async leave() {
     if (!this.open) return; const r = await this.g.ui.guard(() => post('/api/venue/leave')); if (!r) return; this.open = false; clearInterval(this.pt); cancelAnimationFrame(this.raf); removeEventListener('keydown', this.onKey); removeEventListener('resize', this.onResize);
-    this.r.dispose(); this.el.classList.add('hidden'); this.el.replaceChildren(); this.g.busy = false; this.g.ctrl.frozen = false; this.g.net.nudge(); $('#game').focus();
+    this.sportsStage?.dispose(); this.sportsStage = null; this.r.dispose(); this.el.classList.add('hidden'); this.el.replaceChildren(); this.g.busy = false; this.g.ctrl.frozen = false; this.g.net.nudge(); $('#game').focus();
   }
 }
 Object.assign(Venue.prototype, boards2); // Track C boards (chess, word duel, Omo Onile, Suwe)
+installSports(Venue); // ping pong and tennis match panel, bot sit panel, coming-soon tables (sports-ui.js)
