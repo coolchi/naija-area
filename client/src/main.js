@@ -9,6 +9,7 @@ import { Net } from './net.js';
 import { Interior } from './interior.js';
 import { Venue } from './venue.js';
 import { GarageView } from './garage-view.js';
+import { roadAt } from './roadgeom.js';
 import { PhoneSys } from './phone-v2/phone2.js';
 import { glowTexture } from './textures.js';
 
@@ -136,7 +137,7 @@ class Game {
       requestAnimationFrame(frame); const dt = Math.min(0.1, (now - last) / 1000); last = now;
       if (!this.playing) { this.idleCam(now); this.renderer.render(this.scene, this.camera); return; }
       if (this.interior.open || this.venue.open || this.garage.open) return;
-      const sec = this.serverNow() / 1000; this.traffic.update(sec, this.yieldTargets(), dt); this.walkers.update(sec); this.ghosts.update(this.serverNow() - 1100); this.world.animate(dt * 1000);
+      const sec = this.serverNow() / 1000; this.traffic.update(sec, this.yieldTargets(), dt); this.walkers.update(sec, this.ctrl); this.ghosts.update(this.serverNow() - 1100); this.world.animate(dt * 1000);
       if (!this.stepCommute(now)) this.ctrl.update(dt); else this.ctrl.placeCamera(this.camera, dt);
       if (!this.commute) { this.ctrl.placeCamera(this.camera, dt); if (now - this.lastSample > 250) { this.lastSample = now; this.net.sample({ t: this.serverNow(), x: this.ctrl.x, z: this.ctrl.z, ry: this.ctrl.ry }); } }
       if (this.ctrl.lastTap && !this.ui.sheetOpen && !this.busy) { const tp = this.ctrl.lastTap; this.ctrl.lastTap = null; if (now - tp.t < 400) this.tapPlace(tp.x, tp.y); }
@@ -153,6 +154,7 @@ class Game {
     if (this.dest.visible) this.dest.scale.setScalar(1 + Math.sin(now / 200) * 0.15); this.ui.minimap(c, this.city, this.ghosts, this.waypoint); if (this.user?.shift) this.ui.hud(this.user);
     this.activity = c.mode;
   }
-  roadName(x, z) { for (const r of this.city.roads) { const alongX = r.z1 === r.z2; if (alongX ? Math.abs(z - r.z1) < r.width / 2 && x >= Math.min(r.x1, r.x2) && x <= Math.max(r.x1, r.x2) : Math.abs(x - r.x1) < r.width / 2 && z >= Math.min(r.z1, r.z2) && z <= Math.max(r.z1, r.z2)) return r.name || 'On the road'; } return null; }
+  onRoad(x, z, slack = 0) { return roadAt(this.city, x, z, slack); }
+  roadName(x, z) { const r = roadAt(this.city, x, z); return r ? (r.name || 'On the road') : null; }
 }
 const game = new Game(); window.__game = game; game.boot();

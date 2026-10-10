@@ -1,3 +1,5 @@
+import { makePath, atPath } from './path.js';
+import { Crowd } from './people.js';
 import { gapAhead, stepSpeed, decide, YIELD_CFG } from './yield.js';
 import * as THREE from 'three';
 import { Builder, mulberry32 } from '../sample/builder.js';
@@ -21,6 +23,11 @@ function avatarGeo(hex) {
   b.box(0.5, 0.85, 0.82, 0, 0.85, 0, hex, { noAO: true });
   b.box(0.3, 0.8, 0.18, 0, 0.9, 0.5, hex, { noAO: true }); b.box(0.3, 0.8, 0.18, 0, 0.9, -0.5, hex, { noAO: true });
   b.sphere(0.27, 0, 2.0, 0, 0x8d5524, { noAO: true }); b.box(0.48, 0.14, 0.52, -0.02, 2.14, 0, 0x1a1a1a, { noAO: true });
+  // extra detail for real players: neck, shoes, belt, hands, eyes (a few extra boxes, cached per colour so the cost is paid once)
+  b.box(0.16, 0.14, 0.2, 0, 1.76, 0, 0x7a4a2a, { noAO: true }); b.box(0.5, 0.1, 0.86, 0, 0.82, 0, 0x2a1c12, { noAO: true });
+  b.box(0.5, 0.12, 0.2, 0.06, -0.02, 0.17, 0x1a1a1a, { noAO: true }); b.box(0.5, 0.12, 0.2, 0.06, -0.02, -0.17, 0x1a1a1a, { noAO: true });
+  b.box(0.2, 0.16, 0.2, 0, 0.78, 0.5, 0x8d5524, { noAO: true }); b.box(0.2, 0.16, 0.2, 0, 0.78, -0.5, 0x8d5524, { noAO: true });
+  b.box(0.05, 0.07, 0.07, 0.26, 2.04, 0.1, 0x111111, { noAO: true, jit: 0 }); b.box(0.05, 0.07, 0.07, 0.26, 2.04, -0.1, 0x111111, { noAO: true, jit: 0 });
   const g = b.build(); avatarGeoCache.set(hex, g); return g;
 }
 export function makeAvatar(colorHex) {
@@ -37,29 +44,12 @@ export function makeNameSprite(text, color) {
 }
 
 // ---- NPC traffic: deterministic from server time, so every client sees roughly the same cars without any sync traffic
-function makePath(pts, r = 7) {
-  const n = pts.length; const out = [];
-  for (let i = 0; i < n; i++) {
-    const p0 = pts[(i + n - 1) % n], p1 = pts[i], p2 = pts[(i + 1) % n];
-    const a = norm([p0[0] - p1[0], p0[1] - p1[1]]), b = norm([p2[0] - p1[0], p2[1] - p1[1]]);
-    const A = [p1[0] + a[0] * r, p1[1] + a[1] * r], Bp = [p1[0] + b[0] * r, p1[1] + b[1] * r];
-    for (let k = 0; k <= 8; k++) { const t = k / 8; out.push([(1 - t) * (1 - t) * A[0] + 2 * (1 - t) * t * p1[0] + t * t * Bp[0], (1 - t) * (1 - t) * A[1] + 2 * (1 - t) * t * p1[1] + t * t * Bp[1]]); }
-  }
-  const cum = [0]; for (let i = 1; i <= out.length; i++) { const a = out[i - 1], b = out[i % out.length]; cum.push(cum[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1])); }
-  return { pts: out, cum, length: cum[cum.length - 1] };
-}
-const norm = (v) => { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; };
-function atPath(P, s, o) {
-  s = ((s % P.length) + P.length) % P.length; let lo = 0, hi = P.cum.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (P.cum[m] <= s) lo = m; else hi = m; }
-  const a = P.pts[lo], b = P.pts[(lo + 1) % P.pts.length]; const t = (s - P.cum[lo]) / Math.max(1e-6, P.cum[lo + 1] - P.cum[lo]);
-  o.x = a[0] + (b[0] - a[0]) * t; o.z = a[1] + (b[1] - a[1]) * t; o.yaw = Math.atan2(-(b[1] - a[1]), b[0] - a[0]); return o;
-}
 export class Traffic {
   constructor(scene, loops) {
     this.cars = []; const rnd = mulberry32(2026); const tmp = {};
     const colors = [0xf5f5f5, 0xb0b5ba, 0x1f2328, 0xb71c1c, 0x1e4f8c, 0x2e6b3a, 0xd6c9a8, 0x7a5c3e];
     for (const L of loops) {
-      const P = makePath(L.pts); const speed = 6.5 + rnd() * 3; const n = Math.max(3, Math.round(P.length / 85));
+      const P = makePath(L.pts, 7, { dense: !!L.dense, slow: true }); const speed = 6.5 + rnd() * 3; const n = Math.max(3, Math.round(P.realLength / 85));
       for (let i = 0; i < n; i++) {
         const type = L.npcs[(rnd() * L.npcs.length) | 0]; let geo;
         if (type === 'danfo') geo = danfoGeo(rnd); else if (type === 'keke') geo = kekeGeo(rnd() > 0.2 ? 0xFFC20E : 0x2e7d32, 0x17181b); else if (type === 'okada') geo = okadaGeo(rnd);
@@ -89,24 +79,21 @@ export class Traffic {
     }
   }
 }
-export class Walkers { // instanced pedestrians on block sidewalks
+export class Walkers { // instanced pedestrians on block sidewalks, human shaped (see people.js)
   constructor(scene, zones, count = 36) {
-    const rnd = mulberry32(5); const body = new THREE.CapsuleGeometry(0.26, 0.8, 2, 6).translate(0, 0.65, 0); const head = new THREE.SphereGeometry(0.22, 8, 6).translate(0, 1.65, 0);
-    this.body = new THREE.InstancedMesh(body, new THREE.MeshLambertMaterial(), count); this.head = new THREE.InstancedMesh(head, new THREE.MeshLambertMaterial(), count);
-    this.body.frustumCulled = this.head.frustumCulled = false; scene.add(this.body, this.head); this.items = []; const col = new THREE.Color();
-    const shirts = [0x008751, 0xFFC20E, 0xffffff, 0xd84315, 0x1e88e5, 0xad1457, 0x6a1b9a, 0x37474f, 0xf9a825]; const skins = [0x8d5524, 0xc68642, 0x6b4226, 0x4a2c17, 0xa0693a];
+    const rnd = mulberry32(5); this.crowd = new Crowd(scene, count, 5); this.items = [];
     const usable = zones.filter(z => z.z0 < 150);
     for (let i = 0; i < count; i++) {
       const z = usable[(rnd() * usable.length) | 0]; const inset = 1.5; const P = makePath([[z.x0 + inset, z.z0 + inset], [z.x1 - inset, z.z0 + inset], [z.x1 - inset, z.z1 - inset], [z.x0 + inset, z.z1 - inset]], 4);
       this.items.push({ P, off: rnd() * P.length, v: 1.1 + rnd() * 0.7, dir: rnd() > 0.5 ? 1 : -1, ph: rnd() * 6 });
-      this.body.setColorAt(i, col.setHex(shirts[(rnd() * shirts.length) | 0])); this.head.setColorAt(i, col.setHex(skins[(rnd() * skins.length) | 0]));
     }
-    this.m = new THREE.Matrix4(); this.q = new THREE.Quaternion(); this.p = new THREE.Vector3(); this.s = new THREE.Vector3(1, 1, 1); this.tmp = {}; this.up = new THREE.Vector3(0, 1, 0);
+    this.tmp = {}; this.body = this.crowd.parts.torso; this.legL = this.crowd.parts.legL; this.m = new THREE.Matrix4();
   }
-  update(serverSec) {
-    this.items.forEach((it, i) => { atPath(it.P, it.dir * it.v * serverSec + it.off, this.tmp); this.q.setFromAxisAngle(this.up, this.tmp.yaw + (it.dir < 0 ? Math.PI : 0));
-      this.p.set(this.tmp.x, 0.2 + Math.abs(Math.sin(serverSec * 6 + it.ph)) * 0.07, this.tmp.z); this.m.compose(this.p, this.q, this.s); this.body.setMatrixAt(i, this.m); this.head.setMatrixAt(i, this.m); });
-    this.body.instanceMatrix.needsUpdate = this.head.instanceMatrix.needsUpdate = true;
+  /** viewer: optional {x, z}; walkers farther than 60 m stop swinging their limbs (cheaper) */
+  update(serverSec, viewer = null) {
+    this.items.forEach((it, i) => { atPath(it.P, it.dir * it.v * serverSec + it.off, this.tmp); const far = viewer ? Math.hypot(this.tmp.x - viewer.x, this.tmp.z - viewer.z) > 60 : false;
+      this.crowd.pose(i, this.tmp.x, 0.2, this.tmp.z, this.tmp.yaw + (it.dir < 0 ? Math.PI : 0), serverSec * it.v * 3.4 + it.ph, 1, far); });
+    this.crowd.commit();
   }
 }
 

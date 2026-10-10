@@ -1,3 +1,4 @@
+import { roadPts } from './roadgeom.js';
 import { PhoneShell } from './phone-v2/apps.js';
 import { get, post, fmtN, h, $, $$, ApiError } from './api.js';
 import * as casualUi from './casual.js';
@@ -75,7 +76,7 @@ export class UI {
   action(label) { const b = $('#actionBtn'); if (!label) return b.classList.add('hidden'); b.classList.remove('hidden'); b.textContent = label; }
   minimap(ctrl, city, ghosts, wp, plotsOwned) {
     const c = this.mm, W = 300, S = W / 520; const B = city.bounds; const X = (x) => (x - B.minX) * S + 8, Z = (z) => (z - B.minZ) * S + 8; c.clearRect(0, 0, W, W); c.fillStyle = '#c9c3ad'; c.fillRect(0, 0, W, W);
-    c.fillStyle = '#2b6f8a'; c.fillRect(0, Z(B.maxZ), W, W); c.fillStyle = '#3d4046'; for (const r of city.roads) { c.fillRect(X(Math.min(r.x1, r.x2)) - (r.x1 === r.x2 ? r.width * S / 2 : 0), Z(Math.min(r.z1, r.z2)) - (r.z1 === r.z2 ? r.width * S / 2 : 0), r.x1 === r.x2 ? r.width * S : Math.abs(r.x2 - r.x1) * S, r.z1 === r.z2 ? r.width * S : Math.abs(r.z2 - r.z1) * S); }
+    c.fillStyle = '#2b6f8a'; c.fillRect(0, Z(B.maxZ), W, W); c.strokeStyle = '#3d4046'; c.lineJoin = 'round'; for (const r of city.roads) { c.lineWidth = r.width * S; c.beginPath(); roadPts(r).forEach((p, i) => i ? c.lineTo(X(p[0]), Z(p[1])) : c.moveTo(X(p[0]), Z(p[1]))); c.stroke(); } c.fillStyle = '#3d4046'; for (const o of city.roundabouts || []) { c.beginPath(); c.arc(X(o.x), Z(o.z), o.outerR * S, 0, 7); c.fill(); c.fillStyle = '#6a9a55'; c.beginPath(); c.arc(X(o.x), Z(o.z), o.islandR * S, 0, 7); c.fill(); c.fillStyle = '#3d4046'; }
     c.fillStyle = '#8f8a79'; for (const b of city.buildings) c.fillRect(X(b.x - b.w / 2), Z(b.z - b.d / 2), b.w * S, b.d * S);
     c.fillStyle = '#ffc20e'; for (const s of city.shops) c.fillRect(X(s.x) - 3, Z(s.z) - 3, 6, 6); c.fillStyle = '#4aa3ff'; for (const j of city.jobs) c.fillRect(X(j.x) - 3, Z(j.z) - 3, 6, 6);
     c.fillStyle = '#35c46b'; for (const b of city.billboards) if (b.surface !== 'lagoon_plot') c.fillRect(X(b.x) - 2, Z(b.z) - 2, 4, 4);

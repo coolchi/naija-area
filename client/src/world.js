@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { Builder, mulberry32 } from '../sample/builder.js';
 import { wallTextures, roadTexture, groundTexture, waterTexture, tex2 } from './textures.js';
+import { roadPts, isCurved, offsetPoly, polyLen } from './roadgeom.js';
 
 const lerpC = (a, b, t) => new THREE.Color(a).lerp(new THREE.Color(b), t);
 
@@ -36,13 +37,32 @@ export function buildWorld(city) {
   // ---- roads
   const rt = roadTexture(); const roadMeshes = [];
   for (const r of city.roads) {
+    if (isCurved(r)) continue;
     const len = Math.hypot(r.x2 - r.x1, r.z2 - r.z1); const alongX = Math.abs(r.x2 - r.x1) > Math.abs(r.z2 - r.z1);
     const t = rt.clone(); t.needsUpdate = true; t.repeat.set(1, len / 56);
     const m = new THREE.Mesh(new THREE.PlaneGeometry(r.width, len).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: t }));
     m.position.set((r.x1 + r.x2) / 2, 0.02 + (alongX ? 0 : 0.005), (r.z1 + r.z2) / 2); if (alongX) m.rotation.y = Math.PI / 2; root.add(m);
   }
-  const xs = city.roads.filter(r => r.x1 === r.x2).map(r => r.x1), zs = city.roads.filter(r => r.z1 === r.z2).map(r => r.z1);
+  // curved roads (road data v2): a ribbon along the polyline, raised a little so the block sidewalk slabs do not hide it
+  const ribbon = (pts, w, y, mat, vScale) => { const L = offsetPoly(pts, -w / 2, false), R = offsetPoly(pts, w / 2, false); const pos = [], uv = [], idx = []; let acc = 0;
+    for (let i = 0; i < pts.length; i++) { if (i) acc += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); pos.push(L[i][0], y, L[i][1], R[i][0], y, R[i][1]); uv.push(0, acc / vScale, 1, acc / vScale); if (i) { const k = i * 2; idx.push(k - 2, k, k - 1, k - 1, k, k + 1); } }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); const m = new THREE.Mesh(g, mat); root.add(m); return m; };
+  const kerbMat = new THREE.MeshLambertMaterial({ color: 0xb9b39a }); const curvedMats = [];
+  for (const r of city.roads) { if (!isCurved(r)) continue; const t = rt.clone(); t.needsUpdate = true; t.repeat.set(1, 1); const mat = new THREE.MeshLambertMaterial({ map: t, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }); curvedMats.push(mat); ribbon(roadPts(r), r.width + 1.6, 0.085, kerbMat, 56); ribbon(roadPts(r), r.width, 0.09, mat, 56); }
+  // roundabouts: asphalt ring, kerbed grass island with a palm, dashed lane circle
+  const roundabouts = city.roundabouts || [];
+  const asphalt = new THREE.MeshLambertMaterial({ color: 0x34373c, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  for (const o of roundabouts) {
+    const ringG = new THREE.RingGeometry(o.islandR, o.outerR, 48, 1).rotateX(-Math.PI / 2); const ring = new THREE.Mesh(ringG, asphalt); ring.position.set(o.x, 0.09, o.z); root.add(ring);
+    plain.cyl(o.islandR + 0.6, o.islandR + 0.6, 0.35, 20, o.x, 0.08, o.z, 0xb9b39a, { noAO: true }); plain.cyl(o.islandR - 0.2, o.islandR - 0.2, 0.42, 20, o.x, 0.08, o.z, 0x4f8a45, { noAO: true });
+    const Rc = (o.outerR + o.islandR) / 2; for (let i = 0; i < 18; i++) { const a = (i / 18) * Math.PI * 2; plain.box(0.25, 0.04, 2.2, o.x + Math.cos(a) * Rc, 0.1, o.z + Math.sin(a) * Rc, 0xf2d23c, { noAO: true, jit: 0, ry: -a }); }
+    for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; plain.box(1.3, 0.5, 0.5, o.x + Math.cos(a) * (o.islandR + 0.6), 0.2, o.z + Math.sin(a) * (o.islandR + 0.6), 0xffffff, { noAO: true, jit: 0, ry: -a }); }
+    palm(plain, o.x, o.z, 0.8); const q = o.islandR * 0.62; colliders.push({ id: o.id, h: 1.2, x0: o.x - q, x1: o.x + q, z0: o.z - q, z1: o.z + q });
+  }
+  const inRA = (x, z) => roundabouts.some(o => Math.hypot(x - o.x, z - o.z) < 1);
+  const xs = city.roads.filter(r => !isCurved(r) && r.x1 === r.x2).map(r => r.x1), zs = city.roads.filter(r => !isCurved(r) && r.z1 === r.z2).map(r => r.z1);
   for (const x of xs) for (const z of zs) {
+    if (inRA(x, z)) continue;
     plain.box(14, 0.05, 14, x, 0.0, z, 0x34373c, { noAO: true, jit: 0 });
     for (let i = -3; i <= 3; i++) for (const [dx, dz, w, d] of [[0, -8.5, 1, 3], [0, 8.5, 1, 3], [-8.5, 0, 3, 1], [8.5, 0, 3, 1]]) plain.box(w, 0.06, d, x + dx + (dx === 0 ? i * 1.8 : 0), 0.0, z + dz + (dz === 0 ? i * 1.8 : 0), 0xeeeeea, { noAO: true, jit: 0 });
   }

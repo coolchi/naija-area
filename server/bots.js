@@ -10,7 +10,7 @@ const LINES = ['How far?', 'Na wa o, this traffic!', 'Oga, where the market dey?
 const rnd = (a) => a[Math.floor(Math.random() * a.length)];
 
 export function startBots(app, count = 8, { initialWait } = {}) {
-  const city = app.city; const horiz = [...new Set(city.roads.filter(r => r.z1 === r.z2).map(r => r.z1))]; const vert = [...new Set(city.roads.filter(r => r.x1 === r.x2).map(r => r.x1))];
+  const city = app.city; const horiz = [...new Set(city.roads.filter(r => !r.pts && r.z1 === r.z2).map(r => r.z1))]; const vert = [...new Set(city.roads.filter(r => !r.pts && r.x1 === r.x2).map(r => r.x1))];
   const nearest = (arr, v) => arr.reduce((b, x) => (Math.abs(x - v) < Math.abs(b - v) ? x : b), arr[0]);
   const bots = [];
   for (let i = 0; i < Math.min(count, NAMES.length); i++) {

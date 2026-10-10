@@ -1,6 +1,7 @@
 // Full city map: canvas, zoom + pan (wheel / drag / pinch), labels by zoom level, hover/tap info card, search list, legend with layer toggles, live players.
 // All geometry comes from the city JSON via map-model.js. The STATIC layer (ground, districts, roads, buildings, plots) is drawn once into an offscreen bitmap and
 // blitted each frame; only labels, markers and players are redrawn live, so it stays light on phones.
+import { offsetPoly, polyLen, pointAt } from './roadgeom.js';
 import { h, $ } from './api.js';
 import { buildModel, search, hitTest, labelRules, KIND_COL, LAYERS, DEFAULT_LAYERS } from './map-model.js';
 
@@ -42,10 +43,15 @@ export class CityMap {
     c.fillStyle = '#c3c8a6'; for (const z of m.zones) c.fillRect(tx(z.x0), tz(z.z0), (z.x1 - z.x0) * k, (z.z1 - z.z0) * k);
     if (L.districts) { c.setLineDash([6, 5]); c.strokeStyle = '#6b5b3e99'; c.lineWidth = 1.2; for (const d of m.districts) c.strokeRect(tx(d.x0), tz(d.z0), (d.x1 - d.x0) * k, (d.z1 - d.z0) * k); c.setLineDash([]); }
     if (L.plots) for (const p of m.items) if (p.type === 'plot') { const x = tx(p.x - p.size / 2), z = tz(p.z - p.size / 2), s = p.size * k; c.fillStyle = '#9bc47a'; c.fillRect(x, z, s, s); c.strokeStyle = '#4f7a3a'; c.lineWidth = 1.5; c.setLineDash([5, 3]); c.strokeRect(x, z, s, s); c.setLineDash([]); c.beginPath(); for (let t = 0; t <= s; t += Math.max(6, s / 6)) { c.moveTo(x + t, z); c.lineTo(x, z + t); } c.strokeStyle = '#4f7a3a55'; c.stroke(); }
-    if (L.roads) { for (const r of m.roads) { const w = r.width * k; c.lineCap = 'butt'; c.strokeStyle = '#b9b39a'; c.lineWidth = w + 6 * Math.min(1.5, k / 2); c.beginPath(); c.moveTo(tx(r.x1), tz(r.z1)); c.lineTo(tx(r.x2), tz(r.z2)); c.stroke(); }
-      for (const r of m.roads) { const w = r.width * k; c.strokeStyle = '#3d4046'; c.lineWidth = w; c.beginPath(); c.moveTo(tx(r.x1), tz(r.z1)); c.lineTo(tx(r.x2), tz(r.z2)); c.stroke(); }
-      for (const r of m.roads) { c.strokeStyle = '#f2d23c'; c.lineWidth = Math.max(1, k * 0.35); c.setLineDash([k * 4, k * 3]); c.beginPath(); c.moveTo(tx(r.x1), tz(r.z1)); c.lineTo(tx(r.x2), tz(r.z2)); c.stroke(); c.setLineDash([]);
-        if (k >= 2.5) { c.strokeStyle = '#ffffffaa'; c.lineWidth = Math.max(1, k * 0.2); for (const o of [-r.width / 2 + 0.8, r.width / 2 - 0.8]) { c.beginPath(); if (r.vertical) { c.moveTo(tx(r.x1 + o), tz(r.z1)); c.lineTo(tx(r.x2 + o), tz(r.z2)); } else { c.moveTo(tx(r.x1), tz(r.z1 + o)); c.lineTo(tx(r.x2), tz(r.z2 + o)); } c.stroke(); } } } }
+    if (L.roads) { const path = (pts) => { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(tx(p[0]), tz(p[1])) : c.moveTo(tx(p[0]), tz(p[1]))); };
+      c.lineJoin = 'round';
+      for (const r of m.roads) { const w = r.width * k; c.lineCap = 'butt'; c.strokeStyle = '#b9b39a'; c.lineWidth = w + 6 * Math.min(1.5, k / 2); path(r.pts); c.stroke(); }
+      for (const o of m.roundabouts) { c.fillStyle = '#b9b39a'; c.beginPath(); c.arc(tx(o.x), tz(o.z), o.outerR * k + 3 * Math.min(1.5, k / 2), 0, 7); c.fill(); }
+      for (const r of m.roads) { const w = r.width * k; c.strokeStyle = '#3d4046'; c.lineWidth = w; path(r.pts); c.stroke(); }
+      for (const o of m.roundabouts) { c.fillStyle = '#3d4046'; c.beginPath(); c.arc(tx(o.x), tz(o.z), o.outerR * k, 0, 7); c.fill(); c.fillStyle = '#b9b39a'; c.beginPath(); c.arc(tx(o.x), tz(o.z), (o.islandR + 0.6) * k, 0, 7); c.fill(); c.fillStyle = '#5a9a4e'; c.beginPath(); c.arc(tx(o.x), tz(o.z), o.islandR * k, 0, 7); c.fill();
+        c.strokeStyle = '#f2d23c'; c.lineWidth = Math.max(1, k * 0.35); c.setLineDash([k * 2, k * 2]); c.beginPath(); c.arc(tx(o.x), tz(o.z), (o.outerR + o.islandR) / 2 * k, 0, 7); c.stroke(); c.setLineDash([]); }
+      for (const r of m.roads) { c.strokeStyle = '#f2d23c'; c.lineWidth = Math.max(1, k * 0.35); c.setLineDash([k * 4, k * 3]); path(r.pts); c.stroke(); c.setLineDash([]);
+        if (k >= 2.5) { c.strokeStyle = '#ffffffaa'; c.lineWidth = Math.max(1, k * 0.2); for (const o of [-r.width / 2 + 0.8, r.width / 2 - 0.8]) { path(offsetPoly(r.pts, o, false)); c.stroke(); } } } }
     if (L.buildings) for (const b of m.buildings) { const x = tx(b.rect.x0), z = tz(b.rect.z0), w = b.w * k, d = b.d * k; c.fillStyle = KIND_COL[b.kind] || '#999'; c.fillRect(x, z, w, d); c.fillStyle = '#00000022'; c.fillRect(x + w * 0.08, z + d * 0.08, w * 0.84, d * 0.84); c.fillStyle = KIND_COL[b.kind] || '#999'; c.fillRect(x + w * 0.12, z + d * 0.12, w * 0.76, d * 0.76); c.strokeStyle = '#33333388'; c.lineWidth = 1; c.strokeRect(x, z, w, d); }
     const pl = (m.city.landmarks || []).find(l => l.kind === 'plaza'); if (pl && L.landmarks) { c.fillStyle = '#e8dfc2'; c.beginPath(); c.arc(tx(pl.x), tz(pl.z), 11 * k, 0, 7); c.fill(); c.fillStyle = '#6fb7d6'; c.beginPath(); c.arc(tx(pl.x), tz(pl.z), 4 * k, 0, 7); c.fill(); }
     void view;
@@ -68,7 +74,8 @@ export class CityMap {
   drawLabels(c, k) {
     const m = this.model, L = this.layers;
     if (L.districts && labelRules.district(k)) { const a = Math.min(1, (2.2 - k) / 0.8); c.globalAlpha = Math.max(0.35, a); for (const d of m.districts) this.text(c, d.name.toUpperCase(), this.sx((d.x0 + d.x1) / 2), this.sz((d.z0 + d.z1) / 2), { s: Math.max(13, Math.min(30, k * 12)), w: 800, fill: '#5b4a2a', stroke: '#ffffff99' }); c.globalAlpha = 1; }
-    if (L.roads && labelRules.road(k)) for (const r of m.roads) { const len = r.vertical ? r.z2 - r.z1 : r.x2 - r.x1; const n = Math.max(1, Math.floor(Math.abs(len) / 170)); for (let i = 0; i < n; i++) { const t = (i + 0.5) / n; const x = r.x1 + (r.x2 - r.x1) * t, z = r.z1 + (r.z2 - r.z1) * t; const px = this.sx(x), py = this.sz(z); if (!this.onScreen(px, py)) continue; c.save(); c.translate(px, py); if (r.vertical) c.rotate(-Math.PI / 2); this.text(c, r.name, 0, 0, { s: Math.max(10, Math.min(15, k * 4.2)), fill: '#fff', stroke: '#3d4046' }); c.restore(); } }
+    if (L.roads && labelRules.road(k)) { for (const r of m.roads) { const total = polyLen(r.pts); const n = Math.max(1, Math.floor(total / 170)); for (let i = 0; i < n; i++) { const q = pointAt(r.pts, total * (i + 0.5) / n); const px = this.sx(q[0]), py = this.sz(q[1]); if (!this.onScreen(px, py)) continue; c.save(); c.translate(px, py); let ang = q[2]; if (ang >= Math.PI / 2 - 1e-6) ang -= Math.PI; if (ang < -Math.PI / 2) ang += Math.PI; c.rotate(ang); this.text(c, r.name, 0, 0, { s: Math.max(10, Math.min(15, k * 4.2)), fill: '#fff', stroke: '#3d4046' }); c.restore(); } }
+      for (const o of m.roundabouts) { const px = this.sx(o.x), py = this.sz(o.z + o.outerR + 4); if (this.onScreen(px, py)) this.text(c, o.name, px, py, { s: Math.max(10, Math.min(14, k * 3.6)), fill: '#2a2a2a' }); } }
     const lr = { venue: 'venues', shop: 'venues', job: 'jobs', landmark: 'landmarks', house: 'homes', billboard: 'billboards' };
     for (const it of m.items) {
       if (it.type === 'plot') { if (L.plots && labelRules.plot(k)) this.text(c, it.name, this.sx(it.x), this.sz(it.z), { s: 11, fill: '#2f5a1f' }); continue; }
