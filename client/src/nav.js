@@ -20,7 +20,7 @@ export class Nav {
   start(dest, opts = {}) {
     const g = this.g, c = g.ctrl; if (g.busy || c.frozen) return null; const mode = opts.mode || c.mode; const auto = opts.auto !== false;
     const route = findRoute(this.ensureGrid(), [c.x, c.z], [dest.x, dest.z], mode); if (!route) { g.ui.toast('No way through to there from here. Try the travel options instead.'); return null; }
-    this.cancel('replaced', true); if (c.mode !== mode) { c.toggleCar(); g.net.nudge?.(); }
+    this.cancel('replaced', true); if (c.mode !== mode) { if (mode === 'drive' && g.parking?.blocksDriving()) return null; c.toggleCar(); g.net.nudge?.(); }
     this.active = { dest, mode, auto, pts: route.pts, length: route.length, i: 1, started: performance.now() };
     if (auto) c.auto = new Auto(route.pts, mode); g.setWaypoint(dest.x, dest.z, dest.name); this.draw(route.pts); this.chip.classList.remove('hidden'); this.t = 0; this.tick(0); g.ui.sfx?.('ok'); return this.active;
   }

@@ -12,29 +12,29 @@ npm run build        # bundles client/src -> public/game.js (also committed, so 
 npm run seed         # optional: demo residents, homes, a land plot, 3 live demo ad campaigns
 npm start            # http://127.0.0.1:3000
 BOTS=8 npm run bots  # same server + simulated residents walking, working, shopping, chatting
-npm test             # node:test suite (ledger invariants, auth, heartbeat, ads, economy, safety, games, cars, homes)
+npm test             # node:test suite (ledger invariants, auth, heartbeat, ads, economy, safety, games, cars, homes, interiors, roads, crash, parking, buses, rides, phone, onboarding)
 npm run build:demo   # rebuild demo-static/ (double-click demo-static/index.html: no server needed)
 npm run smoke        # headless Chrome end-to-end run; screenshots land in ./screenshots (needs Chrome: set CHROME=/path)
+node scripts/<name>-smoke.mjs   # more headless smokes: interiors, roads, nav, crash, night, parking, bus, ride, onboarding, phone, demo (each prints PASSED/FAILED)
+node scripts/loadtest.mjs 50,200,500 40   # measured bot load test (real HTTP heartbeats, separate server process); see docs/LOADTEST.md
 ```
 
 Environment: `PORT`, `HOST` (default 127.0.0.1: put a TLS proxy in front before exposing), `NA_DB` (SQLite file, default `data/naija-area.db`), `ADMIN_PASSWORD` (admin at `/admin`; a dev-only default is used with a warning if unset), `NA_DEV=1` (enables `/api/dev/*` teleport/cash helpers, never in production), `NA_LAND_DAY_MS` (shorten the land "day" to watch growth), `BOTS`.
 
-## How to play
-- **Move:** WASD / arrows (Shift = run), drag to orbit the camera, wheel to zoom, **C** car, **T** chat, **P** phone. On phones: on-screen joystick and tap.
-- **Tap a place** (building, shop sign, door, or ground near one): a bottom sheet shows name, area, open/closed, and travel chips (walk, keke, danfo, your car) with fares and a big **Go · ₦fare** button. Go plays a short commute and puts you at the door.
-- **Shops:** three price channels: market ×0.85 (walk to the stall), supermarket ×1.0, delivery ×1.1 + ₦150 from anywhere. Hours are enforced on the game clock.
-- **Work:** start a shift at a job point, then play the optional 🎯 timing task for +25% pay.
-- **Homes:** tap a house for its card (`@owner's {name}`, type, area, presence dot, items). Rent/Buy uses Review → Pay. Owners rename (24 chars, filtered) and go inside; **Buy mode** (key B) places furniture on a grid with rotate/sell and "Something is in the way". Visitors **Knock**: the host sees a prompt and accepts or declines (95 s timeout), and accepted guests get a read-only view.
-- **Land:** four plots with area, size, price, growth and an "omo-onile risk" chip. Value grows with time; high-risk plots may be hit by a levy.
-- **Ads:** boards rotate creatives; tap a board for the advertiser card. Advertisers register at `/advertise`, upload an image, get a quote, submit, and track valid impressions at `/advertiser`. Moderators use `/admin`. `/methodology` explains exactly what counts as an impression.
+## How to play (also shown by the in-game "?" tour)
+- **Move:** WASD / arrows (Shift = run), drag to orbit the camera, wheel to zoom, **C** car, **T** chat, **P** phone, **M** map. On phones: on-screen joystick and tap. First-run tour (6 cards), a **?** button to reopen it, and a one-line "what to do next" hint.
+- **Tap a place** (building, sign, door, ground near one): bottom sheet with name, hours and travel chips (walk, keke, danfo, your car, **Oya Ride** from the phone) with fares and a big **Go** button. The big **map** (minimap tap / phone) is detailed and searchable, shows your house, and can auto-navigate you (walk or drive yourself) with ETA.
+- **Money (game money only):** shifts and shops, bank savings, land with omo-onile risk, rent or buy homes; all money moves through a double-entry ledger on the server.
+- **Homes:** six housing types (face-me-I-face-you room, self-contain, 2-bedroom flat, bungalow, duplex, mansion), each with its own interior, grid and furniture; Buy mode (B), rename, paint; visitors knock and are let in. Clubs, salons, eateries, viewing centre, Corner Joint, Auto Mart, Meco and your **garage** have their own interiors.
+- **Games at venues (stake game money, escrow, weekly board):** Whot, Ludo, Dominoes, Draughts, Ayo; friendly tables with the labelled practice bot. **Casual breaks:** Merge Am (tile merge), Pair Am (memory), Word of the day, with small capped rewards.
+- **Cars and roads:** four fictional models, 3-slot garage, curved roads and roundabouts, traffic that yields and queues, **crash rules** (about 5% hit chance, seeded server RNG, health bar, Community Clinic, car health, repair at Meco; ambient cars are never charged), street lights and car headlamps at night, **car parks**, **bus stops** with danfo pick-up, **Oya Ride** ride-hailing.
+- **Phone (PHONE_V2, on by default):** home screen with apps (wallet, jobs, garage, houses, games, map, Oya Ride, friends, messages with voice notes, calls). Real two-peer audio is NOT verified in the sandbox; see `docs/PHONE.md`.
+- **Ads:** boards rotate creatives; advertisers register at `/advertise`, moderators use `/admin`. Impressions are validated server-side from evidence.
+- **Safety:** tap a chat line for Report / Mute / Block; word filter; 18+ self-declaration (real age checks are a later item).
+- **Static demo:** open `demo-static/index.html` by double-click. It runs the real rules in your browser (see `demo-static/README.txt`). Phone voice notes and live calls are limited or mocked there.
 
-## Phase 2 features (how to try them)
-- **Venues:** tap *Mama Put Canteen*, *Alhaji Joe's Viewing Centre*, *Corner Joint (Ludo and Whot)* or *Naija Auto Mart* or *Meco* (the mechanic: check your car, pay a placeholder fee for a service; yellow rings with signs) → walk to the door → **Go inside**. Tap stations (or the buttons along the bottom): food counter, TV (mood), Whot bench, two Ludo tables, weekly scoreboard, rules poster. 🎲 *Game money only.*
-- **Whot / Ludo:** sit at a table and pick **Friendly** or a stake (₦100 / ₦500, ESTIMATES; guests and brand-new accounts are friendly only). Whot starts when a second player joins. **Ludo takes 2 to 4 players**: others join the same table and the host presses **Start** (a full table of 4 starts by itself). The server rolls the die; you tap a token to move it. Winner takes the whole pot (game money only). Alone? `@Practice_Bot` joins friendly tables (labelled, no money, no scoreboard).
-- **Cars:** Naija Auto Mart sells four fictional models (prices are ESTIMATES). Phone → 🚗 Garage to switch or sell (resale falls with age). Your active car is the *My car* chip when you tap a place; the default *Borrowed car* costs more per trip, is slower and has no mood perk.
-- **Homes:** owners get 🎨 Paint (wall + floor colours). Guests can ❤️ love the house (once a day), greet, hype, sit on the sofa, watch TV and chat in the room; hosts can ✕ ask a guest to leave.
-- **Safety:** tap a chat line for Report / Mute / Block; **⋯** on a house card; **Report this ad** on a billboard card. Phone → More lists your muted/blocked players. Admin: `/admin` → *Player reports*.
-- **Static demo:** open `demo-static/index.html` by double-click. It runs the real rules in your browser (see `demo-static/README.txt`).
+## Docs
+`ARCHITECTURE.md` (design and module map), `docs/` (one note per feature: INTERIORS, NAVIGATION, ROADS, CRASH, LIGHTS, PARKING, BUSSTOPS, RIDE, PHONE, LOADTEST), `../10_build_log.md` (what was built and tested), `../16_build_progress.md` (running progress with test counts), `../18_build_queue_next.md` (queue and statuses), `../11_next_steps.md`. Placeholder numbers (prices, rates, decay, crash chance) all live in `server/config/` and are marked ESTIMATE.
 
-## Where things are
-`ARCHITECTURE.md` explains the design. `../10_build_log.md` is what was built and tested, `../11_next_steps.md` is what to do next. Placeholder numbers (prices, rates, decay) all live in `server/config/` and are marked ESTIMATE.
+## Status honesty
+Tested here: unit/API tests and headless-Chrome smokes on one Linux box. Not tested: real phones, real mobile networks, real two-person voice calls, public hosting, real payments (none exist), real age checks. See `docs/LOADTEST.md` for what the measured load numbers do and do not mean.

@@ -39,3 +39,17 @@ client/src/main.js  ── HTTP heartbeat (adaptive) ─▶ server/core/routes.j
 
 ## Known limits (see ../11_next_steps.md)
 SQLite is single-writer: fine for a demo or a few hundred concurrent players on one box; Postgres is the production target and the data layer is kept narrow for that. Movement validation is a speed/bounds clamp, not full physics.
+
+## Module map (refreshed 10 Oct 2026)
+Server `server/core/`: `routes.js` (route table), `ledger.js` (double-entry), `economy.js` (jobs, shops, bank, profile), `world.js` (presence, heartbeat, trail sanity), `social.js` (knock, DM, travel, land), `housing.js`/`homes.js` (housing types, interiors, paint, love), `venues.js`, `games.js` + `games/{whot,ludo,dominoes,draughts,ayo}.js` (pure engines), `casual.js` + `casual/{merge,memory}.js` (+ `config/words.js`), `cars.js`, `crash.js` (seeded-RNG crash rules, health, clinic, repair), `parking.js` + `carparks-layout.js`, `bus.js` (shared pure stop logic in `client/src/busstops.js`), `ride.js` (Oya Ride), `phone/` (friends, chat, voice notes, call signalling state machine), `safety.js`, `filter.js`, `ads.js`.
+Client `client/src/`: `main.js` (game loop and wiring), `world.js` (city, lights, day/night), `entities.js` (traffic, walkers, ghosts), `yield.js` (pure traffic-yield logic), `roadgeom.js` (straight, curved and roundabout roads, shared by cars, map, lamps), `route.js` + `nav.js` (grid A* pathfinding, autopilot, ETA), `map.js` + `map-model.js` (detailed canvas map), `interior.js` + `rooms.js` + `props.js` + `venue.js` (interiors from config, procedural low-poly props with baked vertex colours), `people.js` (human-shaped NPCs, instanced), `lamps.js` + `headlamps.js`, `carparks.js`, `bus-client.js`, `ride-client.js`, `crash.js`, `phone-v2/`, `tour.js` (onboarding).
+
+## Design rules that held up
+1. **Pure shared logic first** (route finding, yield, bus stops, lamp placement, car-park bays, ride helpers) so it is unit-tested in Node and reused by server, client and demo.
+2. **Client draws, server decides.** Ambient traffic, walkers, headlamps, bus passengers and the Oya Ride driver car are client-only visuals that never touch the ledger. Hits, fares, parking fees and ride fares are decided on the server (seeded RNG where chance is involved) and charged through the ledger.
+3. **Performance rule:** instanced meshes, shared geometry and materials, vertex colours instead of textures, per-interior draw-call and triangle budgets in `server/config/perf-budget.js` checked by tests and by the interiors smoke.
+4. **Config over code:** city JSON (roads, buildings, venues, car parks, bus stops, lamps), `balance.js` (every number ESTIMATE), `ratecard.js`. New districts or cities reuse the same renderers.
+5. **Everything has a test and a smoke:** see README for the list.
+
+## Measured load (this box only)
+See `docs/LOADTEST.md`: a separate server process, real HTTP guests and heartbeats; CPU, memory and latency measured on an 8-core sandbox, not a production forecast.
