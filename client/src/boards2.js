@@ -1,6 +1,6 @@
 // Boards for the word and board games added in Track C (chess, word duel, Omo Onile, Suwe). Mixed into Venue.prototype (see venue.js). The server owns every rule:
 // these functions only draw what the server sends in v.board and forward taps through this.move(v, {...}). GAME MONEY ONLY.
-import { h, fmtN } from './api.js';
+import { h, post } from './api.js';
 
 const GLYPH = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
 const FILES = 'abcdefgh';
@@ -25,5 +25,20 @@ export const boards2 = {
     return h('div', { class: 'chess' }, h('div', { class: 'row sp' }, h('span', { class: 'mut' }, `You are ${b.color === 'w' ? 'White ♙' : 'Black ♟'} vs @${opp}`), b.check && b.mine ? h('span', { class: 'tag amber', id: 'chessCheck' }, 'Check! Save your king') : ''),
       h('div', { class: 'ctray mut' }, `Taken by you: ${tray(b.color === 'w' ? 'b' : 'w') || '–'}`), grid, h('div', { class: 'ctray mut' }, `Taken by @${opp}: ${tray(b.color) || '–'}`), promo, h('p', { class: 'mut', id: 'chessLast' }, lt),
       h('p', { class: 'mut' }, 'Tap a piece, then a highlighted square. Full rules: castling, en passant, promotion, check, checkmate and stalemate.'));
+  },
+
+  wordDuelBoard(v) {
+    const b = v.board; const me = v.youSeat; const opp = v.players.find(p => p.seat === 1 - me)?.name; const key = `${v.id}:${b.round}`; if (this.wdKey !== key) { this.wdKey = key; this.wdWord = []; this.wdMsg = ''; this.wdUsed = []; }
+    const letters = b.letters || []; const val = (c) => b.values[c]; const cur = this.wdWord.map(i => letters[i]).join('');
+    const redraw = () => this.renderMatch(v);
+    const tiles = h('div', { class: 'wdtiles' }, letters.map((c, i) => h('button', { class: `wdt ${this.wdWord.includes(i) ? 'used' : ''}`, 'data-i': i, 'data-l': c, disabled: !b.mine || this.wdWord.includes(i), onclick: () => { this.wdWord.push(i); this.wdMsg = ''; redraw(); } }, c.toUpperCase(), h('small', {}, val(c)))));
+    const word = h('div', { class: 'wdword', id: 'wdWord' }, cur ? cur.toUpperCase() : h('span', { class: 'mut' }, 'Tap letters to build a word'));
+    const submit = async () => { const r = await this.g.ui.guard(() => post('/api/game/move', { matchId: v.id, word: cur })); if (r) { this.wdWord = []; this.renderMatch(r); } else { this.wdMsg = 'Not accepted. Try another word.'; redraw(); } };
+    const hist = b.results.map((r, i) => h('div', { class: 'wdres' }, h('b', {}, `Round ${i + 1}`), h('span', {}, ` ${r.letters.toUpperCase()}: you ${r.words[me] ? r.words[me].toUpperCase() : '(pass)'} ${r.scores[me]} · @${opp} ${r.words[1 - me] ? r.words[1 - me].toUpperCase() : '(pass)'} ${r.scores[1 - me]}`), h('small', { class: 'mut' }, ` · best possible: ${r.best.toUpperCase()} ${r.bestScore}`)));
+    const total = h('div', { class: 'row sp' }, h('b', {}, `You ${b.total[me]} - ${b.total[1 - me]} @${opp}`), h('span', { class: 'mut' }, `Round ${b.round} of ${b.rounds}`));
+    const play = b.mine ? [h('p', { class: 'mut' }, `Make ONE word of ${b.minLen} to ${b.maxLen} letters from these 7 letters. Your opponent has the same letters. Small numbers are letter points; longer words get a bonus.`), tiles, word,
+      h('div', { class: 'row' }, h('button', { class: 'btn small', id: 'wdBack', onclick: () => { this.wdWord.pop(); redraw(); } }, '⌫'), h('button', { class: 'btn small ghost', onclick: () => { this.wdWord = []; redraw(); } }, 'Clear'), h('button', { class: 'btn small alt', id: 'wdSubmit', disabled: cur.length < b.minLen, onclick: submit }, 'Play this word'), h('button', { class: 'btn small ghost', id: 'wdPass', onclick: () => this.move(v, { pass: true }) }, 'Pass (0)')), this.wdMsg ? h('p', { class: 'tag amber' }, this.wdMsg) : '']
+      : [h('p', { class: 'mut' }, b.played ? `You played ${b.yourWord ? b.yourWord.toUpperCase() : 'a pass'}. Waiting for @${opp}…` : 'Waiting…')];
+    return h('div', { class: 'wordduel' }, total, ...play, ...hist);
   }
 };

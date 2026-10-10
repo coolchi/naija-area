@@ -12,7 +12,7 @@ const raw = (s, id) => s.db.prepare('SELECT * FROM game_matches WHERE id=?').get
 const seatOf = (s, id, u) => s.db.prepare('SELECT seat FROM game_players WHERE match_id=? AND user_id=?').get(id, u).seat;
 
 // each new game is played to the end through the real HTTP routes, with the engine's bot choosing moves from the SERVER-side state
-for (const [kind, venue, station, n] of [['dominoes', 'venue_joint', 'domino1', 3], ['draughts', 'venue_viewing', 'draughts1', 2], ['ayo', 'venue_mamaput', 'ayo1', 2], ['football', 'venue_joint', 'football1', 2], ['chess', 'venue_viewing', 'chess1', 2]]) {
+for (const [kind, venue, station, n] of [['dominoes', 'venue_joint', 'domino1', 3], ['draughts', 'venue_viewing', 'draughts1', 2], ['ayo', 'venue_mamaput', 'ayo1', 2], ['football', 'venue_joint', 'football1', 2], ['chess', 'venue_viewing', 'chess1', 2], ['wordduel', 'venue_mamaput', 'wordduel1', 2]]) {
   test(`${kind}: stations exist, escrow in, hidden info stays hidden, server validates moves, a full game pays the pot and ledger/scoreboard hold`, async () => {
     const s = makeServer(); let seed = 5; s.app.rng = () => (seed = (seed * 16807) % 2147483647) / 2147483647; const us = Array.from({ length: n }, () => adult(s, 3000)); for (const u of us) await enter(s, u, venue);
     assert.ok(V(s, venue).stations.some(x => x.id === station && x.game === kind)); const w = (await sit(s, us[0], venue, station, 100)).json; assert.equal(w.status, 'waiting');
@@ -22,7 +22,7 @@ for (const [kind, venue, station, n] of [['dominoes', 'venue_joint', 'domino1', 
     if (kind === 'dominoes') { const mine = await ok(s, 'GET', `/api/game?id=${w.id}`, { uid: us[1] }); assert.equal(mine.board.hand.length, 7); const st = JSON.parse(raw(s, w.id).state); assert.notDeepEqual(mine.board.hand, st.hands[seatOf(s, w.id, us[0])].map(t => t.join('-'))); assert.ok(!JSON.stringify(mine).includes(JSON.stringify(st.hands[seatOf(s, w.id, us[0])]))); }
     const eng = GAMES[kind].eng; let moves = 0;
     for (let i = 0; i < 1500; i++) { s.app.clock.advance(1500); const m = raw(s, w.id); if (m.status !== 'active') break; const st = JSON.parse(m.state); const seat = st.turn; const u = us.find(x => seatOf(s, w.id, x) === seat); assert.equal(u, m.turn_user);
-      const bad = await call(s, 'POST', '/api/game/move', { uid: us.find(x => x !== u), body: { matchId: w.id, ...eng.bot(st, seat, s.app.rng) } }); assert.equal(bad.json.error, 'NOT_YOUR_TURN');
+      if (kind !== 'wordduel') { const bad = await call(s, 'POST', '/api/game/move', { uid: us.find(x => x !== u), body: { matchId: w.id, ...eng.bot(st, seat, s.app.rng) } }); assert.equal(bad.json.error, 'NOT_YOUR_TURN'); } /* a word duel is played at the same time: either seat that has not played may go */
       const r = await call(s, 'POST', '/api/game/move', { uid: u, body: { matchId: w.id, ...eng.bot(st, seat, s.app.rng) } }); assert.equal(r.status, 200, JSON.stringify(r.json)); moves++; }
     const fin = raw(s, w.id); assert.equal(fin.status, 'finished'); assert.ok(moves > 5);
     if (fin.winner) { assert.equal(balanceOf(s.db, cashId(fin.winner)), 3000 - 100 + 100 * n); assert.equal((await ok(s, 'GET', `/api/scoreboard?kind=${kind}`, { uid: us[0] })).rows[0].wins, 1); }

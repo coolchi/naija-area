@@ -4207,6 +4207,15 @@
      "x": 3.4,
      "z": 0.9,
      "color": "#f2c200"
+    },
+    {
+     "id": "wordduel1",
+     "type": "game",
+     "game": "wordduel",
+     "label": "Word duel table",
+     "x": -1.8,
+     "z": 2.8,
+     "color": "#2a6f97"
     }
    ],
    "room": {
