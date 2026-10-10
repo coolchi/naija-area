@@ -28,6 +28,9 @@ Environment: `PORT`, `HOST` (default 127.0.0.1: put a TLS proxy in front before 
 ## Stadium and live scores test (10 Oct 2026)
 A fictional City Stadium in Lekki: buy a ticket, take a seat, snacks, a score board. Scores come from ONE server job that saves a copy (mock provider by default; API-Football free plan when `NA_SCORES_PROVIDER=api-football` and `APIFOOTBALL_KEY` are set), with a daily call guard (100 a day, stops at 95) and a fictional-league fallback. Viewers never trigger a call. See `docs/STADIUM.md`; test only, not a launch decision.
 
+## Break games: Chop Am, Clear the Go-Slow, Table football (10 Oct 2026)
+Chop Am is match-3 with Nigerian snacks (20 moves, cascades); Clear the Go-Slow is a sliding-vehicle traffic-jam puzzle with 17 levels whose par is the exact BFS-solved minimum; both pay small game money through the server, which replays your moves. Table football is a 2-player venue game at the Corner Joint, a turn-based duel (not real-time) where the server rolls the ball. Nobody has playtested them. See docs/BREAK_GAMES.md.
+
 ## In-car radio (10 Oct 2026)
 Drive a car and a dashboard chip appears with eight stations: four real Lagos stations streamed live straight from the station (Cool FM, Wazobia FM, Nigeria Info, The Beat) and four invented ones synthesised in your browser (Eko FM, Highlife 102, Grace Gospel, Night Owl) that take over if a stream fails. It starts when you get in a car (after your first tap or key press, or shows "Tap to play"), is off by default on mobile data, and has a global off switch (`NA_REAL_RADIO=0` or `POST /api/admin/radio`). Keys R / N / B. The real streams have NOT been listened to in the game, The Beat's URL is unconfirmed by ear, and no station has given permission: read docs/RADIO.md. The static demo has real radio off.
 
