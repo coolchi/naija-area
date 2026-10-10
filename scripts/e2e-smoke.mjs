@@ -134,6 +134,12 @@ try {
     const myId = await g(page, () => window.__game.user.id); const { balanceOf, cashId } = await import('../server/core/ledger.js'); const before = balanceOf(s.app.db, cashId(myId));
     await page.evaluate(() => document.querySelector('[data-station=service]').click()); await page.waitForSelector('#mecoService:not([disabled])'); await shot(page, 'meco-service'); await page.evaluate(() => document.querySelector('#mecoService').click()); await sleep(1200);
     assert.equal(before - balanceOf(s.app.db, cashId(myId)), s.app.balance.cars.meco.serviceFee); assert.ok(s.app.db.prepare('SELECT serviced_until u FROM player_cars').get().u > Date.now() - 1000 * 60 * 60 * 24); ok('Meco: checked the car, paid the service fee, perk applied'); await page.evaluate(() => document.querySelector('#venueLeave').click()); await sleep(500); }
+  // traffic yielding: put the player on the road ahead of a moving car; it must brake and stop short of the player (client-side only), then drive on when the way is clear
+  { const car0 = await g(page, () => { const T = window.__game.traffic; const c = T.cars.find(c => c.type === 'car' && c.g.position.x === c.g.position.x) || T.cars[0]; const y = c.g.rotation.y; return { x: c.g.position.x + Math.cos(y) * 9, z: c.g.position.z - Math.sin(y) * 9 }; });
+    await tp(page, car0.x, car0.z); await sleep(3500);
+    const near = await g(page, () => { const T = window.__game.traffic, p = window.__game.ctrl; return T.cars.map(c => ({ v: c.st?.v ?? 9, d: Math.hypot(c.g.position.x - p.x, c.g.position.z - p.z) })).filter(c => c.d < 10); });
+    assert.ok(near.some(c => c.v < 0.5), 'a car stopped near the player: ' + JSON.stringify(near)); assert.ok(near.every(c => c.d > 1.5), 'no car drove into the player: ' + JSON.stringify(near)); ok(`traffic yields: ${near.filter(c => c.v < 0.5).length} car(s) stopped within ${Math.round(Math.min(...near.map(c => c.d)))} m of the player`);
+    await tp(page, 20, 20); await sleep(3500); const moving = await g(page, () => window.__game.traffic.cars.filter(c => (c.st?.v ?? 0) > 1).length); assert.ok(moving > 0); ok('traffic flows again once the player has moved'); }
   // phone
   await page.click('#phoneBtn'); await sleep(700); await shot(page, 'phone-wallet'); await g(page, () => window.__game.ui.closeSheet());
   assert.deepEqual(s.app.db.prepare('SELECT COUNT(*) bad FROM (SELECT tx_id FROM ledger_entries GROUP BY tx_id HAVING SUM(amount)!=0)').get(), { bad: 0 }); ok('ledger balanced after the whole session');

@@ -8,6 +8,8 @@ import * as soc from './social.js';
 import * as safety from './safety.js';
 import * as casual from './casual.js';
 import * as venues from './venues.js';
+import * as leisure from './leisure.js';
+import * as phone from './phone/phone.js';
 import * as games from './games.js';
 import * as cars from './cars.js';
 import * as homes from './homes.js';
@@ -21,7 +23,7 @@ const route = (method, path, opts, handler) => { if (typeof opts === 'function')
 // ---- public / meta
 route('GET', '/api/health', (c) => ({ ok: true, name: c.app.gameName, now: c.app.clock.now() }));
 route('GET', '/api/config', (c) => ({ moodHappyAt: c.app.balance.mood.happyAt, name: c.app.gameName, tagline: GAME_TAGLINE, minAge: MIN_AGE, testMode: true, devRoutes: !!c.app.devRoutes, rotationMs: AD_POLICY.rotationMs, balanceNote: c.app.balance._note,
-  topupOptions: c.app.balance.topup.options, transport: c.app.balance.transport, shopChannels: c.app.balance.shops.channels, workTask: c.app.balance.work.task, land: { risk: c.app.balance.land.risk }, maxNameLen: c.app.balance.housing.maxNameLen, housing: { rentPeriodMs: c.app.balance.housing.rentPeriodMs }, furniture: c.app.balance.housing.furniture }));
+  topupOptions: c.app.balance.topup.options, phone: !!c.app.balance.phone.enabled, transport: c.app.balance.transport, shopChannels: c.app.balance.shops.channels, workTask: c.app.balance.work.task, land: { risk: c.app.balance.land.risk }, maxNameLen: c.app.balance.housing.maxNameLen, housing: { rentPeriodMs: c.app.balance.housing.rentPeriodMs }, furniture: c.app.balance.housing.furniture }));
 route('GET', '/api/city', (c) => { const { propertyById, shopById, jobLoc, billboardById, buildingById, plotById, placeById, area, ...rest } = c.app.city; return rest; });
 route('GET', '/api/stats', (c) => {
   const a = c.app; const players = a.db.prepare('SELECT COUNT(*) n FROM users WHERE is_bot=0').get().n; const bots = a.db.prepare('SELECT COUNT(*) n FROM users WHERE is_bot=1').get().n;
@@ -70,7 +72,24 @@ route('GET', '/api/venues', { auth: 'user' }, (c) => ({ venues: venues.venuesLis
 route('GET', '/api/venue', { auth: 'user' }, (c) => venues.venueView(c.app, c.uid, String(c.query.id)));
 route('POST', '/api/venue/enter', { auth: 'user' }, (c) => venues.enterVenue(c.app, c.uid, c.body.venueId, c.body.pos));
 route('POST', '/api/venue/leave', { auth: 'user' }, (c) => venues.leaveVenue(c.app, c.uid));
-route('POST', '/api/venue/act', { auth: 'user' }, (c) => venues.act(c.app, c.uid, c.body.venueId, c.body.stationId));
+route('POST', '/api/venue/act', { auth: 'user' }, (c) => venues.act(c.app, c.uid, c.body.venueId, c.body.stationId, c.body));
+route('GET', '/api/phone/friends', { auth: 'user' }, (c) => phone.friendsView(c.app, c.uid));
+route('POST', '/api/phone/friends/request', { auth: 'user' }, (c) => phone.friendRequest(c.app, c.uid, c.body.username));
+route('POST', '/api/phone/friends/respond', { auth: 'user' }, (c) => phone.friendRespond(c.app, c.uid, c.body.id, !!c.body.accept));
+route('POST', '/api/phone/friends/remove', { auth: 'user' }, (c) => phone.friendRemove(c.app, c.uid, c.body.username));
+route('GET', '/api/phone/settings', { auth: 'user' }, (c) => { phone.gate(c.app, c.uid); return phone.settingsOf(c.app, c.uid); });
+route('POST', '/api/phone/settings', { auth: 'user' }, (c) => phone.setSettings(c.app, c.uid, c.body));
+route('GET', '/api/phone/threads', { auth: 'user' }, (c) => phone.threadsView(c.app, c.uid));
+route('GET', '/api/phone/thread', { auth: 'user' }, (c) => phone.threadView(c.app, c.uid, String(c.query.with || ''), Number(c.query.after) || 0, c.query.read !== '0'));
+route('POST', '/api/phone/messages', { auth: 'user' }, (c) => phone.sendText(c.app, c.uid, c.body.to, c.body.text));
+route('POST', '/api/phone/voice', { auth: 'user' }, (c) => phone.sendVoice(c.app, c.uid, String(c.query.to || ''), c.raw, { durationMs: c.headers?.['x-duration-ms'], mime: c.headers?.['content-type'], waveform: String(c.headers?.['x-waveform'] || '').split(',').filter(Boolean).map(Number) }));
+route('GET', '/api/phone/call', { auth: 'user' }, (c) => phone.callState(c.app, c.uid));
+route('POST', '/api/phone/call/start', { auth: 'user' }, (c) => phone.callStart(c.app, c.uid, c.body.to));
+route('POST', '/api/phone/call/act', { auth: 'user' }, (c) => phone.callAct(c.app, c.uid, c.body.callId, c.body.action));
+route('POST', '/api/phone/call/signal', { auth: 'user' }, (c) => phone.callSignal(c.app, c.uid, c.body.callId, c.body));
+route('POST', '/api/phone/call/stats', { auth: 'user' }, (c) => phone.reportCallEnded(c.app, c.uid, c.body.callId, c.body.icePath));
+route('GET', '/api/salon', { auth: 'user' }, (c) => leisure.salonMenu(c.app, c.uid, String(c.query.venueId || '')));
+route('POST', '/api/salon/style', { auth: 'user' }, (c) => leisure.salonStyle(c.app, c.uid, c.body.venueId, c.body.stationId, c.body.styleId, c.body.idem));
 route('POST', '/api/game/sit', { auth: 'user' }, (c) => games.sit(c.app, c.uid, c.body.venueId, c.body.stationId, Number(c.body.stake) || 0));
 route('GET', '/api/game', { auth: 'user' }, (c) => games.getMatch(c.app, c.uid, Number(c.query.id)));
 route('POST', '/api/game/move', { auth: 'user' }, (c) => games.playMove(c.app, c.uid, Number(c.body.matchId), c.body));

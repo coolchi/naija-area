@@ -881,6 +881,70 @@
     1
    ],
    "id": "b047"
+  },
+  {
+   "kind": "kiosk",
+   "x": 40,
+   "z": 158.8,
+   "w": 12,
+   "d": 9,
+   "h": 4,
+   "floors": 1,
+   "color": "#6a4c93",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b048",
+   "tag": "club1"
+  },
+  {
+   "kind": "kiosk",
+   "x": 150,
+   "z": 158.8,
+   "w": 12,
+   "d": 9,
+   "h": 4,
+   "floors": 1,
+   "color": "#6a4c93",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b049",
+   "tag": "club2"
+  },
+  {
+   "kind": "kiosk",
+   "x": -195,
+   "z": 158.8,
+   "w": 12,
+   "d": 9,
+   "h": 4,
+   "floors": 1,
+   "color": "#e5989b",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b050",
+   "tag": "salon1"
+  },
+  {
+   "kind": "kiosk",
+   "x": -60,
+   "z": 158.8,
+   "w": 12,
+   "d": 9,
+   "h": 4,
+   "floors": 1,
+   "color": "#e5989b",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b051",
+   "tag": "salon2"
   }
  ],
  "properties": [
@@ -2107,7 +2171,118 @@
      "color": "#f0c419",
      "text": "GAME MONEY ONLY. Stakes are pretend naira with no cash value and no cash-out. 18+. Be respectful: you can be reported, muted or blocked."
     }
-   ]
+   ],
+   "room": {
+    "w": 9,
+    "d": 9,
+    "wall": "#f6e3b8",
+    "trim": "#c8553d",
+    "floor": {
+     "style": "checker",
+     "a": "#eadcb8",
+     "b": "#d9c394"
+    },
+    "windows": [
+     {
+      "wall": "back",
+      "at": -2.6,
+      "w": 1.6
+     },
+     {
+      "wall": "back",
+      "at": 2.6,
+      "w": 1.6
+     },
+     {
+      "wall": "left",
+      "at": 1,
+      "w": 1.6
+     }
+    ],
+    "mood": "warm",
+    "decor": [
+     {
+      "k": "shelf",
+      "x": -3.6,
+      "z": -4.2,
+      "c": "#8a5a2b",
+      "pots": true
+     },
+     {
+      "k": "shelf",
+      "x": 3.6,
+      "z": -4.2,
+      "c": "#8a5a2b",
+      "pots": true
+     },
+     {
+      "k": "fridge",
+      "x": 4,
+      "z": -3
+     },
+     {
+      "k": "stool",
+      "x": -3.2,
+      "z": -0.9,
+      "c": "#e63946"
+     },
+     {
+      "k": "stool",
+      "x": -0.9,
+      "z": -0.1,
+      "c": "#e63946"
+     },
+     {
+      "k": "stool",
+      "x": -2.3,
+      "z": 1.6,
+      "c": "#e63946"
+     },
+     {
+      "k": "table",
+      "x": 3.4,
+      "z": 3.2,
+      "c": "#fff"
+     },
+     {
+      "k": "stool",
+      "x": 2.6,
+      "z": 3.2,
+      "c": "#457b9d"
+     },
+     {
+      "k": "stool",
+      "x": 4.2,
+      "z": 3.2,
+      "c": "#457b9d"
+     },
+     {
+      "k": "lanterns",
+      "z": -1.6,
+      "c": [
+       "#ffd166",
+       "#ef476f",
+       "#06d6a0"
+      ]
+     },
+     {
+      "k": "fan",
+      "x": 0,
+      "z": 0
+     },
+     {
+      "k": "plant",
+      "x": 4.1,
+      "z": 0.8
+     },
+     {
+      "k": "menu",
+      "x": 0,
+      "z": -4.4,
+      "text": "MAMA PUT"
+     }
+    ]
+   }
   },
   {
    "id": "venue_viewing",
@@ -2184,7 +2359,88 @@
      "color": "#f0c419",
      "text": "GAME MONEY ONLY. Stakes are pretend naira with no cash value and no cash-out. 18+. Be respectful: you can be reported, muted or blocked."
     }
-   ]
+   ],
+   "room": {
+    "w": 9,
+    "d": 9,
+    "wall": "#2b3a5a",
+    "trim": "#2a5f9e",
+    "floor": {
+     "style": "plain",
+     "a": "#4a4036"
+    },
+    "windows": [
+     {
+      "wall": "left",
+      "at": -1.5,
+      "w": 1.4,
+      "blind": true
+     },
+     {
+      "wall": "left",
+      "at": 2,
+      "w": 1.4,
+      "blind": true
+     }
+    ],
+    "mood": "dim",
+    "decor": [
+     {
+      "k": "bench",
+      "x": -1.4,
+      "z": -1.3,
+      "w": 2.4
+     },
+     {
+      "k": "bench",
+      "x": 1.4,
+      "z": -1.3,
+      "w": 2.4
+     },
+     {
+      "k": "bench",
+      "x": 0,
+      "z": -0.3,
+      "w": 3.2
+     },
+     {
+      "k": "speaker",
+      "x": -2.4,
+      "z": -4
+     },
+     {
+      "k": "speaker",
+      "x": 2.4,
+      "z": -4
+     },
+     {
+      "k": "pennants",
+      "z": -2.2,
+      "c": [
+       "#008751",
+       "#ffffff",
+       "#008751",
+       "#ffd166"
+      ]
+     },
+     {
+      "k": "fridge",
+      "x": 4,
+      "z": 3
+     },
+     {
+      "k": "plant",
+      "x": -4,
+      "z": -4
+     },
+     {
+      "k": "menu",
+      "x": -3.6,
+      "z": -4.4,
+      "text": "MATCH DAY"
+     }
+    ]
+   }
   },
   {
    "id": "venue_joint",
@@ -2261,7 +2517,88 @@
      "color": "#f0c419",
      "text": "GAME MONEY ONLY. Stakes are pretend naira with no cash value and no cash-out. 18+. Be respectful: you can be reported, muted or blocked."
     }
-   ]
+   ],
+   "room": {
+    "w": 9,
+    "d": 9,
+    "wall": "#4b2e6f",
+    "trim": "#7a4ea0",
+    "floor": {
+     "style": "planks",
+     "a": "#6b4a2e",
+     "b": "#5a3d27"
+    },
+    "windows": [],
+    "mood": "neon",
+    "decor": [
+     {
+      "k": "neon",
+      "x": 0,
+      "z": -4.35,
+      "text": "CORNER JOINT",
+      "c": "#ff4fd8"
+     },
+     {
+      "k": "lamp",
+      "x": -2.2,
+      "z": -0.6,
+      "c": "#2e7dd1"
+     },
+     {
+      "k": "lamp",
+      "x": 2.2,
+      "z": -0.6,
+      "c": "#d6402f"
+     },
+     {
+      "k": "lamp",
+      "x": 0,
+      "z": 1.6,
+      "c": "#e0a020"
+     },
+     {
+      "k": "lamp",
+      "x": 2.9,
+      "z": 2,
+      "c": "#2e9b5e"
+     },
+     {
+      "k": "rug",
+      "x": 0,
+      "z": 0.4,
+      "w": 6,
+      "d": 3,
+      "c": "#3a1f55"
+     },
+     {
+      "k": "plant",
+      "x": -4,
+      "z": -3.8
+     },
+     {
+      "k": "plant",
+      "x": 4,
+      "z": -3.8
+     },
+     {
+      "k": "speaker",
+      "x": 4.1,
+      "z": 0.6
+     },
+     {
+      "k": "stool",
+      "x": -0.9,
+      "z": 2.4,
+      "c": "#ff9f1c"
+     },
+     {
+      "k": "stool",
+      "x": 0.9,
+      "z": 2.4,
+      "c": "#ff9f1c"
+     }
+    ]
+   }
   },
   {
    "id": "venue_meco",
@@ -2301,7 +2638,86 @@
      "color": "#f0c419",
      "text": "Meco: placeholder service fees are ESTIMATES. A service resets your car condition and gives a short perk (cheaper fuel per metre, a little extra mood on rides). Game money only."
     }
-   ]
+   ],
+   "room": {
+    "w": 9,
+    "d": 9,
+    "wall": "#d4d4cc",
+    "trim": "#e07b00",
+    "floor": {
+     "style": "checker",
+     "a": "#9a9a96",
+     "b": "#8a8a86"
+    },
+    "windows": [
+     {
+      "wall": "left",
+      "at": -2,
+      "w": 1.4
+     },
+     {
+      "wall": "left",
+      "at": 2,
+      "w": 1.4
+     }
+    ],
+    "mood": "work",
+    "decor": [
+     {
+      "k": "lift",
+      "x": 0,
+      "z": -3
+     },
+     {
+      "k": "toolwall",
+      "x": -3,
+      "z": -4.4
+     },
+     {
+      "k": "toolwall",
+      "x": 3.2,
+      "z": -4.4
+     },
+     {
+      "k": "tyres",
+      "x": -4,
+      "z": 2.8
+     },
+     {
+      "k": "tyres",
+      "x": 4,
+      "z": 2.8
+     },
+     {
+      "k": "drum",
+      "x": 4.1,
+      "z": -2.4
+     },
+     {
+      "k": "drum",
+      "x": 3.5,
+      "z": -2.8
+     },
+     {
+      "k": "hazard",
+      "x": 0,
+      "z": 0.6,
+      "w": 6,
+      "d": 0.8
+     },
+     {
+      "k": "bench2",
+      "x": -4,
+      "z": -0.4
+     },
+     {
+      "k": "menu",
+      "x": 0,
+      "z": -4.4,
+      "text": "MECO"
+     }
+    ]
+   }
   },
   {
    "id": "venue_motors",
@@ -2352,7 +2768,680 @@
      "z": 0.6,
      "color": "#d62828"
     }
-   ]
+   ],
+   "room": {
+    "w": 9,
+    "d": 9,
+    "wall": "#eef3f7",
+    "trim": "#b8322a",
+    "floor": {
+     "style": "checker",
+     "a": "#f4f4f4",
+     "b": "#cfd8dc"
+    },
+    "windows": [
+     {
+      "wall": "back",
+      "at": -2.8,
+      "w": 2.6,
+      "big": true
+     },
+     {
+      "wall": "back",
+      "at": 2.8,
+      "w": 2.6,
+      "big": true
+     },
+     {
+      "wall": "left",
+      "at": 0,
+      "w": 4,
+      "big": true
+     }
+    ],
+    "mood": "bright",
+    "decor": [
+     {
+      "k": "turntable",
+      "x": -2.4,
+      "z": -1.8
+     },
+     {
+      "k": "turntable",
+      "x": 0.4,
+      "z": -2.2
+     },
+     {
+      "k": "turntable",
+      "x": 2.8,
+      "z": -1.4
+     },
+     {
+      "k": "turntable",
+      "x": 0.4,
+      "z": 0.6
+     },
+     {
+      "k": "spot",
+      "x": -2.4,
+      "z": -1.8,
+      "c": "#fff6c8"
+     },
+     {
+      "k": "spot",
+      "x": 0.4,
+      "z": -2.2,
+      "c": "#fff6c8"
+     },
+     {
+      "k": "spot",
+      "x": 2.8,
+      "z": -1.4,
+      "c": "#fff6c8"
+     },
+     {
+      "k": "spot",
+      "x": 0.4,
+      "z": 0.6,
+      "c": "#fff6c8"
+     },
+     {
+      "k": "desk",
+      "x": -3.4,
+      "z": 3.2
+     },
+     {
+      "k": "plant",
+      "x": -4.1,
+      "z": -4
+     },
+     {
+      "k": "plant",
+      "x": 4.1,
+      "z": 3.4
+     },
+     {
+      "k": "menu",
+      "x": 0,
+      "z": -4.4,
+      "text": "AUTO MART"
+     }
+    ]
+   }
+  },
+  {
+   "id": "venue_club1",
+   "name": "Midnight Lounge (club)",
+   "blurb": "Dance floor, DJ booth, bar and a VIP corner. Game money only. 18+.",
+   "buildingId": "b048",
+   "x": 40,
+   "z": 151.3,
+   "hours": [
+    20,
+    24
+   ],
+   "sign": "#6a4c93",
+   "kind": "club",
+   "stations": [
+    {
+     "id": "dance",
+     "type": "dance",
+     "label": "Dance floor",
+     "x": 0,
+     "z": 0.8,
+     "color": "#7b2cbf"
+    },
+    {
+     "id": "dj",
+     "type": "dj",
+     "label": "DJ booth",
+     "x": 0,
+     "z": -3.9,
+     "color": "#222222"
+    },
+    {
+     "id": "bar",
+     "type": "bar",
+     "label": "Bar (soft drinks)",
+     "x": -4.3,
+     "z": -0.4,
+     "color": "#8a5a2b",
+     "fee": 300
+    },
+    {
+     "id": "songs",
+     "type": "songs",
+     "label": "Song slot board",
+     "x": 4.6,
+     "z": -2.4,
+     "color": "#1d3557"
+    },
+    {
+     "id": "vip",
+     "type": "vip",
+     "label": "VIP corner",
+     "x": 4,
+     "z": 2.6,
+     "color": "#9d0208",
+     "fee": 1000
+    },
+    {
+     "id": "poster",
+     "type": "poster",
+     "label": "House rules",
+     "x": -4.4,
+     "z": 3.2,
+     "color": "#f0c419",
+     "text": "Game money only. 18+. Soft drinks only in this version (no alcohol is simulated). Be respectful: you can be reported, muted or blocked. Fees are ESTIMATE placeholders."
+    }
+   ],
+   "room": {
+    "w": 11,
+    "d": 10,
+    "wall": "#14101f",
+    "trim": "#7b2cbf",
+    "floor": {
+     "style": "dance",
+     "a": "#1b1530",
+     "b": "#2a1f4a"
+    },
+    "windows": [],
+    "mood": "club",
+    "door": "Enter",
+    "decor": [
+     {
+      "k": "stage",
+      "x": 0,
+      "z": -4.2,
+      "w": 6,
+      "d": 1.8
+     },
+     {
+      "k": "speaker",
+      "x": -3.4,
+      "z": -4.2,
+      "tall": true
+     },
+     {
+      "k": "speaker",
+      "x": 3.4,
+      "z": -4.2,
+      "tall": true
+     },
+     {
+      "k": "rig"
+     },
+     {
+      "k": "discoball",
+      "x": 0,
+      "z": 0.8
+     },
+     {
+      "k": "bar",
+      "x": -4.9,
+      "z": -0.4,
+      "len": 4
+     },
+     {
+      "k": "barstool",
+      "x": -4,
+      "z": -1.6
+     },
+     {
+      "k": "barstool",
+      "x": -4,
+      "z": -0.4
+     },
+     {
+      "k": "barstool",
+      "x": -4,
+      "z": 0.8
+     },
+     {
+      "k": "sofa",
+      "x": 4.4,
+      "z": 3.8,
+      "c": "#9d0208",
+      "rot": 0
+     },
+     {
+      "k": "sofa",
+      "x": 3.2,
+      "z": 2.4,
+      "c": "#9d0208",
+      "rot": 1
+     },
+     {
+      "k": "rope",
+      "x": 4,
+      "z": 1.1,
+      "w": 2.4
+     },
+     {
+      "k": "ledstrip",
+      "c": "#7b2cbf"
+     }
+    ]
+   }
+  },
+  {
+   "id": "venue_club2",
+   "name": "Sunset Rooftop Club",
+   "blurb": "A chilled rooftop vibe: lounge, bar and dancing under the lights.",
+   "buildingId": "b049",
+   "x": 150,
+   "z": 151.3,
+   "hours": [
+    18,
+    24
+   ],
+   "sign": "#f77f00",
+   "kind": "club",
+   "stations": [
+    {
+     "id": "dance",
+     "type": "dance",
+     "label": "Dance floor",
+     "x": 0,
+     "z": 0.8,
+     "color": "#f77f00"
+    },
+    {
+     "id": "dj",
+     "type": "dj",
+     "label": "DJ booth",
+     "x": 0,
+     "z": -3.9,
+     "color": "#222222"
+    },
+    {
+     "id": "bar",
+     "type": "bar",
+     "label": "Bar (soft drinks)",
+     "x": -4.3,
+     "z": -0.4,
+     "color": "#6b4226",
+     "fee": 300
+    },
+    {
+     "id": "songs",
+     "type": "songs",
+     "label": "Song slot board",
+     "x": 4.6,
+     "z": -2.4,
+     "color": "#1d3557"
+    },
+    {
+     "id": "vip",
+     "type": "vip",
+     "label": "VIP corner",
+     "x": 4,
+     "z": 2.6,
+     "color": "#9d0208",
+     "fee": 1000
+    }
+   ],
+   "room": {
+    "w": 11,
+    "d": 10,
+    "wall": "#2d1b0e",
+    "trim": "#f77f00",
+    "floor": {
+     "style": "planks",
+     "a": "#4a3524",
+     "b": "#3c2a1c"
+    },
+    "windows": [
+     {
+      "wall": "back",
+      "at": -3.6,
+      "w": 2,
+      "big": true
+     },
+     {
+      "wall": "back",
+      "at": 3.6,
+      "w": 2,
+      "big": true
+     }
+    ],
+    "mood": "sunset",
+    "decor": [
+     {
+      "k": "stage",
+      "x": 0,
+      "z": -4.2,
+      "w": 5,
+      "d": 1.6
+     },
+     {
+      "k": "speaker",
+      "x": -3,
+      "z": -4.2,
+      "tall": true
+     },
+     {
+      "k": "speaker",
+      "x": 3,
+      "z": -4.2,
+      "tall": true
+     },
+     {
+      "k": "rig",
+      "warm": true
+     },
+     {
+      "k": "lanterns",
+      "z": 1.5,
+      "c": [
+       "#f77f00",
+       "#fcbf49",
+       "#eae2b7"
+      ]
+     },
+     {
+      "k": "bar",
+      "x": -4.9,
+      "z": -0.4,
+      "len": 4,
+      "c": "#6b4226"
+     },
+     {
+      "k": "barstool",
+      "x": -4,
+      "z": -1.6
+     },
+     {
+      "k": "barstool",
+      "x": -4,
+      "z": -0.4
+     },
+     {
+      "k": "sofa",
+      "x": 4.4,
+      "z": 3.8,
+      "c": "#bc4749",
+      "rot": 0
+     },
+     {
+      "k": "sofa",
+      "x": 3.2,
+      "z": 2.4,
+      "c": "#bc4749",
+      "rot": 1
+     },
+     {
+      "k": "rope",
+      "x": 4,
+      "z": 1.1,
+      "w": 2.4
+     },
+     {
+      "k": "plant",
+      "x": 5,
+      "z": -4.4
+     },
+     {
+      "k": "plant",
+      "x": -5,
+      "z": 4.2
+     },
+     {
+      "k": "ledstrip",
+      "c": "#f77f00"
+     }
+    ]
+   }
+  },
+  {
+   "id": "venue_salon1",
+   "name": "Fresh Cut Barbers",
+   "blurb": "A clean cut and a mirror. Placeholder fees (ESTIMATE).",
+   "buildingId": "b050",
+   "x": -195,
+   "z": 151.3,
+   "hours": [
+    9,
+    19
+   ],
+   "sign": "#0077b6",
+   "kind": "salon",
+   "stations": [
+    {
+     "id": "chair1",
+     "type": "style",
+     "label": "Barber chair 1",
+     "x": -2.4,
+     "z": -2.6,
+     "color": "#c1121f"
+    },
+    {
+     "id": "chair2",
+     "type": "style",
+     "label": "Barber chair 2",
+     "x": 0.4,
+     "z": -2.6,
+     "color": "#c1121f"
+    },
+    {
+     "id": "basin",
+     "type": "basin",
+     "label": "Wash basin",
+     "x": 3.2,
+     "z": -2.6,
+     "color": "#e9ecef"
+    },
+    {
+     "id": "poster",
+     "type": "poster",
+     "label": "Price board",
+     "x": -3.6,
+     "z": 2,
+     "color": "#f0c419",
+     "text": "Cuts and styles: placeholder fees (ESTIMATE). A style gives a small mood boost and a \"fresh\" look for a while. Game money only."
+    }
+   ],
+   "room": {
+    "w": 9,
+    "d": 8,
+    "wall": "#e8f1f8",
+    "trim": "#0077b6",
+    "floor": {
+     "style": "checker",
+     "a": "#ffffff",
+     "b": "#cde7f5"
+    },
+    "windows": [
+     {
+      "wall": "left",
+      "at": 0,
+      "w": 2.4,
+      "big": true
+     }
+    ],
+    "mood": "bright",
+    "decor": [
+     {
+      "k": "mirror",
+      "x": -2.4,
+      "z": -3.9
+     },
+     {
+      "k": "mirror",
+      "x": 0.4,
+      "z": -3.9
+     },
+     {
+      "k": "poleSign",
+      "x": 3.9,
+      "z": 2.8
+     },
+     {
+      "k": "dryer",
+      "x": 4,
+      "z": 0.4
+     },
+     {
+      "k": "dryer",
+      "x": 4,
+      "z": 1.4
+     },
+     {
+      "k": "desk",
+      "x": 1.8,
+      "z": 3
+     },
+     {
+      "k": "plant",
+      "x": -4,
+      "z": -3.4
+     },
+     {
+      "k": "plant",
+      "x": 4,
+      "z": -3.6
+     },
+     {
+      "k": "shelf",
+      "x": 3.2,
+      "z": -3.6,
+      "c": "#adb5bd",
+      "bottles": true
+     },
+     {
+      "k": "menu",
+      "x": -3.6,
+      "z": -3.9,
+      "text": "FRESH CUT"
+     }
+    ]
+   }
+  },
+  {
+   "id": "venue_salon2",
+   "name": "Glow Beauty Salon",
+   "blurb": "Braids, twists and gele. Placeholder fees (ESTIMATE).",
+   "buildingId": "b051",
+   "x": -60,
+   "z": 151.3,
+   "hours": [
+    9,
+    19
+   ],
+   "sign": "#e5989b",
+   "kind": "salon",
+   "stations": [
+    {
+     "id": "chair1",
+     "type": "style",
+     "label": "Styling chair 1",
+     "x": -2.4,
+     "z": -2.6,
+     "color": "#d63384"
+    },
+    {
+     "id": "chair2",
+     "type": "style",
+     "label": "Styling chair 2",
+     "x": 0.4,
+     "z": -2.6,
+     "color": "#d63384"
+    },
+    {
+     "id": "basin",
+     "type": "basin",
+     "label": "Wash basin",
+     "x": 3.2,
+     "z": -2.6,
+     "color": "#e9ecef"
+    },
+    {
+     "id": "poster",
+     "type": "poster",
+     "label": "Price board",
+     "x": -3.6,
+     "z": 2,
+     "color": "#f0c419",
+     "text": "Braids, twists, gele: placeholder fees (ESTIMATE). Game money only."
+    }
+   ],
+   "room": {
+    "w": 9,
+    "d": 8,
+    "wall": "#fde2e4",
+    "trim": "#e5989b",
+    "floor": {
+     "style": "checker",
+     "a": "#fff1f2",
+     "b": "#fad2e1"
+    },
+    "windows": [
+     {
+      "wall": "left",
+      "at": 0,
+      "w": 2.4,
+      "big": true
+     }
+    ],
+    "mood": "bright",
+    "decor": [
+     {
+      "k": "mirror",
+      "x": -2.4,
+      "z": -3.9,
+      "oval": true
+     },
+     {
+      "k": "mirror",
+      "x": 0.4,
+      "z": -3.9,
+      "oval": true
+     },
+     {
+      "k": "dryer",
+      "x": 4,
+      "z": 0.4
+     },
+     {
+      "k": "dryer",
+      "x": 4,
+      "z": 1.4
+     },
+     {
+      "k": "dryer",
+      "x": 4,
+      "z": 2.4
+     },
+     {
+      "k": "desk",
+      "x": 1.8,
+      "z": 3
+     },
+     {
+      "k": "plant",
+      "x": -4,
+      "z": -3.4
+     },
+     {
+      "k": "plant",
+      "x": 4,
+      "z": -3.6
+     },
+     {
+      "k": "shelf",
+      "x": 3.2,
+      "z": -3.6,
+      "c": "#ffcad4",
+      "bottles": true
+     },
+     {
+      "k": "menu",
+      "x": -3.6,
+      "z": -3.9,
+      "text": "GLOW BEAUTY"
+     }
+    ]
+   }
   }
  ]
 }

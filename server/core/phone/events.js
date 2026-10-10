@@ -2,7 +2,7 @@
 // changes. Spec: /workspace/game_project/15_phone_system_spec.md section 7. Plain JS (no TypeScript); editors still get hints from the JSDoc.
 
 /** Feature flag. Off by default; flipping it will gate every phone route, event and client module. Not wired anywhere yet. */
-export const PHONE_V2 = process.env.PHONE_V2 === 'true';
+export const PHONE_V2 = process.env.PHONE_V2 !== 'false';
 
 /** Server -> client messages on the existing /ws socket (JSON). Event names are namespaced `phone.` so they cannot clash with today's types. */
 export const S2C = Object.freeze({

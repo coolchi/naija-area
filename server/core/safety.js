@@ -2,8 +2,9 @@
 import { bad, cleanText } from './util.js';
 import { notify } from './economy.js';
 import { decide } from './ads.js';
+import { removeVoice } from './phone/phone.js';
 
-export const REPORT_KINDS = ['house_name', 'chat', 'ad_creative'];
+export const REPORT_KINDS = ['house_name', 'chat', 'ad_creative', 'voice_note', 'phone_message'];
 export const REASONS = ['abusive', 'sexual', 'hate', 'scam_spam', 'personal_info', 'misleading', 'other'];
 
 /** is there a block (either direction) or, for viewer-centric hiding, a mute? */
@@ -29,6 +30,8 @@ export function createReport(app, uid, { kind, target, reason, detail }) {
   if (!app.limiter.hit(`report:${uid}`, S.reportsPerHour, 3600000, now)) bad('RATE_LIMIT', 'You have sent a lot of reports. Please wait a bit.', 429);
   const ref = String(target ?? '').slice(0, 40); let targetUser = null, snapshot = '';
   if (kind === 'chat') { const m = app.db.prepare('SELECT id,user_id,username,text FROM chat_messages WHERE id=?').get(Number(ref)); if (!m) bad('NO_TARGET', 'That message is no longer available.', 404); if (m.user_id === uid) bad('SELF', 'You cannot report yourself.'); targetUser = m.user_id; snapshot = `@${m.username}: ${m.text}`; }
+  else if (kind === 'voice_note') { const v = app.db.prepare('SELECT v.id, v.owner_id, v.status, t.user_a, t.user_b FROM voice_notes v JOIN phone_threads t ON t.id=v.thread_id WHERE v.id=?').get(Number(ref)); if (!v || v.status !== 'ready' || (v.user_a !== uid && v.user_b !== uid)) bad('NO_TARGET', 'That voice note is not available.', 404); if (v.owner_id === uid) bad('SELF', 'You cannot report yourself.'); targetUser = v.owner_id; snapshot = `voice note #${v.id} (audio is not shown to reviewers by default)`; }
+  else if (kind === 'phone_message') { const m = app.db.prepare('SELECT m.id, m.sender_id, m.body, m.kind, t.user_a, t.user_b FROM phone_messages m JOIN phone_threads t ON t.id=m.thread_id WHERE m.id=?').get(Number(ref)); if (!m || m.kind !== 'text' || (m.user_a !== uid && m.user_b !== uid)) bad('NO_TARGET', 'That message is not available.', 404); if (m.sender_id === uid) bad('SELF', 'You cannot report yourself.'); targetUser = m.sender_id; snapshot = `@${app.db.prepare('SELECT username FROM users WHERE id=?').get(m.sender_id).username}: ${m.body}`; }
   else if (kind === 'house_name') { const o = app.db.prepare('SELECT po.user_id, po.custom_name, u.username FROM property_owner po JOIN users u ON u.id=po.user_id WHERE property_id=?').get(ref); if (!o || !o.custom_name) bad('NO_TARGET', 'That house has no custom name.', 404); if (o.user_id === uid) bad('SELF', 'That is your own house.'); targetUser = o.user_id; snapshot = `@${o.username}'s "${o.custom_name}"`; }
   else { const c = app.db.prepare("SELECT c.id, c.status, c.headline, a.brand_name FROM ad_campaigns c JOIN advertisers a ON a.id=c.advertiser_id WHERE c.id=?").get(Number(ref)); if (!c || !['live', 'scheduled'].includes(c.status)) bad('NO_TARGET', 'That ad is not running.', 404); snapshot = `${c.brand_name}: ${c.headline || '(creative only)'}`; }
   try {
@@ -55,6 +58,8 @@ export function resolve(app, kind, target, action, note, actor = 'admin') {
   app.db.transaction(() => {
     if (action !== 'dismiss') {
       if (kind === 'house_name') { app.db.prepare('UPDATE property_owner SET custom_name=NULL, name_hidden=0 WHERE property_id=?').run(String(target)); if (tu) notify(app, tu, 'safety', 'A reviewer removed your house name. Please pick a different one.'); effect = 'name_reset'; }
+      else if (kind === 'voice_note') { removeVoice(app, Number(target), 'reported'); effect = 'voice_note_removed'; if (tu) notify(app, tu, 'safety', 'A reviewer removed one of your voice notes.'); }
+      else if (kind === 'phone_message') { app.db.prepare('UPDATE phone_messages SET deleted_at=? WHERE id=?').run(now, Number(target)); effect = 'message_deleted'; if (tu) notify(app, tu, 'safety', 'A reviewer removed one of your messages.'); }
       else if (kind === 'chat') { app.db.prepare('DELETE FROM chat_messages WHERE id=?').run(Number(target)); effect = 'message_deleted'; if (action === 'remove_and_mute' && tu) { app.db.prepare('UPDATE users SET chat_muted_until=MAX(chat_muted_until,?) WHERE id=?').run(now + app.balance.safety.adminMuteMs, tu); notify(app, tu, 'safety', 'Chat is paused for your account after a review.'); effect += '+user_muted'; } }
       else { const c = app.db.prepare('SELECT status FROM ad_campaigns WHERE id=?').get(Number(target)); if (c && ['live', 'scheduled'].includes(c.status)) decide(app, Number(target), 'takedown', actor, note || 'reported creative removed'); else if (c && c.status === 'approved') app.db.prepare("UPDATE ad_campaigns SET reject_reason=? WHERE id=?").run(cleanText(note || 'removed after report', 200), Number(target)); effect = 'campaign_taken_down'; }
     } else if (kind === 'house_name') app.db.prepare('UPDATE property_owner SET name_hidden=0 WHERE property_id=?').run(String(target));

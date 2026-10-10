@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { get, post, fmtN, h, $ } from './api.js';
 import { say } from './ui.js';
+import { houseShell } from './rooms.js';
 
 const CELL = 1.4; const COLORS = { tv: 0x222831, sofa: 0xb5543a, fridge: 0xe8eef2, rug: 0xd9a441, plant: 0x2f9e5a, table: 0x9c6b3c, gen: 0xc0392b, bed: 0x4a6fa5 };
 const footprint = (def, rot) => (rot % 2 ? { w: def.d, d: def.w } : { w: def.w, d: def.d });
@@ -23,7 +24,8 @@ export class Interior {
     const grid = new THREE.GridHelper(Math.max(W, D) * CELL, Math.max(W, D), 0x8c7a55, 0xa89870); grid.scale.set(W / Math.max(W, D), 1, D / Math.max(W, D)); grid.position.set(W * CELL / 2, 0.01, D * CELL / 2); this.grid = grid; this.scene.add(grid);
     const wallM = this.wallMat = new THREE.MeshLambertMaterial({ color: d.wall?.hex || '#f1e7cf' }); const back = new THREE.Mesh(new THREE.BoxGeometry(W * CELL, 3.4, 0.2), wallM); back.position.set(W * CELL / 2, 1.7, -0.1); const left = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3.4, D * CELL), wallM); left.position.set(-0.1, 1.7, D * CELL / 2); this.scene.add(back, left);
     const stripe = new THREE.Mesh(new THREE.BoxGeometry(W * CELL, 0.5, 0.22), new THREE.MeshLambertMaterial({ color: 0x008751 })); stripe.position.set(W * CELL / 2, 0.25, -0.1); this.scene.add(stripe);
-    for (const r of d.room.reserved) { const m = new THREE.Mesh(new THREE.BoxGeometry(r.w * CELL - 0.1, r.what === 'bed' ? 0.7 : 0.02, r.d * CELL - 0.1), new THREE.MeshLambertMaterial({ color: r.what === 'bed' ? COLORS.bed : 0xe2d9bf, transparent: r.what !== 'bed', opacity: r.what === 'bed' ? 1 : 0.6 })); m.position.set((r.x + r.w / 2) * CELL, r.what === 'bed' ? 0.35 : 0.02, (r.z + r.d / 2) * CELL); this.scene.add(m); if (r.what === 'bed') { const pil = new THREE.Mesh(new THREE.BoxGeometry(r.w * CELL - 0.4, 0.2, 0.5), new THREE.MeshLambertMaterial({ color: 0xffffff })); pil.position.set((r.x + r.w / 2) * CELL, 0.8, (r.z + 0.4) * CELL); this.scene.add(pil); } }
+    this.anim = []; this.t0 = performance.now(); houseShell(this.scene, d.room, CELL, this.anim);
+    for (const r of d.room.reserved.filter(r => r.what === 'doorway')) { const m = new THREE.Mesh(new THREE.BoxGeometry(r.w * CELL - 0.1, r.what === 'bed' ? 0.7 : 0.02, r.d * CELL - 0.1), new THREE.MeshLambertMaterial({ color: r.what === 'bed' ? COLORS.bed : 0xe2d9bf, transparent: r.what !== 'bed', opacity: r.what === 'bed' ? 1 : 0.6 })); m.position.set((r.x + r.w / 2) * CELL, r.what === 'bed' ? 0.35 : 0.02, (r.z + r.d / 2) * CELL); this.scene.add(m); if (r.what === 'bed') { const pil = new THREE.Mesh(new THREE.BoxGeometry(r.w * CELL - 0.4, 0.2, 0.5), new THREE.MeshLambertMaterial({ color: 0xffffff })); pil.position.set((r.x + r.w / 2) * CELL, 0.8, (r.z + 0.4) * CELL); this.scene.add(pil); } }
     const door = d.room.reserved.find(r => r.what === 'doorway'); const dm = new THREE.Mesh(new THREE.BoxGeometry(door.w * CELL, 0.04, 0.12), new THREE.MeshBasicMaterial({ color: 0xffc20e })); dm.position.set((door.x + door.w / 2) * CELL, 0.05, D * CELL); this.scene.add(dm);
     this.items = new THREE.Group(); this.scene.add(this.items); this.ghost = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0x35c46b, transparent: true, opacity: 0.55 })); this.ghost.visible = false; this.scene.add(this.ghost);
     this.rebuildItems(); this.bindInput(); this.resize(); this.onResize = () => this.resize(); addEventListener('resize', this.onResize);
@@ -102,7 +104,7 @@ export class Interior {
     addEventListener('keydown', this.onKey);
   }
   resize() { const w = this.el.clientWidth, hh = this.el.clientHeight; this.r.setSize(w, hh, false); this.cam.aspect = w / hh; this.cam.updateProjectionMatrix(); }
-  loop() { if (!this.open) return; const c = this.center; this.cam.position.set(c.x + Math.sin(this.yaw) * Math.cos(this.pitch) * this.dist, Math.sin(this.pitch) * this.dist, c.z + Math.cos(this.yaw) * Math.cos(this.pitch) * this.dist); this.cam.lookAt(c.x, 0.4, c.z); this.r.render(this.scene, this.cam); this.raf = requestAnimationFrame(() => this.loop()); }
+  loop() { if (!this.open) return; const c = this.center; this.cam.position.set(c.x + Math.sin(this.yaw) * Math.cos(this.pitch) * this.dist, Math.sin(this.pitch) * this.dist, c.z + Math.cos(this.yaw) * Math.cos(this.pitch) * this.dist); this.cam.lookAt(c.x, 0.4, c.z); { const tt = (performance.now() - this.t0) / 1000; for (const f of this.anim || []) f(tt); } this.r.render(this.scene, this.cam); this.raf = requestAnimationFrame(() => this.loop()); }
   async leave() {
     if (!this.open) return; this.open = false; clearInterval(this.pt); cancelAnimationFrame(this.raf); removeEventListener('keydown', this.onKey); removeEventListener('resize', this.onResize); this.r.dispose(); this.el.classList.add('hidden'); this.el.replaceChildren(); this.g.busy = false; this.g.ctrl.frozen = false;
     await post('/api/property/leave').catch(() => {}); this.g.net.nudge(); $('#game').focus();

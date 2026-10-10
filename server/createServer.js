@@ -14,6 +14,7 @@ import { pruneWorld } from './core/world.js';
 import { tickLand } from './core/social.js';
 import { tickGames } from './core/games.js';
 import { GameError } from './core/util.js';
+import { voiceAudio as phoneVoice, tickVoice, tickCalls } from './core/phone/phone.js';
 import { BALANCE } from './config/balance.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -27,10 +28,12 @@ export function buildServer(opts = {}) {
   const dbPath = opts.dbPath ?? env.NA_DB ?? path.join(dataDir, 'naija-area.db');
   if (dbPath !== ':memory:') fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = new Database(dbPath);
+  const voiceDir = dbPath === ':memory:' ? null : path.join(path.dirname(dbPath), 'voice'); // voice notes live outside the database (disk here; object storage later)
   db.pragma('journal_mode = WAL'); db.pragma('foreign_keys = ON'); db.pragma('busy_timeout = 5000');
   const platform = opts.platform || nodePlatform({ dataDir });
   const prod = env.NODE_ENV === 'production';
   const app = createApp({ db, platform, cityJson: opts.cityJson || loadCity(), balance: opts.balance || BALANCE, clock: opts.clock, filterHeadless: opts.filterHeadless ?? env.NA_FILTER_HEADLESS !== '0' });
+  if (voiceDir) { fs.mkdirSync(voiceDir, { recursive: true }); const f = (k) => path.join(voiceDir, Buffer.from(k).toString('base64url')); app.voiceStore = { put: (k, b) => fs.writeFileSync(f(k), b), get: (k) => { try { return fs.readFileSync(f(k)); } catch { return null; } }, del: (k) => { try { fs.unlinkSync(f(k)); } catch { /* already gone */ } } }; }
   app.devRoutes = opts.dev ?? env.NA_DEV === '1';
   // admin password: env var; a fixed default exists ONLY outside production, with a loud warning
   app.adminPassword = opts.adminPassword ?? env.ADMIN_PASSWORD ?? (prod ? null : 'admin-dev-only');
@@ -54,8 +57,13 @@ export function buildServer(opts = {}) {
   const cookieAttrs = `Path=/; HttpOnly; SameSite=Lax${prod ? '; Secure' : ''}`;
 
   const sessionUid = (req) => { const uid = readSession(parseCookies(req.headers.cookie).na_s); if (!uid) return null; return uid; };
+  // voice notes: only the two people in the thread may fetch the audio
+  ex.get('/api/phone/voice/:id', (req, res) => {
+    try { const uid = readSession(parseCookies(req.headers.cookie).na_s); if (!uid) return res.status(401).json({ error: 'AUTH' }); const a = phoneVoice(app, uid, req.params.id); res.setHeader('Content-Type', a.mime); res.setHeader('Cache-Control', 'private, max-age=3600'); res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox"); res.setHeader('Content-Length', a.data.length); res.end(a.data); }
+    catch (e) { if (e instanceof GameError) return res.status(e.status).json({ error: e.code, message: e.message }); console.error(e); res.status(500).end(); }
+  });
   ex.use('/api', express.json({ limit: '100kb' }));
-  ex.use('/api', express.raw({ type: ['image/png', 'image/jpeg', 'image/webp', 'application/octet-stream'], limit: '1.2mb' }));
+  ex.use('/api', express.raw({ type: ['image/png', 'image/jpeg', 'image/webp', 'application/octet-stream', 'audio/webm', 'audio/ogg', 'audio/mp4'], limit: '1.2mb' }));
   ex.use('/api', async (req, res) => {
     try {
       if (req.method === 'POST') { // same-origin only for state-changing calls
@@ -105,8 +113,9 @@ export function buildServer(opts = {}) {
   });
   const timers = [];
   function startTimers() {
+    timers.push(setInterval(() => { try { tickCalls(app); } catch (e) { console.error('tickCalls', e); } }, 1000));
     timers.push(setInterval(() => { try { tickAds(app); } catch (e) { console.error('tickAds', e); } }, 5000));
-    timers.push(setInterval(() => { try { tickRent(app); tickInterest(app); tickLand(app); tickGames(app); pruneWorld(app); } catch (e) { console.error('tick', e); } }, 30000));
+    timers.push(setInterval(() => { try { tickRent(app); tickInterest(app); tickLand(app); tickGames(app); pruneWorld(app); tickVoice(app); } catch (e) { console.error('tick', e); } }, 30000));
   }
   const close = () => new Promise((resolve) => { timers.forEach(clearInterval); for (const s of sockets.values()) for (const ws of s) ws.terminate(); wss.close(); server.close(() => { try { db.close(); } catch {} resolve(); }); server.closeAllConnections?.(); });
   return { app, db, server, startTimers, close, sockets };

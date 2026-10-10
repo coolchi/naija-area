@@ -11,6 +11,8 @@
     "bots": "node scripts/bots.js",
     "test": "node --test --test-concurrency=1 tests/",
     "smoke": "node scripts/e2e-smoke.mjs",
+    "smoke:interiors": "node scripts/interiors-smoke.mjs",
+    "smoke:phone": "node scripts/phone-smoke.mjs",
     "build:demo": "node tools/build-demo.mjs"
   },
   "dependencies": {

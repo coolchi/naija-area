@@ -3,10 +3,11 @@
 import * as THREE from 'three';
 import { get, post, fmtN, h, $ } from './api.js';
 import { makeAvatar, makePlayerCar, makeNameSprite } from './entities.js';
+import { venueShell, decorate, stationModel } from './rooms.js';
 
 const SHAPE = { circle: ['●', '#d6402f'], triangle: ['▲', '#2e7dd1'], cross: ['✚', '#2e9b5e'], square: ['■', '#8a5ad1'], star: ['★', '#e0a020'], whot: ['W', '#222'] };
 const hash = (s) => { let x = 7; for (const c of String(s)) x = (x * 31 + c.charCodeAt(0)) >>> 0; return x; };
-const ICON = { eat: '🍲', game: '🎲', board: '🏆', poster: '📜', tv: '📺', car: '🚗', check: '🔍', service: '🔧' };
+const ICON = { dance: '💃', dj: '🎧', bar: '🥤', songs: '🎵', vip: '👑', style: '✂️', basin: '🚿', eat: '🍲', game: '🎲', board: '🏆', poster: '📜', tv: '📺', car: '🚗', check: '🔍', service: '🔧' };
 
 const GAME_NAME = { whot: 'Whot', ludo: 'Ludo', dominoes: 'Dominoes', draughts: 'Draughts', ayo: 'Ayo' };
 export class Venue {
@@ -20,11 +21,8 @@ export class Venue {
     const d = this.data; const R = d.room; this.canvas = h('canvas'); this.el.append(this.canvas);
     this.r = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true }); this.r.setPixelRatio(Math.min(devicePixelRatio, 2)); this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x1d2b25);
     this.cam = new THREE.PerspectiveCamera(42, 1, 0.1, 100); this.yaw = Math.PI / 5; this.pitch = 0.82; this.dist = 15;
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x887766, 1.0)); const sun = new THREE.DirectionalLight(0xfff0d0, 1.0); sun.position.set(5, 10, 6); this.scene.add(sun);
-    const sign = new THREE.Color(d.sign || '#555'); const fl = new THREE.Mesh(new THREE.BoxGeometry(R.w, 0.2, R.d), new THREE.MeshLambertMaterial({ color: 0xcdbb98 })); fl.position.y = -0.1; this.scene.add(fl);
-    const wallM = new THREE.MeshLambertMaterial({ color: 0xf1e7cf }); const back = new THREE.Mesh(new THREE.BoxGeometry(R.w, 3.2, 0.2), wallM); back.position.set(0, 1.6, -R.d / 2); const left = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3.2, R.d), wallM); left.position.set(-R.w / 2, 1.6, 0);
-    const band = new THREE.Mesh(new THREE.BoxGeometry(R.w, 0.5, 0.22), new THREE.MeshLambertMaterial({ color: sign })); band.position.set(0, 2.9, -R.d / 2 + 0.02); this.scene.add(back, left, band);
-    const door = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.04, 0.2), new THREE.MeshBasicMaterial({ color: 0xffc20e })); door.position.set(0, 0.04, R.d / 2); this.scene.add(door);
+    this.hemi = new THREE.HemisphereLight(0xffffff, 0x887766, 1.0); const sun = this.sun = new THREE.DirectionalLight(0xfff0d0, 1.0); sun.position.set(5, 10, 6); this.scene.add(this.hemi, sun);
+    this.anim = []; this.t0 = performance.now(); this.lights = { hemi: this.hemi, sun: this.sun }; venueShell(this.scene, R, d.room, d.sign, this.anim, this.lights); const decor = new THREE.Group(); this.scene.add(decor); decorate(decor, d.room?.decor, R, this.anim);
     this.stations = new THREE.Group(); this.scene.add(this.stations); this.people = new THREE.Group(); this.scene.add(this.people); this.meshes = {};
     for (const st of d.stations) this.addStation(st);
     this.bind(); this.resize(); this.onResize = () => this.resize(); addEventListener('resize', this.onResize);
@@ -32,7 +30,8 @@ export class Venue {
   addStation(st) {
     const grp = new THREE.Group(); const col = new THREE.Color(st.color || '#888'); const mat = (c) => new THREE.MeshLambertMaterial({ color: c });
     const box = (w, hh, dd, c, y) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, hh, dd), mat(c)); m.position.y = y ?? hh / 2; grp.add(m); return m; };
-    if (st.type === 'eat') { box(3.4, 1, 0.9, col); box(3.5, 0.12, 1.0, 0xf2c14e, 1.05); }
+    if (stationModel(st, grp, this.anim)) { /* club / salon pieces live in rooms.js */ }
+    else if (st.type === 'eat') { box(3.4, 1, 0.9, col); box(3.5, 0.12, 1.0, 0xf2c14e, 1.05); }
     else if (st.type === 'game') { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, 0.12, 20), mat(col)); t.position.y = 0.8; grp.add(t); const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, 0.8, 8), mat(0x4a3320)); leg.position.y = 0.4; grp.add(leg); if (st.game === 'ludo') { box(1.5, 0.1, 1.5, 0xfaf5e6, 0.91); [0xd6402f, 0x2e9b5e, 0xe0a020, 0x2e7dd1].forEach((c, k) => { const q = box(0.6, 0.05, 0.6, c, 0.97); q.position.x = (k % 2 ? 1 : -1) * 0.45; q.position.z = (k < 2 ? -1 : 1) * 0.45; }); } else for (let i = 0; i < 4; i++) { const c = box(0.34, 0.03, 0.5, [0xd6402f, 0x2e7dd1, 0xe0a020, 0x2e9b5e][i], 0.88); c.position.x = -0.5 + i * 0.33; c.rotation.y = 0.2 * i - 0.3; } for (const sx of [-1.25, 1.25]) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.5, 10), mat(0x33291e)); s.position.set(sx, 0.25, 0); grp.add(s); } }
     else if (st.type === 'board') { box(2.4, 1.5, 0.12, col, 1.6).position.z = -0.1; box(2.2, 1.3, 0.14, 0x0f3b27, 1.6).position.z = -0.08; }
     else if (st.type === 'poster') { box(0.1, 1.4, 1.2, col, 1.6); }
@@ -40,7 +39,7 @@ export class Venue {
     else if (st.type === 'check') { const c = makePlayerCar(st.color || '#3a7ca5'); c.scale.setScalar(0.34); c.position.y = 0.55; grp.add(c); box(2.0, 0.5, 1.1, 0x555a60, 0.25); box(0.2, 0.4, 0.2, 0xe0a020, 0.7).position.x = 1.15; }
     else if (st.type === 'service') { box(2.0, 0.9, 0.7, 0x6b6f75, 0.45); box(1.7, 0.08, 0.6, 0xe07b00, 0.94); for (let i = 0; i < 3; i++) box(0.25, 0.25, 0.25, [0xd6402f, 0x2e7dd1, 0xe0a020][i], 1.1).position.x = -0.6 + i * 0.6; }
     else if (st.type === 'car') { const c = makePlayerCar(st.color || '#888'); c.scale.setScalar(0.38); c.rotation.y = Math.PI / 6; grp.add(c); box(1.8, 0.06, 1.0, 0xdddddd, 0.03); }
-    const sp = makeNameSprite(`${ICON[st.type] || ''} ${st.label}`.slice(0, 26), '#fff3c4'); sp.scale.set(2.8, 0.7, 1); sp.position.y = st.type === 'car' ? 1.8 : st.type === 'tv' ? 3.0 : st.type === 'board' ? 2.8 : 2.1; grp.add(sp);
+    const sp = makeNameSprite(`${ICON[st.type] || ''} ${st.label}`.slice(0, 26), '#fff3c4'); sp.scale.set(2.8, 0.7, 1); sp.position.y = st.type === 'dj' ? 2.3 : st.type === 'songs' ? 3.3 : st.type === 'dance' ? 1.2 : st.type === 'style' ? 2.5 : st.type === 'car' ? 1.8 : st.type === 'tv' ? 3.0 : st.type === 'board' ? 2.8 : 2.1; grp.add(sp);
     grp.position.set(st.x, 0, st.z); if (st.type === 'poster') grp.rotation.y = 0; grp.traverse(o => { o.userData.stationId = st.id; }); this.stations.add(grp); this.meshes[st.id] = grp;
   }
   people_refresh() {
@@ -68,12 +67,24 @@ export class Venue {
     else if (st.type === 'car') this.carSheet(st);
     else if (st.type === 'check' || st.type === 'service') this.mechanicSheet(st);
     else if (st.type === 'casual') ui.playCasual(st.game);
+    else if (['dance', 'dj', 'bar', 'songs', 'vip', 'basin'].includes(st.type)) this.leisureAct(st);
+    else if (st.type === 'style') this.salonSheet(st);
     else if (st.type === 'game') this.sitPanel(st);
   }
   async board(kind = 'all') {
     const ui = this.g.ui; const d = await ui.guard(() => get('/api/scoreboard' + (kind === 'all' ? '' : `?kind=${kind}`))); if (!d) return; const left = Math.max(0, d.endsAt - this.g.serverNow());
     const tabs = h('div', { class: 'chips' }, ['all', 'whot', 'ludo', 'dominoes', 'draughts', 'ayo'].map(k => h('button', { class: `chip ${k === kind ? 'on' : ''}`, onclick: () => this.board(k) }, k === 'all' ? 'All games' : GAME_NAME[k])));
     ui.openSheet('Weekly scoreboard', [tabs, d.rows.length ? h('div', { class: 'list' }, d.rows.map(r => h('div', {}, h('span', {}, `${r.rank}. @${r.username}`), h('span', { class: 'mut' }, `${r.wins}W ${r.draws}D ${r.losses}L · `), h('b', {}, `${r.points} pts`)))) : h('p', { class: 'mut' }, 'Nobody has played this week yet. Be the first!'), h('p', { class: 'mut' }, `${d.scoring} Resets in ${Math.floor(left / 86400000)}d ${Math.floor(left % 86400000 / 3600000)}h.`)]);
+  }
+  async leisureAct(st) {
+    const ui = this.g.ui; const r = await ui.guard(() => post('/api/venue/act', { venueId: this.id, stationId: st.id, idem: `${st.id}${Date.now()}` })); if (!r) return;
+    if (st.type === 'songs') { ui.openSheet('Song slot board', [h('p', {}, '🎵 Tonight’s lineup'), h('div', { class: 'list', id: 'songSlots' }, r.slots.map(sl => h('div', {}, h('span', {}, `Slot ${sl.slot}`), h('span', { class: 'mut' }, sl.title)))), h('p', { class: 'mut' }, r.note)]); return; }
+    ui.toast(r.text); if (r.mood != null) this.g.refreshMe?.(); this.g.net.nudge();
+  }
+  async salonSheet(st) {
+    const ui = this.g.ui; const m = await ui.guard(() => get(`/api/salon?venueId=${this.id}`)); if (!m) return;
+    const rows = m.styles.map(s => h('button', { class: 'btn alt', 'data-style': s.id, onclick: async () => { const r = await ui.guard(() => post('/api/salon/style', { venueId: this.id, stationId: st.id, styleId: s.id, idem: `${s.id}${Date.now()}` })); if (r) { ui.toast(r.text); ui.closeSheet(); this.g.net.nudge(); } } }, `${s.name} · ${fmtN(s.fee)} · +${s.mood} mood`));
+    ui.openSheet(st.label, [h('p', {}, m.current ? `Your look: ${m.current.name}${m.current.fresh ? ' ✨ fresh' : ''}` : 'Pick a style. A fresh look gives a small mood boost.'), h('div', { class: 'col' }, rows), h('p', { class: 'mut' }, m.note)]);
   }
   async mechanicSheet(st) {
     const ui = this.g.ui; const d = await ui.guard(() => get('/api/mechanic')); if (!d) return; const bar = (pct) => h('div', { class: 'cbar' }, h('i', { style: `width:${pct}%` }));
@@ -178,7 +189,7 @@ export class Venue {
     this.onKey = (e) => { if (this.open && e.key === 'Escape' && !this.g.ui.sheetOpen) this.leave(); }; addEventListener('keydown', this.onKey);
   }
   resize() { const w = this.el.clientWidth, hh = this.el.clientHeight; this.r.setSize(w, hh, false); this.cam.aspect = w / hh; this.cam.updateProjectionMatrix(); }
-  loop() { if (!this.open) return; this.cam.position.set(Math.sin(this.yaw) * Math.cos(this.pitch) * this.dist, Math.sin(this.pitch) * this.dist, Math.cos(this.yaw) * Math.cos(this.pitch) * this.dist); this.cam.lookAt(0, 0.6, 0.3); this.r.render(this.scene, this.cam); this.raf = requestAnimationFrame(() => this.loop()); }
+  loop() { if (!this.open) return; this.cam.position.set(Math.sin(this.yaw) * Math.cos(this.pitch) * this.dist, Math.sin(this.pitch) * this.dist, Math.cos(this.yaw) * Math.cos(this.pitch) * this.dist); this.cam.lookAt(0, 0.6, 0.3); const tt = (performance.now() - this.t0) / 1000; for (const f of this.anim) f(tt); this.r.render(this.scene, this.cam); this.raf = requestAnimationFrame(() => this.loop()); }
   async leave() {
     if (!this.open) return; const r = await this.g.ui.guard(() => post('/api/venue/leave')); if (!r) return; this.open = false; clearInterval(this.pt); cancelAnimationFrame(this.raf); removeEventListener('keydown', this.onKey); removeEventListener('resize', this.onResize);
     this.r.dispose(); this.el.classList.add('hidden'); this.el.replaceChildren(); this.g.busy = false; this.g.ctrl.frozen = false; this.g.net.nudge(); $('#game').focus();

@@ -8,12 +8,23 @@ import { UI, say } from './ui.js';
 import { Net } from './net.js';
 import { Interior } from './interior.js';
 import { Venue } from './venue.js';
+import { GarageView } from './garage-view.js';
+import { PhoneSys } from './phone-v2/phone2.js';
 import { glowTexture } from './textures.js';
 
 const TIPS = ['Tap any building or sign to see it on the map and travel there.', 'Take a shift at the Corner Mart: the quick task gives +25% if you stop the bar in the green.', 'Knock at a house when its owner is home. They can let you in.', 'Land plots grow in value, but omo-onile may come for a levy.', 'Delivery costs more but works from anywhere.', 'Press C to hop in your car. Press T to chat.'];
 class Game {
   constructor() {
     this.playing = false; this.busy = false; this.user = null; this.clockOffset = 0; this.cfg = {}; this.lastKnocks = null; this.waypoint = null; this.commute = null; this.worldTime = null; this.plots = []; this.props = []; this.shops = []; this.fpsAcc = 0; this.activity = '';
+  }
+  /** people that ambient traffic yields to: the player and other players' ghosts (client-side only; never touches the server) */
+  yieldTargets() {
+    const out = []; if (this.ctrl && !this.busy) out.push({ x: this.ctrl.x, z: this.ctrl.z, r: 0.6 });
+    if (this.ghosts) for (const g of this.ghosts.map.values()) if (g.root) out.push({ x: g.root.position.x, z: g.root.position.z, r: 0.6 }); return out;
+  }
+  horn(c, car) {
+    const now = performance.now(); if (now - (this.lastHorn || 0) < 3000 || !this.ctrl || Math.hypot(car.x - this.ctrl.x, car.z - this.ctrl.z) > 30) return; this.lastHorn = now;
+    try { const A = (this.hornCtx ||= new (window.AudioContext || window.webkitAudioContext)()); const o = A.createOscillator(), gn = A.createGain(); o.type = 'square'; o.frequency.value = c.type === 'danfo' ? 330 : 440; gn.gain.value = 0.015; o.connect(gn).connect(A.destination); o.start(); o.stop(A.currentTime + 0.18); } catch {}
   }
   serverNow() { return Date.now() + this.clockOffset; }
   clockSync(serverMs, rtt) { const est = serverMs + rtt / 2 - Date.now(); this.clockOffset = this.clockOffset ? this.clockOffset * 0.7 + est * 0.3 : est; }
@@ -28,8 +39,8 @@ class Game {
       this.camera = new THREE.PerspectiveCamera(58, 1, 0.5, 900); this.camera.position.set(0, 14, 20);
       this.world = buildWorld(city); this.scene = this.world.scene; this.decorate();
       this.progress(60, 'Putting traffic on the road…'); await new Promise(r => setTimeout(r, 30));
-      this.traffic = new Traffic(this.scene, city.trafficLoops); this.walkers = new Walkers(this.scene, city.zones); this.ghosts = new Ghosts(this.scene);
-      this.ads = new AdsClient(this.world, city, () => this.serverNow()); this.ui = new UI(this); this.net = new Net(this); this.interior = new Interior(this); this.venue = new Venue(this);
+      this.traffic = new Traffic(this.scene, city.trafficLoops); this.traffic.onHorn = (c, car) => this.horn(c, car); this.walkers = new Walkers(this.scene, city.zones); this.ghosts = new Ghosts(this.scene);
+      this.ads = new AdsClient(this.world, city, () => this.serverNow()); this.ui = new UI(this); this.net = new Net(this); this.interior = new Interior(this); this.venue = new Venue(this); this.garage = new GarageView(this);
       this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root);
       addEventListener('resize', () => this.resize()); this.resize(); this.bindAuth(); this.progress(85, TIPS[Math.floor(Math.random() * TIPS.length)]);
       const me = await get('/api/me').catch(() => null); this.progress(100, 'Ready!'); await new Promise(r => setTimeout(r, 250));
@@ -63,7 +74,7 @@ class Game {
   async enter(user) {
     this.playing = true; this.user = user; $('#hud').classList.remove('hidden'); this.cfg.jobs = (await get('/api/jobs').catch(() => ({ jobs: [] }))).jobs; this.ctrl.setLook(user.color, user.username);
     const spawns = this.city.spawns; const s = spawns[user.id % spawns.length]; const p = user.pos && (user.pos.x || user.pos.z) ? user.pos : null; this.ctrl.teleport(p?.x ?? s.x, p?.z ?? s.z); this.ctrl.ry = s.ry || 0; this.ctrl.camYaw = this.ctrl.ry; this.camera.position.set(this.ctrl.x - 10, 12, this.ctrl.z + 12);
-    this.update(user); this.net.start(); this.refreshProps(); get('/api/plots').then(d => { this.plots = d.plots; this.refreshPlots(); }).catch(() => {});
+    this.update(user); this.net.start(); this.phone2 = new PhoneSys(this); this.phone2.start(); this.refreshProps(); get('/api/plots').then(d => { this.plots = d.plots; this.refreshPlots(); }).catch(() => {});
     this.ui.toast(user.guest ? `Welcome, ${user.username}! You are playing as a guest.` : `Welcome back, ${user.username}!`); if (!localStorage.getItem('na_tip') && !matchMedia('(pointer: coarse)').matches) { localStorage.setItem('na_tip', '1'); setTimeout(() => { if (!this.ui.sheetOpen) this.ui.toast('Tip: tap a building or the ground near a sign to open its sheet.'); }, 1800); }
   }
   async refreshProps() { const d = await get('/api/properties').catch(() => null); if (d) { this.props = d.properties; this.world.setMarkers(d.properties); } }
@@ -124,8 +135,8 @@ class Game {
     let last = t0; this.lastSample = 0; const frame = (now) => {
       requestAnimationFrame(frame); const dt = Math.min(0.1, (now - last) / 1000); last = now;
       if (!this.playing) { this.idleCam(now); this.renderer.render(this.scene, this.camera); return; }
-      if (this.interior.open || this.venue.open) return;
-      const sec = this.serverNow() / 1000; this.traffic.update(sec); this.walkers.update(sec); this.ghosts.update(this.serverNow() - 1100); this.world.animate(dt * 1000);
+      if (this.interior.open || this.venue.open || this.garage.open) return;
+      const sec = this.serverNow() / 1000; this.traffic.update(sec, this.yieldTargets(), dt); this.walkers.update(sec); this.ghosts.update(this.serverNow() - 1100); this.world.animate(dt * 1000);
       if (!this.stepCommute(now)) this.ctrl.update(dt); else this.ctrl.placeCamera(this.camera, dt);
       if (!this.commute) { this.ctrl.placeCamera(this.camera, dt); if (now - this.lastSample > 250) { this.lastSample = now; this.net.sample({ t: this.serverNow(), x: this.ctrl.x, z: this.ctrl.z, ry: this.ctrl.ry }); } }
       if (this.ctrl.lastTap && !this.ui.sheetOpen && !this.busy) { const tp = this.ctrl.lastTap; this.ctrl.lastTap = null; if (now - tp.t < 400) this.tapPlace(tp.x, tp.y); }

@@ -355,11 +355,12 @@ export function leaderboard(app) {
     .map((r, i) => ({ rank: i + 1, name: r.username, guest: !!r.is_guest, netWorth: r.cash + r.sav + r.prop }));
   app.lbCache = { at: now, rows }; return rows;
 }
+const hairView = (app, st) => { if (!st.hair) return null; const S = app.balance.leisure.salon.styles.find(x => x.id === st.hair); return S ? { id: S.id, name: S.name, fresh: app.clock.now() - st.hair_at < app.balance.leisure.salon.freshMs } : null; };
 export function profile(app, uid) {
   const st = refreshNeeds(app, uid); const nw = netWorth(app, uid); const h = homeOf(app, uid);
   const sh = activeShift(app, uid); const u = app.db.prepare('SELECT username,is_guest,color,created_at FROM users WHERE id=?').get(uid);
   return { id: uid, username: u.username, guest: !!u.is_guest, color: u.color, cash: nw.cash, savings: nw.savings, netWorth: nw.total,
-    pos: { x: st.x, z: st.z, ry: st.ry }, energy: Math.round(st.energy * 10) / 10, hunger: Math.round(st.hunger * 10) / 10, mood: Math.round(st.mood * 10) / 10, totalShifts: st.total_shifts, mode: st.mode,
+    pos: { x: st.x, z: st.z, ry: st.ry }, energy: Math.round(st.energy * 10) / 10, hunger: Math.round(st.hunger * 10) / 10, mood: Math.round(st.mood * 10) / 10, totalShifts: st.total_shifts, mode: st.mode, hair: hairView(app, st),
     home: h ? propertyView(app, propDef(app, h.property_id), uid) : null,
     shift: sh ? { id: sh.id, jobId: sh.job_id, endsAt: sh.ends_at, startedAt: sh.started_at, wage: sh.wage } : null };
 }

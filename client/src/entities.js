@@ -1,3 +1,4 @@
+import { gapAhead, stepSpeed, decide, YIELD_CFG } from './yield.js';
 import * as THREE from 'three';
 import { Builder, mulberry32 } from '../sample/builder.js';
 import { danfoGeo, kekeGeo, okadaGeo, carGeo } from '../sample/vehicles.js';
@@ -69,7 +70,24 @@ export class Traffic {
     }
     this.tmp = {};
   }
-  update(serverSec) { for (const c of this.cars) { atPath(c.P, c.speed * serverSec + c.off, this.tmp); c.g.position.set(this.tmp.x, 0.02, this.tmp.z); c.g.rotation.y = this.tmp.yaw; } }
+  /** people: [{x,z,r}] walkers/ghosts/the player (they make cars yield). Without them (or with yielding off) cars follow the shared server timeline exactly. */
+  update(serverSec, people = null, dt = 0.016) {
+    if (!this.last) this.last = serverSec; const step = Math.min(0.1, Math.max(0, serverSec - this.last)) || dt; this.last = serverSec;
+    if (!people) { for (const c of this.cars) { atPath(c.P, c.speed * serverSec + c.off, this.tmp); c.g.position.set(this.tmp.x, 0.02, this.tmp.z); c.g.rotation.y = this.tmp.yaw; } return; }
+    const me = this.blockers || (this.blockers = []); me.length = 0; for (const p of people) me.push({ x: p.x, z: p.z, r: p.r ?? 0.5, person: true });
+    const carB = this.carB || (this.carB = this.cars.map(c => ({ x: 0, z: 0, r: 1.8, self: c, person: false }))); this.cars.forEach((c, i) => { carB[i].x = c.g.position.x; carB[i].z = c.g.position.z; });
+    this.stopped = 0;
+    for (const [i, c] of this.cars.entries()) {
+      if (c.s == null) { c.s = c.speed * serverSec + c.off; c.st = { v: c.speed, wait: 0, limit: YIELD_CFG.waitMin + Math.random() * (YIELD_CFG.waitMax - YIELD_CFG.waitMin) }; }
+      atPath(c.P, c.s, this.tmp); const car = { x: this.tmp.x, z: this.tmp.z, yaw: this.tmp.yaw, self: c };
+      const near = []; for (const b of me) if (Math.abs(b.x - car.x) < 18 && Math.abs(b.z - car.z) < 18) near.push(b); for (let j = 0; j < carB.length; j++) if (j !== i && Math.abs(carB[j].x - car.x) < 18 && Math.abs(carB[j].z - car.z) < 18) near.push(carB[j]);
+      const hit = decide(gapAhead(car, near), { speed: c.st.v, type: c.type }).hit; const ideal = c.speed * serverSec + c.off; const lag = ideal - c.s;
+      const cruise = c.speed * (lag > 0.5 && !hit ? YIELD_CFG.catchUp : 1);
+      c.st = stepSpeed(c.st, cruise, hit, step); c.s += c.st.v * step; if (lag < -2) c.s = ideal; // never get ahead of the shared timeline
+      if (c.st.v < 0.2 && hit) this.stopped++; if (c.st.honk && this.onHorn) this.onHorn(c, car);
+      atPath(c.P, c.s, this.tmp); c.g.position.set(this.tmp.x, 0.02, this.tmp.z); c.g.rotation.y = this.tmp.yaw;
+    }
+  }
 }
 export class Walkers { // instanced pedestrians on block sidewalks
   constructor(scene, zones, count = 36) {

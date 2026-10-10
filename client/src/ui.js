@@ -1,3 +1,4 @@
+import { PhoneShell } from './phone-v2/apps.js';
 import { get, post, fmtN, h, $, $$, ApiError } from './api.js';
 import * as casualUi from './casual.js';
 import { CityMap } from './map.js';
@@ -214,7 +215,11 @@ export class UI {
   }
 
   // ---------- phone ----------
-  phone(tab = 'wallet') {
+  phone(tab) {
+    if (this.g.cfg.phone && this.g.phone2) { this.shell ||= new PhoneShell(this); return this.shell.open(tab || 'home'); }
+    return this.phoneLegacy(tab || 'wallet');
+  }
+  phoneLegacy(tab = 'wallet') {
     const g = this.g; const tabs = [['wallet', '💰 Wallet'], ['jobs', '💼 Jobs'], ['home', '🏠 Home'], ['land', '🌍 Land'], ['ranks', '🏆 Ranks'], ['garage', '🚗 Garage'], ['games', '🎮 Games'], ['map', '🗺 Map'], ['alerts', '🔔 Alerts'], ['more', '⚙️ More']]; const body = h('div', {}); let cur = tab;
     const bar = h('div', { class: 'tabrow' }); const drawTabs = () => bar.replaceChildren(...tabs.map(([id, l]) => h('button', { class: id === cur ? 'on' : '', onclick: () => { cur = id; drawTabs(); render(); } }, l)));
     const render = async () => { body.replaceChildren(h('p', { class: 'mut' }, 'Loading…')); const fn = this['tab_' + cur]; const el = await fn.call(this); body.replaceChildren(...[].concat(el)); };
@@ -244,7 +249,7 @@ export class UI {
   async tab_garage() {
     const d = await this.guard(() => get('/api/garage')); if (!d) return []; const g = this.g; const motors = g.city.places.find(p => p.id === 'venue_motors');
     const cars = d.cars.length ? h('div', { class: 'list' }, d.cars.map(c => h('div', {}, h('span', {}, `${c.active ? '✅ ' : ''}${c.name}`, h('small', { class: 'mut' }, ` · worth ${fmtN(c.value)} (paid ${fmtN(c.paid)}) · ${c.ageDays}d old · ${c.conditionLabel} ${c.condition}%`)), h('span', { class: 'row' }, c.active ? '' : h('button', { class: 'btn small', onclick: async () => { await this.guard(() => post('/api/garage/use', { carId: c.id })); this.phone('garage'); } }, 'Use'), h('button', { class: 'btn small ghost', onclick: () => this.confirm(`Sell ${c.name} for about ${fmtN(c.value)}?`, async () => { const r = await this.guard(() => post('/api/garage/sell', { carId: c.id, idemKey: crypto.randomUUID?.() })); if (r) { this.toast(`Sold for ${fmtN(r.value)}.`, 'money'); g.refreshMe(); } this.phone('garage'); }) }, 'Sell'))))) : h('p', { class: 'mut' }, 'No car of your own yet. You are using a borrowed car: higher cost per trip, slower, no mood perk.');
-    return [h('div', { class: 'row sp' }, h('b', {}, `Garage (${d.cars.length}/${d.slots})`), h('span', { class: 'mut' }, `Driving: ${d.active.label}`)), cars, h('p', { class: 'mut' }, `Resale: about ${Math.round((1 - d.resale.firstDriveOffFraction) * 100)}% on day one, then about ${Math.round(d.resale.perDayDepreciation * 100)}% less per day, never below ${Math.round(d.resale.floorFraction * 100)}%. All figures are ESTIMATES.`), motors ? h('button', { class: 'btn alt', onclick: () => { this.closeSheet(); this.place(motors.id); } }, '🏪 Visit Naija Auto Mart') : ''];
+    return [h('div', { class: 'row sp' }, h('b', {}, `Garage (${d.cars.length}/${d.slots})`), h('span', { class: 'mut' }, `Driving: ${d.active.label}`)), cars, h('p', { class: 'mut' }, `Resale: about ${Math.round((1 - d.resale.firstDriveOffFraction) * 100)}% on day one, then about ${Math.round(d.resale.perDayDepreciation * 100)}% less per day, never below ${Math.round(d.resale.floorFraction * 100)}%. All figures are ESTIMATES.`), h('button', { class: 'btn', id: 'openGarage', onclick: () => g.garage.show() }, '🚪 Open my garage'), motors ? h('button', { class: 'btn alt', onclick: () => { this.closeSheet(); this.place(motors.id); } }, '🏪 Visit Naija Auto Mart') : ''];
   }
   async tab_alerts() { const d = await this.guard(() => get('/api/notifications')); this.g.markRead(); if (!d) return []; return [h('div', { class: 'list' }, d.rows.map(n => h('div', {}, h('span', {}, n.text), h('span', { class: 'mut' }, new Date(n.created_at).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' })))))]; }
   async tab_more() {

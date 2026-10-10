@@ -21,7 +21,7 @@ export class Net {
   openWs() {
     if (window.__naDemo) return; // static demo: no server to push from
     try { const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`); this.ws = ws;
-      ws.onmessage = (ev) => { try { const m = JSON.parse(ev.data); if (m.type === 'notification') { this.g.onPush(m); this.nudge(); } } catch { /* ignore */ } };
+      ws.onmessage = (ev) => { try { const m = JSON.parse(ev.data); if (m.type === 'notification') { this.g.onPush(m); this.nudge(); } else if (typeof m.type === 'string' && m.type.startsWith('phone.')) this.g.phone2?.onPush(m); } catch { /* ignore */ } };
       ws.onclose = () => { if (this.running) setTimeout(() => this.running && this.openWs(), 5000); }; ws.onerror = () => {};
     } catch { /* heartbeat alone is enough */ }
   }

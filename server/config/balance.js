@@ -74,6 +74,20 @@ export const BALANCE = {
   mood: { baseline: 50, decayPerMin: 0.05, happyAt: 75, happyBonusPct: 5, gameWin: 6, gameLoss: 1, gameDraw: 2, tv: 4, love: 5, lovedOwner: 3, hype: 2, greet: 1, sofa: 3, ride: 1 },
   // ---- venues + table games (GAME MONEY ONLY: no cash value, no cash-out). Stakes/timers/points are ESTIMATES.
   games: { stakes: [0, 100, 500], turnMs: 90000, waitMs: 5 * 60000, pointsWin: 3, pointsDraw: 1, maxStakedPerPairPerDay: 5, guestsMayStake: false, enterRadius: 16, leaveRadius: 40, sitPerMin: 10 },
+  // ---- in-game phone (PHONE_V2). ALL numbers are ESTIMATE placeholders. Defaults follow 15_phone_system_spec.md section 14.
+  phone: {
+    enabled: process.env.PHONE_V2 !== 'false',            // default ON (flip off with PHONE_V2=false)
+    maxFriends: 100, friendReqPerHour: 12, declinedCooldownMs: 24 * 3600000,
+    textMax: 500, msgPerMin: 20, msgPerRecipientPerMin: 8, threadPage: 60,
+    voice: { maxMs: 60000, minMs: 500, maxBytes: 600 * 1024, minBytes: 600, maxBytesPerMs: 20, perMin: 6, perDayBytes: 20 * 1024 * 1024, retentionMs: 24 * 3600000, mimes: ['audio/webm', 'audio/ogg', 'audio/mp4'] },
+    call: { ringMs: 30000, maxMs: 60 * 60000, startPerMin: 5, signalPer10s: 80, signalMaxBytes: 16000, staleMs: 45000 },
+    ice: { stun: (process.env.NA_STUN_URLS || 'stun:stun.l.google.com:19302').split(',').map(x => x.trim()).filter(Boolean), turnUrls: (process.env.NA_TURN_URLS || '').split(',').map(x => x.trim()).filter(Boolean), turnUser: process.env.NA_TURN_USERNAME || '', turnCred: process.env.NA_TURN_CREDENTIAL || '' }
+  },
+  // ---- clubs and salons (ALL fees/moods are ESTIMATE placeholders; game money only; clubs serve soft drinks only)
+  leisure: {
+    club: { danceCdMs: 5 * 60000, danceMood: 3, drinkFee: 300, drinkCdMs: 2 * 60000, drinkMood: 1, vipFee: 1000, vipCdMs: 30 * 60000, vipMood: 4, song: { slots: 5, note: 'Artist slots are planned (see 14_radio_tv_plan.md). Nothing to book yet.' } },
+    salon: { cdMs: 10 * 60000, freshMs: 2 * 3600000, washMood: 1, washCdMs: 5 * 60000,
+      styles: [{ id: 'trim', name: 'Low cut', fee: 800, mood: 3 }, { id: 'fade', name: 'Skin fade', fee: 1200, mood: 4 }, { id: 'braids', name: 'Braids', fee: 2500, mood: 5 }, { id: 'twist', name: 'Twists', fee: 1800, mood: 4 }, { id: 'gele', name: 'Gele tie', fee: 1500, mood: 4 }] } },
   // ---- casual break games (single player). ALL reward numbers are ESTIMATE placeholders, game money only, no cash-out. dailyCap is the most a player can EARN per day across all casual games.
   casual: { dailyCap: 300, startPerMin: 8, minAccountAgeMs: num('NA_CASUAL_MIN_AGE_MS', 5 * 60 * 1000), staleRunMs: 6 * 3600000,
     merge: { size: 4, scorePerNaira: 120, perRunCap: 60, minMoves: 20, maxMoves: 4000, minMsPerMove: 150 },
