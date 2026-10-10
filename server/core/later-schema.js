@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS tutorial_state (user_id INTEGER PRIMARY KEY, start_x 
   { n: 6, name: 'missions', sql: `
 CREATE TABLE IF NOT EXISTS login_days (user_id INTEGER NOT NULL, day INTEGER NOT NULL, PRIMARY KEY (user_id, day));
 CREATE TABLE IF NOT EXISTS mission_claims (user_id INTEGER NOT NULL, mission_id TEXT NOT NULL, period INTEGER NOT NULL, reward INTEGER NOT NULL, claimed_at INTEGER NOT NULL, PRIMARY KEY (user_id, mission_id, period));
-CREATE TABLE IF NOT EXISTS streak_claims (user_id INTEGER NOT NULL, day INTEGER NOT NULL, streak INTEGER NOT NULL, reward INTEGER NOT NULL, claimed_at INTEGER NOT NULL, PRIMARY KEY (user_id, day));` }
+CREATE TABLE IF NOT EXISTS streak_claims (user_id INTEGER NOT NULL, day INTEGER NOT NULL, streak INTEGER NOT NULL, reward INTEGER NOT NULL, claimed_at INTEGER NOT NULL, PRIMARY KEY (user_id, day));` },
+  { n: 7, name: 'achievements', sql: `
+CREATE TABLE IF NOT EXISTS achievements (user_id INTEGER NOT NULL, id TEXT NOT NULL, earned_at INTEGER NOT NULL, PRIMARY KEY (user_id, id));
+CREATE TABLE IF NOT EXISTS player_titles (user_id INTEGER PRIMARY KEY, title_id TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL);` }
 ];
 export function applyLater(db) { for (const c of LATER) db.exec(c.sql); }

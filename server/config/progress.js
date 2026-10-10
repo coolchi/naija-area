@@ -50,3 +50,31 @@ export const MISSIONS = {
 };
 // Login streak: open the game on consecutive days. Claim today's bonus in the missions sheet (once a day). Missing a day starts again at day 1. After the last entry the list repeats.
 export const STREAK = { enabled: true, rewards: [100, 100, 150, 150, 200, 250, 500], maxLookbackDays: 400 };
+
+// ---- 5) achievements and titles
+// An achievement is a LIFETIME counter reaching a target. Some give a TITLE (shown after the player's name in chat, over their head, and on their profile). The list order is the title rank:
+// when a player has not picked a title, the highest-ranked one they earned is shown. Metric kinds: see server/core/progress-metrics.js. Titles are plain, friendly words (no real brands, no insults). All targets are ESTIMATES.
+export const ACHIEVEMENTS = {
+  enabled: true, evalEveryMs: 45000,
+  list: [
+    { id: 'first_pay',   icon: '💵', name: 'First pay',           desc: 'Collect pay from a job.',                    metric: { k: 'tx', reasons: ['job_wage'] },        target: 1 },
+    { id: 'hustler',     icon: '💼', name: 'Hustler',             desc: 'Work 10 shifts.',                            metric: { k: 'tx', reasons: ['job_wage'] },        target: 10,  title: 'Hustler' },
+    { id: 'workhorse',   icon: '🐎', name: 'Workhorse',           desc: 'Work 50 shifts.',                            metric: { k: 'tx', reasons: ['job_wage'] },        target: 50,  title: 'Workhorse' },
+    { id: 'shopper',     icon: '🛍️', name: 'Shopper',            desc: 'Buy 10 things in shops.',                    metric: { k: 'tx', reasons: ['shop_purchase', 'shop_delivery'] }, target: 10, title: 'Shopper' },
+    { id: 'commuter',    icon: '🚌', name: 'Danfo regular',       desc: 'Take 10 trips by keke, danfo or ride.',      metric: { k: 'tx', reasons: ['transport'] },       target: 10,  title: 'Danfo Regular' },
+    { id: 'sailor',      icon: '⛵', name: 'Sea legs',            desc: 'Take a boat.',                               metric: { k: 'tx', reasons: ['boat_fare'] },       target: 1,   title: 'Sea Legs' },
+    { id: 'flyer',       icon: '✈️', name: 'Jet setter',          desc: 'Fly to another city.',                       metric: { k: 'tx', reasons: ['flight_ticket'] },   target: 1,   title: 'Jet Setter' },
+    { id: 'fan',         icon: '🏟️', name: 'Stadium regular',    desc: 'Buy 3 stadium tickets.',                     metric: { k: 'tx', reasons: ['stadium_ticket'] }, target: 3,   title: 'Stadium Regular' },
+    { id: 'gamer',       icon: '🎮', name: 'Game head',           desc: 'Earn a reward in 10 break games.',                        metric: { k: 'tx', reasons: ['casual_reward'] },   target: 10,  title: 'Game Head' },
+    { id: 'court',       icon: '🏓', name: 'Court champ',         desc: 'Win a sports hall prize.',                   metric: { k: 'tx', reasons: ['sports_prize'] },    target: 1,   title: 'Court Champ' },
+    { id: 'champion',    icon: '🏆', name: 'Champion',            desc: 'Win 10 table games against other players.',  metric: { k: 'games_won' },                           target: 10,  title: 'Champion' },
+    { id: 'gist',        icon: '💬', name: 'Gist master',         desc: 'Say 50 things in chat.',                     metric: { k: 'chat' },                                target: 50,  title: 'Gist Master' },
+    { id: 'homeowner',   icon: '🏠', name: 'House proud',         desc: 'Have a place of your own to stay.',          metric: { k: 'home' },                                target: 1,   title: 'House Proud' },
+    { id: 'faithful',    icon: '🔥', name: 'Faithful',            desc: 'Open the game 7 days in a row.',             metric: { k: 'streak_best' },                         target: 7,   title: 'Faithful' },
+    { id: 'evergreen',   icon: '🌳', name: 'Evergreen',           desc: 'Open the game 30 days in a row.',            metric: { k: 'streak_best' },                         target: 30,  title: 'Evergreen' },
+    { id: 'stylish',     icon: '💎', name: 'Fashionista',         desc: 'Own 3 jewelry or cap pieces.',               metric: { k: 'wear_owned' },                          target: 3,   title: 'Fashionista' },
+    { id: 'bigfish',     icon: '🐟', name: 'Big fish',            desc: 'Hold ₦1,000,000 in cash and savings.',       metric: { k: 'wealth' },                              target: 1000000, title: 'Big Fish' },
+    { id: 'chairman',    icon: '🎩', name: 'Chairman',            desc: 'Hold ₦20,000,000 in cash and savings.',      metric: { k: 'wealth' },                              target: 20000000, title: 'Chairman' },
+    { id: 'crowned',     icon: '👑', name: 'Crowned',             desc: 'Own a crown.',                               metric: { k: 'wear_crown' },                          target: 1,   title: 'Crowned' }
+  ]
+};

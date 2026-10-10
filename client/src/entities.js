@@ -138,18 +138,20 @@ export class Ghosts {
     for (const p of list) {
       seen.add(p.id); let g = this.map.get(p.id);
       if (!g) { g = { id: p.id, name: p.n, color: p.c, mode: -1, samples: [], obj: null, tag: null, act: '' }; this.map.set(p.id, g); }
-      g.mode = p.m; g.act = p.act || ''; g.wear = p.w || [];
+      g.mode = p.m; g.act = p.act || ''; g.wear = p.w || []; if ((p.t || '') !== (g.title || '')) { g.title = p.t || ''; if (g.root) this.retag(g); }
       for (const [off, x, z, ry] of p.s) { const t = serverNow + off; if (!g.samples.length || t > g.samples[g.samples.length - 1].t + 50) g.samples.push({ t, x, z, ry }); }
       if (g.samples.length > 60) g.samples.splice(0, g.samples.length - 60);
       this.build(g);
     }
     for (const [id, g] of this.map) if (!seen.has(id)) { this.scene.remove(g.root); this.map.delete(id); }
   }
+  /** the name tag shows the name and, when the player has one, their title (achievements.js on the server) */
+  retag(g) { const y = g.tag?.position.y ?? 3.6; if (g.tag) { g.root.remove(g.tag); g.tag.material.map?.dispose?.(); g.tag.material.dispose?.(); } g.tag = makeNameSprite(g.title ? `${g.name} · ${g.title}` : g.name, '#ffffff'); g.tag.position.set(0, y, 0); g.root.add(g.tag); }
   build(g) {
     const want = g.mode === 1 ? 'car' : 'walk'; if (g.kind === want && g.root) return;
     if (g.root) this.scene.remove(g.root);
     g.root = new THREE.Group(); g.obj = want === 'car' ? makePlayerCar(g.color) : makeAvatar(g.color); g.root.add(g.obj);
-    g.tag = makeNameSprite(g.name, '#ffffff'); g.tag.position.set(0, want === 'car' ? 4.2 : 3.6, 0); g.root.add(g.tag); g.kind = want; this.scene.add(g.root); g.first = true;
+    g.tag = makeNameSprite(g.title ? `${g.name} · ${g.title}` : g.name, '#ffffff'); g.tag.position.set(0, want === 'car' ? 4.2 : 3.6, 0); g.root.add(g.tag); g.kind = want; this.scene.add(g.root); g.first = true;
   }
   update(renderT, viewer) {
     for (const g of this.map.values()) {

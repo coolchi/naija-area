@@ -28,6 +28,7 @@ import * as office from './office.js';
 import * as account from './account.js';
 import * as tutorial from './tutorial.js';
 import * as missions from './missions.js';
+import * as achievements from './achievements.js';
 import './gamedata.js';   // registers what the table games and the word/board games hold about a player with the account download/closing module (docs/ACCOUNT_DATA.md)
 import { checkAdminLogin } from './admin-guard.js';
 import { history, checkInvariants, moneySupply, balanceOf, cashId } from './ledger.js';
@@ -65,7 +66,7 @@ route('POST', '/api/auth/signup', { rate: 'auth' }, async (c) => { const uid = a
 route('POST', '/api/auth/login', { rate: 'auth' }, async (c) => { const uid = await auth.login(c.app, c.body); c.out.session = uid; return { ok: true, user: meView(c.app, uid) }; });
 route('POST', '/api/auth/guest', { rate: 'auth' }, (c) => { const uid = auth.guest(c.app, c.body, c.ipHash); c.out.session = uid; return { ok: true, user: meView(c.app, uid) }; });
 route('POST', '/api/auth/logout', (c) => { if (c.uid) world.leaveWorld(c.app, c.uid); c.out.session = 'clear'; return { ok: true }; });
-route('GET', '/api/me', { auth: 'user' }, (c) => { missions.recordLogin(c.app, c.uid); return { user: meView(c.app, c.uid) }; });
+route('GET', '/api/me', { auth: 'user' }, (c) => { missions.recordLogin(c.app, c.uid); achievements.evaluate(c.app, c.uid); return { user: meView(c.app, c.uid) }; });
 
 // ---- world
 route('POST', '/api/heartbeat', { auth: 'user' }, (c) => world.heartbeat(c.app, c.uid, c.body || {}, { headless: c.headless }));
@@ -135,6 +136,9 @@ route('POST', '/api/tutorial/restart', { auth: 'user' }, (c) => tutorial.restart
 route('GET', '/api/missions', { auth: 'user' }, (c) => missions.view(c.app, c.uid));
 route('POST', '/api/missions/claim', { auth: 'user' }, (c) => missions.claim(c.app, c.uid, String(c.body.id || '')));
 route('POST', '/api/missions/streak', { auth: 'user' }, (c) => missions.claimStreak(c.app, c.uid));
+// achievements and titles
+route('GET', '/api/achievements', { auth: 'user' }, (c) => achievements.view(c.app, c.uid));
+route('POST', '/api/achievements/title', { auth: 'user' }, (c) => achievements.selectTitle(c.app, c.uid, c.body.id === undefined ? 'auto' : c.body.id === null ? null : String(c.body.id)));
 // your data: download everything we hold, or close the account (erases and anonymises; see docs/ACCOUNT_DATA.md)
 route('GET', '/api/account/export', { auth: 'user' }, (c) => { if (!c.app.limiter.hit(`export:${c.uid}`, 5, 3600000, c.app.clock.now())) bad('RATE_LIMIT', 'You can download your data 5 times an hour.', 429); return account.exportData(c.app, c.uid); });
 route('POST', '/api/account/delete', { auth: 'user' }, async (c) => { if (!c.app.limiter.hit(`delete:${c.uid}`, 5, 3600000, c.app.clock.now())) bad('RATE_LIMIT', 'Too many attempts. Try again later.', 429); const r = await account.deleteAccount(c.app, c.uid, c.body); c.out.session = 'clear'; return r; });

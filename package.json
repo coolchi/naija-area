@@ -23,6 +23,7 @@
     "smoke:mobile": "node scripts/mobile-smoke.mjs",
     "smoke:audio": "node scripts/audio-smoke.mjs",
     "smoke:missions": "node scripts/missions-smoke.mjs",
+    "smoke:achievements": "node scripts/achievements-smoke.mjs",
     "smoke:admin": "node scripts/admin-smoke.mjs",
     "build:demo": "node tools/build-demo.mjs"
   },

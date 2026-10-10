@@ -2,7 +2,8 @@
 // Rewards are small, paid through the ledger (sys:faucet_missions, reasons mission_daily / mission_weekly / mission_streak) and limited by CAPS in config/progress.js.
 import { bad } from './util.js';
 import { MISSIONS, STREAK, CAPS } from '../config/progress.js';
-import { measure } from './progress-metrics.js';
+import { measure, streakOf } from './progress-metrics.js';
+export { streakOf };
 import { grantReward, capLeft, dayKey, dayStart, weekKey, weekStart, dayLabel } from './rewards.js';
 
 const mulberry = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -16,13 +17,6 @@ const eligible = (app, uid) => { const u = app.db.prepare('SELECT is_bot FROM us
 export function recordLogin(app, uid, now = app.clock.now()) {
   const dk = dayKey(now); const seen = (app._loginSeen ||= new Map()); if (seen.get(uid) === dk) return dk; seen.set(uid, dk);
   app.db.prepare('INSERT OR IGNORE INTO login_days(user_id,day) VALUES (?,?)').run(uid, dk); return dk;
-}
-/** consecutive days ending today (or yesterday if today is not recorded yet) */
-export function streakOf(app, uid, now = app.clock.now()) {
-  const today = dayKey(now); const rows = app.db.prepare('SELECT day FROM login_days WHERE user_id=? AND day>=? ORDER BY day DESC').all(uid, today - STREAK.maxLookbackDays).map(r => r.day);
-  let cur = 0, d = rows[0] === today ? today : today - 1; const set = new Set(rows); while (set.has(d)) { cur++; d--; }
-  let best = 0, run = 0, prev = null; for (const x of [...rows].reverse()) { run = prev !== null && x === prev + 1 ? run + 1 : 1; best = Math.max(best, run); prev = x; }
-  return { current: set.has(today) || set.has(today - 1) ? cur : 0, best, today: set.has(today) };
 }
 const streakReward = (n) => STREAK.rewards[(Math.max(1, n) - 1) % STREAK.rewards.length];
 

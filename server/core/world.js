@@ -12,6 +12,7 @@ import { myMatchView } from './games.js';
 import { venueTick } from './venues.js';
 import { parkedActive } from './parking.js';
 import { wearIds } from './wearables.js';
+import { titleOf } from './achievements.js';
 
 export function createWorld() { return { players: new Map(), chatSeq: 0 }; }
 
@@ -84,7 +85,7 @@ export function heartbeat(app, uid, body, meta = {}) {
     // downsample trail to ~1 sample/2s newer than `since`
     const s = []; let lastT = 0; for (const t of o.trail) { if (t.t > since - 2000 && t.t - lastT >= 1800) { s.push([Math.round(t.t - now), t.x, t.z, t.ry]); lastT = t.t; } }
     if (!s.length) s.push([0, o.x, o.z, o.ry]);
-    const w = wearIds(app, o); return { id: o.id, n: o.name, c: o.color, m: o.mode === 'drive' ? 1 : 0, act: o.activity || '', ...(w.length ? { w } : {}), s };
+    const w = wearIds(app, o); const tt = o.isBot ? '' : titleOf(app, o.id); return { id: o.id, n: o.name, c: o.color, m: o.mode === 'drive' ? 1 : 0, act: o.activity || '', ...(w.length ? { w } : {}), ...(tt ? { t: tt } : {}), s };
   });
   const ccu = ccuNow(app); const interval = recommendedInterval(app, ccu);
   // notifications since last id
@@ -93,7 +94,7 @@ export function heartbeat(app, uid, body, meta = {}) {
   // nearby chat
   const chatSince = Number.isFinite(body.chatSince) ? body.chatSince : p.chatSince;
   const chat = app.db.prepare('SELECT id,user_id,username,x,z,text,created_at,city_id FROM chat_messages WHERE id>? ORDER BY id LIMIT 60').all(chatSince)
-    .filter(m => m.city_id === p.city && dist(m.x, m.z, p.x, p.z) <= app.balance.chat.radius && !hidden.has(m.user_id)).map(m => ({ id: m.id, u: m.username, t: m.text, at: m.created_at }));
+    .filter(m => m.city_id === p.city && dist(m.x, m.z, p.x, p.z) <= app.balance.chat.radius && !hidden.has(m.user_id)).map(m => { const tt = titleOf(app, m.user_id); return { id: m.id, u: m.username, t: m.text, at: m.created_at, ...(tt ? { tt } : {}) }; });
   const chatMax = app.db.prepare('SELECT COALESCE(MAX(id),0) m FROM chat_messages').get().m;
   const me = profile(app, uid);
   const resp = { now, interval, ccu, city: p.city, flight: flightMini(app, uid), boat: boatMini(app, uid), shed: interval >= 20000, world: gameTime(app, now), me, players, notifs, chat, chatCursor: chatMax,
