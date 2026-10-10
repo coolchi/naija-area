@@ -139,6 +139,17 @@ export const BALANCE = {
     ],
     activeWindowMs: 60000, nearbyRadius: 260, maxNearby: 60, trailKeep: 20
   },
+  // Crash rules (10 Oct 2026). EVERY number is a placeholder ESTIMATE. The server decides hits with a seeded RNG; ambient cars are never charged.
+  crash: {
+    enabled: true, hitChance: 0.05, rollMinMs: 5000, tokenMs: 8000, cooldownMs: 120000, graceMs: 3 * 60000, minSpeed: 3, seed: process.env.NA_CRASH_SEED || null,
+    maxHealth: 100, regenPerMin: 3,                       // natural recovery, health points per minute
+    onFoot: { min: 12, max: 22 },                         // health lost when hit while walking
+    driving: { min: 4, max: 9 },                          // health lost by the driver when the car is hit
+    car: { min: 10, max: 24 }, feePerCarPoint: 300,       // car health lost, and the crash cost in game money per point (only for a real player's own car)
+    clinic: { feePerPoint: 20, minFee: 200, koFee: 800, koHealth: 35, koMood: 15, radius: 28 }, // treatment, and the "woke up at the clinic" rule at zero health
+    repairPerPoint: 600,                                  // Meco repair, game money per car health point
+    safe: { junctionExtra: 7, plazaExtra: 3, doorRadius: 11, spawnRadius: 14, clinicRadius: 20 }
+  },
   leaderboard: { size: 20, cacheMs: 10000 },
   rate: { actionsPerMin: 120, authPerMin: 20, guestPerHourPerIp: 30 }
 };

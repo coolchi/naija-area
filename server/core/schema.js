@@ -231,4 +231,10 @@ export function migrate(db) {
   add('player_state', 'mood', 'REAL NOT NULL DEFAULT 60'); add('player_state', 'hair', 'TEXT'); add('player_state', 'hair_at', 'INTEGER NOT NULL DEFAULT 0');
   db.exec(PHONE_SQL);
   add('player_cars', 'serviced_at', 'INTEGER'); add('player_cars', 'serviced_until', 'INTEGER');
+  add('player_cars', 'damage', 'INTEGER NOT NULL DEFAULT 0');
+  add('player_state', 'health', 'REAL NOT NULL DEFAULT 100'); add('player_state', 'health_at', 'INTEGER NOT NULL DEFAULT 0'); add('player_state', 'crash_cd_until', 'INTEGER NOT NULL DEFAULT 0'); add('player_state', 'crash_roll_at', 'INTEGER NOT NULL DEFAULT 0');
+  db.exec(`CREATE TABLE IF NOT EXISTS crash_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, at INTEGER NOT NULL, token TEXT, state TEXT NOT NULL, hit INTEGER NOT NULL DEFAULT 0,
+    reason TEXT, roll REAL, vtype TEXT, mode TEXT, x REAL, z REAL, damage REAL, car_id INTEGER, car_damage INTEGER, fee INTEGER, expires_at INTEGER
+  ); CREATE INDEX IF NOT EXISTS ix_crash_user ON crash_events(user_id, id);`);
 }

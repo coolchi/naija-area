@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import { get, post, $, $$, h, ApiError } from './api.js';
 import { buildWorld } from './world.js';
 import { Controller } from './player.js';
+import { Nav } from './nav.js';
+import { lampsOn } from './lamps.js';
+import { setPlayerHeadlamps } from './headlamps.js';
+import { CrashClient } from './crash.js';
 import { Traffic, Walkers, Ghosts, makeNameSprite } from './entities.js';
 import { AdsClient } from './ads-client.js';
 import { UI, say } from './ui.js';
@@ -20,7 +24,7 @@ class Game {
   }
   /** people that ambient traffic yields to: the player and other players' ghosts (client-side only; never touches the server) */
   yieldTargets() {
-    const out = []; if (this.ctrl && !this.busy) out.push({ x: this.ctrl.x, z: this.ctrl.z, r: 0.6 });
+    const out = []; if (this.ctrl && !this.busy) out.push({ x: this.ctrl.x, z: this.ctrl.z, r: this.ctrl.mode === 'drive' ? 1.8 : 0.6, local: true });
     if (this.ghosts) for (const g of this.ghosts.map.values()) if (g.root) out.push({ x: g.root.position.x, z: g.root.position.z, r: 0.6 }); return out;
   }
   horn(c, car) {
@@ -42,7 +46,7 @@ class Game {
       this.progress(60, 'Putting traffic on the road…'); await new Promise(r => setTimeout(r, 30));
       this.traffic = new Traffic(this.scene, city.trafficLoops); this.traffic.onHorn = (c, car) => this.horn(c, car); this.walkers = new Walkers(this.scene, city.zones); this.ghosts = new Ghosts(this.scene);
       this.ads = new AdsClient(this.world, city, () => this.serverNow()); this.ui = new UI(this); this.net = new Net(this); this.interior = new Interior(this); this.venue = new Venue(this); this.garage = new GarageView(this);
-      this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root);
+      this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root); this.nav = new Nav(this); this.crash = new CrashClient(this); this.traffic.crash = this.crash;
       addEventListener('resize', () => this.resize()); this.resize(); this.bindAuth(); this.progress(85, TIPS[Math.floor(Math.random() * TIPS.length)]);
       const me = await get('/api/me').catch(() => null); this.progress(100, 'Ready!'); await new Promise(r => setTimeout(r, 250));
       this.loop(performance.now()); $('#loading').classList.add('hidden');
@@ -120,6 +124,7 @@ class Game {
 
   // ---- commute: server already charged + moved us; we animate the trip
   runCommute(r, pl, q) {
+    this.nav?.cancel('stopped', true);
     this.busy = true; this.ctrl.frozen = true; this.commute = { t0: performance.now(), dur: r.seconds * 1000, from: r.from, to: r.to, mode: r.mode }; $('#commute').classList.remove('hidden');
     $('#commuteTitle').textContent = `${{ keke: '🛺 Keke', danfo: '🚌 Danfo', car: '🚗 Your car' }[r.mode]} to ${pl.name}`; $('#commuteSub').textContent = `${q.traffic}${r.fare ? ' · ' + this.fmt(r.fare) : ''}`; this.ui.sfx('horn'); this.ui.toast(say('travel', r.fare)); this.ctrl.mode = r.mode === 'car' ? 'drive' : 'walk'; this.ctrl.applyMode();
     const dx = r.to.x - r.from.x, dz = r.to.z - r.from.z; this.ctrl.ry = Math.atan2(-dz, dx); this.ctrl.camYaw = this.ctrl.ry; this.net.trail.length = 0;
@@ -137,12 +142,12 @@ class Game {
       requestAnimationFrame(frame); const dt = Math.min(0.1, (now - last) / 1000); last = now;
       if (!this.playing) { this.idleCam(now); this.renderer.render(this.scene, this.camera); return; }
       if (this.interior.open || this.venue.open || this.garage.open) return;
-      const sec = this.serverNow() / 1000; this.traffic.update(sec, this.yieldTargets(), dt); this.walkers.update(sec, this.ctrl); this.ghosts.update(this.serverNow() - 1100); this.world.animate(dt * 1000);
+      const sec = this.serverNow() / 1000; this.lightLevel = lampsOn(this.world.night); this.traffic.lightLevel = this.lightLevel; setPlayerHeadlamps(this.ctrl.carObj, this.lightLevel, this.ctrl.mode === 'drive'); this.traffic.update(sec, this.yieldTargets(), dt); this.walkers.update(sec, this.ctrl); this.ghosts.update(this.serverNow() - 1100); this.world.animate(dt * 1000);
       if (!this.stepCommute(now)) this.ctrl.update(dt); else this.ctrl.placeCamera(this.camera, dt);
       if (!this.commute) { this.ctrl.placeCamera(this.camera, dt); if (now - this.lastSample > 250) { this.lastSample = now; this.net.sample({ t: this.serverNow(), x: this.ctrl.x, z: this.ctrl.z, ry: this.ctrl.ry }); } }
       if (this.ctrl.lastTap && !this.ui.sheetOpen && !this.busy) { const tp = this.ctrl.lastTap; this.ctrl.lastTap = null; if (now - tp.t < 400) this.tapPlace(tp.x, tp.y); }
       this.ads.update(this.camera, this.size, this.ctrl, dt * 1000);
-      this.hudStep(now); this.renderer.render(this.scene, this.camera);
+      this.nav?.tick(dt); this.hudStep(now); this.renderer.render(this.scene, this.camera);
     }; requestAnimationFrame(frame);
   }
   idleCam(now) { const a = now / 9000; this.camera.position.set(Math.cos(a) * 70, 38, Math.sin(a) * 70 - 20); this.camera.lookAt(0, 4, -20); this.camera.updateMatrixWorld(); }

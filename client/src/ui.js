@@ -1,6 +1,7 @@
 import { roadPts } from './roadgeom.js';
 import { PhoneShell } from './phone-v2/apps.js';
 import { get, post, fmtN, h, $, $$, ApiError } from './api.js';
+import { healthNow } from './crash.js';
 import * as casualUi from './casual.js';
 import { CityMap } from './map.js';
 
@@ -64,7 +65,9 @@ export class UI {
     this.openSheet('Report', [h('p', { class: 'mut' }, what ? `Reporting: ${what}` : 'Tell us what is wrong.'), chips, note, h('div', { class: 'row' }, h('button', { class: 'btn red', onclick: async () => { const r = await this.guard(() => post('/api/report', { kind, target: String(target), reason, detail: note.value })); if (r) { this.toast(r.message); this.closeSheet(); } } }, 'Send report'), h('button', { class: 'btn ghost', onclick: () => this.closeSheet() }, 'Cancel')), h('p', { class: 'mut' }, 'Reports go to a human reviewer. False reports can limit your own account.')]);
   }
   // ---------- HUD ----------
-  hud(u) {
+  /** health bar (server value plus natural recovery since it arrived), also called a few times a second */
+  healthBar(u) { const el = $('#healthBar'); if (!el || !u?.health) return; const hv = u.health; if (!hv.at) hv.at = Date.now(); const v = healthNow(hv, this.g.cfg?.crash?.regenPerMin ?? 3, Date.now()); el.style.width = Math.round(v / hv.max * 100) + '%'; el.style.background = v < 30 ? '#d6402f' : v < 60 ? '#f29a2e' : '#e0405a'; el.parentElement.title = `Health ${Math.round(v)}/${hv.max}`; }
+  hud(u) { this.healthBar(u);
     $('#cash').textContent = fmtN(u.cash); $('#sav').textContent = '🏦 ' + fmtN(u.savings); $('#energyBar').style.width = u.energy + '%'; $('#hungerBar').style.width = u.hunger + '%'; $('#moodBar').style.width = (u.mood ?? 60) + '%'; $('#moodBar').style.background = (u.mood ?? 60) >= this.g.cfg.moodHappyAt ? '#f7c948' : '#e58fb3';
     $('#energyBar').style.background = u.energy < 20 ? '#d6402f' : '#35c46b'; $('#hungerBar').style.background = u.hunger < 20 ? '#d6402f' : '#f29a2e';
     const sb = $('#shiftbar'); if (u.shift) { const j = this.g.cfg.jobs?.find(x => x.id === u.shift.jobId); const left = Math.max(0, u.shift.endsAt - this.g.serverNow()); sb.classList.remove('hidden'); sb.textContent = left > 0 ? `💼 ${j?.name || 'Shift'} · ${Math.ceil(left / 1000)}s left` : `💼 ${j?.name || 'Shift'} done: collect your pay!`; } else sb.classList.add('hidden');
@@ -111,10 +114,16 @@ export class UI {
     const r = await this.guard(() => post('/api/travel', { placeId: pl.id, mode: mode.id, pos: g.pos() })); if (!r) return; this.closeSheet(); g.update(r.user); g.runCommute(r, pl, q);
   }
   fillPlaceInfo(el, pl, q) {
-    if (pl.type === 'shop') this.shopBlock(el, pl.id); else if (pl.type === 'job') this.jobBlock(el, pl.id); else if (pl.type === 'house') this.houseBlock(el, pl.id); else if (pl.type === 'plot') this.plotBlock(el, pl.id); else if (pl.type === 'venue') this.venueBlock(el, pl);
+    if (pl.type === 'shop') this.shopBlock(el, pl.id); else if (pl.type === 'job') this.jobBlock(el, pl.id); else if (pl.type === 'house') this.houseBlock(el, pl.id); else if (pl.type === 'plot') this.plotBlock(el, pl.id); else if (pl.type === 'venue') this.venueBlock(el, pl); else if (pl.id === 'clinic') this.clinicBlock(el, pl);
     else el.replaceChildren(h('p', { class: 'mut' }, pl.id === 'airport' ? 'Fast travel to other cities (Abuja, Port Harcourt) comes later. The airport also hosts premium ad boards.' : 'A public landmark. Wave to the neighbours.'));
   }
 
+  async clinicBlock(el, pl) {
+    const near = dist2(this.g.pos(), pl) < 28 + 4; const d = await this.guard(() => get('/api/clinic')); if (!d) return; const full = d.fee === 0;
+    el.replaceChildren(h('p', {}, `Health ${Math.round(d.health)} / ${d.max}. It also comes back slowly by itself (about ${d.regenPerMin} a minute, ESTIMATE).`), h('div', { class: 'tag amber' }, 'Placeholder fee · ESTIMATE'),
+      h('p', { class: 'mut' }, 'If your health ever hits zero you wake up here. You lose nothing but a small fee, and your account is safe.'),
+      h('button', { class: 'btn big alt', id: 'clinicTreat', disabled: !near || full, onclick: async () => { const r = await this.guard(() => post('/api/clinic/treat', { idemKey: crypto.randomUUID?.(), pos: this.g.pos() })); if (r) { this.g.user.health = { health: r.health, max: d.max, at: Date.now() }; this.toast(r.text, 'money'); this.closeSheet(); this.g.refreshMe?.(); } } }, full ? 'You are fine' : !near ? 'Get to the clinic door first' : `Treat me · ${fmtN(d.fee)}`));
+  }
   venueBlock(el, pl) {
     const near = dist2(this.g.pos(), pl) < 16 + 4; const hrs = pl.hours ? `Open ${pl.hours[0]}:00 to ${pl.hours[1]}:00` : '';
     el.replaceChildren(h('p', { class: 'mut' }, hrs), h('p', {}, pl.id === 'venue_motors' ? 'Look at the cars, compare running costs and buy one. Placeholder prices are ESTIMATES.' : pl.id === 'venue_meco' ? 'Meco fixes cars. Check your car, or pay a placeholder (ESTIMATE) fee for a quick service.' : 'Step inside to eat, chat, and play Whot or Ayo against other players. 🎲 Game money only.'),

@@ -3,6 +3,7 @@ import { bad, clamp, cleanText, dayKey } from './util.js';
 import { screen } from './filter.js';
 import { typeOf, maxGuestsOf, layoutOf, reservedRects, plotStage } from './housing.js';
 import { decorOf, lovesOf } from './homes.js';
+import { healthView } from './crash.js';
 import { move, post, cashId, savId, balanceOf, SYS } from './ledger.js';
 
 export const dist = (ax, az, bx, bz) => Math.hypot(ax - bx, az - bz);
@@ -360,7 +361,7 @@ export function profile(app, uid) {
   const st = refreshNeeds(app, uid); const nw = netWorth(app, uid); const h = homeOf(app, uid);
   const sh = activeShift(app, uid); const u = app.db.prepare('SELECT username,is_guest,color,created_at FROM users WHERE id=?').get(uid);
   return { id: uid, username: u.username, guest: !!u.is_guest, color: u.color, cash: nw.cash, savings: nw.savings, netWorth: nw.total,
-    pos: { x: st.x, z: st.z, ry: st.ry }, energy: Math.round(st.energy * 10) / 10, hunger: Math.round(st.hunger * 10) / 10, mood: Math.round(st.mood * 10) / 10, totalShifts: st.total_shifts, mode: st.mode, hair: hairView(app, st),
+    pos: { x: st.x, z: st.z, ry: st.ry }, energy: Math.round(st.energy * 10) / 10, hunger: Math.round(st.hunger * 10) / 10, mood: Math.round(st.mood * 10) / 10, totalShifts: st.total_shifts, mode: st.mode, health: healthView(app, uid), hair: hairView(app, st),
     home: h ? propertyView(app, propDef(app, h.property_id), uid) : null,
     shift: sh ? { id: sh.id, jobId: sh.job_id, endsAt: sh.ends_at, startedAt: sh.started_at, wage: sh.wage } : null };
 }

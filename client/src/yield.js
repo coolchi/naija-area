@@ -17,7 +17,7 @@ export function gapAhead(car, blockers, cfg = YIELD_CFG) {
   const fx = Math.cos(car.yaw), fz = -Math.sin(car.yaw); let best = null;
   for (const b of blockers) {
     if (b === car || (b.self && b.self === car)) continue; const dx = b.x - car.x, dz = b.z - car.z; const along = dx * fx + dz * fz; if (along < 0.2 || along > cfg.lookAhead) continue;
-    const side = Math.abs(-dx * fz + dz * fx); if (side > cfg.halfWidth + (b.r || 0)) continue; const gap = along - (b.r || 0); if (best == null || gap < best.gap) best = { gap, person: !!b.person };
+    const side = Math.abs(-dx * fz + dz * fx); if (side > cfg.halfWidth + (b.r || 0)) continue; const gap = along - (b.r || 0); if (best == null || gap < best.gap) best = { gap, person: !!b.person, local: !!b.local };
   }
   return best;
 }
@@ -34,5 +34,6 @@ export function stepSpeed(st, cruise, hit, dt, cfg = YIELD_CFG) {
   if (hit && hit.person) s.v = Math.min(s.v, Math.max(0, (hit.gap - cfg.minGap) / Math.max(dt, 1e-3))); // hard stop: never move into a person
   s.honked = hit ? (st.honked || s.honk) : false; s.braking = !!hit && target < cruise; return s;
 }
-/** Hook for a later, NOT YET APPROVED crash rule: given what is ahead, decide 'clear' | 'yield' | (future) 'hit'. Today it always yields; nothing else (health, money, server) is wired to it. */
-export function decide(hit, ctx = {}) { void ctx; return hit ? { action: 'yield', hit } : { action: 'clear', hit: null }; }
+/** What does a vehicle do about what is ahead? 'clear' | 'yield' | 'hit'. A 'hit' is only possible when the SERVER has said so for this encounter (ctx.hitAllowed, set from a crash token);
+ *  then the car does not brake for the local player and drives on into them. Everything else (health, money) is applied by the server on impact, never here. */
+export function decide(hit, ctx = {}) { if (!hit) return { action: 'clear', hit: null }; if (hit.local && ctx.hitAllowed) return { action: 'hit', hit: null }; return { action: 'yield', hit }; }

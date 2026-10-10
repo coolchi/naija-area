@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Builder, mulberry32 } from '../sample/builder.js';
 import { wallTextures, roadTexture, groundTexture, waterTexture, tex2 } from './textures.js';
 import { roadPts, isCurved, offsetPoly, polyLen } from './roadgeom.js';
+import { lampPositions, lampLevel, lampsOn, LAMP } from './lamps.js';
 
 const lerpC = (a, b, t) => new THREE.Color(a).lerp(new THREE.Color(b), t);
 
@@ -66,11 +67,17 @@ export function buildWorld(city) {
     plain.box(14, 0.05, 14, x, 0.0, z, 0x34373c, { noAO: true, jit: 0 });
     for (let i = -3; i <= 3; i++) for (const [dx, dz, w, d] of [[0, -8.5, 1, 3], [0, 8.5, 1, 3], [-8.5, 0, 3, 1], [8.5, 0, 3, 1]]) plain.box(w, 0.06, d, x + dx + (dx === 0 ? i * 1.8 : 0), 0.0, z + dz + (dz === 0 ? i * 1.8 : 0), 0xeeeeea, { noAO: true, jit: 0 });
   }
-  // ---- lamps + palms + trees
-  for (const z of city.zones) {
-    for (let x = z.x0 + 12; x < z.x1 - 6; x += 38) { for (const zz of [z.z0 + 2, z.z1 - 2]) lamp(plain, x, zz); }
-  }
-  function lamp(b, x, z) { b.cyl(0.12, 0.16, 6.5, 6, x, 0, z, 0x3b3f45, { noAO: true }); b.box(1.4, 0.18, 0.3, x, 6.4, z, 0x3b3f45, { noAO: true }); b.box(0.6, 0.16, 0.4, x + 0.55, 6.22, z, 0xfff0b0, { noAO: true, jit: 0 }); }
+  // ---- street lights (lamps.js): static poles and arms here, glowing heads and light pools are instanced and follow the night level
+  const lamps = lampPositions(city);
+  for (const l of lamps) lamp(plain, l);
+  const lampHeads = new THREE.InstancedMesh(new THREE.BoxGeometry(0.7, 0.16, 0.45), new THREE.MeshBasicMaterial({ color: 0xffffff }), Math.max(1, lamps.length)); lampHeads.frustumCulled = false;
+  const poolTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,214,140,.85)'); gr.addColorStop(0.5, 'rgba(255,190,100,.32)'); gr.addColorStop(1, 'rgba(255,170,80,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); const t = new THREE.CanvasTexture(c); return t; })();
+  const lampPools = new THREE.InstancedMesh(new THREE.PlaneGeometry(LAMP.poolR * 2, LAMP.poolR * 2).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: poolTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), Math.max(1, lamps.length)); lampPools.frustumCulled = false; lampPools.renderOrder = 2;
+  { const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(1, 1, 1), up = new THREE.Vector3(0, 1, 0);
+    lamps.forEach((l, i) => { q.setFromAxisAngle(up, Math.atan2(-l.fz, l.fx)); m.compose(new THREE.Vector3(l.x + l.fx * 1.0, 6.22, l.z + l.fz * 1.0), q, sc); lampHeads.setMatrixAt(i, m); m.compose(new THREE.Vector3(l.x + l.fx * LAMP.poolOffset, 0.13, l.z + l.fz * LAMP.poolOffset), new THREE.Quaternion(), sc); lampPools.setMatrixAt(i, m); }); }
+  root.add(lampHeads, lampPools); const warm = new THREE.Color(0xffe3a0), cold = new THREE.Color(0x77776b), tmpC = new THREE.Color(); let lampLvl = -1, lampClock = 0, lampFlickerT = 0;
+  const applyLamps = (t) => { const lv = lampsOn(night); for (const l of lamps) { if (lv > 0 || lampLvl !== 0) { const b = lampLevel(l, lv, t); lampHeads.setColorAt(l.id, tmpC.copy(cold).lerp(warm, b)); lampPools.setColorAt(l.id, tmpC.setScalar(b)); } } if (lampHeads.instanceColor) lampHeads.instanceColor.needsUpdate = true; if (lampPools.instanceColor) lampPools.instanceColor.needsUpdate = true; lampPools.visible = lv > 0.02; lampLvl = lv; };
+  function lamp(b, l) { b.cyl(0.12, 0.16, 6.5, 6, l.x, 0, l.z, 0x3b3f45, { noAO: true }); b.box(1.4, 0.18, 0.3, l.x + l.fx * 0.55, 6.4, l.z + l.fz * 0.55, 0x3b3f45, { noAO: true, ry: Math.atan2(-l.fz, l.fx) }); }
   function palm(b, x, z, s = 1) {
     const hgt = 7 * s; b.cyl(0.22 * s, 0.35 * s, hgt, 6, x, 0, z, 0x8a6a45, { noAO: true });
     for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2; b.box(0.5 * s, 0.1, 3.4 * s, x + Math.cos(a) * 1.6 * s, hgt + 0.1, z + Math.sin(a) * 1.6 * s, 0x2f8f3a, { ry: -a + Math.PI / 2, rx: 0.5, noAO: true }); }
@@ -156,7 +163,7 @@ export function buildWorld(city) {
   const markerColor = { available: 0x35c46b, taken: 0x8a8f98, yours: 0xffc20e };
   const waterSpeed = { x: 0.004 };
   const fogC = new THREE.Color('#9fd3ee'); scene.fog = new THREE.Fog(fogC, 140, 520);
-  let night = 0;
+  let night = 0; applyLamps(0);
   const api = {
     scene, colliders, boards, doorMarkers, labels, root,
     setMarkers(props) { for (const p of props) { const m = doorMarkers[p.id]; if (m) m.material.color.setHex(markerColor[p.status] || 0x35c46b); } },
@@ -167,9 +174,10 @@ export function buildWorld(city) {
       scene.background = sky; scene.fog.color.copy(sky);
       sun.intensity = 0.15 + day * 1.4; sun.color.set(lerpC('#fff1d6', '#ff9a55', dusk)); sun.position.set(Math.cos(a) * 200, Math.max(30, Math.sin(a) * 220), 80);
       hemi.intensity = 0.35 + day * 0.65; hemi.color.set(lerpC('#2b3a6b', '#dfefff', day));
-      wallMat.emissiveIntensity = night * 0.95; return { day, night };
+      wallMat.emissiveIntensity = night * 0.95; applyLamps(lampClock); return { day, night };
     },
-    animate(dt) { wt2.offset.x += dt * 0.004; wt2.offset.y += dt * 0.002; },
+    animate(dt) { wt2.offset.x += dt * 0.004; wt2.offset.y += dt * 0.002; lampClock += dt / 1000; lampFlickerT += dt; if (lampLvl > 0 && lampFlickerT > 90) { lampFlickerT = 0; applyLamps(lampClock); } },
+    lamps, lampHeads, lampPools, get lampLevel() { return lampLvl; },
     get night() { return night; }
   };
   return api;

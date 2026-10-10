@@ -1676,6 +1676,23 @@
    ],
    "id": "b051",
    "tag": "salon2"
+  },
+  {
+   "kind": "office",
+   "x": -42,
+   "z": 60,
+   "w": 26,
+   "d": 18,
+   "h": 6,
+   "floors": 1,
+   "color": "#eef4f4",
+   "sign": "#d62828",
+   "label": "Community Clinic",
+   "face": [
+    0,
+    -1
+   ],
+   "id": "b_clinic"
   }
  ],
  "properties": [
@@ -3808,6 +3825,17 @@
    "x": -10,
    "z": -10,
    "name": "Unity Plaza"
+  },
+  {
+   "id": "clinic",
+   "kind": "clinic",
+   "x": -42,
+   "z": 60,
+   "name": "Yaba Community Clinic",
+   "door": {
+    "x": -42,
+    "z": 47.5
+   }
   }
  ],
  "zones": [

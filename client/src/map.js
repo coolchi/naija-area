@@ -3,18 +3,19 @@
 // blitted each frame; only labels, markers and players are redrawn live, so it stays light on phones.
 import { offsetPoly, polyLen, pointAt } from './roadgeom.js';
 import { h, $ } from './api.js';
+import { homeMarkers, remaining, etaLabel, etaSeconds } from './route.js';
 import { buildModel, search, hitTest, labelRules, KIND_COL, LAYERS, DEFAULT_LAYERS } from './map-model.js';
 
 export class CityMap {
   constructor(game) { this.g = game; this.model = null; this.layers = { ...DEFAULT_LAYERS }; this.open_ = false; this.cache = null; this.sel = null; this.hover = null; this.pins = new Map(); }
   get isOpen() { return this.open_; }
   open(focusId) {
-    if (this.open_) return; const g = this.g; this.model = this.model || buildModel(g.city); this.open_ = true; this.dpr = Math.min(2, window.devicePixelRatio || 1);
+    if (this.open_) return; const g = this.g; this.model = this.model || buildModel(g.city); this.syncHomes(); this.open_ = true; this.dpr = Math.min(2, window.devicePixelRatio || 1);
     this.canvas = h('canvas', { class: 'bm-canvas' }); this.ctx = this.canvas.getContext('2d');
     this.card = h('div', { class: 'bm-card hidden' }); this.list = h('div', { class: 'bm-list hidden' }); this.legend = h('div', { class: 'bm-legend hidden' });
     this.input = h('input', { class: 'bm-search', placeholder: 'Search places, roads, districts…', type: 'search', autocomplete: 'off' });
     this.input.addEventListener('input', () => this.showList()); this.input.addEventListener('focus', () => this.showList());
-    const top = h('div', { class: 'bm-top' }, h('b', { class: 'bm-title' }, `🗺 ${g.city.name || 'Map'}`), this.input, h('button', { class: 'bm-btn', id: 'bmMe', title: 'Centre on me', onclick: () => this.centreMe() }, '◎'), h('button', { class: 'bm-btn', id: 'bmLegend', title: 'Layers', onclick: () => this.legend.classList.toggle('hidden') }, '☰'), h('button', { class: 'bm-btn', id: 'bmClose', onclick: () => this.close() }, '✕'));
+    const top = h('div', { class: 'bm-top' }, h('b', { class: 'bm-title' }, `🗺 ${g.city.name || 'Map'}`), this.input, h('button', { class: 'bm-btn', id: 'bmMe', title: 'Centre on me', onclick: () => this.centreMe() }, '◎'), h('button', { class: 'bm-btn', id: 'bmHome', title: 'My house', onclick: () => this.goHome() }, '🏠'), h('button', { class: 'bm-btn', id: 'bmLegend', title: 'Layers', onclick: () => this.legend.classList.toggle('hidden') }, '☰'), h('button', { class: 'bm-btn', id: 'bmClose', onclick: () => this.close() }, '✕'));
     const zoom = h('div', { class: 'bm-zoom' }, h('button', { class: 'bm-btn', id: 'bmIn', onclick: () => this.zoomBy(1.5) }, '+'), h('button', { class: 'bm-btn', id: 'bmOut', onclick: () => this.zoomBy(1 / 1.5) }, '−'));
     this.root = h('div', { id: 'bigmap' }, this.canvas, top, this.list, this.legend, zoom, this.card); document.body.appendChild(this.root); this.drawLegend();
     this.resize(); this.fit(); const me = g.ctrl; if (me) { this.v.cx = me.x; this.v.cz = me.z; this.v.k = Math.max(this.v.k, 1.6); }
@@ -23,6 +24,10 @@ export class CityMap {
     if (focusId) this.focusOn(this.model.catalogue.find(i => i.id === focusId)); window.__bigmap = this;
   }
   close() { if (!this.open_) return; this.open_ = false; cancelAnimationFrame(this.raf); document.removeEventListener('keydown', this.onKey, true); removeEventListener('resize', this.onResize); this.root.remove(); this.cache = null; }
+  /** the player's own homes: always on the map, in the search list, one tap to go there */
+  homes() { return homeMarkers(this.g.user); }
+  syncHomes() { const cat = this.model.catalogue; for (let i = cat.length - 1; i >= 0; i--) if (String(cat[i].id).startsWith('myhouse:')) cat.splice(i, 1); for (const hm of this.homes()) cat.unshift({ id: 'myhouse:' + hm.id, type: 'myhouse', name: `My house: ${hm.name}`, icon: '🏠', x: hm.x, z: hm.z, group: 'my home house', lines: [hm.tier, hm.area].filter(Boolean) }); }
+  goHome() { const hs = this.homes(); if (!hs.length) { this.g.ui.toast('You have no home yet. Open a house on the map to rent or buy one.'); return; } const hm = hs[0]; const it = this.model.catalogue.find(i => i.id === 'myhouse:' + hm.id); this.v.cx = hm.x; this.v.cz = hm.z; this.v.k = Math.max(this.v.k, 3.2); this.select(it); }
   toggle() { this.open_ ? this.close() : this.open(); }
   resize() { const r = this.root.getBoundingClientRect(); this.W = Math.max(200, Math.round(r.width)); this.H = Math.max(200, Math.round(r.height)); this.canvas.width = this.W * this.dpr; this.canvas.height = this.H * this.dpr; this.canvas.style.width = this.W + 'px'; this.canvas.style.height = this.H + 'px'; }
   extent() { const B = this.model.bounds, w = this.model.water; return { x0: Math.min(B.minX, w?.minX ?? B.minX), x1: Math.max(B.maxX, w?.maxX ?? B.maxX), z0: B.minZ, z1: Math.max(B.maxZ, w?.maxZ ?? B.maxZ) }; }
@@ -91,7 +96,10 @@ export class CityMap {
     const L = this.layers; this.others = this.playersNow(); const t = performance.now();
     const hi = this.sel || this.hover; if (hi?.rect) { c.strokeStyle = '#ff3b30'; c.lineWidth = 3; c.setLineDash([]); c.strokeRect(this.sx(hi.rect.x0), this.sz(hi.rect.z0), (hi.rect.x1 - hi.rect.x0) * k, (hi.rect.z1 - hi.rect.z0) * k); }
     else if (hi && hi.x != null) { c.strokeStyle = '#ff3b30'; c.lineWidth = 3; c.beginPath(); c.arc(this.sx(hi.x), this.sz(hi.z), 20, 0, 7); c.stroke(); }
-    const wp = this.g.waypoint; if (wp) { c.fillStyle = '#b44cff'; c.beginPath(); c.arc(this.sx(wp.x), this.sz(wp.z), 7, 0, 7); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 2; c.stroke(); }
+    const nv = this.g.nav?.active; if (nv) { const pts = nv.pts; c.lineJoin = 'round'; c.lineCap = 'round'; c.strokeStyle = '#ffffffcc'; c.lineWidth = 7; c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(this.sx(q[0]), this.sz(q[1])) : c.moveTo(this.sx(q[0]), this.sz(q[1]))); c.stroke(); c.strokeStyle = '#8e2de2'; c.lineWidth = 4; c.setLineDash([10, 6]); c.lineDashOffset = -t / 60; c.stroke(); c.setLineDash([]); c.lineDashOffset = 0;
+      const e = pts[pts.length - 1], ex = this.sx(e[0]), ey = this.sz(e[1]); c.fillStyle = '#8e2de2'; c.beginPath(); c.arc(ex, ey, 9, 0, 7); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 2.5; c.stroke(); const me0 = this.g.ctrl; const rem = remaining(pts, nv.i, me0.x, me0.z); this.text(c, `${nv.dest.name || 'Destination'} · ${Math.round(rem)} m · ${etaLabel(etaSeconds(rem, nv.mode))}`, ex, ey - 18, { s: 12, fill: '#5a189a' }); }
+    for (const hm of this.homes()) { const px = this.sx(hm.x), py = this.sz(hm.z); if (!this.onScreen(px, py, 60)) continue; c.fillStyle = '#e63946'; c.beginPath(); c.arc(px, py, 14, 0, 7); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 3; c.stroke(); c.font = '16px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fff'; c.fillText('🏠', px, py + 1); this.text(c, 'My house', px, py + 25, { s: 12, w: 800, fill: '#b3261e' }); }
+    const wp = this.g.waypoint; if (wp && !nv) { c.fillStyle = '#b44cff'; c.beginPath(); c.arc(this.sx(wp.x), this.sz(wp.z), 7, 0, 7); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 2; c.stroke(); }
     if (L.players) for (const p of this.others) { const px = this.sx(p.x), py = this.sz(p.z); if (!this.onScreen(px, py)) continue; c.fillStyle = '#fff'; c.beginPath(); c.arc(px, py, 5, 0, 7); c.fill(); c.fillStyle = p.color || '#2a9d8f'; c.beginPath(); c.arc(px, py, 3.4, 0, 7); c.fill(); if (labelRules.player(k)) this.text(c, p.name, px, py - 12, { s: 10 }); }
     const me = this.g.ctrl; const mx = this.sx(me.x), my = this.sz(me.z); c.strokeStyle = `rgba(255,59,48,${0.5 - 0.4 * Math.abs(Math.sin(t / 500))})`; c.lineWidth = 3; c.beginPath(); c.arc(mx, my, 14 + 4 * Math.abs(Math.sin(t / 500)), 0, 7); c.stroke();
     c.save(); c.translate(mx, my); c.rotate(-me.ry + Math.PI / 2); c.fillStyle = '#ff3b30'; c.beginPath(); c.moveTo(0, -11); c.lineTo(8, 9); c.lineTo(0, 5); c.lineTo(-8, 9); c.closePath(); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 2; c.stroke(); c.restore(); this.text(c, 'You', mx, my + 22, { s: 11, fill: '#b3261e' });
@@ -100,14 +108,26 @@ export class CityMap {
     this.text(c, 'N ▲', this.W - 34, this.H - 20, { s: 12, w: 800 });
   }
   // ---- interaction
-  hitAt(px, py) { return hitTest(this.model, this.wx(px), this.wz(py), this.v.k, this.layers, this.others || this.playersNow()); }
+  hitAt(px, py) { for (const hm of this.homes()) if (Math.hypot(this.sx(hm.x) - px, this.sz(hm.z) - py) < 20) return { id: 'myhouse:' + hm.id, type: 'myhouse', name: `My house: ${hm.name}`, icon: '🏠', x: hm.x, z: hm.z, lines: [hm.tier, hm.area].filter(Boolean) }; return hitTest(this.model, this.wx(px), this.wz(py), this.v.k, this.layers, this.others || this.playersNow()); }
   select(it) { this.sel = it; this.showCard(it, true); }
   showCard(it, pinned) {
     if (!it) { this.card.classList.add('hidden'); return; } const g = this.g; this.card.classList.remove('hidden'); this.card.classList.toggle('pinned', !!pinned);
     const kids = [h('div', { class: 'row sp' }, h('b', {}, `${it.icon ? it.icon + ' ' : ''}${it.name}`), pinned ? h('button', { class: 'bm-x', onclick: () => { this.sel = null; this.card.classList.add('hidden'); } }, '✕') : ''), ...((it.lines || []).filter(Boolean).map(l => h('div', { class: 'mut' }, l)))];
-    if (pinned && it.placeId) kids.push(h('div', { class: 'row' }, h('button', { class: 'btn small alt', id: 'bmOpen', onclick: () => { this.close(); g.ui.place(it.placeId); } }, 'Open and travel'), h('button', { class: 'btn small ghost', onclick: () => { g.setWaypoint(it.x, it.z, it.name); g.ui.toast(`Waypoint set: ${it.name}.`); this.close(); } }, '📍 Waypoint')));
-    else if (pinned && it.x != null) kids.push(h('div', { class: 'row' }, h('button', { class: 'btn small ghost', onclick: () => { g.setWaypoint(it.x, it.z, it.name); g.ui.toast(`Waypoint set: ${it.name}.`); this.close(); } }, '📍 Set waypoint here')));
+    if (pinned && it.x != null && it.type !== 'water' && it.type !== 'player') kids.push(...this.navRows(it));
+    else if (pinned && it.type === 'player') kids.push(h('div', { class: 'row' }, h('button', { class: 'btn small ghost', onclick: () => { g.setWaypoint(it.x, it.z, it.name); this.close(); } }, '📍 Set waypoint here')));
     this.card.replaceChildren(...kids);
+  }
+  /** route estimate and the ways to get there: take me (autopilot on foot), drive me (autopilot by car), I'll drive (guide only), paid travel and a plain waypoint */
+  navRows(it) {
+    const g = this.g, dest = { x: it.x, z: it.z, name: it.name.replace(/^My house: /, '') || 'Destination' }; const eta = h('div', { class: 'mut', id: 'bmEta' }, 'Working out the route…');
+    setTimeout(() => { if (!this.open_ || this.sel !== it) return; try { const e = g.nav.estimate(dest); eta.textContent = e.walk ? `Route about ${Math.round((e.drive || e.walk).length)} m · 🚶 ${e.walk.label} · 🚗 ${e.drive ? e.drive.label : 'no road route'} (estimates)` : 'No route found from here. Try the travel options.'; } catch (err) { eta.textContent = ''; } }, 30);
+    const go = (opts) => () => { const r = g.nav.start(dest, opts); if (r) this.close(); };
+    const rows = [eta, h('div', { class: 'bm-actions' },
+      h('button', { class: 'btn small alt', id: 'bmWalk', onclick: go({ mode: 'walk', auto: true }) }, '🚶 Take me there'),
+      h('button', { class: 'btn small alt', id: 'bmDriveMe', onclick: go({ mode: 'drive', auto: true }) }, '🚗 Drive me'),
+      h('button', { class: 'btn small ghost', id: 'bmGuide', onclick: go({ mode: 'drive', auto: false }) }, '🧭 I will drive'))];
+    const row2 = []; if (it.placeId) row2.push(h('button', { class: 'btn small ghost', id: 'bmOpen', onclick: () => { this.close(); g.ui.place(it.placeId); } }, 'Open and travel (fare)'));
+    row2.push(h('button', { class: 'btn small ghost', onclick: () => { g.setWaypoint(it.x, it.z, it.name); g.ui.toast(`Waypoint set: ${it.name}.`); this.close(); } }, '📍 Waypoint')); rows.push(h('div', { class: 'bm-actions' }, ...row2)); return rows;
   }
   showList() {
     const res = search(this.model, this.input.value); this.list.classList.remove('hidden');

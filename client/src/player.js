@@ -19,7 +19,7 @@ export class Controller {
     this.applyMode();
   }
   applyMode() { this.avatar.visible = this.mode === 'walk'; this.carObj.visible = this.mode === 'drive'; this.tag.position.set(0, this.mode === 'drive' ? 4.2 : 3.6, 0); }
-  toggleCar() { this.mode = this.mode === 'walk' ? 'drive' : 'walk'; this.v = 0; this.applyMode(); if (this.mode === 'drive') this.camYaw = this.ry; return this.mode; }
+  toggleCar() { if (this.auto) { this.auto = null; this.onAuto?.('manual'); } this.mode = this.mode === 'walk' ? 'drive' : 'walk'; this.v = 0; this.applyMode(); if (this.mode === 'drive') this.camYaw = this.ry; return this.mode; }
   teleport(x, z) { this.x = x; this.z = z; this.v = 0; }
   bind() {
     const kd = (e) => { if (e.target.closest('input,textarea,select')) return; const k = e.key.toLowerCase(); if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault(); this.keys.add(k); if (k === 'shift') this.run = true; };
@@ -45,9 +45,13 @@ export class Controller {
     if (this.joy.active) { ix = this.joy.x; iy = this.joy.y; } const l = Math.hypot(ix, iy); if (l > 1) { ix /= l; iy /= l; } return { ix, iy };
   }
   update(dt) {
-    const { ix, iy } = this.frozen ? { ix: 0, iy: 0 } : this.input(); const oldX = this.x, oldZ = this.z;
+    if (this.stun > 0) this.stun -= dt; const { ix, iy } = (this.frozen || this.stun > 0) ? { ix: 0, iy: 0 } : this.input(); const oldX = this.x, oldZ = this.z;
     if (this.keys.has('q')) this.camYaw += dt * 1.8; if (this.keys.has('e') && false) this.camYaw -= dt * 1.8;
-    if (this.mode === 'walk') {
+    if (this.auto && !this.frozen && (Math.hypot(ix, iy) > 0.25 || this.joy.active)) { this.auto = null; this.onAuto?.('manual'); }
+    if (this.auto && !this.frozen) {
+      const s = this.auto.step(this.x, this.z, this.ry, this.v, dt); this.x = s.x; this.z = s.z; this.ry = s.ry; this.v = s.v;
+      if (performance.now() - this.dragT > 1500) this.camYaw += angDiff(this.camYaw, this.ry) * Math.min(1, dt * (this.mode === 'drive' ? 3 : 1.6));
+    } else if (this.mode === 'walk') {
       const dead = 0.08; const mag = Math.hypot(ix, iy);
       if (mag > dead) {
         const f = fwd(this.camYaw), r = [Math.sin(this.camYaw), Math.cos(this.camYaw)]; let dx = f[0] * iy + r[0] * ix, dz = f[1] * iy + r[1] * ix; const l = Math.hypot(dx, dz); dx /= l; dz /= l;
@@ -69,7 +73,7 @@ export class Controller {
       if (d < rad) { if (d < 1e-4) { const pushes = [[c.x0 - rad - this.x, 0], [c.x1 + rad - this.x, 0], [0, c.z0 - rad - this.z], [0, c.z1 + rad - this.z]].sort((a, b) => Math.hypot(...a) - Math.hypot(...b))[0]; this.x += pushes[0]; this.z += pushes[1]; } else { this.x = nx + (dx / d) * rad; this.z = nz + (dz / d) * rad; } this.blocked = true; if (this.mode === 'drive') this.v *= 0.5; }
     }
     const B = this.city.bounds; this.x = clamp(this.x, B.minX + 1, B.maxX - 1); this.z = clamp(this.z, B.minZ + 1, B.maxZ - 3);
-    this.moving = Math.hypot(this.x - oldX, this.z - oldZ) > 0.002;
+    this.moving = Math.hypot(this.x - oldX, this.z - oldZ) > 0.002; if (this.auto) this.auto.observe(this.x, this.z, dt);
     this.root.position.set(this.x, 0, this.z); this.root.rotation.y = this.ry;
     if (this.mode === 'walk') this.avatar.userData.body.position.y = this.moving ? Math.abs(Math.sin(performance.now() / 120)) * 0.09 : 0;
   }

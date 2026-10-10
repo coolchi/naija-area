@@ -12,6 +12,7 @@ import * as leisure from './leisure.js';
 import * as phone from './phone/phone.js';
 import * as games from './games.js';
 import * as cars from './cars.js';
+import * as crash from './crash.js';
 import * as homes from './homes.js';
 import { history, checkInvariants, moneySupply, balanceOf, cashId } from './ledger.js';
 import { RATE_CARD, AD_POLICY } from '../config/ratecard.js';
@@ -22,7 +23,7 @@ const route = (method, path, opts, handler) => { if (typeof opts === 'function')
 
 // ---- public / meta
 route('GET', '/api/health', (c) => ({ ok: true, name: c.app.gameName, now: c.app.clock.now() }));
-route('GET', '/api/config', (c) => ({ moodHappyAt: c.app.balance.mood.happyAt, name: c.app.gameName, tagline: GAME_TAGLINE, minAge: MIN_AGE, testMode: true, devRoutes: !!c.app.devRoutes, rotationMs: AD_POLICY.rotationMs, balanceNote: c.app.balance._note,
+route('GET', '/api/config', (c) => ({ crash: { enabled: !!c.app.balance.crash.enabled, regenPerMin: c.app.balance.crash.regenPerMin, max: c.app.balance.crash.maxHealth }, moodHappyAt: c.app.balance.mood.happyAt, name: c.app.gameName, tagline: GAME_TAGLINE, minAge: MIN_AGE, testMode: true, devRoutes: !!c.app.devRoutes, rotationMs: AD_POLICY.rotationMs, balanceNote: c.app.balance._note,
   topupOptions: c.app.balance.topup.options, phone: !!c.app.balance.phone.enabled, transport: c.app.balance.transport, shopChannels: c.app.balance.shops.channels, workTask: c.app.balance.work.task, land: { risk: c.app.balance.land.risk }, maxNameLen: c.app.balance.housing.maxNameLen, housing: { rentPeriodMs: c.app.balance.housing.rentPeriodMs }, furniture: c.app.balance.housing.furniture }));
 route('GET', '/api/city', (c) => { const { propertyById, shopById, jobLoc, billboardById, buildingById, plotById, placeById, area, ...rest } = c.app.city; return rest; });
 route('GET', '/api/stats', (c) => {
@@ -107,6 +108,11 @@ route('GET', '/api/garage', { auth: 'user' }, (c) => cars.garageView(c.app, c.ui
 route('POST', '/api/garage/buy', { auth: 'user' }, (c) => cars.buyCar(c.app, c.uid, c.body.model, c.body.idemKey));
 route('POST', '/api/garage/use', { auth: 'user' }, (c) => cars.setActive(c.app, c.uid, Number(c.body.carId)));
 route('GET', '/api/mechanic', { auth: 'user' }, (c) => cars.mecoCheck(c.app, c.uid));
+route('POST', '/api/crash/roll', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return crash.roll(c.app, c.uid, c.body); });
+route('POST', '/api/crash/impact', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return crash.impact(c.app, c.uid, c.body); });
+route('GET', '/api/clinic', { auth: 'user' }, (c) => crash.clinicInfo(c.app, c.uid));
+route('POST', '/api/clinic/treat', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return crash.treat(c.app, c.uid, c.body.idemKey); });
+route('POST', '/api/mechanic/repair', { auth: 'user' }, (c) => crash.repair(c.app, c.uid, c.body.idemKey));
 route('POST', '/api/mechanic/service', { auth: 'user' }, (c) => cars.mecoService(c.app, c.uid, c.body.idemKey));
 route('POST', '/api/garage/sell', { auth: 'user' }, (c) => cars.sellCar(c.app, c.uid, Number(c.body.carId), c.body.idemKey));
 route('POST', '/api/property/decor', { auth: 'user' }, (c) => homes.setDecor(c.app, c.uid, c.body.propertyId, c.body.wall, c.body.floor, c.body.idemKey));
