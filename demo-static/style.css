@@ -166,3 +166,18 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #radioChip { position: fixed; left: 50%; transform: translateX(-50%); top: calc(108px + env(safe-area-inset-top, 0px)); display: flex; gap: 6px; align-items: center; background: #14181fee; border: 2px solid var(--rc, #e0a020); color: #fff; z-index: 30; pointer-events: auto; max-width: 96vw; }
 #radioChip.hidden { display: none; } #radioChip .park-btn { background: transparent; border: 0; color: #fff; font-size: 1.05em; padding: 2px 6px; } #radioChip .park-btn.on { background: var(--rc, #e0a020); border-radius: 8px; color: #111; }
 #radioChip .radio-label { min-width: 150px; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85em; } #radioChip input[type=range] { width: 70px; }
+
+/* Chop Am (match-3) */
+.m3grid{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;width:min(92vw,360px,52vh);margin:8px auto;padding:5px;border-radius:12px;background:#3d2a1e;touch-action:none;user-select:none}
+.m3t{aspect-ratio:1;border:0;border-radius:8px;font-size:clamp(14px,5.2vw,26px);line-height:1;padding:0;cursor:pointer;background:#5a3d2b;transition:transform .12s,background .12s}
+.m3t.k1{background:#7a5a36}.m3t.k2{background:#6b4a3a}.m3t.k3{background:#7a3f35}.m3t.k4{background:#6b3a5a}.m3t.k5{background:#6b6a2e}
+.m3t.sel{outline:3px solid #ffd54a;transform:scale(1.08)}.m3t.pop{animation:m3pop .22s ease-out forwards}@keyframes m3pop{to{transform:scale(0);opacity:0}}
+/* Clear the Go-Slow */
+.dfboard{position:relative;width:min(88vw,330px,52vh);aspect-ratio:1;margin:8px auto;background:#6a6f77;border:4px solid #3b3f46;border-radius:10px;touch-action:none;user-select:none;overflow:visible}
+.dfboard .dfc{position:absolute;display:block;box-sizing:border-box;border:1px solid rgba(255,255,255,.12);width:16.666%;height:16.666%}
+.dfboard .dfc.exit{background:repeating-linear-gradient(90deg,#f2c200 0 6px,#222 6px 12px);opacity:.55}
+.dfv{position:absolute;box-sizing:border-box;padding:3px;transition:left .12s,top .12s,transform .1s;cursor:grab;z-index:2}.dfv>span{display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:9px;background:var(--vc);font-size:clamp(14px,5vw,24px);box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
+.dfv.sel>span{outline:3px solid #fff}.dfv.danfo>span{box-shadow:inset 0 -3px 0 rgba(0,0,0,.3),0 0 0 2px #222}.dfv.out{transition:left .45s ease-in;left:110%!important}
+/* Table football */
+.fball{width:min(52vw,170px,27vh);display:block;margin:4px auto;background:#2f7d3a;border:3px solid #123;border-radius:8px}
+.fpick{display:flex;gap:5px;align-items:center;margin:4px 0}.fpick b{min-width:68px;font-size:13px}.fpick .chip{padding:4px 9px;min-width:34px}
