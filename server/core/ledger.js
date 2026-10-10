@@ -4,7 +4,7 @@
 import { bad, GameError } from './util.js';
 
 export const SYS = { FAUCET_CASUAL: 'sys:faucet_casual', FAUCET_JOBS: 'sys:faucet_jobs', FAUCET_INTEREST: 'sys:faucet_interest', FAUCET_START: 'sys:faucet_start', FAUCET_TESTTOPUP: 'sys:faucet_test_topup',
-  SINK_RENT: 'sys:sink_rent', SINK_SHOPS: 'sys:sink_shops', SINK_PROPERTY: 'sys:sink_property', SINK_FURNITURE: 'sys:sink_furniture', SINK_FEES: 'sys:sink_fees', SINK_TRANSPORT: 'sys:sink_transport', SINK_DELIVERY: 'sys:sink_delivery', FAUCET_LAND: 'sys:faucet_land', ADS_REVENUE_TEST: 'sys:ads_revenue_test', ESCROW_GAMES: 'sys:escrow_games', SINK_CARS: 'sys:sink_cars', SINK_DECOR: 'sys:sink_decor', FAUCET_CARS: 'sys:faucet_car_resale' };
+  SINK_RENT: 'sys:sink_rent', SINK_SHOPS: 'sys:sink_shops', SINK_PROPERTY: 'sys:sink_property', SINK_FURNITURE: 'sys:sink_furniture', SINK_FEES: 'sys:sink_fees', SINK_TRANSPORT: 'sys:sink_transport', SINK_DELIVERY: 'sys:sink_delivery', FAUCET_LAND: 'sys:faucet_land', ADS_REVENUE_TEST: 'sys:ads_revenue_test', ESCROW_GAMES: 'sys:escrow_games', SINK_CARS: 'sys:sink_cars', SINK_DECOR: 'sys:sink_decor', FAUCET_CARS: 'sys:faucet_car_resale', FAUCET_MISSIONS: 'sys:faucet_missions' }; // FAUCET_MISSIONS: tutorial, daily/weekly missions, login streak, season prizes (small, capped, all in config/progress.js)
 
 export function ensureSystemAccounts(db) {
   const ins = db.prepare('INSERT OR IGNORE INTO accounts(id,kind,user_id,balance,allow_negative) VALUES (?,?,NULL,0,1)');

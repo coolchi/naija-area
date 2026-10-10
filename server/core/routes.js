@@ -26,6 +26,7 @@ import * as wear from './wearables.js';
 import * as signup from './signup.js';
 import * as office from './office.js';
 import * as account from './account.js';
+import * as tutorial from './tutorial.js';
 import './gamedata.js';   // registers what the table games and the word/board games hold about a player with the account download/closing module (docs/ACCOUNT_DATA.md)
 import { checkAdminLogin } from './admin-guard.js';
 import { history, checkInvariants, moneySupply, balanceOf, cashId } from './ledger.js';
@@ -124,6 +125,11 @@ route('POST', '/api/wearables/buy', { auth: 'user' }, (c) => wear.buy(c.app, c.u
 route('POST', '/api/wearables/equip', { auth: 'user' }, (c) => wear.equip(c.app, c.uid, c.body.itemId));
 route('POST', '/api/wearables/unequip', { auth: 'user' }, (c) => wear.unequip(c.app, c.uid, c.body.slot));
 route('POST', '/api/wearables/sell', { auth: 'user' }, (c) => wear.sell(c.app, c.uid, c.body.itemId, c.body.idem));
+// first-five-minutes tutorial
+route('GET', '/api/tutorial', { auth: 'user' }, (c) => tutorial.view(c.app, c.uid));
+route('POST', '/api/tutorial/ack', { auth: 'user' }, (c) => tutorial.ack(c.app, c.uid, String(c.body.step || '')));
+route('POST', '/api/tutorial/skip', { auth: 'user' }, (c) => tutorial.skip(c.app, c.uid));
+route('POST', '/api/tutorial/restart', { auth: 'user' }, (c) => tutorial.restart(c.app, c.uid));
 // your data: download everything we hold, or close the account (erases and anonymises; see docs/ACCOUNT_DATA.md)
 route('GET', '/api/account/export', { auth: 'user' }, (c) => { if (!c.app.limiter.hit(`export:${c.uid}`, 5, 3600000, c.app.clock.now())) bad('RATE_LIMIT', 'You can download your data 5 times an hour.', 429); return account.exportData(c.app, c.uid); });
 route('POST', '/api/account/delete', { auth: 'user' }, async (c) => { if (!c.app.limiter.hit(`delete:${c.uid}`, 5, 3600000, c.app.clock.now())) bad('RATE_LIMIT', 'Too many attempts. Try again later.', 429); const r = await account.deleteAccount(c.app, c.uid, c.body); c.out.session = 'clear'; return r; });

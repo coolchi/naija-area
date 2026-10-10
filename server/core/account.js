@@ -14,6 +14,7 @@ import { assertNotFlying } from './flight.js';
 import { removeVoice } from './phone/phone.js';
 import * as office from './office.js';
 import * as signup from './signup.js';
+import * as tutorial from './tutorial.js';
 
 const REG = [];
 /** register what a module holds about a player. exportFn(app, uid) -> plain object; eraseFn(app, uid) deletes or anonymises it. `keep` documents anything deliberately retained. */
@@ -38,7 +39,7 @@ export function exportData(app, uid) {
     account: { id: u.id, username: u.username, guest: !!u.is_guest, color: u.color, createdAt: iso(u.created_at), lastSeen: iso(u.last_seen), ageConfirmedAt: iso(u.age_confirmed_at) },
     wallet: { accounts: accts, ledger },
     player: one(app, 'SELECT x,z,ry,mode,energy,hunger,mood,health,hair,total_shifts,city_id,updated_at FROM player_state WHERE user_id=?', uid),
-    signupChoices: signup.exportMine(app, uid), office: office.exportMine(app, uid),
+    signupChoices: signup.exportMine(app, uid), tutorial: tutorial.exportMine(app, uid), office: office.exportMine(app, uid),
     wearables: { owned: all(app, 'SELECT item_id, price_paid, bought_at FROM wearables_owned WHERE user_id=?', uid), worn: all(app, 'SELECT slot, item_id FROM wearables_equipped WHERE user_id=?', uid) },
     home: all(app, 'SELECT property_id, mode, custom_name, paid_price, since FROM property_owner WHERE user_id=?', uid), furniture: all(app, 'SELECT property_id, item_id, bought_at FROM property_items WHERE user_id=?', uid), land: all(app, 'SELECT plot_id, paid_price, bought_at FROM land_plots WHERE user_id=?', uid),
     cars: all(app, 'SELECT model, paid, bought_at, damage FROM player_cars WHERE user_id=?', uid),
@@ -82,7 +83,7 @@ export async function deleteAccount(app, uid, { password, confirm } = {}) {
     del(app, 'DELETE FROM shifts WHERE user_id=?', uid); del(app, 'DELETE FROM game_scores WHERE user_id=?', uid); del(app, 'DELETE FROM casual_runs WHERE user_id=?', uid); del(app, 'DELETE FROM casual_daily WHERE user_id=?', uid);
     del(app, 'DELETE FROM flights WHERE user_id=?', uid); del(app, 'DELETE FROM boat_trips WHERE user_id=?', uid); del(app, 'DELETE FROM stadium_tickets WHERE user_id=?', uid);
     del(app, 'DELETE FROM ad_impressions WHERE user_id=?', uid); del(app, 'DELETE FROM ad_taps WHERE user_id=?', uid); del(app, 'DELETE FROM age_sessions WHERE user_id=?', uid);
-    signup.deleteMine(app, uid); office.deleteMine(app, uid);
+    signup.deleteMine(app, uid); office.deleteMine(app, uid); tutorial.deleteMine(app, uid);
     app.db.prepare("UPDATE payment_intents SET email='' WHERE user_id=?").run(uid);
     let kept = KEPT; for (const r of REG) { r.eraseFn(app, uid); if (r.keep) kept += '; ' + r.keep; }
     if (stateRow) del(app, 'DELETE FROM player_state WHERE user_id=?', uid);

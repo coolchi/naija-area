@@ -45,7 +45,7 @@ export class Tour {
       h('div', { class: 'tour-btns' }, h('button', { class: 'btn ghost', id: 'tourSkip', onclick: () => this.close() }, last ? 'Close' : 'Skip'), this.i > 0 ? h('button', { class: 'btn ghost', id: 'tourBack', onclick: () => { this.i--; this.draw(); } }, 'Back') : '', h('button', { class: 'btn', id: 'tourNext', onclick: () => { if (last) this.close(); else { this.i++; this.draw(); } } }, last ? "Let's go" : 'Next'))));
   }
   tickHint() {
-    const g = this.g; if (!g.playing || this.root || g.busy || g.commute) { this.hint.classList.add('hidden'); return; }
+    const g = this.g; if (!g.playing || this.root || g.busy || g.commute || g.tutorial?.v?.active) { this.hint.classList.add('hidden'); return; }
     const h2 = nextHint(g.user); this.cur = h2; if (!h2 || this.hintDismissed.has(h2.id)) { this.hint.classList.add('hidden'); return; } this.hint.textContent = '💡 ' + h2.text; this.hint.classList.remove('hidden');
   }
 }
