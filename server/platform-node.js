@@ -20,6 +20,7 @@ export function nodePlatform({ dataDir, secret } = {}) {
     hmac, b64url: (s) => Buffer.from(s).toString('base64url'), fromB64url: (s) => Buffer.from(s, 'base64url').toString(),
     safeEqual: (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); },
     hmacHex: (algo, k, data) => crypto.createHmac(algo, k).update(data).digest('hex'), // for webhook signatures (Monipay: HMAC-SHA512 of the raw body)
+    hmacSha1: (k, m) => crypto.createHmac('sha1', Buffer.from(k)).update(Buffer.from(m)).digest(), // TOTP for the admin login (bytes in, bytes out)
     secret: key
   };
 }

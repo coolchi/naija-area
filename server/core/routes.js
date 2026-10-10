@@ -25,6 +25,7 @@ import * as wear from './wearables.js';
 import * as signup from './signup.js';
 import * as office from './office.js';
 import * as account from './account.js';
+import { checkAdminLogin } from './admin-guard.js';
 import { history, checkInvariants, moneySupply, balanceOf, cashId } from './ledger.js';
 import { RATE_CARD, AD_POLICY } from '../config/ratecard.js';
 import { GAME_NAME, GAME_TAGLINE, MIN_AGE } from '../config/game.js';
@@ -223,7 +224,7 @@ ageRoutes(route); // real age checks (provider interface, pass/fail + date only)
 paymentRoutes(route); // payments (TEST MODE): top-up, webhook, ad checkout, refunds, reconciliation
 
 // ---- admin
-route('POST', '/api/admin/login', { rate: 'auth' }, (c) => { if (!c.app.adminPassword) bad('ADMIN_DISABLED', 'Admin is disabled: set ADMIN_PASSWORD.', 503); if (!c.app.platform.safeEqual(String(c.body.password || ''), c.app.adminPassword)) bad('BAD_LOGIN', 'Wrong password.', 401); c.out.admin = true; return { ok: true }; });
+route('POST', '/api/admin/login', { rate: 'auth' }, (c) => { if (!c.app.adminPassword) bad('ADMIN_DISABLED', 'Admin is disabled: set ADMIN_PASSWORD.', 503); const passwordOk = c.app.platform.safeEqual(String(c.body.password || ''), c.app.adminPassword); checkAdminLogin(c.app, { passwordOk, code: c.body.code, ip: c.ip }); c.out.admin = true; return { ok: true, twoFactor: !!c.app.adminCfg?.secret }; }); // password (+ a one-time 6-digit code when ADMIN_TOTP_SECRET is set), lock-out after 5 failures
 route('POST', '/api/admin/logout', (c) => { c.out.admin = 'clear'; return { ok: true }; });
 route('GET', '/api/admin/queue', { auth: 'admin' }, (c) => ({ rows: ads.adminQueue(c.app, c.query.status ? String(c.query.status).split(',') : ['human_review']) }));
 route('POST', '/api/admin/campaigns/:id/decision', { auth: 'admin' }, (c) => { const st = ads.decide(c.app, Number(c.params.id), c.body.decision, 'admin', c.body.reason); c.app.db.prepare('INSERT INTO audit_log(actor,action,detail,created_at) VALUES (?,?,?,?)').run('admin', 'ad_' + c.body.decision, `campaign ${c.params.id}: ${c.body.reason || ''}`, c.app.clock.now()); return { ok: true, status: st }; });
