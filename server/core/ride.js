@@ -1,5 +1,6 @@
 // Oya Ride (in-game ride-hailing, a generic placeholder name; no real brand). The player picks a destination in the phone app, gets a fare and arrival estimate, a driver car
 // (an AI driver) drives to the player's spot, the player gets in and the trip uses the normal server travel flow (position move, fare through the ledger). All numbers are ESTIMATE placeholders in balance.ride.
+import { cityOf } from './cities.js';
 import { bad } from './util.js';
 import { ensurePresence } from './world.js';
 import { isRush, travel } from './social.js';
@@ -10,15 +11,15 @@ const rides = (app) => (app.world.rides ||= new Map());
 const hash = (n) => { let x = Math.imul(n ^ 0x6a09e667, 0x85ebca6b); x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35); x ^= x >>> 16; return (x >>> 0) / 4294967296; };
 const DRIVERS = ['Chidi', 'Bisi', 'Musa', 'Kemi', 'Emeka', 'Tunde', 'Ngozi', 'Sule'];
 const CARS = [['Silver sedan', '#b0b5ba'], ['White hatch', '#f2f2f2'], ['Green sedan', '#2e6b3a'], ['Blue hatch', '#1e4f8c']];
-const placeOk = (app, id) => { const pl = app.city.placeById[id]; if (!pl) bad('NO_PLACE', 'Unknown place.', 404); return pl; };
+const placeOk = (app, id, uid) => { const pl = (uid ? cityOf(app, uid) : app.city).placeById[id]; if (!pl) bad('NO_PLACE', 'Unknown place.', 404); return pl; };
 export function quote(app, uid, placeId) {
-  const R = app.balance.ride; const pl = placeOk(app, placeId); const p = ensurePresence(app, uid); const d = Math.hypot(pl.x - p.x, pl.z - p.z); const rush = isRush(app);
+  const R = app.balance.ride; const pl = placeOk(app, placeId, uid); const p = ensurePresence(app, uid); const d = Math.hypot(pl.x - p.x, pl.z - p.z); const rush = isRush(app);
   const fare = Math.round((R.base + R.perM * d) * (rush ? R.rushMult : 1)); const seconds = Math.max(R.minTripSec, Math.min(R.maxTripSec, Math.round(d / R.speed)));
   const n = (app.world.rideSeq || 0) + 1; const driverDist = Math.round(R.driverMinM + hash(uid * 17 + n) * (R.driverMaxM - R.driverMinM)); const etaMs = Math.round(driverDist / R.driverSpeed * 1000 * (rush ? R.rushEtaMult : 1));
   return { place: { id: pl.id, name: pl.name, area: pl.area }, distance: Math.round(d), fare, seconds, rush, etaMs, driverDist, estimate: true, service: R.name, cash: balanceOf(app.db, cashId(uid)) };
 }
 function refresh(app, uid) { const r = rides(app).get(uid); if (!r) return null; const now = app.clock.now(); if (now > r.expiresAt) { rides(app).delete(uid); return null; } r.state = now >= r.arriveAt ? 'arrived' : 'arriving'; return r; }
-const view = (app, r) => r && ({ id: r.id, state: r.state, placeId: r.placeId, placeName: app.city.placeById[r.placeId]?.name, fare: r.fare, from: r.from, requestedAt: r.requestedAt, arriveAt: r.arriveAt, expiresAt: r.expiresAt, driver: r.driver, driverDist: r.driverDist, estimate: true });
+const view = (app, r) => r && ({ id: r.id, state: r.state, placeId: r.placeId, placeName: cityOf(app, r.uid).placeById[r.placeId]?.name, fare: r.fare, from: r.from, requestedAt: r.requestedAt, arriveAt: r.arriveAt, expiresAt: r.expiresAt, driver: r.driver, driverDist: r.driverDist, estimate: true });
 export const status = (app, uid) => ({ ride: view(app, refresh(app, uid)), service: app.balance.ride.name });
 export function request(app, uid, placeId) {
   const R = app.balance.ride; if (!R.enabled) bad('OFF', 'Oya Ride is switched off.', 409); const p = ensurePresence(app, uid); if (p.mode === 'drive') bad('DRIVING', 'Park your car first.', 409); if (p.venue) bad('INSIDE', 'Step outside first.', 409);

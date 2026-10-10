@@ -1,4 +1,5 @@
 // House presence, the visitor knock flow, DMs, travel (fare + timed commute) and land plots.
+import { cityOf } from './cities.js';
 import { bad, cleanText } from './util.js';
 import { maxGuestsOf, plotStage } from './housing.js';
 import { screen } from './filter.js';
@@ -28,7 +29,7 @@ export function knock(app, uid, propertyId) {
   expireKnocks(app); const now = app.clock.now(); const H = app.balance.housing;
   const o = app.db.prepare('SELECT po.*, u.username FROM property_owner po JOIN users u ON u.id=po.user_id WHERE property_id=?').get(propertyId);
   if (!o) bad('NO_OWNER', 'Nobody lives here.', 404); if (o.user_id === uid) bad('YOURS', 'That is your own place.');
-  const p = app.city.propertyById[propertyId]; const st = getState(app, uid);
+  const p = app.all.propertyById[propertyId]; const st = getState(app, uid);
   if (dist(st.x, st.z, p.door.x, p.door.z) > app.balance.interact.houseRadius + 10) bad('TOO_FAR', 'Walk up to the door to knock.');
   if (isBlocked(app, uid, o.user_id)) bad('CANNOT_VISIT', 'You cannot visit this home.', 403);
   if (!app.limiter.hit(`knock:${uid}`, app.balance.safety.knockPerMin, 60000, now)) bad('RATE_LIMIT', 'Too many knocks. Give it a minute.', 429);
@@ -47,7 +48,7 @@ export function knock(app, uid, propertyId) {
 export function respondKnock(app, uid, knockId, accept) {
   expireKnocks(app); const k = app.db.prepare('SELECT * FROM knocks WHERE id=?').get(knockId);
   if (!k || k.owner_id !== uid) bad('NO_KNOCK', 'No such knock.', 404); if (k.status !== 'pending') bad('KNOCK_CLOSED', `That knock is ${k.status}.`, 409);
-  const now = app.clock.now(); const p = app.city.propertyById[k.property_id];
+  const now = app.clock.now(); const p = app.all.propertyById[k.property_id];
   if (accept && app.guestCount(k.property_id) >= maxGuestsOf(app, p)) bad('FULL', 'Your house is at its guest limit.', 409);
   app.db.prepare('UPDATE knocks SET status=?, decided_at=? WHERE id=? AND status=\'pending\'').run(accept ? 'accepted' : 'declined', now, knockId);
   const me = app.db.prepare('SELECT username FROM users WHERE id=?').get(uid).username;
@@ -81,7 +82,7 @@ export function sendDm(app, uid, toUsername, text) {
 // ---- travel: tap a place -> pick fare chip -> Go. Server charges the fare, moves the player, and writes the route into the trail so others see a car move.
 export function isRush(app, now = app.clock.now()) { const h = gameTime(app, now).hour; return app.balance.transport.rushHours.some(([a, b]) => h >= a && h < b); }
 export function travelQuote(app, uid, placeId) {
-  const pl = app.city.placeById[placeId]; if (!pl) bad('NO_PLACE', 'Unknown place.', 404); const st = getState(app, uid); const d = dist(st.x, st.z, pl.x, pl.z); const T = app.balance.transport; const rush = isRush(app);
+  const pl = cityOf(app, uid).placeById[placeId]; if (!pl) bad('NO_PLACE', 'Unknown place.', 404); const st = getState(app, uid); const d = dist(st.x, st.z, pl.x, pl.z); const T = app.balance.transport; const rush = isRush(app);
   const car = carFor(app, uid); const allModes = { ...T.modes, car: { label: car.label, base: car.base, perM: car.perM, speed: car.speed, mood: car.mood } };
   const modes = Object.entries(allModes).map(([id, m]) => { const fare = Math.round((m.base + m.perM * d) * (rush ? T.rushMult : 1)); const sec = Math.max(T.minSec, Math.min(T.maxSec, Math.round(d / m.speed))); return { id, label: m.label, fare, seconds: sec, ...(id === 'car' ? { mood: m.mood, owned: car.owned, model: car.model } : {}) }; });
   return { place: { id: pl.id, name: pl.name, type: pl.type, area: pl.area }, distance: Math.round(d), traffic: rush ? 'Go-slow (rush hour)' : 'Free road', rush, modes: [{ id: 'walk', label: 'Walk', fare: 0, seconds: Math.round(d / 5.2) }, ...modes] };
@@ -91,7 +92,7 @@ export function travel(app, uid, placeId, mode, idemKey, override = null) {
   if (mode === 'walk') bad('WALK', 'Walking needs no ticket: just set a waypoint and go.');
   const q = travelQuote(app, uid, placeId); const m = override || q.modes.find(x => x.id === mode); if (!m) bad('BAD_MODE', 'Pick keke, danfo or car.');
   if (app.db.prepare("SELECT 1 FROM shifts WHERE user_id=? AND status='active' AND 0").get(uid)) bad('BUSY', 'Busy.');
-  const pl = app.city.placeById[placeId]; const now = app.clock.now();
+  const pl = cityOf(app, uid).placeById[placeId]; const now = app.clock.now();
   return app.db.transaction(() => {
     if (m.fare > 0) move(app, { from: cashId(uid), to: SYS.SINK_TRANSPORT, amount: m.fare, reason: 'transport', ref: `${mode}:${placeId}`, userId: uid, idemKey: idemKey ? `trip:${uid}:${idemKey}` : null });
     const p = ensurePresence(app, uid); const from = { x: p.x, z: p.z };
@@ -108,11 +109,11 @@ export function travel(app, uid, placeId, mode, idemKey, override = null) {
 const growthFactor = (app, plot, boughtAt, now) => Math.pow(1 + plot.growthPerWeek / 7, Math.max(0, (now - boughtAt) / app.balance.land.dayMs));
 export function plotsView(app, uid) {
   const now = app.clock.now(); const rows = app.db.prepare('SELECT lp.*, u.username FROM land_plots lp JOIN users u ON u.id=lp.user_id').all(); const by = Object.fromEntries(rows.map(r => [r.plot_id, r]));
-  return (app.city.plots || []).map(p => { const o = by[p.id]; const value = o ? Math.floor(o.paid_price * growthFactor(app, p, o.bought_at, now)) : null;
+  return (cityOf(app, uid).plots || []).map(p => { const o = by[p.id]; const value = o ? Math.floor(o.paid_price * growthFactor(app, p, o.bought_at, now)) : null;
     return { id: p.id, name: p.name, area: p.area, sqm: p.sqm, price: p.price, growthPerWeekPct: Math.round(p.growthPerWeek * 1000) / 10, risk: p.risk, status: o ? (o.user_id === uid ? 'yours' : 'taken') : 'available', owner: o?.username || null, value: o?.user_id === uid ? value : null, sellValue: o?.user_id === uid ? Math.floor(value * app.balance.land.sellFraction) : null, x: p.x, z: p.z, size: p.size, stage: o ? plotStage(app, o.bought_at, now) : null }; });
 }
 export function buyPlot(app, uid, plotId, idemKey) {
-  const p = app.city.plotById?.[plotId]; if (!p) bad('NO_PLOT', 'Unknown plot.', 404); const st = getState(app, uid);
+  const p = app.all.plotById?.[plotId]; if (!p) bad('NO_PLOT', 'Unknown plot.', 404); const st = getState(app, uid);
   return app.db.transaction(() => {
     if (app.db.prepare('SELECT 1 FROM land_plots WHERE plot_id=?').get(plotId)) bad('TAKEN', 'Someone already owns this plot.', 409);
     if (app.db.prepare('SELECT COUNT(*) n FROM land_plots WHERE user_id=?').get(uid).n >= app.balance.land.maxPlots) bad('PLOT_LIMIT', `You can hold ${app.balance.land.maxPlots} plots.`, 409);
@@ -123,7 +124,7 @@ export function buyPlot(app, uid, plotId, idemKey) {
   })();
 }
 export function sellPlot(app, uid, plotId) {
-  const o = app.db.prepare('SELECT * FROM land_plots WHERE plot_id=? AND user_id=?').get(plotId, uid); if (!o) bad('NOT_YOURS', 'You do not own that plot.', 404); const p = app.city.plotById[plotId]; const now = app.clock.now();
+  const o = app.db.prepare('SELECT * FROM land_plots WHERE plot_id=? AND user_id=?').get(plotId, uid); if (!o) bad('NOT_YOURS', 'You do not own that plot.', 404); const p = app.all.plotById[plotId]; const now = app.clock.now();
   const value = Math.floor(Math.floor(o.paid_price * growthFactor(app, p, o.bought_at, now)) * app.balance.land.sellFraction);
   return app.db.transaction(() => { app.db.prepare('DELETE FROM land_plots WHERE plot_id=?').run(plotId); const profit = value - o.paid_price;
     // sale proceeds come from the property sink first; any growth above what the sink holds is a faucet ("land appreciation")
@@ -133,7 +134,7 @@ export function sellPlot(app, uid, plotId) {
 export function tickLand(app, rng = Math.random) {
   const now = app.clock.now(); const L = app.balance.land; let events = 0;
   for (const o of app.db.prepare('SELECT * FROM land_plots WHERE last_check_at + ? <= ?').all(L.dayMs, now)) {
-    const p = app.city.plotById[o.plot_id]; const days = Math.min(5, Math.floor((now - o.last_check_at) / L.dayMs));
+    const p = app.all.plotById[o.plot_id]; const days = Math.min(5, Math.floor((now - o.last_check_at) / L.dayMs));
     for (let i = 0; i < days; i++) {
       if (rng() < L.risk[p.risk]) { const levy = Math.ceil(o.paid_price * L.levyFraction);
         try { app.db.transaction(() => { move(app, { from: cashId(o.user_id), to: SYS.SINK_PROPERTY, amount: levy, reason: 'omo_onile_levy', ref: o.plot_id, userId: o.user_id, idemKey: `levy:${o.plot_id}:${o.last_check_at}:${i}` }); app.db.prepare('UPDATE land_plots SET levies_paid=levies_paid+1 WHERE plot_id=?').run(o.plot_id); })(); notify(app, o.user_id, 'omo_onile', `Omo-onile showed up at ${p.name} and you paid ₦${levy.toLocaleString('en-NG')} "to avoid wahala".`); events++; }

@@ -56,7 +56,7 @@ function activate(app, m, now) {
   for (const s of seats) if (s.user_id !== m.p1) notify(app, s.user_id, 'game', `Your ${GAMES[m.kind].label} game has started!`); notify(app, m.p1, 'game', `Your ${GAMES[m.kind].label} game has started!`);
 }
 export function sit(app, uid, venueId, stationId, stake = 0) {
-  const G = app.balance.games; const v = (app.city.venues || []).find(x => x.id === venueId); const st = v?.stations.find(s => s.id === stationId);
+  const G = app.balance.games; const v = app.all.venueById[venueId]; const st = v?.stations.find(s => s.id === stationId);
   if (!st || st.type !== 'game') bad('NO_STATION', 'No table like that here.', 404);
   const p = app.world.players.get(uid); if (!p || p.venue !== venueId) bad('NOT_INSIDE', 'Step inside first.', 409);
   const now = app.clock.now(); if (!app.limiter.hit(`sit:${uid}`, G.sitPerMin, 60000, now)) bad('RATE_LIMIT', 'Slow down a little.', 429);

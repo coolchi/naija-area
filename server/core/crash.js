@@ -3,6 +3,7 @@
 // RNG that the client cannot see, whether this encounter is a hit (about 5 %), after safe-zone, cooldown, grace and rate checks. A hit returns a one-use token;
 // only when the car really reaches the player does the client confirm (impact) and the server applies health loss, car damage and any charge through the ledger.
 // Ambient cars are never charged. Only a real player's own active car is damaged and charged. At zero health you wake up at the clinic: no account loss.
+import { cityOf } from './cities.js';
 import { createHash, randomBytes } from 'node:crypto';
 import { bad } from './util.js';
 import { getState, refreshNeeds, notify, addMood } from './economy.js';
@@ -16,8 +17,8 @@ const seedOf = (app) => app.balance.crash.seed || (app.crashSeed ||= randomBytes
 const between = (r, lo, hi) => lo + Math.round((hi - lo) * r);
 
 /** circles where nobody is ever hit: junctions and roundabouts (crossings), the plaza, doorways of venues/shops/homes, spawn points, the clinic */
-export function safeZones(app) {
-  if (app.crashSafe) return app.crashSafe; const c = app.city, S = app.balance.crash.safe, out = []; const roads = c.roads || [];
+export function safeZones(app, city = app.city) {
+  if (city._safe) return city._safe; const c = city, S = app.balance.crash.safe, out = []; const roads = c.roads || [];
   const pts = (r) => r.pts || [[r.x1, r.z1], [r.x2, r.z2]];
   const seg = (a, b, c2, d) => { const r = [b[0] - a[0], b[1] - a[1]], s = [d[0] - c2[0], d[1] - c2[1]]; const den = r[0] * s[1] - r[1] * s[0]; if (Math.abs(den) < 1e-9) return null; const q = [c2[0] - a[0], c2[1] - a[1]]; const t = (q[0] * s[1] - q[1] * s[0]) / den, u = (q[0] * r[1] - q[1] * r[0]) / den; return t < 0 || t > 1 || u < 0 || u > 1 ? null : [a[0] + r[0] * t, a[1] + r[1] * t]; };
   for (let i = 0; i < roads.length; i++) for (let j = i + 1; j < roads.length; j++) { const A = pts(roads[i]), B = pts(roads[j]); for (let a = 1; a < A.length; a++) for (let b = 1; b < B.length; b++) { const x = seg(A[a - 1], A[a], B[b - 1], B[b]); if (x) out.push({ x: x[0], z: x[1], r: Math.max(roads[i].width, roads[j].width) / 2 + S.junctionExtra, why: 'crossing' }); } }
@@ -26,11 +27,11 @@ export function safeZones(app) {
   for (const pl of c.places || []) out.push({ x: pl.x, z: pl.z, r: S.doorRadius, why: 'doorway' });
   for (const pr of c.properties || []) if (pr.door) out.push({ x: pr.door.x, z: pr.door.z, r: S.doorRadius, why: 'doorway' });
   for (const sp of c.spawns || []) out.push({ x: sp.x, z: sp.z, r: S.spawnRadius, why: 'spawn' });
-  const cl = clinicPlace(app); if (cl) out.push({ x: cl.x, z: cl.z, r: S.clinicRadius, why: 'clinic' });
-  return (app.crashSafe = out);
+  const cl = clinicPlace(app, city); if (cl) out.push({ x: cl.x, z: cl.z, r: S.clinicRadius, why: 'clinic' });
+  return (city._safe = out);
 }
-export const safeReason = (app, x, z) => { for (const s of safeZones(app)) if (Math.hypot(x - s.x, z - s.z) < s.r) return s.why; return null; };
-export const clinicPlace = (app) => (app.city.places || []).find(p => p.id === 'clinic') || null;
+export const safeReason = (app, x, z, city = app.city) => { for (const s of safeZones(app, city)) if (Math.hypot(x - s.x, z - s.z) < s.r) return s.why; return null; };
+export const clinicPlace = (app, city = app.city) => (city.places || []).find(p => p.id === 'clinic') || null;
 
 /** player health with natural recovery (lazy, like needs) */
 export function healthOf(app, uid) {
@@ -55,7 +56,7 @@ export function roll(app, uid, body = {}) {
   const u = app.db.prepare('SELECT created_at FROM users WHERE id=?').get(uid);
   if (p.venue) return no('inside');
   if (now - (u?.created_at || 0) < C.graceMs) return no('grace'); if (hv.health <= 0) return no('down'); if (now < (st.crash_cd_until || 0)) return no('cooldown');
-  if (speed < C.minSpeed) return no('slow'); const sz = safeReason(app, st.x, st.z); if (sz) return no('safe:' + sz);
+  if (speed < C.minSpeed) return no('slow'); const sz = safeReason(app, st.x, st.z, cityOf(app, uid)); if (sz) return no('safe:' + sz);
   if (r >= C.hitChance) return no('miss');
   const token = randomBytes(9).toString('hex'); log(app, { ...row, state: 'pending', hit: 1, token, expires_at: now + C.tokenMs }); return { hit: true, token, ttlMs: C.tokenMs };
 }
@@ -71,7 +72,7 @@ export function impact(app, uid, body = {}) {
     if (own) { carDamage = Math.min(100 - (own.damage || 0), between(rand01(seedOf(app), uid, seq, 'car'), C.car.min, C.car.max)); app.db.prepare('UPDATE player_cars SET damage=damage+? WHERE id=?').run(carDamage, own.id); carHealth = 100 - (own.damage || 0) - carDamage;
       const due = carDamage * C.feePerCarPoint, cash = balanceOf(app.db, cashId(uid)); fee = Math.min(due, cash); waived = due - fee; if (fee > 0) move(app, { from: cashId(uid), to: SYS.SINK_CARS, amount: fee, reason: 'crash_damage', ref: String(ev.id), userId: uid, idemKey: `crash:${ev.id}` }); }
     const hv = healthOf(app, uid); let health = clamp(hv.health - dmg, 0, C.maxHealth); let ko = false, pos = null, clinicFee = 0;
-    if (health <= 0) { ko = true; health = C.clinic.koHealth; const cl = clinicPlace(app); if (cl) { teleport(app, uid, cl.x, cl.z); pos = { x: cl.x, z: cl.z }; }
+    if (health <= 0) { ko = true; health = C.clinic.koHealth; const cl = clinicPlace(app, cityOf(app, uid)); if (cl) { teleport(app, uid, cl.x, cl.z); pos = { x: cl.x, z: cl.z }; }
       const cash = balanceOf(app.db, cashId(uid)); clinicFee = Math.min(C.clinic.koFee, cash); if (clinicFee > 0) move(app, { from: cashId(uid), to: SYS.SINK_FEES, amount: clinicFee, reason: 'clinic_fee', ref: `ko:${ev.id}`, userId: uid, idemKey: `ko:${ev.id}` }); addMood(app, uid, -C.clinic.koMood); }
     setHealth(app, uid, health); app.db.prepare('UPDATE player_state SET crash_cd_until=? WHERE user_id=?').run(now + C.cooldownMs, uid);
     app.db.prepare("UPDATE crash_events SET state=?, damage=?, car_id=?, car_damage=?, fee=? WHERE id=?").run(ko ? 'ko' : 'confirmed', dmg, own?.id ?? null, carDamage, fee + clinicFee, ev.id);
@@ -82,14 +83,14 @@ export function impact(app, uid, body = {}) {
 
 /** Community Clinic: treatment restores full health for a small fee (per missing point) */
 export function treat(app, uid, idemKey) {
-  const C = app.balance.crash; const cl = clinicPlace(app); if (!cl) bad('NO_CLINIC', 'There is no clinic here.', 404);
+  const C = app.balance.crash; const cl = clinicPlace(app, cityOf(app, uid)); if (!cl) bad('NO_CLINIC', 'There is no clinic here.', 404);
   const st = getState(app, uid); if (Math.hypot(st.x - cl.x, st.z - cl.z) > C.clinic.radius) bad('TOO_FAR', 'Go to the Community Clinic first.', 409);
   const hv = healthOf(app, uid); const missing = Math.ceil(C.maxHealth - hv.health); if (missing < 2) bad('FINE', 'The nurse says you are fine. No need to pay.', 409);
   return app.db.transaction(() => { const fee = Math.max(C.clinic.minFee, missing * C.clinic.feePerPoint); const cash = balanceOf(app.db, cashId(uid)); if (cash < fee) bad('NO_FUNDS', `Treatment costs about ₦${fee}. You can also rest: health comes back slowly by itself.`, 402, { fee });
     move(app, { from: cashId(uid), to: SYS.SINK_FEES, amount: fee, reason: 'clinic_treatment', ref: 'clinic', userId: uid, idemKey: idemKey ? `clinic:${uid}:${idemKey}` : null }); setHealth(app, uid, C.maxHealth); const mood = addMood(app, uid, 2);
     return { ok: true, fee, health: C.maxHealth, mood, cash: balanceOf(app.db, cashId(uid)), text: 'Nurse don treat you. You dey strong again.' }; })();
 }
-export const clinicInfo = (app, uid) => { const C = app.balance.crash; const cl = clinicPlace(app); const hv = healthView(app, uid); const missing = Math.ceil(C.maxHealth - hv.health); return { name: cl?.name || 'Community Clinic', health: hv.health, max: hv.max, fee: missing < 2 ? 0 : Math.max(C.clinic.minFee, missing * C.clinic.feePerPoint), estimate: true, regenPerMin: C.regenPerMin }; };
+export const clinicInfo = (app, uid) => { const C = app.balance.crash; const cl = clinicPlace(app, cityOf(app, uid)); const hv = healthView(app, uid); const missing = Math.ceil(C.maxHealth - hv.health); return { name: cl?.name || 'Community Clinic', health: hv.health, max: hv.max, fee: missing < 2 ? 0 : Math.max(C.clinic.minFee, missing * C.clinic.feePerPoint), estimate: true, regenPerMin: C.regenPerMin }; };
 /** Meco repair of crash damage (fee per car health point) */
 export function repair(app, uid, idemKey) {
   const C = app.balance.crash; const p = ensurePresence(app, uid); if (p.venue !== 'venue_meco') bad('NOT_AT_MECO', 'Go inside Meco to repair your car.', 409);

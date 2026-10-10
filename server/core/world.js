@@ -25,7 +25,7 @@ function inBounds(city, x, z) { const b = city.bounds; return x >= b.minX && x <
 export function ensurePresence(app, uid) {
   let p = app.world.players.get(uid);
   if (!p) { const u = app.db.prepare('SELECT username,color,is_bot,is_guest FROM users WHERE id=?').get(uid); const st = getState(app, uid);
-    p = { id: uid, name: u.username, color: u.color, isBot: !!u.is_bot, isGuest: !!u.is_guest, x: st.x, z: st.z, ry: st.ry, mode: st.mode, trail: [], lastSeen: app.clock.now(), lastPersist: 0, headless: false, chatSince: app.world.chatSeq }; app.world.players.set(uid, p); }
+    p = { id: uid, city: app.cities[st.city_id] ? st.city_id : app.defaultCityId, name: u.username, color: u.color, isBot: !!u.is_bot, isGuest: !!u.is_guest, x: st.x, z: st.z, ry: st.ry, mode: st.mode, trail: [], lastSeen: app.clock.now(), lastPersist: 0, headless: false, chatSince: app.world.chatSeq }; app.world.players.set(uid, p); }
   return p;
 }
 /** actions carry the client's current position; it goes through the same speed clamp as the trail */
@@ -49,7 +49,7 @@ function applyTrail(app, p, trail, now) {
     const dt = Math.max(0.05, (s.t - last.t) / 1000); const maxSpeed = (p.mode === 'drive' ? mv.maxDriveSpeed : mv.maxWalkSpeed) * mv.slack;
     let { x, z } = s; const d = dist(x, z, last.x, last.z);
     if (d > maxSpeed * dt) { const k = (maxSpeed * dt) / d; x = last.x + (x - last.x) * k; z = last.z + (z - last.z) * k; clampedCount++; }
-    const b = app.city.bounds; x = clamp(x, b.minX, b.maxX); z = clamp(z, b.minZ, b.maxZ);
+    const b = (app.cities[p.city] || app.city).bounds; x = clamp(x, b.minX, b.maxX); z = clamp(z, b.minZ, b.maxZ);
     const ns = { t: s.t, x: +x.toFixed(2), z: +z.toFixed(2), ry: +s.ry.toFixed(3) }; out.push(ns); last = ns;
   }
   if (out.length) { p.trail.push(...out); const keep = 120; if (p.trail.length > keep) p.trail.splice(0, p.trail.length - keep); const l = out[out.length - 1]; p.x = l.x; p.z = l.z; p.ry = l.ry; }
@@ -64,16 +64,17 @@ export function heartbeat(app, uid, body, meta = {}) {
   p.lastSeen = now; p.headless = !!meta.headless;
   if (body.mode === 'walk' || body.mode === 'drive') { if (body.mode === 'drive' && p.mode !== 'drive' && parkedActive(app, uid)) { /* your car is parked: it cannot be driven from elsewhere */ } else p.mode = body.mode; }
   if (typeof body.activity === 'string') p.activity = cleanText(body.activity, 24);
-  applyTrail(app, p, body.trail, now); venueTick(app, p);
+  const stale = typeof body.city === 'string' && body.city !== p.city; // the client is still in the old city (it reloads on this response): its trail and evidence do not count here
+  if (!stale) applyTrail(app, p, body.trail, now); venueTick(app, p);
   if (now - p.lastPersist > 30000) { app.db.prepare('UPDATE player_state SET x=?,z=?,ry=?,mode=?,updated_at=? WHERE user_id=?').run(p.x, p.z, p.ry, p.mode, now, uid); app.db.prepare('UPDATE users SET last_seen=? WHERE id=?').run(now, uid); p.lastPersist = now; }
   // ad evidence (validated server-side; client sends evidence, never counts)
   let adResult = null;
-  if (Array.isArray(body.evidence) && body.evidence.length) adResult = processEvidence(app, p, body.evidence.slice(0, 40), now);
+  if (!stale && Array.isArray(body.evidence) && body.evidence.length) adResult = processEvidence(app, p, body.evidence.slice(0, 40), now);
   // other players near me
   const hb = app.balance.heartbeat; const since = Number.isFinite(body.since) ? body.since : 0; const cutoff = now - hb.activeWindowMs;
   const cand = [];
   const hidden = hiddenFrom(app, uid);
-  for (const o of w.players.values()) { if (o.id === uid || o.lastSeen < cutoff || hidden.has(o.id)) continue; const d = dist(o.x, o.z, p.x, p.z); if (d <= hb.nearbyRadius) cand.push([d, o]); }
+  for (const o of w.players.values()) { if (o.id === uid || o.city !== p.city || o.lastSeen < cutoff || hidden.has(o.id)) continue; const d = dist(o.x, o.z, p.x, p.z); if (d <= hb.nearbyRadius) cand.push([d, o]); }
   cand.sort((a, b) => a[0] - b[0]);
   const players = cand.slice(0, hb.maxNearby).map(([, o]) => {
     // downsample trail to ~1 sample/2s newer than `since`
@@ -87,12 +88,12 @@ export function heartbeat(app, uid, body, meta = {}) {
   const notifs = app.db.prepare('SELECT id,kind,text,created_at FROM notifications WHERE user_id=? AND id>? ORDER BY id LIMIT 20').all(uid, nSince);
   // nearby chat
   const chatSince = Number.isFinite(body.chatSince) ? body.chatSince : p.chatSince;
-  const chat = app.db.prepare('SELECT id,user_id,username,x,z,text,created_at FROM chat_messages WHERE id>? ORDER BY id LIMIT 60').all(chatSince)
-    .filter(m => dist(m.x, m.z, p.x, p.z) <= app.balance.chat.radius && !hidden.has(m.user_id)).map(m => ({ id: m.id, u: m.username, t: m.text, at: m.created_at }));
+  const chat = app.db.prepare('SELECT id,user_id,username,x,z,text,created_at,city_id FROM chat_messages WHERE id>? ORDER BY id LIMIT 60').all(chatSince)
+    .filter(m => m.city_id === p.city && dist(m.x, m.z, p.x, p.z) <= app.balance.chat.radius && !hidden.has(m.user_id)).map(m => ({ id: m.id, u: m.username, t: m.text, at: m.created_at }));
   const chatMax = app.db.prepare('SELECT COALESCE(MAX(id),0) m FROM chat_messages').get().m;
   const me = profile(app, uid);
-  const resp = { now, interval, ccu, shed: interval >= 20000, world: gameTime(app, now), me, players, notifs, chat, chatCursor: chatMax,
-    knocks: knockState(app, uid), game: myMatchView(app, uid), venue: p.venue || null, teleport: p.force || undefined, adsVersion: app.adsVersion, ads: body.adsVersion === app.adsVersion ? undefined : adsSnapshot(app, now), adResult };
+  const resp = { now, interval, ccu, city: p.city, shed: interval >= 20000, world: gameTime(app, now), me, players, notifs, chat, chatCursor: chatMax,
+    knocks: knockState(app, uid), game: myMatchView(app, uid), venue: p.venue || null, teleport: p.force || undefined, adsVersion: app.adsVersion, ads: body.adsVersion === app.adsVersion ? undefined : adsSnapshot(app, now, p.city), adResult };
   p.force = undefined;
   return resp;
 }
@@ -107,7 +108,7 @@ export function sendChat(app, uid, text) {
   if (p.lastText === t.toLowerCase() && now - (p.lastTextAt || 0) < S.dupWindowMs) bad('SPAM', 'You just said that.', 429);
   p.lastText = t.toLowerCase(); p.lastTextAt = now;
   p.lastChat = now;
-  app.db.prepare('INSERT INTO chat_messages(user_id,username,x,z,text,created_at) VALUES (?,?,?,?,?,?)').run(uid, p.name, p.x, p.z, t, now);
+  app.db.prepare('INSERT INTO chat_messages(user_id,username,x,z,text,created_at,city_id) VALUES (?,?,?,?,?,?,?)').run(uid, p.name, p.x, p.z, t, now, p.city);
   app.db.prepare('DELETE FROM chat_messages WHERE id < (SELECT MAX(id) FROM chat_messages) - ?').run(app.balance.chat.keep);
   return { ok: true };
 }

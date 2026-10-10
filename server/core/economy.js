@@ -1,4 +1,5 @@
 // Economy v0. ALL amounts live in config/balance.js (ESTIMATES). Everything that moves money goes through ledger.post.
+import { cityOf, cityIdOf } from './cities.js';
 import { bad, clamp, cleanText, dayKey } from './util.js';
 import { screen } from './filter.js';
 import { typeOf, maxGuestsOf, layoutOf, reservedRects, plotStage } from './housing.js';
@@ -39,17 +40,18 @@ const setNeeds = (app, uid, energy, hunger) => app.db.prepare('UPDATE player_sta
   .run(clamp(energy, 0, 100), clamp(hunger, 0, 100), app.clock.now(), uid);
 
 export function homeOf(app, uid) { return app.db.prepare('SELECT * FROM property_owner WHERE user_id=?').get(uid); }
-export function propDef(app, id) { return app.city.propertyById[id]; }
+export function propDef(app, id) { return app.all.propertyById[id]; }
 
 // ---- JOBS ---------------------------------------------------------------
 export const jobDef = (app, id) => app.balance.jobs.find(j => j.id === id);
 export function jobsFor(app, uid) {
   const s = getState(app, uid); const now = app.clock.now();
   const active = activeShift(app, uid);
-  return app.balance.jobs.map(j => {
+  const here = cityOf(app, uid);
+  return app.balance.jobs.filter(j => here.jobLoc[j.location]).map(j => {
     const last = app.db.prepare("SELECT claimed_at FROM shifts WHERE user_id=? AND job_id=? AND status='claimed' ORDER BY id DESC LIMIT 1").get(uid, j.id);
     const cdLeft = last ? Math.max(0, last.claimed_at + j.cooldownSec * 1000 - now) : 0;
-    const loc = app.city.jobLoc[j.location];
+    const loc = here.jobLoc[j.location];
     return { ...j, locked: s.total_shifts < j.minShiftsToUnlock, shiftsNeeded: Math.max(0, j.minShiftsToUnlock - s.total_shifts), cooldownLeftMs: cdLeft, x: loc?.x, z: loc?.z, place: loc?.label };
   }).map(j => ({ ...j, active: active?.job_id === j.id }));
 }
@@ -60,7 +62,7 @@ export function startShift(app, uid, jobId) {
     const now = app.clock.now(); const st = refreshNeeds(app, uid);
     if (activeShift(app, uid)) bad('SHIFT_ACTIVE', 'You already have a shift running.', 409);
     if (st.total_shifts < job.minShiftsToUnlock) bad('JOB_LOCKED', `Complete ${job.minShiftsToUnlock - st.total_shifts} more shift(s) to unlock this job.`);
-    const loc = app.city.jobLoc[job.location];
+    const loc = cityOf(app, uid).jobLoc[job.location]; if (!loc) bad('NO_JOB', 'That job is not offered in this city.', 404);
     if (dist(st.x, st.z, loc.x, loc.z) > app.balance.interact.jobRadius + 6) bad('TOO_FAR', `Go to ${loc.label} to start this job.`);
     const last = app.db.prepare("SELECT claimed_at FROM shifts WHERE user_id=? AND job_id=? AND status='claimed' ORDER BY id DESC LIMIT 1").get(uid, job.id);
     if (last && now < last.claimed_at + job.cooldownSec * 1000) bad('COOLDOWN', 'You need a short break before this job again.', 429, { retryMs: last.claimed_at + job.cooldownSec * 1000 - now });
@@ -117,12 +119,12 @@ export function shopOpen(app, shopId, now = app.clock.now()) {
 export function itemPrice(app, shop, item, channel) {
   const ch = app.balance.shops.channels[channel]; return { price: Math.round(item.price * ch.mult), fee: ch.fee || 0 };
 }
-export function shopsView(app) {
-  return app.city.shops.map(s => ({ id: s.id, name: s.name, desc: s.desc, channel: s.channel, x: s.x, z: s.z, area: app.city.area(s.x, s.z), status: shopOpen(app, s.id),
+export function shopsView(app, uid) {
+  const city = uid ? cityOf(app, uid) : app.city; return city.shops.map(s => ({ id: s.id, name: s.name, desc: s.desc, channel: s.channel, x: s.x, z: s.z, area: city.area(s.x, s.z), status: shopOpen(app, s.id),
     items: s.items.map(i => ({ ...i, price: itemPrice(app, s, i, s.channel).price, deliveryPrice: itemPrice(app, s, i, 'delivery').price })), deliveryFee: app.balance.shops.channels.delivery.fee, deliveryMult: app.balance.shops.channels.delivery.mult }));
 }
 export function shopBuy(app, uid, shopId, itemId, qty = 1, idemKey = null, channel = 'local') {
-  const shop = app.city.shopById[shopId]; if (!shop) bad('NO_SHOP', 'Unknown shop.', 404);
+  const shop = cityOf(app, uid).shopById[shopId]; if (!shop) bad('NO_SHOP', 'Unknown shop.', 404);
   const item = shop.items.find(i => i.id === itemId); if (!item) bad('NO_ITEM', 'Unknown item.', 404);
   if (!Number.isInteger(qty) || qty < 1 || qty > 5) bad('BAD_QTY', 'Quantity 1-5.');
   if (!['local', 'delivery'].includes(channel)) bad('BAD_CHANNEL', 'channel must be local or delivery.');
@@ -149,7 +151,7 @@ export function propertyView(app, p, uid) {
     presence: o ? app.presenceOf?.(o.user_id, p.id) || 'away' : null, maxGuests: maxGuestsOf(app, p), type: typeOf(app, p).id, typeLabel: typeOf(app, p).label,
     nextRentDue: o && o.user_id === uid ? o.next_rent_due : undefined, missed: o && o.user_id === uid ? o.missed : undefined };
 }
-export function listProperties(app, uid) { return app.city.properties.map(p => propertyView(app, p, uid)); }
+export function listProperties(app, uid) { return cityOf(app, uid).properties.map(p => propertyView(app, p, uid)); }
 export function acquireProperty(app, uid, propertyId, mode, idemKey) {
   const p = propDef(app, propertyId); if (!p) bad('NO_PROPERTY', 'Unknown property.', 404);
   if (!['rent', 'own'].includes(mode)) bad('BAD_MODE', 'mode must be rent or own.');
@@ -360,7 +362,7 @@ const hairView = (app, st) => { if (!st.hair) return null; const S = app.balance
 export function profile(app, uid) {
   const st = refreshNeeds(app, uid); const nw = netWorth(app, uid); const h = homeOf(app, uid);
   const sh = activeShift(app, uid); const u = app.db.prepare('SELECT username,is_guest,color,created_at FROM users WHERE id=?').get(uid);
-  return { id: uid, username: u.username, guest: !!u.is_guest, color: u.color, cash: nw.cash, savings: nw.savings, netWorth: nw.total,
+  return { id: uid, cityId: cityIdOf(app, uid), username: u.username, guest: !!u.is_guest, color: u.color, cash: nw.cash, savings: nw.savings, netWorth: nw.total,
     pos: { x: st.x, z: st.z, ry: st.ry }, energy: Math.round(st.energy * 10) / 10, hunger: Math.round(st.hunger * 10) / 10, mood: Math.round(st.mood * 10) / 10, totalShifts: st.total_shifts, mode: st.mode, health: healthView(app, uid), hair: hairView(app, st),
     home: h ? propertyView(app, propDef(app, h.property_id), uid) : null,
     shift: sh ? { id: sh.id, jobId: sh.job_id, endsAt: sh.ends_at, startedAt: sh.started_at, wage: sh.wage } : null };

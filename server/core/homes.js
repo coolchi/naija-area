@@ -13,7 +13,7 @@ function access(app, uid, pid) { // -> { o, isOwner } or throws
 }
 export const palette = (app) => ({ price: app.balance.decor.price, walls: Object.entries(app.balance.decor.walls).map(([id, [name, hex]]) => ({ id, name, hex })), floors: Object.entries(app.balance.decor.floors).map(([id, [name, hex]]) => ({ id, name, hex })) });
 export function decorOf(app, o) {
-  const D = app.balance.decor; const pd = o.property_id ? app.city.propertyById?.[o.property_id] : null; const t = pd ? typeOf(app, pd) : null; const dw = D.walls[t?.wall] ? t.wall : 'cream', df = D.floors[t?.floor] ? t.floor : 'oak'; // each house type has its own default paint and floor
+  const D = app.balance.decor; const pd = o.property_id ? app.all.propertyById?.[o.property_id] : null; const t = pd ? typeOf(app, pd) : null; const dw = D.walls[t?.wall] ? t.wall : 'cream', df = D.floors[t?.floor] ? t.floor : 'oak'; // each house type has its own default paint and floor
   const wid = D.walls[o.wall_color] ? o.wall_color : dw, fid = D.floors[o.floor_color] ? o.floor_color : df; return { wall: { id: wid, hex: D.walls[wid][1] }, floor: { id: fid, hex: D.floors[fid][1] } };
 }
 export const lovesOf = (app, pid) => app.db.prepare('SELECT COUNT(*) n FROM house_loves WHERE property_id=?').get(pid).n;

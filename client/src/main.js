@@ -42,7 +42,7 @@ class Game {
 
   async boot() {
     try {
-      this.progress(8, 'Reaching the server…'); const [cfg, city] = await Promise.all([get('/api/config'), get('/api/city')]); this.cfg = cfg; this.city = city; city.area = (x, z) => (z > 125 ? 'Lagoon Front' : x < 0 && z < 0 ? 'Yaba' : x >= 0 && z < 0 ? 'Ikeja' : x < 0 ? 'Surulere' : 'Lekki Phase 1'); $('#tagline').textContent = cfg.tagline || ''; document.title = cfg.name;
+      this.progress(8, 'Reaching the server…'); const [cfg, city] = await Promise.all([get('/api/config'), get('/api/city')]); this.cfg = cfg; this.city = city; const legacy = (x, z) => (z > 125 ? 'Lagoon Front' : x < 0 && z < 0 ? 'Yaba' : x >= 0 && z < 0 ? 'Ikeja' : x < 0 ? 'Surulere' : 'Lekki Phase 1'); city.area = (x, z) => city.districts?.find(d => x >= d.x0 && x < d.x1 && z >= d.z0 && z < d.z1)?.name || (city.id === 'lagos-mainland' ? legacy(x, z) : city.cityName); $('#tagline').textContent = cfg.tagline || ''; document.title = cfg.name;
       this.progress(30, 'Building the district…'); await new Promise(r => setTimeout(r, 30));
       this.renderer = new THREE.WebGLRenderer({ canvas: $('#game'), antialias: devicePixelRatio < 2, powerPreference: 'high-performance' }); this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
       this.camera = new THREE.PerspectiveCamera(58, 1, 0.5, 900); this.camera.position.set(0, 14, 20);
@@ -81,6 +81,7 @@ class Game {
       try { const r = await post(`/api/auth/${tab}`, { username: f.get('username'), password: f.get('password'), age18 }); $('#auth').classList.add('hidden'); await this.enter(r.user); } catch (er) { $('#authErr').textContent = er.message; } finally { btn.disabled = false; } };
   }
   async enter(user) {
+    if (user.cityId && this.city?.id && user.cityId !== this.city.id) { this.progress?.(10, 'Loading your city…'); location.reload(); return; } // the world is built from the player's own city only
     this.playing = true; this.user = user; $('#hud').classList.remove('hidden'); this.cfg.jobs = (await get('/api/jobs').catch(() => ({ jobs: [] }))).jobs; this.ctrl.setLook(user.color, user.username);
     const spawns = this.city.spawns; const s = spawns[user.id % spawns.length]; const p = user.pos && (user.pos.x || user.pos.z) ? user.pos : null; this.ctrl.teleport(p?.x ?? s.x, p?.z ?? s.z); this.ctrl.ry = s.ry || 0; this.ctrl.camYaw = this.ctrl.ry; this.camera.position.set(this.ctrl.x - 10, 12, this.ctrl.z + 12);
     this.update(user); this.parking.load(); this.rideSvc.load(); this.tour ||= new Tour(this); this.tour.maybeStart(); this.net.start(); this.phone2 = new PhoneSys(this); this.phone2.start(); this.refreshProps(); get('/api/plots').then(d => { this.plots = d.plots; this.refreshPlots(); }).catch(() => {});
@@ -98,6 +99,7 @@ class Game {
 
   // ---- heartbeat results
   onHeartbeat(r) {
+    if (r.city && this.city?.id && r.city !== this.city.id && !this.cityChanging) { this.cityChanging = true; this.ui.toast('Arriving in a new city…'); setTimeout(() => location.reload(), 700); return; }
     this.update(r.me); this.worldTime = r.world; this.ui.clock(r.world); this.world.setTime(r.world.minutesOfDay); this.ghosts.ingest(r.players, this.serverNow()); this.ads.setSnapshot(r.ads);
     for (const c of r.chat || []) this.ui.addChat(c.u, c.t, c.id); for (const n of r.notifs || []) { if (!['knock', 'dm', 'knock_in', 'knock_no'].includes(n.kind) || true) { this.unread = (this.unread || 0) + 1; this.ui.toast(n.text, ['omo_onile'].includes(n.kind) ? 'bad' : n.kind === 'dm' ? '' : 'money'); } } this.ui.badge(this.unread || 0);
     this.lastKnocks = r.knocks; for (const k of r.knocks?.incoming || []) this.ui.hostKnock(k);

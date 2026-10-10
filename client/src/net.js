@@ -10,7 +10,7 @@ export class Net {
     if (!this.running || this.inflight) return; this.inflight = true; const g = this.g; const now = g.serverNow(); let ok = false;
     const trail = this.trail.splice(0).map(s => ({ a: Math.max(0, Math.round(now - s.t)), x: +s.x.toFixed(2), z: +s.z.toFixed(2), ry: +s.ry.toFixed(3) }));
     try {
-      const body = { trail, mode: g.ctrl.mode, since: this.since, notifSince: this.notifSince, adsVersion: this.adsVersion, evidence: g.ads.take(), activity: g.activity || '' }; if (this.chatSince !== undefined) body.chatSince = this.chatSince;
+      const body = { city: g.city.id, trail, mode: g.ctrl.mode, since: this.since, notifSince: this.notifSince, adsVersion: this.adsVersion, evidence: g.ads.take(), activity: g.activity || '' }; if (this.chatSince !== undefined) body.chatSince = this.chatSince;
       const t0 = performance.now(); const r = await post('/api/heartbeat', body); const rtt = performance.now() - t0; g.clockSync(r.now, rtt); this.since = r.now; this.fails = 0; ok = true; g.setConn(true);
       this.interval = r.interval || 3000; this.adsVersion = r.adsVersion; this.chatSince = r.chatCursor; if (r.notifs?.length) this.notifSince = r.notifs[r.notifs.length - 1].id; g.onHeartbeat(r);
     } catch (e) {

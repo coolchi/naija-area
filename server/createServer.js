@@ -21,6 +21,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(here, '..');
 
 export function loadCity(file = path.join(here, 'config/cities/lagos-mainland.json')) { return JSON.parse(fs.readFileSync(file, 'utf8')); }
+/** city registry (config/cities/index.json): the default city plus every other enabled city */
+export function loadRegistry(dir = path.join(here, 'config/cities')) {
+  const reg = JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8')); const on = reg.cities.filter(c => c.enabled !== false); const def = on.find(c => c.id === reg.default) || on[0];
+  return { cityJson: loadCity(path.join(dir, def.file)), extraCities: on.filter(c => c !== def).map(c => loadCity(path.join(dir, c.file))) };
+}
 
 export function buildServer(opts = {}) {
   const env = process.env;
@@ -32,7 +37,7 @@ export function buildServer(opts = {}) {
   db.pragma('journal_mode = WAL'); db.pragma('foreign_keys = ON'); db.pragma('busy_timeout = 5000');
   const platform = opts.platform || nodePlatform({ dataDir });
   const prod = env.NODE_ENV === 'production';
-  const app = createApp({ db, platform, cityJson: opts.cityJson || loadCity(), balance: opts.balance || BALANCE, clock: opts.clock, filterHeadless: opts.filterHeadless ?? env.NA_FILTER_HEADLESS !== '0' });
+  const app = createApp({ db, platform, ...(opts.cityJson ? { cityJson: opts.cityJson, extraCities: opts.extraCities || [] } : loadRegistry()), balance: opts.balance || BALANCE, clock: opts.clock, filterHeadless: opts.filterHeadless ?? env.NA_FILTER_HEADLESS !== '0' });
   if (voiceDir) { fs.mkdirSync(voiceDir, { recursive: true }); const f = (k) => path.join(voiceDir, Buffer.from(k).toString('base64url')); app.voiceStore = { put: (k, b) => fs.writeFileSync(f(k), b), get: (k) => { try { return fs.readFileSync(f(k)); } catch { return null; } }, del: (k) => { try { fs.unlinkSync(f(k)); } catch { /* already gone */ } } }; }
   app.devRoutes = opts.dev ?? env.NA_DEV === '1';
   // admin password: env var; a fixed default exists ONLY outside production, with a loud warning

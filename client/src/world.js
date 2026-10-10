@@ -144,9 +144,9 @@ export function buildWorld(city) {
   }
   // ---- water (lagoon)
   const wt2 = waterTexture(); wt2.repeat.set(20, 8);
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(city.water.maxX - city.water.minX, city.water.maxZ - city.water.minZ).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: wt2, transparent: true, opacity: 0.92 }));
-  water.position.set(0, -0.5, (city.water.minZ + city.water.maxZ) / 2); root.add(water);
-  plain.box(city.bounds.maxX - city.bounds.minX + 40, 1.2, 4, 0, -0.9, B.maxZ - 1, 0x9a927f, { noAO: true }); // sea wall
+  if (city.water) { const water = new THREE.Mesh(new THREE.PlaneGeometry(city.water.maxX - city.water.minX, city.water.maxZ - city.water.minZ).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: wt2, transparent: true, opacity: 0.92 }));
+  water.position.set(0, -0.5, (city.water.minZ + city.water.maxZ) / 2); root.add(water); }
+  if (city.water) plain.box(city.bounds.maxX - city.bounds.minX + 40, 1.2, 4, 0, -0.9, B.maxZ - 1, 0x9a927f, { noAO: true }); // sea wall
   // far skyline silhouettes (Third-Mainland-style bridge + towers) as backdrop
   const sky = new Builder(31, 0.05);
   for (let i = 0; i < 26; i++) { const x = -420 + i * 34 + rnd() * 10; sky.box(14 + rnd() * 14, 30 + rnd() * 70, 14, x, -2, -340 - rnd() * 40, 0x7a8da3, { noAO: true }); }

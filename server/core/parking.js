@@ -1,6 +1,7 @@
 // Car parks (10 Oct 2026). A player who is DRIVING their own (owned, active) car inside a lot can park it in a bay for the lot's small fee (game money, through the ledger).
 // The parked car stays in its bay for everyone to see until its owner takes it back (walk up to it), sells it, or 3 days pass (then it simply returns to the garage, no fee).
 // While your active car is parked you cannot drive it somewhere else: the server ignores the 'drive' mode in the heartbeat. Ambient cars fill the other bays (deterministic, client side).
+import { cityOf } from './cities.js';
 import { bad } from './util.js';
 import { notify } from './economy.js';
 import { move, cashId, balanceOf, SYS } from './ledger.js';
@@ -9,8 +10,8 @@ import { carFor } from './cars.js';
 import { gameTime } from './economy.js';
 import { bays, inLot, nearestFree } from './carparks-layout.js';
 
-const lotsOf = (app) => app.city.carParks || [];
-const lotById = (app, id) => lotsOf(app).find(l => l.id === id) || null;
+const lotsOf = (app, uid) => (uid ? cityOf(app, uid) : app.city).carParks || [];
+const lotById = (app, id) => app.all.carParkById[id] || null;
 export const parkedRow = (app, uid) => app.db.prepare('SELECT * FROM car_parking WHERE user_id=?').get(uid) || null;
 /** the parked car stops the player driving it elsewhere: used by the heartbeat */
 export function parkedActive(app, uid) { const r = parkedRow(app, uid); if (!r) return false; const a = app.db.prepare('SELECT id FROM player_cars WHERE user_id=? AND active=1').get(uid); return !!a && a.id === r.car_id; }
@@ -18,7 +19,7 @@ export function expireOld(app, now = app.clock.now()) { const max = app.balance.
 const carView = (app, r) => { const c = app.db.prepare('SELECT model FROM player_cars WHERE id=?').get(r.car_id); const m = c && app.balance.cars.models[c.model]; return { lot: r.lot_id, bay: r.bay, x: r.x, z: r.z, ry: r.ry, parkedAt: r.parked_at, fee: r.fee, color: m?.color || '#888888', model: m?.name || 'Car' }; };
 
 export function view(app, uid) {
-  expireOld(app); const lots = lotsOf(app); const rows = app.db.prepare('SELECT * FROM car_parking').all(); const mine = rows.find(r => r.user_id === uid); const hour = gameTime(app).hour;
+  expireOld(app); const lots = lotsOf(app, uid); const rows = app.db.prepare('SELECT * FROM car_parking').all(); const mine = rows.find(r => r.user_id === uid); const hour = gameTime(app).hour;
   return { enabled: app.balance.parking.enabled, hour, estimate: true, ownsCar: carFor(app, uid).owned, takeRangeM: app.balance.parking.takeRangeM,
     lots: lots.map(l => ({ id: l.id, name: l.name, fee: l.fee, kind: l.kind, venueId: l.venueId || null, bays: bays(l).length, taken: rows.filter(r => r.lot_id === l.id).length })),
     mine: mine ? carView(app, mine) : null,
@@ -30,7 +31,7 @@ export function park(app, uid, idemKey) {
   const p = ensurePresence(app, uid); if (p.mode !== 'drive') bad('NOT_DRIVING', 'Drive your car into the car park first.', 409);
   const car = carFor(app, uid); if (!car.owned) bad('NO_OWN_CAR', 'Only your own car can be parked here. Buy one at Naija Auto Mart.', 409);
   if (parkedRow(app, uid)) bad('ALREADY_PARKED', 'Your car is already parked.', 409);
-  const lot = lotsOf(app).find(l => inLot(l, p.x, p.z, P.lotPadM)); if (!lot) bad('NOT_IN_LOT', 'You are not inside a car park.', 409);
+  const lot = lotsOf(app, uid).find(l => inLot(l, p.x, p.z, P.lotPadM)); if (!lot) bad('NOT_IN_LOT', 'You are not inside a car park.', 409);
   return app.db.transaction(() => {
     const taken = app.db.prepare('SELECT bay FROM car_parking WHERE lot_id=?').all(lot.id).map(r => r.bay); const bay = nearestFree(lot, p.x, p.z, taken); if (!bay) bad('LOT_FULL', 'This car park is full.', 409);
     const cash = balanceOf(app.db, cashId(uid)); if (cash < lot.fee) bad('NO_FUNDS', `Parking costs ₦${lot.fee}.`, 402, { fee: lot.fee });

@@ -19,12 +19,12 @@ export function clubAct(app, uid, v, st, body = {}) {
 export function basinAct(app, uid, v, st) { const S = app.balance.leisure.salon; cd(app, uid, 'wash', S.washCdMs, 'Your hair is clean already!', v.id); const mood = addMood(app, uid, S.washMood); return { ok: true, mood, text: 'Fresh wash. Head dey cool! 🚿' }; }
 
 export function salonMenu(app, uid, venueId) {
-  const v = (app.city.venues || []).find(x => x.id === venueId && x.kind === 'salon'); if (!v) bad('NO_VENUE', 'No salon like that.', 404); const S = app.balance.leisure.salon;
+  const v = (app.all.venueById[venueId]?.kind === 'salon' ? app.all.venueById[venueId] : null); if (!v) bad('NO_VENUE', 'No salon like that.', 404); const S = app.balance.leisure.salon;
   const st = app.db.prepare('SELECT hair, hair_at FROM player_state WHERE user_id=?').get(uid) || {}; const cur = S.styles.find(x => x.id === st.hair);
   return { venue: v.id, name: v.name, styles: S.styles, current: cur ? { ...cur, fresh: app.clock.now() - st.hair_at < S.freshMs } : null, note: 'Fees are placeholders (ESTIMATE). Game money only.' };
 }
 export function salonStyle(app, uid, venueId, stationId, styleId, idem) {
-  const v = (app.city.venues || []).find(x => x.id === venueId && x.kind === 'salon'); if (!v) bad('NO_VENUE', 'No salon like that.', 404); const st = v.stations.find(s => s.id === stationId && s.type === 'style'); if (!st) bad('NO_STATION', 'Sit in a styling chair first.', 404);
+  const v = (app.all.venueById[venueId]?.kind === 'salon' ? app.all.venueById[venueId] : null); if (!v) bad('NO_VENUE', 'No salon like that.', 404); const st = v.stations.find(s => s.id === stationId && s.type === 'style'); if (!st) bad('NO_STATION', 'Sit in a styling chair first.', 404);
   const p = ensurePresence(app, uid); if (p.venue !== venueId) bad('NOT_INSIDE', 'Step inside first.', 409);
   const S = app.balance.leisure.salon; const style = S.styles.find(x => x.id === styleId); if (!style) bad('BAD_STYLE', 'Pick a style from the menu.');
   cd(app, uid, 'style', S.cdMs, 'You just got a fresh look. Let it breathe a little!', 'salon');

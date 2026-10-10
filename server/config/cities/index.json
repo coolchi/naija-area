@@ -1,0 +1,7 @@
+{
+  "_note": "City registry. A city file listed here with enabled:true is loaded at start-up. Add a city = add its JSON (tools/new-city.mjs makes a valid skeleton) and one line here. Ids must be unique across cities (job ids excepted).",
+  "default": "lagos-mainland",
+  "cities": [
+    { "id": "lagos-mainland", "file": "lagos-mainland.json", "enabled": true }
+  ]
+}

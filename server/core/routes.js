@@ -1,4 +1,5 @@
 // Transport-agnostic route table. Express adapts it (server/index.js); the static demo adapts it to an in-browser fetch mock.
+import { cityOf, publicCity, cityList, onlineByCity } from './cities.js';
 import { GameError, bad, cleanText } from './util.js';
 import * as auth from './auth.js';
 import * as eco from './economy.js';
@@ -28,7 +29,8 @@ const route = (method, path, opts, handler) => { if (typeof opts === 'function')
 route('GET', '/api/health', (c) => ({ ok: true, name: c.app.gameName, now: c.app.clock.now() }));
 route('GET', '/api/config', (c) => ({ crash: { enabled: !!c.app.balance.crash.enabled, regenPerMin: c.app.balance.crash.regenPerMin, max: c.app.balance.crash.maxHealth }, moodHappyAt: c.app.balance.mood.happyAt, name: c.app.gameName, tagline: GAME_TAGLINE, minAge: MIN_AGE, testMode: true, devRoutes: !!c.app.devRoutes, rotationMs: AD_POLICY.rotationMs, balanceNote: c.app.balance._note,
   topupOptions: c.app.balance.topup.options, phone: !!c.app.balance.phone.enabled, transport: c.app.balance.transport, shopChannels: c.app.balance.shops.channels, workTask: c.app.balance.work.task, land: { risk: c.app.balance.land.risk }, maxNameLen: c.app.balance.housing.maxNameLen, housing: { rentPeriodMs: c.app.balance.housing.rentPeriodMs }, furniture: c.app.balance.housing.furniture }));
-route('GET', '/api/city', (c) => { const { propertyById, shopById, jobLoc, billboardById, buildingById, plotById, placeById, area, ...rest } = c.app.city; return rest; });
+route('GET', '/api/city', (c) => publicCity(c.uid ? cityOf(c.app, c.uid) : c.app.city));
+route('GET', '/api/cities', { auth: 'user' }, (c) => ({ cities: cityList(c.app, c.uid), online: onlineByCity(c.app) }));
 route('GET', '/api/stats', (c) => {
   const a = c.app; const players = a.db.prepare('SELECT COUNT(*) n FROM users WHERE is_bot=0').get().n; const bots = a.db.prepare('SELECT COUNT(*) n FROM users WHERE is_bot=1').get().n;
   const live = a.db.prepare("SELECT COUNT(*) n FROM ad_campaigns WHERE status='live'").get().n;
@@ -53,7 +55,7 @@ route('GET', '/api/jobs', { auth: 'user' }, (c) => ({ jobs: eco.jobsFor(c.app, c
 route('POST', '/api/jobs/start', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); const r = eco.startShift(c.app, c.uid, c.body.jobId); return { ok: true, endsAt: r.endsAt, user: eco.profile(c.app, c.uid) }; });
 route('POST', '/api/jobs/claim', { auth: 'user' }, (c) => { const r = eco.claimShift(c.app, c.uid); return { ok: true, wage: r.wage, user: eco.profile(c.app, c.uid) }; });
 route('POST', '/api/jobs/abandon', { auth: 'user' }, (c) => { eco.abandonShift(c.app, c.uid); return { ok: true, user: eco.profile(c.app, c.uid) }; });
-route('GET', '/api/shops', { auth: 'user' }, (c) => ({ shops: eco.shopsView(c.app), channels: c.app.balance.shops.channels }));
+route('GET', '/api/shops', { auth: 'user' }, (c) => ({ shops: eco.shopsView(c.app, c.uid), channels: c.app.balance.shops.channels }));
 route('POST', '/api/shop/buy', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); const r = eco.shopBuy(c.app, c.uid, c.body.shopId, c.body.itemId, c.body.qty ?? 1, c.body.idem, c.body.channel || 'local'); return { ok: true, ...r, user: eco.profile(c.app, c.uid) }; });
 route('GET', '/api/properties', { auth: 'user' }, (c) => ({ properties: eco.listProperties(c.app, c.uid) }));
 route('POST', '/api/property/acquire', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); eco.acquireProperty(c.app, c.uid, c.body.propertyId, c.body.mode, c.body.idem); return { ok: true, user: eco.profile(c.app, c.uid) }; });
@@ -72,7 +74,7 @@ route('POST', '/api/social/mute', { auth: 'user' }, (c) => safety.setBlock(c.app
 route('GET', '/api/social/blocks', { auth: 'user' }, (c) => ({ rows: safety.listBlocks(c.app, c.uid), reasons: safety.REASONS }));
 route('GET', '/api/admin/reports', { auth: 'admin' }, (c) => ({ rows: safety.adminReports(c.app, c.query.status ? String(c.query.status).split(',') : ['open']) }));
 route('POST', '/api/admin/reports/resolve', { auth: 'admin' }, (c) => safety.resolve(c.app, c.body.kind, c.body.target, c.body.action, c.body.note));
-route('GET', '/api/venues', { auth: 'user' }, (c) => ({ venues: venues.venuesList(c.app) }));
+route('GET', '/api/venues', { auth: 'user' }, (c) => ({ venues: venues.venuesList(c.app, c.uid) }));
 route('GET', '/api/venue', { auth: 'user' }, (c) => venues.venueView(c.app, c.uid, String(c.query.id)));
 route('POST', '/api/venue/enter', { auth: 'user' }, (c) => venues.enterVenue(c.app, c.uid, c.body.venueId, c.body.pos));
 route('POST', '/api/venue/leave', { auth: 'user' }, (c) => venues.leaveVenue(c.app, c.uid));

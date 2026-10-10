@@ -8,8 +8,8 @@ export const STATES = ['submitted', 'auto_checks', 'human_review', 'approved', '
 const ALLOWED = { submitted: ['auto_checks'], auto_checks: ['human_review', 'rejected'], human_review: ['approved', 'rejected'], approved: ['scheduled'], scheduled: ['live'], live: ['completed'], rejected: [], completed: [] };
 const PIPELINE = ['submitted', 'auto_checks', 'human_review', 'approved', 'scheduled', 'live'];
 
-export function slotsFor(app, surface, tier) { return app.city.billboards.filter(b => b.surface === surface && (!tier || b.tier === tier)); }
-export function maxUnits(app, surface, tier) { return Math.min(RATE_CARD.surfaces[surface].maxBoardsPerOrder, slotsFor(app, surface, tier).length); }
+export function slotsFor(app, surface, tier, cityId) { return (app.cities[cityId] || app.city).billboards.filter(b => b.surface === surface && (!tier || b.tier === tier)); }
+export function maxUnits(app, surface, tier, cityId) { return Math.min(RATE_CARD.surfaces[surface].maxBoardsPerOrder, slotsFor(app, surface, tier, cityId).length); }
 
 // ---- images ----------------------------------------------------------
 export function inspectImage(buf) {
@@ -64,16 +64,16 @@ export function getOrCreateAdvertiser(app, { email, brand }) {
 export const advertiserByKey = (app, key) => (typeof key === 'string' && key.length >= 16 ? app.db.prepare('SELECT * FROM advertisers WHERE access_key=?').get(key) : null);
 
 // ---- quoting + availability ---------------------------------------------
-export function quote(app, { surface, tier, units, days }) {
+export function quote(app, { surface, tier, units, days, cityId }) {
   const p = priceFor(surface, tier, units, days);
   if (!p) bad('BAD_QUOTE', 'Choose a valid surface, tier, number of boards and duration.');
-  if (units > maxUnits(app, surface, tier)) bad('BAD_QUOTE', `Only ${maxUnits(app, surface, tier)} boards exist for that choice.`);
+  if (units > maxUnits(app, surface, tier, cityId)) bad('BAD_QUOTE', `Only ${maxUnits(app, surface, tier, cityId)} boards exist for that choice.`);
   return { ...p, surface, tier, units, days, currency: 'NGN', test_mode: true, note: 'ESTIMATE rate card. TEST MODE: no payment is taken.' };
 }
-export function availability(app, surface, tier, units, startAt, endAt) {
-  const slots = slotsFor(app, surface, tier); const cap = slots.length * RATE_CARD.surfaces[surface].positionsPerBoard;
-  const used = app.db.prepare(`SELECT COALESCE(SUM(units),0) n FROM ad_campaigns WHERE surface=? AND tier=? AND status IN (${PIPELINE.map(() => '?').join(',')}) AND COALESCE(start_at, requested_start, created_at) < ? AND COALESCE(end_at, COALESCE(start_at, requested_start, created_at) + days*86400000) > ?`)
-    .get(surface, tier, ...PIPELINE, endAt, startAt).n;
+export function availability(app, surface, tier, units, startAt, endAt, cityId = app.defaultCityId) {
+  const slots = slotsFor(app, surface, tier, cityId); const cap = slots.length * RATE_CARD.surfaces[surface].positionsPerBoard;
+  const used = app.db.prepare(`SELECT COALESCE(SUM(units),0) n FROM ad_campaigns WHERE surface=? AND tier=? AND city_id=? AND status IN (${PIPELINE.map(() => '?').join(',')}) AND COALESCE(start_at, requested_start, created_at) < ? AND COALESCE(end_at, COALESCE(start_at, requested_start, created_at) + days*86400000) > ?`)
+    .get(surface, tier, cityId, ...PIPELINE, endAt, startAt).n;
   return { capacity: cap, used, free: cap - used, ok: cap - used >= units };
 }
 
@@ -105,12 +105,12 @@ export function createCampaign(app, advertiserId, p, opts = {}) {
   const headline = cleanText(p.headline || '', 60); { const sc = screen(headline, { links: false }); if (!sc.ok) bad('BAD_HEADLINE', 'Headline: ' + sc.message); }
   let reqStart = Number.isFinite(p.startAt) && p.startAt > now ? Math.min(p.startAt, now + 60 * 86400000) : now;
   const end = reqStart + p.days * 86400000;
-  const av = availability(app, p.surface, p.tier, p.units, reqStart, end);
+  if (p.cityId !== undefined && !app.cities[p.cityId]) bad('NO_CITY', 'Unknown city.'); const cityId = p.cityId || app.defaultCityId; const av = availability(app, p.surface, p.tier, p.units, reqStart, end, cityId);
   if (!av.ok) bad('SOLD_OUT', `Not enough free ad positions for those dates (${av.free} free).`, 409);
   return app.db.transaction(() => {
     const r = app.db.prepare(`INSERT INTO ad_campaigns(advertiser_id,creative_id,surface,tier,units,days,link_url,headline,price_net,price_vat,price_total,payment_status,status,requested_start,is_demo,created_at,updated_at)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'submitted',?,?,?,?)`).run(advertiserId, p.creativeId, p.surface, p.tier, p.units, p.days, link, headline, q.net, q.vat, q.total, 'test_mode_no_payment', reqStart, opts.demo ? 1 : 0, now, now);
-    const id = Number(r.lastInsertRowid);
+    const id = Number(r.lastInsertRowid); app.db.prepare('UPDATE ad_campaigns SET city_id=? WHERE id=?').run(cityId, id);
     app.db.prepare('INSERT INTO ad_transitions(campaign_id,from_status,to_status,actor,note,created_at) VALUES (?,?,?,?,?,?)').run(id, null, 'submitted', 'advertiser', 'TEST MODE checkout: no payment taken', now);
     runAutoChecks(app, id);
     return id;
@@ -145,7 +145,7 @@ export function scheduleCampaign(app, id) {
   const now = app.clock.now(); const per = RATE_CARD.surfaces[c.surface].positionsPerBoard;
   return app.db.transaction(() => {
     const load = app.db.prepare('SELECT slot_id, COUNT(*) n FROM ad_assignments GROUP BY slot_id').all(); const lm = Object.fromEntries(load.map(r => [r.slot_id, r.n]));
-    const cands = slotsFor(app, c.surface, c.tier).filter(s => (lm[s.id] || 0) < per).sort((a, b) => (lm[a.id] || 0) - (lm[b.id] || 0));
+    const cands = slotsFor(app, c.surface, c.tier, c.city_id).filter(s => (lm[s.id] || 0) < per).sort((a, b) => (lm[a.id] || 0) - (lm[b.id] || 0));
     if (cands.length < c.units) { app.db.prepare("UPDATE ad_campaigns SET flags=? WHERE id=?").run(JSON.stringify([...(JSON.parse(c.flags || '[]').filter(f => f !== 'waiting_for_space')), 'waiting_for_space']), id); return false; }
     const taken = app.db.prepare('SELECT slot_id, position FROM ad_assignments').all();
     for (const s of cands.slice(0, c.units)) {
@@ -174,9 +174,9 @@ export function liveOnSlot(app, slotId, atMs) {
     WHERE s.slot_id=? AND c.status IN ('live','completed') AND c.start_at<=? AND c.end_at>? ORDER BY s.position`).all(slotId, atMs, atMs);
 }
 export const windowOf = (ms) => Math.floor(ms / AD_POLICY.rotationMs);
-export function adsSnapshot(app, now) {
+export function adsSnapshot(app, now, cityId) {
   const slots = {};
-  for (const b of app.city.billboards) { const l = liveOnSlot(app, b.id, now); if (l.length) slots[b.id] = l.map(x => ({ c: x.campaign, i: x.creative, b: x.brand, h: x.headline })); }
+  for (const b of (app.cities[cityId] || app.city).billboards) { const l = liveOnSlot(app, b.id, now); if (l.length) slots[b.id] = l.map(x => ({ c: x.campaign, i: x.creative, b: x.brand, h: x.headline })); }
   return { slots, rotationMs: AD_POLICY.rotationMs, serverNow: now };
 }
 export function expectedCampaign(app, slotId, win) {
@@ -202,7 +202,7 @@ export function processEvidence(app, p, items, now) {
     const camp = app.db.prepare('SELECT id, status FROM ad_campaigns WHERE id=?').get(e.c); if (!camp) continue;
     bumpStat(app, e.c, 'gross', 1, day);
     const reject = (r) => { bumpReason(app, e.c, 'impression', r); res.filtered[r] = (res.filtered[r] || 0) + 1; };
-    const slot = app.city.billboardById[e.slot]; const winT = e.win * P.rotationMs;
+    const slot = app.all.billboardById[e.slot]; const winT = e.win * P.rotationMs;
     if (p.isBot) { reject('invalid_traffic_bot'); continue; }
     if (p.headless && app.filterHeadless) { reject('invalid_traffic_headless'); continue; }
     if (!lim.hit(`imp:${p.id}`, P.maxClaimsPerMinutePerUser, 60000, now)) { reject('rate_limit'); continue; }
@@ -223,7 +223,7 @@ export function processEvidence(app, p, items, now) {
 
 // ---- taps (signed redirect) ----------------------------------------------
 export function mintTap(app, uid, campaignId, slotId) {
-  const slot = app.city.billboardById[slotId]; const p = app.world.players.get(uid);
+  const slot = app.all.billboardById[slotId]; const p = app.world.players.get(uid);
   if (!slot || !p) bad('BAD_TAP', 'Walk up to the board first.');
   if (dist(p.x, p.z, slot.x, slot.z) > AD_POLICY.maxSurfaceDistance + 20) bad('TOO_FAR', 'Too far from that board.');
   const live = liveOnSlot(app, slotId, app.clock.now()).find(x => x.campaign === campaignId);

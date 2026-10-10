@@ -6,7 +6,7 @@ import { isRush } from './social.js';
 
 const calls = (app) => (app.world.busCalls ||= new Map());
 const hash = (n) => { let x = Math.imul(n ^ 0x2f1b5d3b, 0x85ebca6b); x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35); x ^= x >>> 16; return (x >>> 0) / 4294967296; };
-const stopOf = (app, id) => (app.city.busStops || []).find(b => b.id === id) || null;
+const stopOf = (app, id) => app.all.busStopById[id] || null;
 export function call(app, uid, stopId) {
   const B = app.balance.bus; if (!B.enabled) bad('OFF', 'Bus calls are switched off.', 409); const b = stopOf(app, stopId); if (!b) bad('NO_STOP', 'No such bus stop.', 404);
   const p = ensurePresence(app, uid); if (p.mode === 'drive') bad('DRIVING', 'Park your car first, then wait at the stop.', 409);

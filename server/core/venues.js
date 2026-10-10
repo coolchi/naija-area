@@ -1,17 +1,18 @@
 // Venue rooms: enter a place (Mama Put, viewing centre, games joint, showroom), see its stations, sit at a game table, watch the TV, read the weekly board.
+import { cityOf } from './cities.js';
 import { bad } from './util.js';
 import { ensurePresence, syncPos } from './world.js';
 import { dist, gameTime, addMood } from './economy.js';
 import * as games from './games.js';
 import * as leisure from './leisure.js';
 
-export const venueDef = (app, id) => (app.city.venues || []).find(v => v.id === id);
+export const venueDef = (app, id) => app.all.venueById[id];
 const hourNow = (app) => gameTime(app, app.clock.now()).hour;
 export function isOpen(app, v) { if (!v.hours) return true; if (!app.balance.shops.enforceHours) return true; const h = hourNow(app); return h >= v.hours[0] && h < v.hours[1]; }
 export const occupants = (app, venueId) => { const cut = app.clock.now() - app.balance.heartbeat.activeWindowMs; return [...app.world.players.values()].filter(p => p.venue === venueId && p.lastSeen >= cut).map(p => ({ id: p.id, username: p.name, color: p.color, bot: p.isBot })); };
 
-export function venuesList(app) {
-  return (app.city.venues || []).map(v => ({ id: v.id, name: v.name, blurb: v.blurb, x: v.x, z: v.z, hours: v.hours, open: isOpen(app, v), inside: occupants(app, v.id).length }));
+export function venuesList(app, uid) {
+  return ((uid ? cityOf(app, uid) : app.city).venues || []).map(v => ({ id: v.id, name: v.name, blurb: v.blurb, x: v.x, z: v.z, hours: v.hours, open: isOpen(app, v), inside: occupants(app, v.id).length }));
 }
 export function venueView(app, uid, venueId) {
   const v = venueDef(app, venueId); if (!v) bad('NO_VENUE', 'Unknown place.', 404);
