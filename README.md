@@ -19,7 +19,7 @@ node scripts/<name>-smoke.mjs   # more headless smokes: interiors, roads, nav, c
 node scripts/loadtest.mjs 50,200,500 40   # measured bot load test (real HTTP heartbeats, separate server process); see docs/LOADTEST.md
 ```
 
-Environment: `PORT`, `HOST` (default 127.0.0.1: put a TLS proxy in front before exposing), `NA_DB` (SQLite file, default `data/naija-area.db`), `ADMIN_PASSWORD` (admin at `/admin`; a dev-only default is used with a warning if unset), `NA_DEV=1` (enables `/api/dev/*` teleport/cash helpers, never in production), `NA_LAND_DAY_MS` (shorten the land "day" to watch growth), `BOTS`.
+Environment: `PORT`, `HOST` (default 127.0.0.1: put a TLS proxy in front before exposing), `NA_DB` (SQLite file, default `data/naija-area.db`), `NA_DATABASE_URL` (use PostgreSQL instead; see `docs/POSTGRES.md`), `ADMIN_PASSWORD` (admin at `/admin`; a dev-only default is used with a warning if unset), `NA_DEV=1` (enables `/api/dev/*` teleport/cash helpers, never in production), `NA_LAND_DAY_MS` (shorten the land "day" to watch growth), `BOTS`.
 
 ## Expanded Lagos (10 Oct 2026)
 - Five Lagos districts joined by road links (Mainland, Lagos Island, Victoria Island and Ikoyi, the Lekki-Ikoyi Bridge, Lekki): hotels, clubs, an arts venue, a cafe, mosque, cathedral, National Theatre, Falomo Bridge, Banana Island, Eleko Beach, Tarkwa Bay jetty, and a cable-stayed Lekki-Ikoyi Bridge you can walk or drive across. See `docs/DISTRICTS.md` and `docs/BRIDGE.md`.
