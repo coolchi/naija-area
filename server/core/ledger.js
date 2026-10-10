@@ -58,7 +58,7 @@ export function checkInvariants(db) {
   const total = db.prepare('SELECT COALESCE(SUM(amount),0) s FROM ledger_entries').get().s;
   const mism = db.prepare(`SELECT a.id, a.balance, COALESCE((SELECT SUM(amount) FROM ledger_entries e WHERE e.account_id=a.id),0) s FROM accounts a`).all().filter(r => r.balance !== r.s);
   const neg = db.prepare("SELECT id, balance FROM accounts WHERE allow_negative=0 AND balance<0").all();
-  const unbalTx = db.prepare('SELECT tx_id, SUM(amount) s FROM ledger_entries GROUP BY tx_id HAVING s != 0').all();
+  const unbalTx = db.prepare('SELECT tx_id, SUM(amount) s FROM ledger_entries GROUP BY tx_id HAVING SUM(amount) != 0').all();
   return { ok: total === 0 && mism.length === 0 && neg.length === 0 && unbalTx.length === 0, total, mismatched: mism, negative: neg, unbalancedTx: unbalTx };
 }
 export function moneySupply(db) {

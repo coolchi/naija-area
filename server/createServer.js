@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import Database from 'better-sqlite3';
+import { openManaged } from './lib/pg-migrate.js';
 import { WebSocketServer } from 'ws';
 import { createApp } from './core/app.js';
 import { nodePlatform } from './platform-node.js';
@@ -37,11 +38,19 @@ export function loadRegistry(dir = path.join(here, 'config/cities'), env = proce
 export function buildServer(opts = {}) {
   const env = process.env;
   const dataDir = opts.dataDir || env.NA_DATA_DIR || path.join(ROOT, 'data');
-  const dbPath = opts.dbPath ?? env.NA_DB ?? path.join(dataDir, 'naija-area.db');
-  if (dbPath !== ':memory:') fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-  const db = new Database(dbPath);
-  const voiceDir = dbPath === ':memory:' ? null : path.join(path.dirname(dbPath), 'voice'); // voice notes live outside the database (disk here; object storage later)
-  db.pragma('journal_mode = WAL'); db.pragma('foreign_keys = ON'); db.pragma('busy_timeout = 5000');
+  // database engine: SQLite by default (tests, the static demo, small installs); Postgres when NA_DATABASE_URL (or opts.databaseUrl) is set. See docs/POSTGRES.md.
+  const databaseUrl = opts.databaseUrl ?? env.NA_DATABASE_URL ?? null;
+  const dbPath = databaseUrl ? ':memory:' : (opts.dbPath ?? env.NA_DB ?? path.join(dataDir, 'naija-area.db'));
+  let db;
+  if (databaseUrl) {
+    db = openManaged({ url: databaseUrl, schema: opts.databaseSchema ?? env.NA_DB_SCHEMA ?? null, ssl: opts.databaseSsl ?? (env.NA_DB_SSL === '1' ? { rejectUnauthorized: env.NA_DB_SSL_STRICT !== '0' } : null), autoMigrate: opts.autoMigrate ?? env.NA_DB_AUTOMIGRATE !== '0', singleInstance: env.NA_DB_SINGLE_INSTANCE !== '0', log: opts.quiet ? undefined : (m) => console.log('[db]', m) });
+  } else {
+    if (dbPath !== ':memory:') fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+    db = new Database(dbPath);
+    db.pragma('journal_mode = WAL'); db.pragma('foreign_keys = ON'); db.pragma('busy_timeout = 5000');
+  }
+  // voice notes live outside the database (disk here; object storage later). With Postgres they sit in the data directory next to the app.
+  const voiceDir = databaseUrl ? path.join(dataDir, 'voice') : dbPath === ':memory:' ? null : path.join(path.dirname(dbPath), 'voice');
   const platform = opts.platform || nodePlatform({ dataDir });
   const prod = env.NODE_ENV === 'production';
   const app = createApp({ db, platform, ...(opts.cityJson ? { cityJson: opts.cityJson, extraCities: opts.extraCities || [] } : loadRegistry()), balance: opts.balance || BALANCE, clock: opts.clock, filterHeadless: opts.filterHeadless ?? env.NA_FILTER_HEADLESS !== '0' });

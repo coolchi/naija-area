@@ -6,7 +6,14 @@ import * as auth from '../server/core/auth.js';
 import { teleport } from '../server/core/world.js';
 import { BALANCE } from '../server/config/balance.js';
 
-export function makeServer(opts = {}) { const balance = structuredClone(BALANCE); balance.shops.enforceHours = false; return buildServer({ dbPath: ':memory:', quiet: true, adminPassword: 'test-admin', dev: true, balance, ...opts }); }
+// NA_TEST_PG_URL=postgres://... (set by `npm run test:pg`) runs EVERY test against real Postgres: each server gets its own throw-away schema. Default: in-memory SQLite.
+export const PG_URL = process.env.NA_TEST_PG_URL || null;
+let schemaN = 0; const tag = Math.random().toString(36).slice(2, 8);
+export function makeServer(opts = {}) {
+  const balance = structuredClone(BALANCE); balance.shops.enforceHours = false;
+  const pg = PG_URL && !opts.dbPath && opts.databaseUrl === undefined ? { databaseUrl: PG_URL, databaseSchema: `t_${tag}_${++schemaN}` } : {};
+  return buildServer({ dbPath: ':memory:', quiet: true, adminPassword: 'test-admin', dev: true, balance, ...pg, ...opts });
+}
 export async function call(s, method, path, { uid, body, query, raw, headers = {}, admin, ua, ip = '10.0.0.1' } = {}) {
   const [p, qs] = path.split('?'); const q = { ...(qs ? Object.fromEntries(new URLSearchParams(qs)) : {}), ...(query || {}) };
   return dispatch(s.app, { method, path: p, query: q, body, raw, headers, ip, ua, uid, isAdmin: !!admin });

@@ -11,7 +11,7 @@ import { BALANCE } from '../config/balance.js';
 
 /** Build the app object shared by every core module. db must offer better-sqlite3's API (prepare/transaction/exec). */
 export function createApp({ db, platform, cityJson, extraCities = [], balance = BALANCE, clock, gameName = GAME_NAME, filterHeadless = true }) {
-  db.exec(SCHEMA); migrate(db);
+  if (!db.managedSchema) { db.exec(SCHEMA); migrate(db); } // SQLite: idempotent in-code schema. Postgres: versioned migrations in server/migrations/pg, applied before createApp
   ensureSystemAccounts(db);
   const offset = { ms: 0 };
   for (const raw of [cityJson, ...extraCities]) { const problems = validateCity(raw); if (problems.length) throw new Error(`City config ${raw.id || '?'} is not valid: ${problems.slice(0, 5).join('; ')}`); }

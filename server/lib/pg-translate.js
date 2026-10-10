@@ -10,6 +10,7 @@ export function placeholders(sql) {
     if (inStr) { out += ch; if (ch === "'") { if (sql[i + 1] === "'") { out += "'"; i++; } else inStr = false; } continue; }
     if (ch === "'") { inStr = true; out += ch; continue; }
     if (ch === '?') { out += `$${++n}`; continue; }
+    if (ch === '`') { out += '"'; continue; } // SQLite accepts `x` as a quoted identifier; Postgres wants "x" (the code uses it for words like `from`)
     out += ch;
   }
   return { text: out, n };

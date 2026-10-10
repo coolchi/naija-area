@@ -10,6 +10,8 @@
     "seed": "node scripts/seed.js",
     "bots": "node scripts/bots.js",
     "test": "node --test --test-concurrency=1 tests/",
+    "test:pg": "node scripts/pg-local.mjs run -- node --test --test-concurrency=1 tests/",
+    "db:migrate": "node tools/pg-migrate.mjs",
     "smoke": "node scripts/e2e-smoke.mjs",
     "smoke:interiors": "node scripts/interiors-smoke.mjs",
     "smoke:phone": "node scripts/phone-smoke.mjs",

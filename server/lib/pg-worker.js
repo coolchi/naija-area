@@ -17,7 +17,7 @@ parentPort.on('message', async (m) => {
     if (m.t === 'connect') {
       await client.connect(); connected = true;
       if (cfg.singleInstance) { // one writer only: the ledger and the in-memory world assume it. A second server on the same database refuses to start.
-        const r = await client.query('SELECT pg_try_advisory_lock($1) AS got', [cfg.lockKey]);
+        const r = await client.query("SELECT pg_try_advisory_lock($1::int, hashtext(current_schema())) AS got", [cfg.lockKey]);
         if (!r.rows[0].got) { await client.end(); return reply({ ok: false, error: { message: 'Another Naija Area server already holds this database (single-writer lock). Stop it first.', code: 'NA_LOCKED' } }); }
       }
       const ident = await client.query("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = current_schema() AND is_identity = 'YES'");

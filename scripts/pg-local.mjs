@@ -6,7 +6,7 @@ export async function startLocalPostgres({ port = 0, keep = false } = {}) {
   const nat = binDir(); const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'na-pg-')); const env = { ...process.env, LD_LIBRARY_PATH: path.join(nat, 'lib') };
   port ||= 30000 + Math.floor(Math.random() * 20000); fs.writeFileSync(path.join(dir, 'pw'), 'na');
   execFileSync(path.join(nat, 'bin/initdb'), ['-D', path.join(dir, 'data'), '-U', 'na', '--pwfile=' + path.join(dir, 'pw'), '-A', 'password', '--no-sync'], { env, stdio: 'ignore' });
-  fs.appendFileSync(path.join(dir, 'data/postgresql.conf'), `\nfsync = off\nsynchronous_commit = off\nfull_page_writes = off\nmax_connections = 60\nlisten_addresses = '127.0.0.1'\nunix_socket_directories = '${dir}'\n`);
+  fs.appendFileSync(path.join(dir, 'data/postgresql.conf'), `\nfsync = off\nsynchronous_commit = off\nfull_page_writes = off\nmax_connections = 600\nshared_buffers = 64MB\nlisten_addresses = '127.0.0.1'\nunix_socket_directories = '${dir}'\n`);
   execFileSync(path.join(nat, 'bin/pg_ctl'), ['-D', path.join(dir, 'data'), '-o', `-p ${port}`, '-l', path.join(dir, 'log'), '-w', 'start'], { env, stdio: 'ignore' });
   const url = `postgres://na:na@127.0.0.1:${port}/postgres`;
   const stop = () => { try { execFileSync(path.join(nat, 'bin/pg_ctl'), ['-D', path.join(dir, 'data'), '-m', 'immediate', '-w', 'stop'], { env, stdio: 'ignore' }); } catch { /* already stopped */ } if (!keep) fs.rmSync(dir, { recursive: true, force: true }); };
