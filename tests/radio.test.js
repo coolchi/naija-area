@@ -22,8 +22,8 @@ test('stations are out of step with each other, so switching changes what you he
   assert.match(labelOf(STATIONS[0], { kind: 'ident' }), /Station ident/);
 });
 test('sound is allowed only in a car, after a tap or key press, when switched on, not muted, with volume above zero', () => {
-  const r = new RadioState(); assert.equal(r.playing, false); r.enterCar(); assert.equal(r.playing, false, 'nothing plays by itself: it needs a tap or key press');
-  assert.equal(r.power(10), true); assert.equal(r.playing, true); assert.equal(r.gain, 0.6); r.toggleMute(); assert.equal(r.playing, false); assert.equal(r.gain, 0); r.toggleMute(); assert.equal(r.playing, true); r.setVolume(0); assert.equal(r.playing, false); r.setVolume(0.3); assert.equal(r.playing, true); assert.equal(r.gain, 0.3);
+  const r = new RadioState(); assert.equal(r.playing, false); r.enterCar(); assert.equal(r.wantOn, true, 'the radio starts on entering a car'); assert.equal(r.playing, false, 'but nothing plays until a tap or key press');
+  r.userGesture(); assert.equal(r.playing, true); assert.equal(r.power(10), false); assert.equal(r.power(11), true); assert.equal(r.playing, true); assert.equal(r.gain, 0.6); r.toggleMute(); assert.equal(r.playing, false); assert.equal(r.gain, 0); r.toggleMute(); assert.equal(r.playing, true); r.setVolume(0); assert.equal(r.playing, false); r.setVolume(0.3); assert.equal(r.playing, true); assert.equal(r.gain, 0.3);
   r.setVolume(7); assert.equal(r.volume, 1); r.setVolume(-3); assert.equal(r.volume, 0); r.setVolume('x'); assert.equal(r.volume, 0);
   const q = new RadioState(); q.power(0); assert.equal(q.wantOn, false, 'the power key does nothing outside a car'); assert.equal(q.playing, false);
 });
