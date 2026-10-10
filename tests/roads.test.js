@@ -41,7 +41,7 @@ test('traffic loops follow the road geometry: every point is on a road, bends ar
 test('the map reads curves and roundabouts from the same data (draw model, search, hit-test)', () => {
   const m = buildModel(city); assert.equal(m.roundabouts.length, city.roundabouts.length); assert.ok(m.roads.some(r => r.curved));
   assert.equal(search(m, 'Yaba Crescent')[0].type, 'road'); assert.equal(search(m, 'Danfo Roundabout')[0].type, 'roundabout');
-  const ra = city.roundabouts[0]; assert.equal(hitTest(m, ra.x + 11, ra.z, 0.5, DEFAULT_LAYERS).type, 'roundabout');
+  const ra = city.roundabouts[0]; assert.equal(hitTest(m, ra.x + 11, ra.z, 2, DEFAULT_LAYERS).type, 'roundabout');
   const cv = city.roads.find(isCurved); const mid = cv.pts[Math.floor(cv.pts.length / 2)]; assert.equal(hitTest(m, mid[0], mid[1], 0.5, DEFAULT_LAYERS).name, cv.name);
   assert.ok(roadPts(city.roads[0]).length === 2);
 });

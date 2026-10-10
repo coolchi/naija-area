@@ -2,6 +2,7 @@ import { makePath, atPath } from './path.js';
 import { Crowd } from './people.js';
 import { gapAhead, stepSpeed, decide, YIELD_CFG } from './yield.js';
 import { Headlamps, addPlayerHeadlamps } from './headlamps.js';
+import { stopsOnLoop, serves, newStop, stopStep, pickupStart, STOP_CFG } from './busstops.js';
 import * as THREE from 'three';
 import { Builder, mulberry32 } from '../sample/builder.js';
 import { danfoGeo, kekeGeo, okadaGeo, carGeo } from '../sample/vehicles.js';
@@ -46,36 +47,47 @@ export function makeNameSprite(text, color) {
 
 // ---- NPC traffic: deterministic from server time, so every client sees roughly the same cars without any sync traffic
 export class Traffic {
-  constructor(scene, loops) {
-    this.cars = []; const rnd = mulberry32(2026); const tmp = {};
+  constructor(scene, loops, busStops = []) {
+    this.cars = []; this.loops = new Map(); const rnd = mulberry32(2026); const tmp = {}; let nth = 0;
     const colors = [0xf5f5f5, 0xb0b5ba, 0x1f2328, 0xb71c1c, 0x1e4f8c, 0x2e6b3a, 0xd6c9a8, 0x7a5c3e];
     for (const L of loops) {
-      const P = makePath(L.pts, 7, { dense: !!L.dense, slow: true }); const speed = 6.5 + rnd() * 3; const n = Math.max(3, Math.round(P.realLength / 85));
+      const P = makePath(L.pts, 7, { dense: !!L.dense, slow: true }); const stopsS = stopsOnLoop(P, busStops, L.id); this.loops.set(L.id, { P, stopsS }); const speed = 6.5 + rnd() * 3; const n = Math.max(3, Math.round(P.realLength / 85));
       for (let i = 0; i < n; i++) {
         const type = L.npcs[(rnd() * L.npcs.length) | 0]; let geo;
         if (type === 'danfo') geo = danfoGeo(rnd); else if (type === 'keke') geo = kekeGeo(rnd() > 0.2 ? 0xFFC20E : 0x2e7d32, 0x17181b); else if (type === 'okada') geo = okadaGeo(rnd);
         else geo = carGeo(['sedan', 'suv', 'hatch'][(rnd() * 3) | 0], colors[(rnd() * colors.length) | 0]);
         const g = new THREE.Group(); const m = new THREE.Mesh(geo, vcMat); m.position.y = 0.12; g.add(m); g.add(blobShadow(type === 'okada' ? 3 : 5.5, type === 'okada' ? 1.4 : 2.8)); scene.add(g);
-        this.cars.push({ g, P, speed: speed * (type === 'okada' ? 1.25 : type === 'danfo' ? 0.9 : 1), off: (P.length * i) / n + rnd() * 6, type });
+        this.cars.push({ g, P, speed: speed * (type === 'okada' ? 1.25 : type === 'danfo' ? 0.9 : 1), off: (P.length * i) / n + rnd() * 6, type, stopsS, serve: stopsS.length > 0 && serves(type, nth++), stop: newStop() });
       }
     }
+    // one extra danfo kept hidden until a player calls for it at a bus stop (see dispatch)
+    { const sg = new THREE.Group(); const sm = new THREE.Mesh(danfoGeo(mulberry32(99)), vcMat); sm.position.y = 0.12; sg.add(sm); sg.add(blobShadow(5.5, 2.8)); sg.visible = false; scene.add(sg); const first = this.loops.values().next().value;
+      this.cars.push({ g: sg, P: first?.P, speed: 8, off: 0, type: 'danfo', stopsS: [], serve: true, stop: newStop(), special: true, idle: true }); this.special = this.cars[this.cars.length - 1]; }
     this.tmp = {}; this.heads = new Headlamps(scene, this.cars.length); this.lightLevel = 0;
   }
+  /** a player's danfo: appears about 85 m before the stop, drives in, stands at the stop until released. Returns true if started */
+  dispatch(stop) { const L = this.loops.get(stop.loop); const c = this.special; if (!L || !c || !c.idle) return false; const e = L.stopsS.find(x => x.id === stop.id); if (!e) return false;
+    c.P = L.P; c.stopsS = [e]; c.s = pickupStart(e.s, L.P.length); c.st = { v: STOP_CFG.pickupLead > 0 ? 8 : 0, wait: 0, limit: 3 }; c.stop = newStop(); c.stop.hold = true; c.holdT = 0; c.idle = false; c.stopId = stop.id; c.g.visible = true; atPath(c.P, c.s, this.tmp); c.g.position.set(this.tmp.x, 0.02, this.tmp.z); c.g.rotation.y = this.tmp.yaw; return true; }
+  /** is the player's danfo standing at its stop? */
+  pickupReady() { const c = this.special; return !!c && !c.idle && c.dwell === true; }
+  release() { const c = this.special; if (c && !c.idle) c.stop.hold = false; }
+  cancelPickup() { const c = this.special; if (c && !c.idle) { c.stop.hold = false; } }
   /** people: [{x,z,r}] walkers/ghosts/the player (they make cars yield). Without them (or with yielding off) cars follow the shared server timeline exactly. */
   update(serverSec, people = null, dt = 0.016) { this.step(serverSec, people, dt); this.heads.update(this.cars, this.lightLevel); }
   step(serverSec, people, dt) {
     if (!this.last) this.last = serverSec; const step = Math.min(0.1, Math.max(0, serverSec - this.last)) || dt; this.last = serverSec;
-    if (!people) { for (const c of this.cars) { atPath(c.P, c.speed * serverSec + c.off, this.tmp); c.g.position.set(this.tmp.x, 0.02, this.tmp.z); c.g.rotation.y = this.tmp.yaw; } return; }
+    if (!people) { for (const c of this.cars) { if (c.idle) continue; atPath(c.P, c.speed * serverSec + c.off, this.tmp); c.g.position.set(this.tmp.x, 0.02, this.tmp.z); c.g.rotation.y = this.tmp.yaw; } return; }
     const me = this.blockers || (this.blockers = []); me.length = 0; for (const p of people) me.push({ x: p.x, z: p.z, r: p.r ?? 0.5, person: true, local: !!p.local });
-    const carB = this.carB || (this.carB = this.cars.map(c => ({ x: 0, z: 0, r: 1.8, self: c, person: false }))); this.cars.forEach((c, i) => { carB[i].x = c.g.position.x; carB[i].z = c.g.position.z; });
+    const carB = this.carB || (this.carB = this.cars.map(c => ({ x: 0, z: 0, r: 1.8, self: c, person: false }))); this.cars.forEach((c, i) => { carB[i].x = c.idle ? 1e9 : c.g.position.x; carB[i].z = c.idle ? 1e9 : c.g.position.z; carB[i].dwell = !!c.dwell; });
     this.stopped = 0;
     for (const [i, c] of this.cars.entries()) {
+      if (c.idle) continue;
       if (c.s == null) { c.s = c.speed * serverSec + c.off; c.st = { v: c.speed, wait: 0, limit: YIELD_CFG.waitMin + Math.random() * (YIELD_CFG.waitMax - YIELD_CFG.waitMin) }; }
       atPath(c.P, c.s, this.tmp); const car = { x: this.tmp.x, z: this.tmp.z, yaw: this.tmp.yaw, self: c };
       const near = []; for (const b of me) if (Math.abs(b.x - car.x) < 18 && Math.abs(b.z - car.z) < 18) near.push(b); for (let j = 0; j < carB.length; j++) if (j !== i && Math.abs(carB[j].x - car.x) < 18 && Math.abs(carB[j].z - car.z) < 18) near.push(carB[j]);
-      const raw = gapAhead(car, near); const allowed = !!(raw && raw.local && this.crash && this.crash.consult(c, raw.gap, c.st.v)); const d = decide(allowed ? gapAhead(car, near.filter(b => !b.local)) : raw, { speed: c.st.v, type: c.type, hitAllowed: false }); const hit = d.hit; if (c.crashTok && this.crash) this.crash.contact(c, car, me); const ideal = c.speed * serverSec + c.off; const lag = ideal - c.s;
-      const cruise = c.speed * (lag > 0.5 && !hit ? YIELD_CFG.catchUp : 1);
-      c.st = stepSpeed(c.st, cruise, hit, step); if (c.hold > 0) { c.hold -= step; c.st.v = 0; } c.s += c.st.v * step; if (lag < -2) c.s = ideal; // never get ahead of the shared timeline
+      const raw = gapAhead(car, near); const allowed = !!(raw && raw.local && this.crash && this.crash.consult(c, raw.gap, c.st.v)); const d = decide(allowed ? gapAhead(car, near.filter(b => !b.local)) : raw, { speed: c.st.v, type: c.type, hitAllowed: false }); const hit = d.hit; if (c.crashTok && this.crash) this.crash.contact(c, car, me); let cap = Infinity; if (c.serve || c.special) { const r = stopStep(c.stop, c.s, c.st.v, c.P.length, c.stopsS, step, c.rndStop ??= Math.random()); cap = r.cap; c.dwell = r.dwell; if (r.phase === 'none') c.rndStop = undefined; if (c.stop.phase !== 'none') c.shift = c.speed * serverSec + c.off - c.s; if (c.special) { if (c.stop.phase === 'dwell') { c.holdT += step; if (c.holdT > 45) c.stop.hold = false; } if (c.stop.phase === 'none' && !c.stop.hold && c.st.v > 0.5 && c.leaving) { c.idle = true; c.g.visible = false; c.leaving = false; continue; } if (c.stop.phase === 'leave') c.leaving = true; } } const ideal = c.speed * serverSec + c.off - (c.shift || 0); const lag = c.special ? 0 : ideal - c.s;
+      const cruise = Math.min(cap, c.speed * (lag > 0.5 && !hit ? YIELD_CFG.catchUp : 1));
+      c.st = stepSpeed(c.st, cruise, hit, step); if (c.hold > 0) { c.hold -= step; c.st.v = 0; } c.s += c.st.v * step; if (lag < -2 && !c.special) c.s = ideal; // never get ahead of the shared timeline
       if (c.st.v < 0.2 && hit) this.stopped++; if (c.st.honk && this.onHorn) this.onHorn(c, car);
       atPath(c.P, c.s, this.tmp); c.g.position.set(this.tmp.x, 0.02, this.tmp.z); c.g.rotation.y = this.tmp.yaw;
     }

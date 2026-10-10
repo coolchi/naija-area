@@ -5728,5 +5728,87 @@
    "kind": "public",
    "blurb": "Public lot, small fee (ESTIMATE)."
   }
+ ],
+ "busStops": [
+  {
+   "id": "bs01",
+   "name": "Danfo Drive bus stop",
+   "x": -101.6,
+   "z": -111.1,
+   "loop": "big",
+   "ry": 1.15
+  },
+  {
+   "id": "bs02",
+   "name": "Danfo Drive bus stop 2",
+   "x": 99.2,
+   "z": -111.4,
+   "loop": "big",
+   "ry": -1.15
+  },
+  {
+   "id": "bs03",
+   "name": "Bridge Street bus stop",
+   "x": 107,
+   "z": 106.1,
+   "loop": "big",
+   "ry": -2.36
+  },
+  {
+   "id": "bs04",
+   "name": "Lagoon Drive bus stop",
+   "x": -104.6,
+   "z": 108.8,
+   "loop": "big",
+   "ry": 2.23
+  },
+  {
+   "id": "bs05",
+   "name": "Unity Avenue bus stop",
+   "x": 8.8,
+   "z": -108.7,
+   "loop": "ne",
+   "ry": 0.43
+  },
+  {
+   "id": "bs06",
+   "name": "Bridge Street bus stop 2",
+   "x": 110.5,
+   "z": -11,
+   "loop": "ne",
+   "ry": -2.49
+  },
+  {
+   "id": "bs07",
+   "name": "Market Road bus stop",
+   "x": 11,
+   "z": -9.5,
+   "loop": "ne",
+   "ry": 2.23
+  },
+  {
+   "id": "bs08",
+   "name": "Lagoon Drive bus stop 2",
+   "x": 11,
+   "z": 110.5,
+   "loop": "se",
+   "ry": 2.23
+  },
+  {
+   "id": "bs09",
+   "name": "Okada Road bus stop",
+   "x": -111.2,
+   "z": 11.3,
+   "loop": "sw",
+   "ry": 0.43
+  },
+  {
+   "id": "bs10",
+   "name": "Unity Crescent bus stop",
+   "x": -27.9,
+   "z": -80.3,
+   "loop": "cv2-loop",
+   "ry": 1.49
+  }
  ]
 }

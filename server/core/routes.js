@@ -13,6 +13,7 @@ import * as phone from './phone/phone.js';
 import * as games from './games.js';
 import * as cars from './cars.js';
 import * as parking from './parking.js';
+import * as bus from './bus.js';
 import * as crash from './crash.js';
 import * as homes from './homes.js';
 import { history, checkInvariants, moneySupply, balanceOf, cashId } from './ledger.js';
@@ -108,6 +109,9 @@ route('GET', '/api/scoreboard', { auth: 'user' }, (c) => games.scoreboard(c.app,
 route('GET', '/api/garage', { auth: 'user' }, (c) => cars.garageView(c.app, c.uid));
 route('POST', '/api/garage/buy', { auth: 'user' }, (c) => cars.buyCar(c.app, c.uid, c.body.model, c.body.idemKey));
 route('POST', '/api/garage/use', { auth: 'user' }, (c) => cars.setActive(c.app, c.uid, Number(c.body.carId)));
+route('POST', '/api/bus/call', { auth: 'user' }, (c) => bus.call(c.app, c.uid, String(c.body.stopId || '')));
+route('POST', '/api/bus/board', { auth: 'user' }, (c) => bus.board(c.app, c.uid, String(c.body.stopId || '')));
+route('POST', '/api/bus/cancel', { auth: 'user' }, (c) => bus.cancel(c.app, c.uid));
 route('GET', '/api/parking', { auth: 'user' }, (c) => parking.view(c.app, c.uid));
 route('POST', '/api/parking/park', { auth: 'user' }, (c) => parking.park(c.app, c.uid, c.body.idemKey));
 route('POST', '/api/parking/take', { auth: 'user' }, (c) => parking.take(c.app, c.uid));

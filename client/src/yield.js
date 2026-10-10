@@ -17,7 +17,7 @@ export function gapAhead(car, blockers, cfg = YIELD_CFG) {
   const fx = Math.cos(car.yaw), fz = -Math.sin(car.yaw); let best = null;
   for (const b of blockers) {
     if (b === car || (b.self && b.self === car)) continue; const dx = b.x - car.x, dz = b.z - car.z; const along = dx * fx + dz * fz; if (along < 0.2 || along > cfg.lookAhead) continue;
-    const side = Math.abs(-dx * fz + dz * fx); if (side > cfg.halfWidth + (b.r || 0)) continue; const gap = along - (b.r || 0); if (best == null || gap < best.gap) best = { gap, person: !!b.person, local: !!b.local };
+    const side = Math.abs(-dx * fz + dz * fx); if (side > cfg.halfWidth + (b.r || 0)) continue; const gap = along - (b.r || 0); if (best == null || gap < best.gap) best = { gap, person: !!b.person, local: !!b.local, dwell: !!b.dwell };
   }
   return best;
 }
@@ -28,7 +28,7 @@ export function stepSpeed(st, cruise, hit, dt, cfg = YIELD_CFG) {
   let target = cruise;
   if (hit) {
     const room = hit.gap - cfg.stopGap; target = room <= 0 ? 0 : Math.min(cruise, Math.sqrt(2 * cfg.maxDecel * 0.6 * room));
-    if (s.v < 0.3) { s.wait += dt; if (s.wait >= s.limit) { if (hit.person) { if (hit.gap > cfg.minGap + 0.6) target = Math.min(cruise, cfg.creepSpeed); s.honk = !st.honked; } else { s.ignoreT = cfg.ignoreCarsFor; s.wait = 0; } } }
+    if (s.v < 0.3) { s.wait += dt; if (s.wait >= s.limit) { if (hit.person) { if (hit.gap > cfg.minGap + 0.6) target = Math.min(cruise, cfg.creepSpeed); s.honk = !st.honked; } else if (!hit.dwell) { s.ignoreT = cfg.ignoreCarsFor; s.wait = 0; } } }
   } else s.wait = 0;
   const dv = target - s.v; s.v += Math.max(-cfg.maxDecel * dt, Math.min(cfg.maxAccel * dt, dv)); if (s.v < 0) s.v = 0;
   if (hit && hit.person) s.v = Math.min(s.v, Math.max(0, (hit.gap - cfg.minGap) / Math.max(dt, 1e-3))); // hard stop: never move into a person

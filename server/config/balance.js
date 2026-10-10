@@ -140,6 +140,7 @@ export const BALANCE = {
     activeWindowMs: 60000, nearbyRadius: 260, maxNearby: 60, trailKeep: 20
   },
   // Crash rules (10 Oct 2026). EVERY number is a placeholder ESTIMATE. The server decides hits with a seeded RNG; ambient cars are never charged.
+  bus: { enabled: true, waitMinMs: 10000, waitMaxMs: 24000, rushMult: 1.5, callExpireMs: 90000, rangeM: 12, callsPerMin: 4, _note: 'ESTIMATE placeholders: wait times; the fare is the normal danfo fare (transport.modes.danfo)' },
   parking: { enabled: true, takeRangeM: 9, lotPadM: 1, maxParkedMs: 3 * 24 * 3600 * 1000, _note: 'ESTIMATE placeholders: lot fees live in the city JSON (carParks[].fee)' },
   crash: {
     enabled: true, hitChance: 0.05, rollMinMs: 5000, tokenMs: 8000, cooldownMs: 120000, graceMs: 3 * 60000, minSpeed: 3, seed: process.env.NA_CRASH_SEED || null,
