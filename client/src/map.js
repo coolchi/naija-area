@@ -44,6 +44,8 @@ export class CityMap {
     const m = this.model, E = this.extent(), L = this.layers; c.fillStyle = '#2b6f8a'; c.fillRect(tx(E.x0 - 100), tz(E.z0 - 100), (E.x1 - E.x0 + 200) * k, (E.z1 - E.z0 + 200) * k);
     const B = m.bounds; c.fillStyle = '#d3cdb4'; c.fillRect(tx(B.minX), tz(B.minZ), (B.maxX - B.minX) * k, (B.maxZ - B.minZ) * k);
     if (m.water) { c.fillStyle = '#3d86a6'; c.fillRect(tx(m.water.minX), tz(m.water.minZ), (m.water.maxX - m.water.minX) * k, (m.water.maxZ - m.water.minZ) * k); c.strokeStyle = '#ffffff40'; c.lineWidth = Math.max(1, k * 0.4); for (let z = m.water.minZ + 14; z < m.water.maxZ; z += 22) { c.beginPath(); for (let x = m.water.minX; x < m.water.maxX; x += 30) { c.moveTo(tx(x), tz(z)); c.quadraticCurveTo(tx(x + 7), tz(z - 3), tx(x + 15), tz(z)); } c.stroke(); } }
+    for (const cr of m.city.creeks || []) { const x0 = Math.max(B.minX, cr.x0), x1 = Math.min(B.maxX, cr.x1), z0 = Math.max(B.minZ, cr.z0), z1 = Math.min(B.maxZ, cr.z1); c.fillStyle = '#3d86a6'; c.fillRect(tx(x0), tz(z0), (x1 - x0) * k, (z1 - z0) * k); }
+    for (const l of m.city.landmarks || []) if (l.kind === 'beach') { c.fillStyle = '#ecdca2'; c.fillRect(tx(l.cx - l.w / 2), tz(l.cz - l.d / 2), l.w * k, l.d * k); }
     if (L.districts) for (const d of m.districts) { c.fillStyle = d.color + '88'; c.fillRect(tx(d.x0), tz(d.z0), (d.x1 - d.x0) * k, (d.z1 - d.z0) * k); }
     c.fillStyle = '#c3c8a6'; for (const z of m.zones) c.fillRect(tx(z.x0), tz(z.z0), (z.x1 - z.x0) * k, (z.z1 - z.z0) * k);
     if (L.districts) { c.setLineDash([6, 5]); c.strokeStyle = '#6b5b3e99'; c.lineWidth = 1.2; for (const d of m.districts) c.strokeRect(tx(d.x0), tz(d.z0), (d.x1 - d.x0) * k, (d.z1 - d.z0) * k); c.setLineDash([]); }

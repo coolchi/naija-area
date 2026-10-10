@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Builder, mulberry32 } from '../sample/builder.js';
 import { wallTextures, roadTexture, groundTexture, waterTexture, tex2 } from './textures.js';
 import { roadPts, isCurved, offsetPoly, polyLen } from './roadgeom.js';
+import { strut, subtractRects, creekVisual, creekColliders, drawExtraBuilding, drawBeach, drawJetty, drawLink, drawBeamBridge, drawCableBridge } from './landmarks3d.js';
 import { lampPositions, lampLevel, lampsOn, LAMP } from './lamps.js';
 
 const lerpC = (a, b, t) => new THREE.Color(a).lerp(new THREE.Color(b), t);
@@ -18,7 +19,7 @@ function signTexture(text, bg, fg = '#fff', w = 512, hgt = 128) {
 export function buildWorld(city) {
   const scene = new THREE.Scene();
   const root = new THREE.Group(); scene.add(root);
-  const colliders = []; const boards = {}; const doorMarkers = {}; const labels = [];
+  const cableSegs = []; const colliders = []; const boards = {}; const doorMarkers = {}; const labels = [];
   const hemi = new THREE.HemisphereLight(0xdfefff, 0x6b5f4a, 0.9); scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff1d6, 1.4); sun.position.set(120, 200, 80); scene.add(sun);
   const vcMat = new THREE.MeshLambertMaterial({ vertexColors: true });
@@ -30,8 +31,8 @@ export function buildWorld(city) {
   const B = city.bounds;
 
   // ---- ground + sidewalks
-  const gt = groundTexture(); gt.repeat.set(60, 60);
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(900, 900).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: gt, color: 0xcfc9b6 })); ground.position.set(0, -0.02, -60); root.add(ground);
+  const gt = groundTexture(); const creeks = city.creeks || []; const gmat = (w, d) => { const t = gt.clone(); t.needsUpdate = true; t.repeat.set(w / 15, d / 15); return new THREE.MeshLambertMaterial({ map: t, color: 0xcfc9b6 }); };
+  for (const r of subtractRects({ x0: -450, x1: 450, z0: -510, z1: 390 }, creeks.map(c => creekVisual(c, city.bounds)))) { const w = r.x1 - r.x0, d = r.z1 - r.z0; if (w < 0.5 || d < 0.5) continue; const g = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), gmat(w, d)); g.position.set((r.x0 + r.x1) / 2, -0.02, (r.z0 + r.z1) / 2); root.add(g); }
   for (const z of city.zones) { // sidewalk slabs per block
     plain.box(z.x1 - z.x0 + 6, 0.2, z.z1 - z.z0 + 6, (z.x0 + z.x1) / 2, -0.02, (z.z0 + z.z1) / 2, 0xbdb7a6, { noAO: true, jit: 0.02 });
   }
@@ -82,7 +83,7 @@ export function buildWorld(city) {
     const hgt = 7 * s; b.cyl(0.22 * s, 0.35 * s, hgt, 6, x, 0, z, 0x8a6a45, { noAO: true });
     for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2; b.box(0.5 * s, 0.1, 3.4 * s, x + Math.cos(a) * 1.6 * s, hgt + 0.1, z + Math.sin(a) * 1.6 * s, 0x2f8f3a, { ry: -a + Math.PI / 2, rx: 0.5, noAO: true }); }
   }
-  for (let x = -230; x < 240; x += 24) palm(plain, x, 148 + (rnd() * 6 - 3), 0.9 + rnd() * 0.5);
+  if (city.palmRowZ !== false) for (let x = -230; x < 240; x += 24) palm(plain, x, (city.palmRowZ ?? 148) + (rnd() * 6 - 3), 0.9 + rnd() * 0.5);
   for (let i = 0; i < 40; i++) { const z = city.zones[(rnd() * 12) | 0]; if (!z) continue; const x = z.x0 + 3 + rnd() * (z.x1 - z.x0 - 6), zz = z.z0 + (rnd() < 0.5 ? 3 : z.z1 - z.z0 - 3); if (zz < 140) palm(plain, x, zz, 0.7 + rnd() * 0.4); }
 
   // ---- buildings
@@ -117,6 +118,8 @@ export function buildWorld(city) {
     } else if (b.kind === 'office' || b.kind === 'kiosk') {
       walls.box(b.w, b.h, b.d, b.x, 0, b.z, b.color); plain.box(b.w + 0.6, 0.3, b.d + 0.6, b.x, b.h, b.z, 0x6b6d70);
       if (b.label) { const [sx, sz] = frontPos(b, 0.12); addSign(b.label, '#0b6b3a', sx, b.h - 1.3, sz, Math.min(b.w - 1, 14), 2.2, b.face); }
+    } else if (b.kind === 'hotel' || b.kind === 'landmark') {
+      drawExtraBuilding(b, { plain, walls, glassB, addSign, frontPos });
     } else if (b.kind === 'airport') {
       walls.box(b.w, b.h, b.d, b.x, 0, b.z, b.color); plain.box(b.w + 6, 0.8, b.d + 6, b.x, b.h, b.z, 0x8895a3); plain.box(b.w * 0.9, 2.2, 3, b.x, 3, b.z + b.d / 2 + 0.3, 0x4a6b86, { noAO: true });
       plain.box(8, 26, 8, b.x + b.w / 2 + 12, 0, b.z - 6, 0xcfd6dd); plain.box(12, 6, 12, b.x + b.w / 2 + 12, 26, b.z - 6, 0x6f8fa8);
@@ -125,7 +128,7 @@ export function buildWorld(city) {
   }
   // ---- plaza landmark + flag
   const pl = city.landmarks.find(l => l.id === 'plaza'); if (pl) {
-    const px = pl.x - 52, pz = pl.z - 52; plain.box(30, 0.3, 30, px, 0, pz, 0xd7cfbd, { noAO: true }); plain.cyl(5, 5.5, 0.9, 16, px, 0.3, pz, 0x8f9aa3); plain.cyl(0.5, 0.7, 3.5, 8, px, 0.3, pz, 0x8f9aa3); plain.cyl(2.2, 0.6, 0.5, 12, px, 3.7, pz, 0x7fd1e8, { noAO: true });
+    const px = pl.cx ?? pl.x - 52, pz = pl.cz ?? pl.z - 52; plain.box(pl.size || 30, 0.3, pl.size || 30, px, 0, pz, 0xd7cfbd, { noAO: true }); plain.cyl(5, 5.5, 0.9, 16, px, 0.3, pz, 0x8f9aa3); plain.cyl(0.5, 0.7, 3.5, 8, px, 0.3, pz, 0x8f9aa3); plain.cyl(2.2, 0.6, 0.5, 12, px, 3.7, pz, 0x7fd1e8, { noAO: true });
     for (const a of [0, 1, 2, 3]) plain.box(3, 0.6, 1, px + Math.cos(a * 1.57) * 9, 0.3, pz + Math.sin(a * 1.57) * 9, 0x6d4c41, { ry: -a * 1.57 });
     plain.cyl(0.12, 0.12, 14, 6, px + 12, 0.3, pz - 12, 0xdddddd, { noAO: true }); for (const [i, c] of [[0, 0x008751], [1, 0xffffff], [2, 0x008751]]) plain.box(0.15, 1.5, 1.1, px + 12 + 0.1, 11 + 0, pz - 12 - 0.55 + i * 1.1, c, { noAO: true, jit: 0 });
     labels.push({ text: pl.name, x: px, z: pz });
@@ -142,6 +145,18 @@ export function buildWorld(city) {
     if (bd.surface === 'lagoon_plot') { const pon = new THREE.Mesh(new THREE.BoxGeometry(bd.w + 4, 1.4, 5), new THREE.MeshLambertMaterial({ color: 0x8b7d62 })); pon.position.set(0, -0.2, -0.4); g.add(pon); }
     boards[bd.id] = { def: bd, group: g, panel, mat, current: null };
   }
+  // ---- creeks, bridges, beaches, link gates (expanded Lagos)
+  const creekTex = []; const wt2c = (w, d) => { const t = waterTexture(); t.repeat.set(Math.max(1, w / 40), Math.max(1, d / 40)); creekTex.push(t); return t; };
+  { const ex = { plain, addSign };
+    for (const c of creeks) { const v = creekVisual(c, city.bounds), wy = c.y ?? -3.6, w = v.x1 - v.x0, d = v.z1 - v.z0;
+      const wm = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: wt2c(w, d), transparent: true, opacity: 0.94 })); wm.position.set((v.x0 + v.x1) / 2, wy, (v.z0 + v.z1) / 2); root.add(wm);
+      plain.box(w, 0.4, d, (v.x0 + v.x1) / 2, wy - 0.6, (v.z0 + v.z1) / 2, 0x4a4f50, { noAO: true }); for (const x of [v.x0, v.x1]) plain.box(0.7, -wy + 0.6, d, x, wy - 0.2, (v.z0 + v.z1) / 2, 0xa9a396, { noAO: true }); // bank walls
+      for (const z of [v.z0, v.z1]) if (Math.abs(z) < 1000 && v.z0 === c.z0 && v.z1 === c.z1) plain.box(w, -wy + 0.6, 0.7, (v.x0 + v.x1) / 2, wy - 0.2, z, 0xa9a396, { noAO: true });
+      for (const r of creekColliders(c)) colliders.push(r); }
+    for (const br of city.bridges || []) { if (br.type === 'cable') cableSegs.push(...drawCableBridge(br, ex)); else drawBeamBridge(br, ex); }
+    for (const l of city.landmarks) { if (l.kind === 'beach') drawBeach(l, ex); else if (l.kind === 'jetty') drawJetty(l, ex); }
+    for (const l of city.links || []) drawLink(l, ex, city.bounds); }
+  if (cableSegs.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(cableSegs, 3)); const cab = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xf2f2ee })); cab.frustumCulled = false; root.add(cab); }
   // ---- water (lagoon)
   const wt2 = waterTexture(); wt2.repeat.set(20, 8);
   if (city.water) { const water = new THREE.Mesh(new THREE.PlaneGeometry(city.water.maxX - city.water.minX, city.water.maxZ - city.water.minZ).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: wt2, transparent: true, opacity: 0.92 }));
@@ -150,7 +165,7 @@ export function buildWorld(city) {
   // far skyline silhouettes (Third-Mainland-style bridge + towers) as backdrop
   const sky = new Builder(31, 0.05);
   for (let i = 0; i < 26; i++) { const x = -420 + i * 34 + rnd() * 10; sky.box(14 + rnd() * 14, 30 + rnd() * 70, 14, x, -2, -340 - rnd() * 40, 0x7a8da3, { noAO: true }); }
-  for (let i = 0; i < 20; i++) { const x = -330 + i * 34; sky.box(26, 1.6, 6, x, 12, 310, 0x8a8d92, { noAO: true }); if (i % 4 === 0) sky.box(2, 26, 2, x, -2, 310, 0x8a8d92, { noAO: true }); } // bridge across the lagoon
+  if (city.id === 'lagos-mainland') for (let i = 0; i < 20; i++) { const x = -330 + i * 34; sky.box(26, 1.6, 6, x, 12, 310, 0x8a8d92, { noAO: true }); if (i % 4 === 0) sky.box(2, 26, 2, x, -2, 310, 0x8a8d92, { noAO: true }); } // bridge across the lagoon
   const skyMesh = new THREE.Mesh(sky.build(), new THREE.MeshLambertMaterial({ vertexColors: true, fog: true })); root.add(skyMesh);
   // ---- merge + add
   for (const [b, m] of [[plain, vcMat], [walls, wallMat], [glassB, vcMat]]) { const geo = b.build(); if (geo.attributes.position) root.add(new THREE.Mesh(geo, m)); }
@@ -176,7 +191,7 @@ export function buildWorld(city) {
       hemi.intensity = 0.35 + day * 0.65; hemi.color.set(lerpC('#2b3a6b', '#dfefff', day));
       wallMat.emissiveIntensity = night * 0.95; applyLamps(lampClock); return { day, night };
     },
-    animate(dt) { wt2.offset.x += dt * 0.004; wt2.offset.y += dt * 0.002; lampClock += dt / 1000; lampFlickerT += dt; if (lampLvl > 0 && lampFlickerT > 90) { lampFlickerT = 0; applyLamps(lampClock); } },
+    animate(dt) { wt2.offset.x += dt * 0.004; wt2.offset.y += dt * 0.002; for (const t of creekTex) { t.offset.x += dt * 0.003; t.offset.y += dt * 0.0015; } lampClock += dt / 1000; lampFlickerT += dt; if (lampLvl > 0 && lampFlickerT > 90) { lampFlickerT = 0; applyLamps(lampClock); } },
     lamps, lampHeads, lampPools, get lampLevel() { return lampLvl; },
     get night() { return night; }
   };

@@ -65,7 +65,7 @@ const marketStall = (api, pre, x, z, nm) => { const s = clone(MARKET_SHOP); Obje
 // ======================= VICTORIA ISLAND AND IKOYI =============================================================
 {
   const B = { minX: -260, maxX: 260, minZ: -200, maxZ: 170 };
-  const creeks = [{ id: 'vi_creek', name: 'Five Cowrie-style creek', x0: 84, x1: 106, z0: -200, z1: 170, gaps: [[-18, -2]] }, { id: 'vi_moat', name: 'Banana Island channel', x0: 166, x1: 178, z0: -200, z1: -10, gaps: [[-126, -114]] }];
+  const creeks = [{ id: 'vi_creek', name: 'Five Cowrie-style creek', x0: 84, x1: 106, z0: -200, z1: 170, gaps: [[-18, -2]] }, { id: 'vi_moat', name: 'Banana Island channel', x0: 166, x1: 178, z0: -200, z1: -10, gaps: [[-128, -112]] }];
   const bridges = [{ id: 'falomo', type: 'beam', name: 'Falomo Bridge', axis: 'x', a: 70, b: 120, z: -10, width: 14, piers: 5, y: 0 }, { id: 'banana', type: 'beam', name: 'Banana Island causeway', axis: 'x', a: 158, b: 186, z: -120, width: 14, piers: 3, y: 0 }];
   const api = district({ id: 'lagos-vi-ikoyi', pre: 'vi', name: 'Victoria Island and Ikoyi', bounds: B, seed: 202, water: WATER(B), creeks, bridges, marketLabel: 'Market',
     V: [{ x: -170, name: 'Ahmadu Bello Way' }, { x: -60, name: 'Adetokunbo Ademola Street' }, { x: 40, name: 'Akin Adesola Street' }, { x: 150, name: 'Bourdillon Road' }], H: [{ z: -120, name: 'Glover Road' }, { z: -10, name: 'Awolowo Road' }, { z: 80, name: 'Adeola Odeku Street' }, { z: 150, name: 'Bar Beach Road', width: 16 }],
@@ -102,10 +102,10 @@ const marketStall = (api, pre, x, z, nm) => { const s = clone(MARKET_SHOP); Obje
     districts: [{ id: 'd_br_w', name: 'Ikoyi shore', x0: -320, x1: -200, z0: -90, z1: 90, color: '#c8d9b8' }, { id: 'd_br_c', name: 'Five Cowrie Creek', x0: -200, x1: 200, z0: -90, z1: 90, color: '#b9d6e0' }, { id: 'd_br_e', name: 'Lekki shore', x0: 200, x1: 320, z0: -90, z1: 90, color: '#d4d8b8' }],
     spawns: spawnsAround([[-290, 0], [290, 0], [-250, 20]]), billboards: 0,
     links: [link('to-vi', 'Road to Ikoyi', 'lagos-vi-ikoyi', -306, 0, 215, -10, 0), link('to-lekki', 'Road to Lekki', 'lagos-lekki', 306, 0, -195, 0, 0)],
-    build(a) { a.city.roads.push({ id: 'br_link', name: 'Lekki-Ikoyi Link Bridge', x1: -320, z1: 0, x2: 320, z2: 0, width: 9.5 }); a.city.roundabouts.push({ id: 'br_ra1', name: 'Ikoyi Roundabout', x: -300, z: 0, outerR: 15, islandR: 6 }, { id: 'br_ra2', name: 'Lekki Roundabout', x: 300, z: 0, outerR: 15, islandR: 6 }); a.city.roads.push({ id: 'br_side1', name: 'Shore Road', x1: -300, z1: -90, x2: -300, z2: 90, width: 10 }, { id: 'br_side2', name: 'Estate Road', x1: 300, z1: -90, x2: 300, z2: 90, width: 10 });
+    build(a) { a.city.roads.push({ id: 'br_link', name: 'Lekki-Ikoyi Link Bridge', x1: -320, z1: 0, x2: 320, z2: 0, width: 8.6 }); a.city.roundabouts.push({ id: 'br_ra1', name: 'Ikoyi Roundabout', x: -300, z: 0, outerR: 15, islandR: 6 }, { id: 'br_ra2', name: 'Lekki Roundabout', x: 300, z: 0, outerR: 15, islandR: 6 }); a.city.roads.push({ id: 'br_side1', name: 'Shore Road', x1: -300, z1: -90, x2: -300, z2: 90, width: 10 }, { id: 'br_side2', name: 'Estate Road', x1: 300, z1: -90, x2: 300, z2: 90, width: 10 });
       for (const [x, z, f] of [[-255, 45, [0, -1]], [-255, -45, [0, 1]], [255, 45, [0, -1]], [255, -45, [0, 1]]]) a.add({ kind: 'office', x, z, w: 24, d: 18, h: 8, floors: 2, color: '#c4b8a2', face: f }); },
     extraLoops: [{ id: 'br_loop', pts: (() => { const p = []; for (let x = -292; x <= 292; x += 8) p.push([x, -2.4]); for (let x = 292; x >= -292; x -= 8) p.push([x, 2.4]); return p; })(), npcs: ['car', 'danfo', 'keke'], dense: true }] });
-  api.city.zones = []; write(api.city);
+  api.city.zones = [{ id: 'br_zw', x0: -316, x1: -214, z0: -84, z1: 84 }, { id: 'br_ze', x0: 214, x1: 316, z0: -84, z1: 84 }]; write(api.city);
 }
 
 // ======================= LEKKI =================================================================================

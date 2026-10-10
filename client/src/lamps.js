@@ -13,6 +13,7 @@ export function lampPositions(city) {
   for (const o of city.roundabouts || []) for (const rr of [o.outerR + 6.5, o.outerR + 9.5]) for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + i * Math.PI / 2; add(o.x + Math.cos(a) * rr, o.z + Math.sin(a) * rr); } // the four corners, away from the crossing roads
   for (const r of city.roads) { if (!isCurved(r)) continue; const pts = roadPts(r), L = polyLen(pts); const n = Math.floor(L / LAMP.curveSpacing); for (let i = 1; i < n; i++) { const q = pointAt(pts, L * i / n); const side = i % 2 ? 1 : -1; const off = r.width / 2 + LAMP.kerb; add(q[0] - Math.sin(q[2]) * side * off, q[1] + Math.cos(q[2]) * side * off); } }
   for (const z of city.zones || []) { for (let x = z.x0 + 12; x < z.x1 - 6; x += LAMP.spacing) for (const zz of [z.z0 + 2, z.z1 - 2]) add(x, zz); for (let zz = z.z0 + 20; zz < z.z1 - 6; zz += LAMP.spacing) for (const xx of [z.x0 + 2, z.x1 - 2]) add(xx, zz); }
+  for (const br of city.bridges || []) { const a = br.type === 'cable' ? br.x0 : br.a, b = br.type === 'cable' ? br.x1 : br.b, w = (br.type === 'cable' ? br.deckWidth : br.width) / 2 + 0.9; for (let x = a + 8; x < b - 6; x += br.type === 'cable' ? 22 : 24) for (const sd of [-1, 1]) { const id = out.length; out.push({ x: Math.round(x * 100) / 100, z: br.z + sd * w, fx: 0, fz: -sd, id, kind: kindOf(id) }); } }
   return out;
 }
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
