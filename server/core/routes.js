@@ -15,6 +15,7 @@ import * as venues from './venues.js';
 import * as leisure from './leisure.js';
 import * as phone from './phone/phone.js';
 import * as games from './games.js';
+import * as sports from './sports.js';
 import * as cars from './cars.js';
 import * as parking from './parking.js';
 import * as bus from './bus.js';
@@ -115,6 +116,8 @@ route('GET', '/api/game', { auth: 'user' }, (c) => games.getMatch(c.app, c.uid, 
 route('POST', '/api/game/move', { auth: 'user' }, (c) => games.playMove(c.app, c.uid, Number(c.body.matchId), c.body));
 route('POST', '/api/game/start', { auth: 'user' }, (c) => games.start(c.app, c.uid, Number(c.body.matchId)));
 route('POST', '/api/game/leave', { auth: 'user' }, (c) => games.resign(c.app, c.uid, Number(c.body.matchId)));
+route('POST', '/api/sports/bot', { auth: 'user' }, (c) => sports.sitVsBot(c.app, c.uid, c.body.venueId, c.body.stationId, String(c.body.level || 'club')));   // Sports and Games Hall: play ping pong or tennis against a bot
+route('GET', '/api/sports/levels', { auth: 'user' }, (c) => ({ levels: sports.levels(c.app), note: sports.SPORTS_DEFAULTS.note }));
 route('GET', '/api/casual', { auth: 'user' }, (c) => casual.overview(c.app, c.uid));
 route('POST', '/api/casual/merge/start', { auth: 'user' }, (c) => casual.mergeStart(c.app, c.uid));
 route('POST', '/api/casual/merge/submit', { auth: 'user' }, (c) => casual.mergeSubmit(c.app, c.uid, c.body.runId, c.body.moves));

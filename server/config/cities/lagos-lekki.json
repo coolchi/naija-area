@@ -632,6 +632,22 @@
    ],
    "id": "lk_b24",
    "propertyId": "lk_h19"
+  },
+  {
+   "kind": "office",
+   "x": 222,
+   "z": -30,
+   "w": 34,
+   "d": 24,
+   "h": 9,
+   "floors": 2,
+   "color": "#2f6f8f",
+   "face": [
+    0,
+    1
+   ],
+   "label": "City Sports Hall",
+   "id": "lk_b_sports"
   }
  ],
  "properties": [
@@ -2661,6 +2677,262 @@
    },
    "kind": "stadium",
    "shopId": "lk_shop_3"
+  },
+  {
+   "id": "lk_venue_sports",
+   "name": "City Sports Hall",
+   "blurb": "Ping pong room, a tennis court and a games lounge: Whot, Ludo, Dominoes, Draughts, Ayo and table football. More games are coming.",
+   "buildingId": "lk_b_sports",
+   "x": 222,
+   "z": -15,
+   "hours": [
+    7,
+    23
+   ],
+   "sign": "#1f6fb5",
+   "kind": "sports",
+   "stations": [
+    {
+     "id": "pp1",
+     "type": "game",
+     "game": "pingpong",
+     "label": "Ping pong table 1",
+     "x": -9.5,
+     "z": -6.9,
+     "color": "#1f5fa8",
+     "sport": "pingpong"
+    },
+    {
+     "id": "pp2",
+     "type": "game",
+     "game": "pingpong",
+     "label": "Ping pong table 2",
+     "x": -9.5,
+     "z": -3,
+     "color": "#1f5fa8",
+     "sport": "pingpong"
+    },
+    {
+     "id": "tennis1",
+     "type": "game",
+     "game": "tennis",
+     "label": "Tennis court",
+     "x": 3.5,
+     "z": -6.3,
+     "color": "#2e7d4a",
+     "sport": "tennis"
+    },
+    {
+     "id": "whot1",
+     "type": "game",
+     "game": "whot",
+     "label": "Whot",
+     "x": -10.5,
+     "z": 2.6,
+     "color": "#8a5a2b",
+     "compact": true
+    },
+    {
+     "id": "ludo1",
+     "type": "game",
+     "game": "ludo",
+     "label": "Ludo",
+     "x": -5.25,
+     "z": 2.6,
+     "color": "#7a4ea0",
+     "compact": true
+    },
+    {
+     "id": "domino1",
+     "type": "game",
+     "game": "dominoes",
+     "label": "Dominoes",
+     "x": 0,
+     "z": 2.6,
+     "color": "#2a5f9e",
+     "compact": true
+    },
+    {
+     "id": "draughts1",
+     "type": "game",
+     "game": "draughts",
+     "label": "Draughts",
+     "x": 5.25,
+     "z": 2.6,
+     "color": "#6b4226",
+     "compact": true
+    },
+    {
+     "id": "ayo1",
+     "type": "game",
+     "game": "ayo",
+     "label": "Ayo",
+     "x": 10.5,
+     "z": 2.6,
+     "color": "#6b4226",
+     "compact": true
+    },
+    {
+     "id": "football1",
+     "type": "game",
+     "game": "football",
+     "label": "Table football",
+     "x": -10.5,
+     "z": 7,
+     "color": "#2e7d32",
+     "compact": true
+    },
+    {
+     "id": "chess1",
+     "type": "game",
+     "game": "chess",
+     "label": "Chess",
+     "x": -5.25,
+     "z": 7,
+     "color": "#3a3a40",
+     "compact": true,
+     "soon": "chess"
+    },
+    {
+     "id": "wordduel1",
+     "type": "game",
+     "game": "wordduel",
+     "label": "Word duel",
+     "x": 0,
+     "z": 7,
+     "color": "#c8a23d",
+     "compact": true,
+     "soon": "wordduel"
+    },
+    {
+     "id": "property1",
+     "type": "game",
+     "game": "property",
+     "label": "Lagos property game",
+     "x": 5.25,
+     "z": 7,
+     "color": "#b8322a",
+     "compact": true,
+     "alts": [
+      "lagosproperty",
+      "propertygame",
+      "landlord",
+      "lagosland"
+     ]
+    },
+    {
+     "id": "suwe1",
+     "type": "game",
+     "game": "suwe",
+     "label": "Suwe (hopscotch)",
+     "x": 10.5,
+     "z": 7,
+     "color": "#e0a020",
+     "compact": true,
+     "soon": "suwe"
+    },
+    {
+     "id": "board",
+     "type": "board",
+     "label": "Weekly scoreboard",
+     "x": 12.4,
+     "z": -6,
+     "color": "#1f6f4a"
+    },
+    {
+     "id": "rules",
+     "type": "poster",
+     "label": "House rules",
+     "x": -12.8,
+     "z": -0.4,
+     "color": "#f0c419",
+     "text": "Game money only. 18+. Ping pong and tennis are turn-based rallies: pick a shot and aim, then stop the timing meter. Friendly games or a stake held safely until the match ends; the winner takes the pot. Beat a bot for a small daily-capped prize. Be respectful: you can be reported, muted or blocked."
+    }
+   ],
+   "room": {
+    "w": 28,
+    "d": 20,
+    "wall": "#e9eef2",
+    "trim": "#1f6fb5",
+    "floor": {
+     "style": "checker",
+     "a": "#d3d9de",
+     "b": "#c2c9cf"
+    },
+    "windows": [
+     {
+      "wall": "back",
+      "at": -6,
+      "w": 2.4
+     },
+     {
+      "wall": "back",
+      "at": 9.5,
+      "w": 2.4
+     },
+     {
+      "wall": "left",
+      "at": 3,
+      "w": 2
+     }
+    ],
+    "mood": "bright",
+    "door": "Enter",
+    "decor": [
+     {
+      "k": "flag",
+      "x": -1.5,
+      "z": -9.85,
+      "y": 2.2
+     },
+     {
+      "k": "clock",
+      "x": 12.4,
+      "z": -9.85,
+      "y": 2.5
+     },
+     {
+      "k": "art",
+      "x": -13.85,
+      "z": -6,
+      "w": 1.6,
+      "h": 1,
+      "kind": "bars"
+     },
+     {
+      "k": "plant",
+      "x": 13,
+      "z": 9,
+      "h": 1.5
+     },
+     {
+      "k": "plant",
+      "x": -13,
+      "z": 9,
+      "h": 1.5
+     },
+     {
+      "k": "bench",
+      "x": 3.5,
+      "z": -1.2,
+      "w": 3.2
+     },
+     {
+      "k": "waterDispenser",
+      "x": 12.6,
+      "z": 0.4
+     },
+     {
+      "k": "crowd",
+      "x": 3.5,
+      "z": -0.1,
+      "n": 3,
+      "r": 1.8,
+      "seed": 9
+     }
+    ],
+    "detailV2": true
+   }
   }
  ],
  "roundabouts": [],
