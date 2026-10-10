@@ -29,6 +29,8 @@ import * as account from './account.js';
 import * as tutorial from './tutorial.js';
 import * as missions from './missions.js';
 import * as achievements from './achievements.js';
+import * as moderation from './moderation.js';
+import { MOD as moderationOptions } from '../config/moderation.js';
 import './gamedata.js';   // registers what the table games and the word/board games hold about a player with the account download/closing module (docs/ACCOUNT_DATA.md)
 import { checkAdminLogin } from './admin-guard.js';
 import { history, checkInvariants, moneySupply, balanceOf, cashId } from './ledger.js';
@@ -139,6 +141,14 @@ route('POST', '/api/missions/streak', { auth: 'user' }, (c) => missions.claimStr
 // achievements and titles
 route('GET', '/api/achievements', { auth: 'user' }, (c) => achievements.view(c.app, c.uid));
 route('POST', '/api/achievements/title', { auth: 'user' }, (c) => achievements.selectTitle(c.app, c.uid, c.body.id === undefined ? 'auto' : c.body.id === null ? null : String(c.body.id)));
+// moderator tools (admin back end)
+route('GET', '/api/admin/mod/overview', { auth: 'admin' }, (c) => moderation.overview(c.app));
+route('GET', '/api/admin/mod/player', { auth: 'admin' }, (c) => moderation.lookup(c.app, c.query.q));
+route('POST', '/api/admin/mod/sanction', { auth: 'admin' }, (c) => moderation.sanction(c.app, { who: c.body.who, kind: c.body.kind, hours: c.body.hours === '' || c.body.hours == null ? null : c.body.hours, reason: c.body.reason, note: c.body.note, reportRef: c.body.reportRef || null }));
+route('POST', '/api/admin/mod/lift', { auth: 'admin' }, (c) => moderation.lift(c.app, c.body.id, { note: c.body.note }));
+route('GET', '/api/admin/mod/sanctions', { auth: 'admin' }, (c) => ({ rows: moderation.listSanctions(c.app, { active: c.query.all !== '1', kind: c.query.kind || null }) }));
+route('GET', '/api/admin/mod/audit', { auth: 'admin' }, (c) => moderation.auditLog(c.app, { actor: c.query.actor, action: c.query.action, q: c.query.q, before: c.query.before }));
+route('GET', '/api/admin/mod/options', { auth: 'admin' }, (c) => ({ reasons: moderationOptions.reasons, maxMuteHours: moderationOptions.maxMuteHours, defaultMuteHours: moderationOptions.defaultMuteHours }));
 // your data: download everything we hold, or close the account (erases and anonymises; see docs/ACCOUNT_DATA.md)
 route('GET', '/api/account/export', { auth: 'user' }, (c) => { if (!c.app.limiter.hit(`export:${c.uid}`, 5, 3600000, c.app.clock.now())) bad('RATE_LIMIT', 'You can download your data 5 times an hour.', 429); return account.exportData(c.app, c.uid); });
 route('POST', '/api/account/delete', { auth: 'user' }, async (c) => { if (!c.app.limiter.hit(`delete:${c.uid}`, 5, 3600000, c.app.clock.now())) bad('RATE_LIMIT', 'Too many attempts. Try again later.', 429); const r = await account.deleteAccount(c.app, c.uid, c.body); c.out.session = 'clear'; return r; });
@@ -280,6 +290,7 @@ export async function dispatch(app, req) {
   if (!m) return { status: 404, json: { error: 'NOT_FOUND', message: 'Unknown endpoint.' } };
   const { r, params } = m; const now = app.clock.now();
   if (req.uid && (app.deletedUsers ||= account.loadDeleted(app)).has(req.uid)) req = { ...req, uid: null }; // a closed account's old session cookie is dead
+  const banned = req.uid && r.auth === 'user' && !['/api/auth/logout', '/api/account/export', '/api/account/delete'].includes(req.path) ? moderation.activeBan(app, req.uid) : null; if (banned) return { status: 403, json: { error: 'BANNED', message: moderation.banMessage(banned), until: banned.until } }; // suspended accounts can only log out, download or delete their data
   const ctx = { app, uid: req.uid, body: req.body || {}, query: req.query || {}, params, headers: req.headers || {}, raw: req.raw, ip: req.ip, ipHash: req.ip ? app.platform.sha256(String(req.ip)).slice(0, 16) : null, headless: /headless/i.test(req.ua || ''), out: {} };
   try {
     if (r.auth === 'user' && !req.uid) throw new GameError('LOGIN_REQUIRED', 'Please log in.', 401);

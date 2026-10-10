@@ -23,6 +23,10 @@ CREATE TABLE IF NOT EXISTS mission_claims (user_id INTEGER NOT NULL, mission_id 
 CREATE TABLE IF NOT EXISTS streak_claims (user_id INTEGER NOT NULL, day INTEGER NOT NULL, streak INTEGER NOT NULL, reward INTEGER NOT NULL, claimed_at INTEGER NOT NULL, PRIMARY KEY (user_id, day));` },
   { n: 7, name: 'achievements', sql: `
 CREATE TABLE IF NOT EXISTS achievements (user_id INTEGER NOT NULL, id TEXT NOT NULL, earned_at INTEGER NOT NULL, PRIMARY KEY (user_id, id));
-CREATE TABLE IF NOT EXISTS player_titles (user_id INTEGER PRIMARY KEY, title_id TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL);` }
+CREATE TABLE IF NOT EXISTS player_titles (user_id INTEGER PRIMARY KEY, title_id TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL);` },
+  { n: 8, name: 'sanctions', sql: `
+CREATE TABLE IF NOT EXISTS sanctions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, kind TEXT NOT NULL, reason TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', until_at INTEGER, actor TEXT NOT NULL, report_ref TEXT, created_at INTEGER NOT NULL, lifted_at INTEGER, lifted_by TEXT);
+CREATE INDEX IF NOT EXISTS ix_sanctions_user ON sanctions(user_id, id);
+CREATE INDEX IF NOT EXISTS ix_sanctions_kind ON sanctions(kind, lifted_at);` }
 ];
 export function applyLater(db) { for (const c of LATER) db.exec(c.sql); }
