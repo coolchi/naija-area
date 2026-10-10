@@ -24,6 +24,15 @@ CREATE INDEX IF NOT EXISTS ix_business_staff_biz ON business_staff(business_id);
 CREATE TABLE IF NOT EXISTS market_listings (id INTEGER PRIMARY KEY AUTOINCREMENT, seller_id INTEGER NOT NULL, kind TEXT NOT NULL, item_ref TEXT NOT NULL, snapshot TEXT NOT NULL, ask INTEGER NOT NULL, base_value INTEGER NOT NULL, listing_fee INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'open', created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, buyer_id INTEGER, sold_at INTEGER, sale_fee INTEGER NOT NULL DEFAULT 0, returned_at INTEGER);
 CREATE INDEX IF NOT EXISTS ix_market_open ON market_listings(status, kind, ask);
 CREATE INDEX IF NOT EXISTS ix_market_seller ON market_listings(seller_id, status);
-CREATE INDEX IF NOT EXISTS ix_market_buyer ON market_listings(buyer_id);` }
+CREATE INDEX IF NOT EXISTS ix_market_buyer ON market_listings(buyer_id);` },
+  { n: 7, name: 'clubs', sql: `
+CREATE TABLE IF NOT EXISTS clubs (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, name_key TEXT NOT NULL UNIQUE, tag TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'club', motto TEXT NOT NULL DEFAULT '', color TEXT NOT NULL, is_open INTEGER NOT NULL DEFAULT 1, leader_id INTEGER NOT NULL, created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS club_members (user_id INTEGER PRIMARY KEY, club_id INTEGER NOT NULL, role TEXT NOT NULL, joined_at INTEGER NOT NULL, muted_until INTEGER NOT NULL DEFAULT 0, hangout_at INTEGER NOT NULL DEFAULT 0);
+CREATE INDEX IF NOT EXISTS ix_club_members_club ON club_members(club_id);
+CREATE TABLE IF NOT EXISTS club_requests (club_id INTEGER NOT NULL, user_id INTEGER NOT NULL, kind TEXT NOT NULL, created_at INTEGER NOT NULL, invited_by INTEGER, PRIMARY KEY (club_id, user_id));
+CREATE INDEX IF NOT EXISTS ix_club_requests_user ON club_requests(user_id);
+CREATE TABLE IF NOT EXISTS club_chat (id INTEGER PRIMARY KEY AUTOINCREMENT, club_id INTEGER NOT NULL, user_id INTEGER NOT NULL, username TEXT NOT NULL, text TEXT NOT NULL, created_at INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS ix_club_chat_club ON club_chat(club_id, id);
+CREATE TABLE IF NOT EXISTS club_cooldowns (user_id INTEGER PRIMARY KEY, until_ms INTEGER NOT NULL);` }
 ];
 export function applyLater(db) { for (const c of LATER) db.exec(c.sql); }

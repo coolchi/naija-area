@@ -137,7 +137,7 @@ export class Ghosts {
     const seen = new Set();
     for (const p of list) {
       seen.add(p.id); let g = this.map.get(p.id);
-      if (!g) { g = { id: p.id, name: p.n, color: p.c, mode: -1, samples: [], obj: null, tag: null, act: '' }; this.map.set(p.id, g); }
+      if (!g) { g = { id: p.id, name: p.ct ? `[${p.ct}] ${p.n}` : p.n, color: p.c, mode: -1, samples: [], obj: null, tag: null, act: '' }; this.map.set(p.id, g); }
       g.mode = p.m; g.act = p.act || ''; g.wear = p.w || [];
       for (const [off, x, z, ry] of p.s) { const t = serverNow + off; if (!g.samples.length || t > g.samples[g.samples.length - 1].t + 50) g.samples.push({ t, x, z, ry }); }
       if (g.samples.length > 60) g.samples.splice(0, g.samples.length - 60);

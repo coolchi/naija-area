@@ -1761,6 +1761,24 @@
    ],
    "id": "b056",
    "tag": "office"
+  },
+  {
+   "kind": "office",
+   "x": -144,
+   "z": 58,
+   "w": 22,
+   "d": 16,
+   "h": 7,
+   "floors": 2,
+   "color": "#e9dcc3",
+   "sign": "#8e44ad",
+   "label": "Clubhouse",
+   "face": [
+    0,
+    -1
+   ],
+   "id": "b057",
+   "tag": "clubhouse"
   }
  ],
  "properties": [
@@ -6323,13 +6341,13 @@
       "k": "bench",
       "x": -3.4,
       "z": -1.2,
-      "w": 2.0
+      "w": 2
      },
      {
       "k": "bench",
       "x": 3.6,
       "z": -1.2,
-      "w": 2.0
+      "w": 2
      },
      {
       "k": "stool",
@@ -6339,11 +6357,169 @@
      },
      {
       "k": "stool",
-      "x": 3.0,
+      "x": 3,
       "z": 2.8,
       "c": "#457b9d"
      }
     ]
+   }
+  },
+  {
+   "id": "venue_clubhouse",
+   "name": "Clubhouse",
+   "blurb": "Where clubs and crews meet. Found a club, join one, read the club board and chat with your members.",
+   "buildingId": "b057",
+   "x": -144,
+   "z": 46.5,
+   "hours": [
+    0,
+    24
+   ],
+   "sign": "#8e44ad",
+   "kind": "clubhouse",
+   "stations": [
+    {
+     "id": "clubboard",
+     "type": "club",
+     "label": "Club board",
+     "x": -2.4,
+     "z": -2.4,
+     "color": "#8e44ad"
+    },
+    {
+     "id": "clubdesk",
+     "type": "club",
+     "label": "Found or join a club",
+     "x": 2.6,
+     "z": -2.4,
+     "color": "#ffc20e"
+    },
+    {
+     "id": "poster",
+     "type": "poster",
+     "label": "House rules",
+     "x": -4.2,
+     "z": 2.4,
+     "color": "#f0c419",
+     "text": "Clubs and crews: up to 20 members each, one club per player. Be kind: names and chat are filtered, and anyone can be reported. Club chat is only for members. Nothing here costs real money, and game money cannot be cashed out."
+    }
+   ],
+   "room": {
+    "w": 10,
+    "d": 8,
+    "wall": "#efe6f2",
+    "trim": "#8e44ad",
+    "floor": {
+     "style": "checker",
+     "a": "#d9cde0",
+     "b": "#b9a5c6"
+    },
+    "windows": [
+     {
+      "wall": "left",
+      "at": 0,
+      "w": 2.6,
+      "big": true
+     }
+    ],
+    "mood": "warm",
+    "decor": [
+     {
+      "k": "flag",
+      "x": -3.6,
+      "z": -3.9,
+      "y": 2.2
+     },
+     {
+      "k": "flag",
+      "x": 3.6,
+      "z": -3.9,
+      "y": 2.2
+     },
+     {
+      "k": "clock",
+      "x": 0.2,
+      "z": -3.9,
+      "y": 2.5
+     },
+     {
+      "k": "art",
+      "x": -4.4,
+      "z": -0.6,
+      "w": 1.2,
+      "h": 0.8,
+      "kind": "bars",
+      "y": 1.8
+     },
+     {
+      "k": "plant",
+      "x": -4.4,
+      "z": -3.4
+     },
+     {
+      "k": "plant",
+      "x": 4.4,
+      "z": 3.4
+     },
+     {
+      "k": "table",
+      "x": 0.6,
+      "z": 1.4,
+      "c": "#ffffff"
+     },
+     {
+      "k": "chair",
+      "x": -0.6,
+      "z": 1.4,
+      "ry": 1.2,
+      "c": "#8e44ad"
+     },
+     {
+      "k": "chair",
+      "x": 1.8,
+      "z": 1.4,
+      "ry": -1.2,
+      "c": "#8e44ad"
+     },
+     {
+      "k": "sofa",
+      "x": -3.4,
+      "z": 3,
+      "c": "#8e44ad",
+      "rot": 1
+     },
+     {
+      "k": "coffeeTable",
+      "x": -2,
+      "z": 3
+     },
+     {
+      "k": "floorLamp",
+      "x": 1.8,
+      "z": 3.5
+     },
+     {
+      "k": "shelf",
+      "x": 4,
+      "z": -3.6,
+      "c": "#8a5a2b"
+     },
+     {
+      "k": "waterDispenser",
+      "x": 4.4,
+      "z": -1
+     },
+     {
+      "k": "crowd",
+      "x": 0.4,
+      "z": 0.4,
+      "n": 3,
+      "r": 0.9,
+      "yaw": 1.5707963267948966,
+      "seed": 17
+     }
+    ],
+    "detailV2": true
    }
   }
  ],

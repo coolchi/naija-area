@@ -25,6 +25,7 @@ import * as homes from './homes.js';
 import * as wear from './wearables.js';
 import * as business from './business.js';
 import * as market from './market.js';
+import * as clubs from './clubs.js';
 import * as signup from './signup.js';
 import * as office from './office.js';
 import * as account from './account.js';
@@ -134,6 +135,23 @@ route('GET', '/api/market/mine', { auth: 'user' }, (c) => market.mine(c.app, c.u
 route('POST', '/api/market/list', { auth: 'user' }, (c) => market.list(c.app, c.uid, String(c.body.kind || ''), c.body.ref, c.body.ask, c.body.idem));
 route('POST', '/api/market/cancel', { auth: 'user' }, (c) => market.cancel(c.app, c.uid, c.body.id));
 route('POST', '/api/market/buy', { auth: 'user' }, (c) => market.buy(c.app, c.uid, c.body.id, c.body.expect, c.body.idem));
+// clubs and crews (clubhouse, roles, requests and invites, members-only chat): see server/core/clubs.js
+route('GET', '/api/clubs', { auth: 'user' }, (c) => clubs.mine(c.app, c.uid));
+route('GET', '/api/clubs/directory', { auth: 'user' }, (c) => clubs.directory(c.app, c.uid, c.query));
+route('POST', '/api/clubs/create', { auth: 'user' }, (c) => clubs.create(c.app, c.uid, c.body, c.body.idem));
+route('POST', '/api/clubs/join', { auth: 'user' }, (c) => clubs.join(c.app, c.uid, c.body.clubId));
+route('POST', '/api/clubs/decide', { auth: 'user' }, (c) => clubs.decide(c.app, c.uid, c.body.userId, !!c.body.accept));
+route('POST', '/api/clubs/invite', { auth: 'user' }, (c) => clubs.invite(c.app, c.uid, c.body.username));
+route('POST', '/api/clubs/decline', { auth: 'user' }, (c) => clubs.declineInvite(c.app, c.uid, c.body.clubId));
+route('POST', '/api/clubs/leave', { auth: 'user' }, (c) => clubs.leave(c.app, c.uid));
+route('POST', '/api/clubs/kick', { auth: 'user' }, (c) => clubs.kick(c.app, c.uid, c.body.userId));
+route('POST', '/api/clubs/role', { auth: 'user' }, (c) => clubs.setRole(c.app, c.uid, c.body.userId, String(c.body.role || '')));
+route('POST', '/api/clubs/settings', { auth: 'user' }, (c) => clubs.settings(c.app, c.uid, c.body));
+route('POST', '/api/clubs/disband', { auth: 'user' }, (c) => clubs.disbandClub(c.app, c.uid));
+route('POST', '/api/clubs/mute', { auth: 'user' }, (c) => clubs.mute(c.app, c.uid, c.body.userId, c.body.minutes));
+route('POST', '/api/clubs/say', { auth: 'user' }, (c) => clubs.say(c.app, c.uid, c.body.text));
+route('GET', '/api/clubs/chat', { auth: 'user' }, (c) => clubs.chat(c.app, c.uid, c.query.since));
+route('POST', '/api/clubs/hangout', { auth: 'user' }, (c) => clubs.hangout(c.app, c.uid));
 // jewelry store + cap store (wearables): public catalogue, the shop window, buy, wear, take off, (optional) sell back
 route('GET', '/api/wearables/catalogue', (c) => wear.catalogue(c.app));
 route('GET', '/api/wearables/shop', { auth: 'user' }, (c) => wear.shopView(c.app, c.uid, String(c.query.venueId || '')));

@@ -82,6 +82,7 @@ export class Venue {
     else if (st.type === 'style') this.salonSheet(st);
     else if (st.type === 'wear') wearSheet(this.g, this.id, st);
     else if (st.type === 'office') officeSheet(this.g, st.focus);
+    else if (st.type === 'club') { ui.lifeTab = 'clubs'; ui.closeSheet?.(); ui.phone('life'); }
     else if (['ticket', 'seat'].includes(st.type)) { const r = await ui.guard(() => post('/api/venue/act', { venueId: this.id, stationId: st.id, idem: crypto.randomUUID?.() })); if (r) { ui.toast(r.text, r.charged ? 'money' : undefined); this.g.refreshMe?.(); this.g.net.nudge(); } }
     else if (st.type === 'scores') this.scoresSheet(st);
     else if (st.type === 'game') this.sitPanel(st);

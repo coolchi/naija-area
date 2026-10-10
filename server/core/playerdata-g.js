@@ -13,3 +13,8 @@ registerPlayerData('marketplace',
   (app, uid) => ({ listings: all(app, 'SELECT id, kind, item_ref, ask, base_value, status, created_at, sold_at, buyer_id FROM market_listings WHERE seller_id=? ORDER BY id', uid), purchases: all(app, "SELECT id, kind, item_ref, ask, sold_at FROM market_listings WHERE buyer_id=? AND status='sold' ORDER BY id", uid) }),
   (app, uid) => { del(app, "DELETE FROM market_listings WHERE seller_id=? AND status IN ('open','expired','returned')", uid); },
   'listings still open or expired are removed and the item held in them is forfeited; finished sales stay (the other player\'s history and the ledger need them) with your player id anonymised');
+
+registerPlayerData('clubs',
+  (app, uid) => ({ membership: all(app, 'SELECT m.club_id, c.name, c.tag, m.role, m.joined_at FROM club_members m JOIN clubs c ON c.id=m.club_id WHERE m.user_id=?', uid), chatMessages: all(app, 'SELECT club_id, text, created_at FROM club_chat WHERE user_id=? ORDER BY id', uid), requestsAndInvites: all(app, 'SELECT club_id, kind, created_at FROM club_requests WHERE user_id=?', uid) }),
+  async (app, uid) => { const clubs = await import('./clubs.js'); const m = app.db.prepare('SELECT * FROM club_members WHERE user_id=?').get(uid); if (m) { try { clubs.leave(app, uid); } catch { /* a last member disbands the club below */ } } del(app, 'DELETE FROM club_members WHERE user_id=?', uid); del(app, 'DELETE FROM club_chat WHERE user_id=?', uid); del(app, 'DELETE FROM club_requests WHERE user_id=? OR invited_by=?', uid, uid); del(app, 'DELETE FROM club_cooldowns WHERE user_id=?', uid); },
+  'your chat messages are deleted; if you led a club it passes to another member (or closes if you were alone)');
