@@ -26,6 +26,7 @@ COPY server ./server
 COPY public ./public
 COPY --from=build /app/public/game.js ./public/game.js
 COPY scripts/check-config.mjs scripts/backup-sqlite.mjs ./scripts/
+COPY tools/seed-demo-ads.mjs ./tools/
 RUN mkdir -p /data && chown -R node:node /data /app
 USER node
 VOLUME ["/data"]

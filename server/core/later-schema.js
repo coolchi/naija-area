@@ -64,5 +64,12 @@ CREATE TABLE IF NOT EXISTS skins_equipped (user_id INTEGER NOT NULL, slot TEXT N
 CREATE TABLE IF NOT EXISTS pass_progress (user_id INTEGER NOT NULL, season TEXT NOT NULL, xp INTEGER NOT NULL DEFAULT 0, premium INTEGER NOT NULL DEFAULT 0, premium_at INTEGER, cash_claimed INTEGER NOT NULL DEFAULT 0, login_day TEXT, PRIMARY KEY (user_id, season));
 CREATE TABLE IF NOT EXISTS pass_claims (user_id INTEGER NOT NULL, season TEXT NOT NULL, tier INTEGER NOT NULL, track TEXT NOT NULL, claimed_at INTEGER NOT NULL, PRIMARY KEY (user_id, season, tier, track));
 CREATE TABLE IF NOT EXISTS pass_xp_log (user_id INTEGER NOT NULL, day TEXT NOT NULL, source TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, xp INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day, source));` }
+  ,{ n: 16, name: 'ad_placement', sql: `
+CREATE TABLE IF NOT EXISTS ad_campaign_creatives (campaign_id INTEGER NOT NULL, creative_id INTEGER NOT NULL, position INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'pending', reject_reason TEXT, gross INTEGER NOT NULL DEFAULT 0, valid INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, decided_at INTEGER, PRIMARY KEY (campaign_id, creative_id));
+CREATE INDEX IF NOT EXISTS ix_acc_creative ON ad_campaign_creatives(creative_id);` }
 ];
+// 16 (ad placement, 11 Oct 2026) also adds the column ad_campaigns.placement ('shared' | 'exclusive'): SQLite: migrate() in schema.js; Postgres: ALTER in 0016_ad_placement.sql.
+// Campaigns that existed before get one design row each from migrate() (SQLite) / the same INSERT in 0016 (Postgres).
+export const AD_PLACEMENT_BACKFILL = `INSERT OR IGNORE INTO ad_campaign_creatives(campaign_id, creative_id, position, status, created_at)
+  SELECT id, creative_id, 0, CASE WHEN status IN ('approved','scheduled','live','completed') THEN 'approved' WHEN status='rejected' THEN 'rejected' ELSE 'pending' END, created_at FROM ad_campaigns`;
 export function applyLater(db) { for (const c of LATER) db.exec(c.sql); }

@@ -30,3 +30,9 @@ export const isSpotWindow = (win, rotationMs, everyMs = AD_FORMATS.radio.everyMs
 export const rideSlotId = (cityId) => `ride:${cityId}`;
 /** which entry of a slot's list is on in window `win`: boards rotate every window; radio spots rotate every SPOT (spot windows are all multiples of the same number, so `win % n` would always give the same sponsor). Same rule on the client. */
 export const rotIndex = (slotId, win, rotationMs, everyMs = AD_FORMATS.radio.everyMs) => (String(slotId).startsWith('radio:') ? Math.floor(win / Math.max(1, Math.round(everyMs / rotationMs))) : win);
+/** Which campaign and which design is on at rotation index `k` (k = rotIndex(slot, window)). `list` = [{ c: campaign id, d: [design ids] }] in board order (the client's snapshot has `i` for a single design and `d` for several).
+ *  Campaigns take turns (k % n); inside a campaign its designs take turns each time it comes round (floor(k / n) % designs). One campaign alone (an exclusive board) therefore shows each of its designs for one window in turn.
+ *  The server (ads.js) and the client (ads-client.js) both use THIS function, so what the player sees is what the server validates. */
+export function pickFrame(list, k) {
+  const n = list?.length || 0; if (!n) return null; const e = list[k % n]; const ds = e.d && e.d.length ? e.d : [e.i]; return { c: e.c, i: ds[Math.floor(k / n) % ds.length], entry: e };
+}

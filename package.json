@@ -37,7 +37,9 @@
     "smoke:emotes": "node scripts/emotes-smoke.mjs",
     "smoke:seasons": "node scripts/seasons-smoke.mjs",
     "smoke:admin": "node scripts/admin-smoke.mjs",
-    "build:demo": "node tools/build-demo.mjs"
+    "build:demo": "node tools/build-demo.mjs",
+    "smoke:adplacement": "node scripts/ad-placement-smoke.mjs",
+    "seed:adplacement": "node scripts/seed-ad-placement-demo.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

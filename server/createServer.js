@@ -132,7 +132,9 @@ export function buildServer(opts = {}) {
   // creatives: public only once an ad is scheduled/live/completed; admins and the owning advertiser can preview earlier
   ex.get('/media/creative/:id', (req, res) => {
     const id = Number(req.params.id); const c = Number.isInteger(id) ? getCreative(app, id) : null; if (!c) return res.status(404).end();
-    const pub = db.prepare("SELECT 1 FROM ad_campaigns WHERE creative_id=? AND status IN ('scheduled','live','completed')").get(id);
+    // a design is public once it is APPROVED in a campaign that is scheduled/live/completed (a rejected design of a running campaign stays private); a campaign with no design rows (pre-migration data) falls back to its one creative
+    const pub = db.prepare("SELECT 1 FROM ad_campaign_creatives k JOIN ad_campaigns c ON c.id=k.campaign_id WHERE k.creative_id=? AND k.status='approved' AND c.status IN ('scheduled','live','completed')").get(id)
+      || db.prepare("SELECT 1 FROM ad_campaigns c WHERE c.creative_id=? AND c.status IN ('scheduled','live','completed') AND NOT EXISTS (SELECT 1 FROM ad_campaign_creatives k WHERE k.campaign_id=c.id)").get(id);
     let ok = !!pub;
     if (!ok) { if (readAdmin(parseCookies(req.headers.cookie).na_a)) ok = true; else { const k = req.query.key; if (k) { const a = db.prepare('SELECT id FROM advertisers WHERE access_key=?').get(String(k)); if (a && a.id === c.advertiser_id) ok = true; } } }
     if (!ok) return res.status(404).end();

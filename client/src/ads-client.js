@@ -2,7 +2,7 @@
 // (on-screen %, continuous visible ms) for the server to validate. The client never sends counts.
 import * as THREE from 'three';
 import { houseAd, creativeTexture } from './textures.js';
-import { rotIndex } from '../../server/core/adslots.js';
+import { rotIndex, pickFrame } from '../../server/core/adslots.js';
 import { AssetCache, ASSET_CFG } from './assetcache.js';
 
 const V = new THREE.Vector3();
@@ -13,7 +13,7 @@ export class AdsClient {
   }
   setSnapshot(ads) {
     if (!ads) return; this.slots = ads.slots || {}; this.rot = ads.rotationMs || 10000; this.users = new Map(); // creative id -> board ids that show it (images load on demand: see assetcache.js)
-    for (const [bid, list] of Object.entries(this.slots)) for (const a of list) { if (!this.users.has(a.i)) this.users.set(a.i, new Set()); this.users.get(a.i).add(bid); }
+    for (const [bid, list] of Object.entries(this.slots)) for (const a of list) for (const id of (a.d && a.d.length ? a.d : [a.i])) { if (!this.users.has(id)) this.users.set(id, new Set()); this.users.get(id).add(bid); } // every design of a campaign (a.d) loads on demand like a single creative
   }
   fetchImg(id, ok, fail) { const img = new Image(); img.onload = () => { this.lastKey = {}; ok({ img, tex: {} }, (img.naturalWidth || 1024) * (img.naturalHeight || 512) * 4 + ASSET_CFG.textureBytes); }; img.onerror = fail; img.src = window.__naMedia ? window.__naMedia(id) : `/media/creative/${id}`; }
   /** free a creative that fell out of the cache; boards showing it go back to the house ad until it is needed again */
@@ -21,17 +21,17 @@ export class AdsClient {
   /** which creatives are worth having now: those on boards near the player, current and next rotation window */
   schedule(player, win) {
     const near = new Map(); const dmin = (id) => { let d = Infinity; for (const bid of this.users.get(id) || []) { const b = this.world.boards[bid]; if (b) d = Math.min(d, Math.hypot(b.def.x - player.x, b.def.z - player.z)); } return d; };
-    for (const [bid, list] of Object.entries(this.slots)) { const b = this.world.boards[bid]; if (!b || !list.length) continue; const d = Math.hypot(b.def.x - player.x, b.def.z - player.z); if (d > ASSET_CFG.loadRadius) continue; for (const a of [list[win % list.length], list[(win + 1) % list.length]]) near.set(a.i, Math.min(near.get(a.i) ?? Infinity, d)); }
+    for (const [bid, list] of Object.entries(this.slots)) { const b = this.world.boards[bid]; if (!b || !list.length) continue; const d = Math.hypot(b.def.x - player.x, b.def.z - player.z); if (d > ASSET_CFG.loadRadius) continue; for (const a of [this.currentFor(bid, win), this.currentFor(bid, win + 1)]) if (a) near.set(a.i, Math.min(near.get(a.i) ?? Infinity, d)); }
     for (const [id, d] of near) this.cache.request(id, d); this.cache.tick(dmin);
   }
   house(id, w, h) { let t = this.houseTex.get(id); if (!t) { const d = this.world.boards[id].def; t = houseAd(w >= h * 1.5 ? 1024 : 768, w >= h * 1.5 ? 512 : 768, d.surface === 'lagoon_plot' ? 'Lagoon plot' : d.surface === 'airport_board' ? 'Airport board' : d.surface === 'shop_front' ? 'Shop sign' : 'Road billboard', 'Rent this board at /advertise', id.charCodeAt(id.length - 1)); this.houseTex.set(id, t); } return t; }
   /** which ad is on this board right now (deterministic from server time, same rule the server uses to validate) */
-  currentFor(id, win) { const list = this.slots[id]; if (!list || !list.length) return null; return list[rotIndex(id, win, this.rot, this.radioEvery) % list.length]; }
+  currentFor(id, win) { const list = this.slots[id]; if (!list || !list.length) return null; const f = pickFrame(list, rotIndex(id, win, this.rot, this.radioEvery)); return { c: f.c, i: f.i, b: f.entry.b, h: f.entry.h, x: f.entry.x }; } // i = the design on now (campaigns take turns, and a campaign's designs take turns: same rule as the server)
   update(cam, size, player, dtMs) {
     const t = this.now(); const win = Math.floor(t / this.rot); if (performance.now() - this.lastSched > 400) { this.lastSched = performance.now(); this.schedule(player, win); }
     for (const [id, b] of Object.entries(this.world.boards)) {
       const d = b.def; const dx = d.x - player.x, dz = d.z - player.z; const dist = Math.hypot(dx, dz);
-      const cur = this.currentFor(id, win); const key = cur ? `c${cur.c}` : 'house';
+      const cur = this.currentFor(id, win); const key = cur ? `c${cur.c}:${cur.i}` : 'house';
       if (b.shownKey !== key || this.lastKey[id] !== key) {
         const rec = cur && this.cache.get(cur.i);
         if (cur && rec) { const tx = rec.tex[win % 1] || (rec.tex.t = rec.tex.t || creativeTexture(rec.img, d.surface === 'lagoon_plot' ? 768 : 1024, d.surface === 'lagoon_plot' ? 768 : 512, cur.b)); b.mat.map = tx; b.mat.color.set(0xffffff); b.mat.needsUpdate = true; b.shownKey = key; this.lastKey[id] = key; }
@@ -39,9 +39,9 @@ export class AdsClient {
         else if (!b.mat.map) { b.mat.map = this.house(id, d.w, d.h); b.mat.needsUpdate = true; }
       }
       // ---- evidence (only boards near the player showing a paid creative)
-      const st = (this.state[id] ||= { win, camp: null, cont: 0, best: 0, pctSum: 0, pctN: 0 });
-      if (st.win !== win) { this.flush(id, st); st.win = win; st.camp = cur ? cur.c : null; st.cont = 0; st.best = 0; st.pctSum = 0; st.pctN = 0; }
-      st.camp = cur ? cur.c : null;
+      const st = (this.state[id] ||= { win, camp: null, cre: null, cont: 0, best: 0, pctSum: 0, pctN: 0 });
+      if (st.win !== win) { this.flush(id, st); st.win = win; st.camp = cur ? cur.c : null; st.cre = cur ? cur.i : null; st.cont = 0; st.best = 0; st.pctSum = 0; st.pctN = 0; }
+      st.camp = cur ? cur.c : null; st.cre = cur ? cur.i : null;
       if (!cur || !this.cache.get(cur.i) || dist > this.maxDist + 30 || document.hidden) { st.cont = 0; continue; } // an ad counts as viewable only once its image is actually loaded
       const pct = this.visiblePct(cam, size, b);
       if (pct >= 50) { st.cont += dtMs; st.best = Math.max(st.best, st.cont); st.pctSum += pct; st.pctN++; } else st.cont = 0;
@@ -49,7 +49,7 @@ export class AdsClient {
   }
   flush(id, st) {
     if (!st.camp || st.best < 300) return;
-    if (this.evidence.length < 120) this.evidence.push({ slot: id, win: st.win, c: st.camp, pct: Math.round(st.pctSum / Math.max(1, st.pctN)), ms: Math.round(Math.min(st.best, this.rot)), vis: true });
+    if (this.evidence.length < 120) this.evidence.push({ slot: id, win: st.win, c: st.camp, i: st.cre, pct: Math.round(st.pctSum / Math.max(1, st.pctN)), ms: Math.round(Math.min(st.best, this.rot)), vis: true });
   }
   take() { const e = this.evidence; this.evidence = []; return e; }
   visiblePct(cam, size, b) {

@@ -26,3 +26,21 @@ input.sr-file { position: absolute; width: 1px; height: 1px; opacity: 0; overflo
 .counter { float: right; font: 800 12px Nunito; color: var(--mut); background: #ece7d3; border-radius: 99px; padding: 1px 9px; } .counter.near { background: #ffe9b0; color: #8a5a00; } .counter.max { background: #ffd9d3; color: var(--red); }
 @media (max-width: 520px) { .drop { min-height: 130px; } .drop-empty b { font-size: 18px; } .filemeta .row button { flex: 1 1 40%; padding: 12px; } .mc-head { font-size: 16px; } }
 @media (prefers-reduced-motion: reduce) { .drop { transition: none; } }
+
+/* exclusive vs shared placement, and several designs per campaign (11 Oct 2026) */
+.placement { border: 0; padding: 0; margin: 14px 0 0; min-width: 0; } .placement legend { font-weight: 800; padding: 0; margin-bottom: 6px; }
+.pcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 12px; }
+.pcard { position: relative; display: flex; flex-direction: column; gap: 3px; padding: 12px 14px 12px 40px; border: 3px solid #e3dcc2; border-radius: 14px; background: #fff; cursor: pointer; }
+.pcard input { position: absolute; left: 13px; top: 15px; width: 18px; height: 18px; accent-color: var(--g); margin: 0; }
+.pcard.on { border-color: var(--g); background: #f1f8f3; } .pcard:focus-within { outline: 3px solid var(--y); outline-offset: 2px; }
+.pc-title { font: 400 19px 'Lilita One'; color: var(--gd); } .pc-price { font-weight: 800; } .pc-meta { color: var(--mut); font-size: 13px; }
+.designs { margin-top: 12px; } .designs-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; margin-bottom: 6px; }
+.dlist { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; counter-reset: dn; }
+.ditem { position: relative; width: 132px; border: 3px solid #e3dcc2; border-radius: 12px; background: #fff; overflow: hidden; cursor: pointer; } .ditem.cur { border-color: var(--g); }
+.ditem:focus-visible { outline: 3px solid var(--y); outline-offset: 2px; }
+.ditem img { display: block; width: 100%; aspect-ratio: var(--ar, 2); object-fit: fill; background: #eee; }
+.dnum { position: absolute; left: 6px; top: 6px; background: var(--gd); color: #fff; font: 400 14px 'Lilita One'; min-width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 11px; }
+.dname { font-size: 11px; padding: 3px 6px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ddel { position: absolute; right: 4px; top: 4px; width: 26px; height: 26px; padding: 0; border-radius: 13px; line-height: 1; font-size: 15px; }
+@media (max-width: 520px) { .ditem { width: calc(50% - 6px); } }
+.dgal { display: flex; flex-wrap: wrap; gap: 10px; } .dfig { margin: 0; width: min(100%, 210px); } .dfig img.prev { width: 100%; } .dfig figcaption { font-size: 12px; margin-top: 3px; } .dfig button.small { padding: 4px 10px; font-size: 12px; margin-top: 3px; }
