@@ -5,7 +5,24 @@
 <div class="banner">TEST MODE: rates are ESTIMATES and no payment is taken. Campaigns still go through real moderation and real impression counting, so you can see exactly how it will work.</div>
 <div class="card" id="s1"><h2>1. Who are you?</h2><div class="grid"><div><label>Brand name</label><input id="brand" maxlength="60" placeholder="e.g. Mama Tee Foods"></div><div><label>Email</label><input id="email" type="email" placeholder="you@brand.com"></div></div><p class="row"><button id="reg">Get my access key</button><span class="mut">Already registered? <a href="/advertiser">Open your dashboard</a>.</span></p><div id="keybox" style="display:none"></div><div id="e1" class="err"></div></div>
 <div class="card" id="s2"><h2>2. Pick a surface and get a quote</h2><div class="grid"><div><label>Surface</label><select id="surface"></select></div><div><label>Tier</label><select id="tier"></select></div><div><label>Number of boards</label><select id="units"></select></div><div><label>Duration</label><select id="days"></select></div></div><div id="quote" style="margin-top:10px"></div></div>
-<div class="card" id="s3"><h2>3. Your creative</h2><p class="mut" id="spec"></p><input type="file" id="file" accept="image/png,image/jpeg,image/webp"><div id="prevbox" style="margin-top:10px"></div><label>Headline (max 60 chars, shown on the billboard card)</label><input id="headline" maxlength="60"><label>Link (public https:// URL)</label><input id="link" placeholder="https://yourbrand.com/offer"><div id="e3" class="err"></div></div>
+<div class="card" id="s3"><h2>3. Your creative</h2><p class="mut" id="spec"></p>
+<div class="cgrid">
+<div class="cleft">
+<div id="drop" class="drop" tabindex="0" role="button" aria-label="Choose or drop your image" aria-describedby="spec dropHint">
+<input type="file" id="file" class="sr-file" accept="image/png,image/jpeg,image/webp" tabindex="-1" aria-hidden="true">
+<div id="dropEmpty" class="drop-empty"><svg class="drop-ico" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 33V13m0 0-8 8m8-8 8 8M9 33v4a3 3 0 0 0 3 3h24a3 3 0 0 0 3-3v-4" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><b>Drop your image here</b><span>or <u>click to choose a file</u></span><span class="chips" id="dropHint"></span></div>
+<img id="dropImg" class="drop-img hidden" alt="Your chosen image">
+<div id="dropBusy" class="drop-busy hidden">Uploading…</div>
+</div>
+<div id="fileMeta" class="filemeta hidden"><div class="fm-line"><b id="fmName"></b><span class="mut" id="fmInfo"></span><span class="tag" id="fmState"></span></div><div class="row"><button type="button" class="ghost" id="replaceBtn">Replace</button><button type="button" class="red" id="removeBtn">Remove</button></div></div>
+<div id="e3" class="err" role="alert"></div><div id="w3" class="warnmsg" role="status"></div><div id="n3" class="mut" role="status"></div>
+</div>
+<div class="cright"><div class="mut mocklabel">Rough preview: how it may look in the game</div>
+<div id="mock" class="mock"><div class="mock-frame" id="mockFrame"><div class="mock-board" id="mockBoard"><img id="mockImg" class="hidden" alt=""><div class="mock-empty" id="mockEmpty">Your image shows here</div><span class="mock-badge" id="mockBadge">Sponsored · Your brand</span></div></div>
+<div class="mock-card"><div class="mc-brand" id="mcBrand">Your brand</div><div class="mc-head" id="mcHead">Your headline shows here</div><div class="mc-link" id="mcLink">yourbrand.com</div><span class="mc-btn">Visit</span></div></div>
+<p class="mut small">The board shows your image with a small "Sponsored" badge. The headline and link appear on the card a player sees when they tap the board. Colours and sizes in the real game differ a little.</p></div>
+</div>
+<label for="headline">Headline (max 60 chars, shown on the billboard card) <span class="counter" id="hcount">0/60</span></label><input id="headline" maxlength="60" autocomplete="off"><label for="link">Link (public https:// URL)</label><input id="link" placeholder="https://yourbrand.com/offer"></div>
 <div class="card" id="s4"><h2>4. Submit for review</h2><p class="mut">Your ad passes automatic checks (image, link, restricted words). Anything touching betting, alcohol, politics, loans etc. goes to a human reviewer. Approved ads go live on the next rotation.</p><label><input type="checkbox" id="ack"> I understand this is test mode: no payment is taken and nothing here is a binding order.</label><p><button class="alt" id="submit">Submit campaign</button></p><div id="e4" class="err"></div><div id="done" class="ok"></div></div>
 <div class="card"><h2>Rules in one minute</h2><ul><li>Ads must be legal in Nigeria, honest, and suitable for an 18+ audience.</li><li>No prohibited content: <span id="prohibited"></span>.</li><li>Needs extra review: <span id="restricted"></span>.</li><li>We count only <b>valid</b> impressions: <a href="/methodology">read how</a>.</li></ul></div>
-</main><script src="/js/advertise.js"></script></body></html>
+</main><script type="module" src="/js/advertise.js"></script></body></html>
