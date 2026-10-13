@@ -1,7 +1,9 @@
 // Route finding and the autopilot (client/src/route.js): pure functions on the real city config.
 import test from 'node:test'; import assert from 'node:assert/strict'; import fs from 'node:fs';
 import { buildGrid, findRoute, collidersFromCity, Auto, etaSeconds, etaLabel, remaining, homeMarkers, NAV } from '../client/src/route.js';
+import { pickDriverRoute } from '../client/src/ride.js';
 import { roadAt, polyLen } from '../client/src/roadgeom.js';
+import { buildModel } from '../client/src/map-model.js';
 const city = JSON.parse(fs.readFileSync(new URL('../server/config/cities/lagos-mainland.json', import.meta.url)));
 const G = buildGrid(city); const cols = collidersFromCity(city);
 const inside = (p, c, r = 0) => p[0] > c.x0 - r && p[0] < c.x1 + r && p[1] > c.z0 - r && p[1] < c.z1 + r;
@@ -39,6 +41,17 @@ test('autopilot on foot: arrives, at walking speed, without cutting through buil
   while (!a.done && t < 400) { s = a.step(s.x, s.z, s.ry, s.v, 0.05); t += 0.05; maxv = Math.max(maxv, s.v); if (cols.some(c => inside([s.x, s.z], c, 0.3))) bad++; }
   assert.ok(a.done, 'arrived'); assert.ok(maxv <= NAV.walk + 1e-9); assert.equal(bad, 0); assert.ok(Math.abs(t - r.length / NAV.walk) < 8, `time ${t.toFixed(1)} vs ${(r.length / NAV.walk).toFixed(1)}`);
 });
+test('a supercar on take-me-there holds twice the normal drive cap and arrives sooner', () => {
+  const from = [-200, -200], to = [200, 100]; const r = findRoute(G, from, to, 'drive'); assert.ok(r);
+  const run = (cap) => { const a = new Auto(r.pts, 'drive', cap ? { driveMax: cap } : null); let s = { x: from[0], z: from[1], ry: 0, v: 0 }, t = 0, maxv = 0; for (let i = 0; i < 5000 && !a.done; i++) { s = a.step(s.x, s.z, s.ry, s.v, 0.05); maxv = Math.max(maxv, s.v); t += 0.05; } return { done: a.done, t, maxv }; };
+  const n = run(0), f = run(NAV.driveMax * 2); assert.ok(n.done && f.done); assert.ok(n.maxv <= NAV.driveMax + 1e-6); assert.ok(f.maxv > NAV.driveMax * 1.7 && f.maxv <= NAV.driveMax * 2 + 1e-6, 'cap ' + f.maxv); assert.ok(f.t < n.t * 0.7, `supercar ${f.t.toFixed(1)} vs ${n.t.toFixed(1)}`);
+  assert.equal(etaSeconds(180, 'drive', 2), Math.round(180 / (NAV.drive * 2)));
+});
+test('the oya driver comes in on a street and the route does not enter a building', () => {
+  const from = [city.spawns[0].x, city.spawns[0].z]; const rt = pickDriverRoute(from, 180, { roadAt, findRoute, grid: G, city }); assert.ok(rt && rt.pts.length > 2, 'street route');
+  let bad = 0; sample(rt.pts, (p) => { if (cols.some(c => inside(p, c, 0.2))) bad++; }); assert.equal(bad, 0, 'through a building');
+  const end = rt.pts[rt.pts.length - 1]; assert.ok(Math.hypot(end[0] - from[0], end[1] - from[1]) < 3);
+});
 test('autopilot by car: arrives, never exceeds the limit, slows for corners and the end of the route', () => {
   const from = [-200, -200], to = [200, 100]; const r = findRoute(G, from, to, 'drive'); const a = new Auto(r.pts, 'drive'); let s = { x: from[0], z: from[1], ry: 0, v: 0 }, t = 0, maxv = 0, minCorner = 99;
   while (!a.done && t < 400) { s = a.step(s.x, s.z, s.ry, s.v, 0.05); t += 0.05; maxv = Math.max(maxv, s.v); if (t > 10 && a.i < r.pts.length - 2) minCorner = Math.min(minCorner, s.v); }
@@ -55,4 +68,21 @@ test('home markers: none, one, several; doors only; no duplicates', () => {
 });
 test('route building is fast enough to run on the player\'s device (grid once, then a route per tap)', () => {
   let t0 = performance.now(); const g2 = buildGrid(city); const tg = performance.now() - t0; t0 = performance.now(); for (let i = 0; i < 5; i++) findRoute(g2, [-200, -200], [200, 100], 'drive'); const tr = (performance.now() - t0) / 5; assert.ok(tg < 4000 && tr < 600, `grid ${tg.toFixed(0)} ms, route ${tr.toFixed(0)} ms`);
+});
+
+test('every map pin can be walked to from spawn, including airports and landmarks inside large solids', () => {
+  const dir = new URL('../server/config/cities/', import.meta.url);
+  const names = fs.readdirSync(dir).filter(f => f.endsWith('.json') && f !== 'index.json');
+  const bad = [];
+  for (const name of names) {
+    const c = JSON.parse(fs.readFileSync(new URL(name, dir)));
+    if (!c.spawns?.length || !c.bounds || !c.buildings) continue;
+    const grid = buildGrid(c); const start = [c.spawns[0].x, c.spawns[0].z]; const B = c.bounds;
+    for (const item of buildModel(c).items) {
+      if (item.x < B.minX || item.x > B.maxX || item.z < B.minZ || item.z > B.maxZ) continue;
+      const r = findRoute(grid, start, [item.x, item.z], 'walk');
+      if (!r) bad.push(name + ' ' + item.name);
+    }
+  }
+  assert.deepEqual(bad, []);
 });

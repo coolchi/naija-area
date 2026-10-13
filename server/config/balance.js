@@ -112,7 +112,10 @@ export const BALANCE = {
       kekere: { name: 'Kekere Hatch (used)', price: 900000, perM: 0.30, speed: 14, mood: 1, color: '#e9c46a', body: 'hatch' },
       oga: { name: 'Oga Sedan', price: 2500000, perM: 0.28, speed: 18, mood: 3, color: '#457b9d', body: 'sedan' },
       bigboy: { name: 'Big Boy SUV', price: 6000000, perM: 0.45, speed: 24, mood: 6, color: '#2b2d42', body: 'suv' },
-      senator: { name: 'Senator Executive', price: 15000000, perM: 0.40, speed: 28, mood: 8, color: '#d62828', body: 'sedan' }
+      senator: { name: 'Senator Executive', price: 15000000, perM: 0.40, speed: 28, mood: 8, color: '#d62828', body: 'sedan' },
+      // Exclusive pair. Prices set by Sherif: 10 billion and 20 billion. drive = free-roam top speed in m/s (under the server clamp).
+      gwagon: { name: 'G-Wagon', price: 10000000000, perM: 0.55, speed: 34, drive: 23, mood: 12, color: '#161616', body: 'gwagon', exclusive: true },
+      cyber: { name: 'Cybertruck', price: 20000000000, perM: 0.12, speed: 42, drive: 25, mood: 14, color: '#c5c9d0', body: 'cyber', exclusive: true }
     }
   },
   decor: { price: 500, walls: { cream: ['Cream', '#f1e7cf'], sky: ['Sky blue', '#9fd0ee'], mint: ['Mint', '#a8dcc0'], peach: ['Peach', '#f6c4a4'], lilac: ['Lilac', '#cdb7ea'], sand: ['Sand', '#d9c59a'], white: ['White', '#f6f6f2'], clay: ['Clay', '#c9876a'] },

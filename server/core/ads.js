@@ -1,8 +1,8 @@
 // Ad system v0: campaigns + moderation state machine + rotation + server-side impression validation + signed-redirect taps.
 import { bad, dayKey, cleanText } from './util.js';
 import { screen } from './filter.js';
-import { RATE_CARD, AD_POLICY, AD_FORMATS, priceFor } from '../config/ratecard.js';
-import { isSpotWindow } from './adslots.js';
+import { RATE_CARD, AD_POLICY, AD_FORMATS, priceFor, isPlacement, DEFAULT_PLACEMENT, maxCreatives, placementLabel } from '../config/ratecard.js';
+import { isSpotWindow, pickFrame } from './adslots.js';
 import { dist } from './economy.js';
 
 export const STATES = ['submitted', 'auto_checks', 'human_review', 'approved', 'rejected', 'scheduled', 'live', 'completed'];
@@ -67,17 +67,31 @@ export function getOrCreateAdvertiser(app, { email, brand }) {
 export const advertiserByKey = (app, key) => (typeof key === 'string' && key.length >= 16 ? app.db.prepare('SELECT * FROM advertisers WHERE access_key=?').get(key) : null);
 
 // ---- quoting + availability ---------------------------------------------
-export function quote(app, { surface, tier, units, days, cityId }) {
-  const p = priceFor(surface, tier, units, days);
+export function quote(app, { surface, tier, units, days, cityId, placement = DEFAULT_PLACEMENT }) {
+  if (!isPlacement(placement)) bad('BAD_PLACEMENT', 'Placement must be "shared" or "exclusive".');
+  const p = priceFor(surface, tier, units, days, placement);
   if (!p) bad('BAD_QUOTE', 'Choose a valid surface, tier, number of boards and duration.');
   if (units > maxUnits(app, surface, tier, cityId)) bad('BAD_QUOTE', `Only ${maxUnits(app, surface, tier, cityId)} boards exist for that choice.`);
-  return { ...p, surface, tier, units, days, currency: 'NGN', test_mode: true, note: 'ESTIMATE rate card. TEST MODE: no payment is taken.' };
+  const spec = RATE_CARD.surfaces[surface], per = spec.positionsPerBoard, label = placementLabel(surface, placement);
+  const line = { description: `${spec.label} · ${spec.tiers[tier].label} · ${label}`, placement, placementLabel: label, boards: units, days, weeklyPerBoard: p.weekly, net: p.net };
+  return { ...p, surface, tier, units, days, placementLabel: label, positionsPerBoard: per, positionsTaken: placement === 'exclusive' ? per : 1, sharePct: placement === 'exclusive' ? 100 : Math.round(100 / per), maxDesigns: maxCreatives(surface, placement), lines: [line],
+    currency: 'NGN', test_mode: true, note: 'ESTIMATE rate card. TEST MODE: no payment is taken.' };
 }
-export function availability(app, surface, tier, units, startAt, endAt, cityId = app.defaultCityId) {
-  const slots = slotsFor(app, surface, tier, cityId); const cap = slots.length * RATE_CARD.surfaces[surface].positionsPerBoard;
-  const used = app.db.prepare(`SELECT COALESCE(SUM(units),0) n FROM ad_campaigns WHERE surface=? AND tier=? AND city_id=? AND status IN (${PIPELINE.map(() => '?').join(',')}) AND COALESCE(start_at, requested_start, created_at) < ? AND COALESCE(end_at, COALESCE(start_at, requested_start, created_at) + days*86400000) > ?`)
-    .get(surface, tier, cityId, ...PIPELINE, endAt, startAt).n;
-  return { capacity: cap, used, free: cap - used, ok: cap - used >= units };
+/** can `units` boards be sold in this placement for [startAt, endAt)? Shared takes one rotation position per board; exclusive needs WHOLE boards: every position free for the whole period. */
+export function availability(app, surface, tier, units, startAt, endAt, cityId = app.defaultCityId, placement = DEFAULT_PLACEMENT) {
+  const slots = slotsFor(app, surface, tier, cityId); const boards = slots.length; const per = RATE_CARD.surfaces[surface].positionsPerBoard; const cap = boards * per;
+  const ov = (c) => `${c}surface=? AND ${c}tier=? AND ${c}city_id=? AND ${c}status IN (${PIPELINE.map(() => '?').join(',')}) AND COALESCE(${c}start_at, ${c}requested_start, ${c}created_at) < ? AND COALESCE(${c}end_at, COALESCE(${c}start_at, ${c}requested_start, ${c}created_at) + ${c}days*86400000) > ?`;
+  const args = [surface, tier, cityId, ...PIPELINE, endAt, startAt];
+  const rows = app.db.prepare(`SELECT id, units, placement FROM ad_campaigns WHERE ${ov('')}`).all(...args);
+  let sharedUnits = 0, exclUnits = 0; for (const r of rows) { if (r.placement === 'exclusive') exclUnits += Number(r.units); else sharedUnits += Number(r.units); }
+  const used = sharedUnits + exclUnits * per; const poolOk = cap - used >= units * (placement === 'exclusive' ? per : 1);
+  // boards: a shared unit needs a board that no exclusive campaign owns; an exclusive unit needs a board nobody touches at all (assigned boards are known; campaigns still waiting for a board count conservatively, one board per unit)
+  const touched = new Set(app.db.prepare(`SELECT DISTINCT s.slot_id FROM ad_assignments s JOIN ad_campaigns c ON c.id=s.campaign_id WHERE ${ov('c.')}`).all(...args).map(r => r.slot_id));
+  const assigned = new Set(app.db.prepare(`SELECT DISTINCT s.campaign_id FROM ad_assignments s JOIN ad_campaigns c ON c.id=s.campaign_id WHERE ${ov('c.')}`).all(...args).map(r => Number(r.campaign_id)));
+  const unassigned = rows.filter(r => !assigned.has(Number(r.id))).reduce((n, r) => n + Number(r.units), 0);
+  const blocked = Math.min(boards, touched.size + unassigned); const freeBoards = boards - blocked; const openBoards = boards - Math.min(boards, exclUnits);
+  const ok = placement === 'exclusive' ? freeBoards >= units && poolOk : poolOk && openBoards >= units;
+  return { placement, capacity: cap, used, free: cap - used, freeBoards, boards, ok };
 }
 
 // ---- campaigns + state machine -----------------------------------------
@@ -97,25 +111,38 @@ function hostOk(u) {
   if (!h.includes('.') || /^\d+\.\d+\.\d+\.\d+$/.test(h) || h === 'localhost' || h.endsWith('.local') || h.endsWith('.internal') || url.username || url.password) return false;
   return true;
 }
+/** the creative ids of an order: `creativeIds` (several designs) or the old single `creativeId`; no repeats, order kept */
+function designIds(p) {
+  const raw = Array.isArray(p.creativeIds) && p.creativeIds.length ? p.creativeIds : (p.creativeId !== undefined && p.creativeId !== null ? [p.creativeId] : []);
+  const out = []; for (const x of raw) { const n = Number(x); if (!Number.isInteger(n)) bad('NO_CREATIVE', 'Upload an image first.'); if (!out.includes(n)) out.push(n); } return out;
+}
 export function createCampaign(app, advertiserId, p, opts = {}) {
   const now = app.clock.now();
-  const q = quote(app, p);
-  const cr = app.db.prepare('SELECT * FROM ad_creatives WHERE id=?').get(p.creativeId);
-  if (!cr || cr.advertiser_id !== advertiserId) bad('NO_CREATIVE', 'Upload an image first.');
+  const placement = p.placement === undefined || p.placement === null || p.placement === '' ? DEFAULT_PLACEMENT : p.placement;
+  const q = quote(app, { ...p, placement });
+  const ids = designIds(p); if (!ids.length) bad('NO_CREATIVE', 'Upload an image first.');
+  const maxD = maxCreatives(p.surface, placement);
+  if (ids.length > maxD) bad('TOO_MANY_DESIGNS', `${placement === 'exclusive' ? 'An exclusive' : 'A shared'} campaign can rotate up to ${maxD} design${maxD > 1 ? 's' : ''} (you sent ${ids.length}).`);
+  const spec = RATE_CARD.surfaces[p.surface]; const crs = [];
+  for (const cid of ids) {
+    const cr = app.db.prepare('SELECT * FROM ad_creatives WHERE id=?').get(cid);
+    if (!cr || cr.advertiser_id !== advertiserId) bad('NO_CREATIVE', 'Upload an image first.');
+    const ar = cr.width / cr.height; if (Math.abs(ar - spec.aspect) / spec.aspect > 0.2) bad('BAD_ASPECT', `Image should be about ${spec.size} (yours is ${cr.width}x${cr.height}).`);
+    crs.push(cr);
+  }
   const link = String(p.linkUrl || '').trim();
   if (link.length > 300 || !hostOk(link)) bad('BAD_LINK', 'Link must be a public https:// URL.');
-  const spec = RATE_CARD.surfaces[p.surface]; const ar = cr.width / cr.height;
-  if (Math.abs(ar - spec.aspect) / spec.aspect > 0.2) bad('BAD_ASPECT', `Image should be about ${spec.size} (yours is ${cr.width}x${cr.height}).`);
   const headline = cleanText(p.headline || '', 60); { const sc = screen(headline, { links: false }); if (!sc.ok) bad('BAD_HEADLINE', 'Headline: ' + sc.message); }
   let reqStart = Number.isFinite(p.startAt) && p.startAt > now ? Math.min(p.startAt, now + 60 * 86400000) : now;
   const end = reqStart + p.days * 86400000;
-  if (p.cityId !== undefined && !app.cities[p.cityId]) bad('NO_CITY', 'Unknown city.'); const cityId = p.cityId || app.defaultCityId; const av = availability(app, p.surface, p.tier, p.units, reqStart, end, cityId);
-  if (!av.ok) bad('SOLD_OUT', `Not enough free ad positions for those dates (${av.free} free).`, 409);
+  if (p.cityId !== undefined && !app.cities[p.cityId]) bad('NO_CITY', 'Unknown city.'); const cityId = p.cityId || app.defaultCityId; const av = availability(app, p.surface, p.tier, p.units, reqStart, end, cityId, placement);
+  if (!av.ok) bad('SOLD_OUT', placement === 'exclusive' ? `Not enough whole boards free for those dates: an exclusive ad needs every position on the board free for the whole period (${av.freeBoards} whole board${av.freeBoards === 1 ? '' : 's'} free). Try Shared, other dates or fewer boards.` : `Not enough free ad positions for those dates (${av.free} free).`, 409);
   return app.db.transaction(() => {
     const r = app.db.prepare(`INSERT INTO ad_campaigns(advertiser_id,creative_id,surface,tier,units,days,link_url,headline,price_net,price_vat,price_total,payment_status,status,requested_start,is_demo,created_at,updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'submitted',?,?,?,?)`).run(advertiserId, p.creativeId, p.surface, p.tier, p.units, p.days, link, headline, q.net, q.vat, q.total, app.payments && app.payments.cfg.adsRequirePayment ? 'awaiting_payment' : 'test_mode_no_payment', reqStart, opts.demo ? 1 : 0, now, now);
-    const id = Number(r.lastInsertRowid); app.db.prepare('UPDATE ad_campaigns SET city_id=? WHERE id=?').run(cityId, id);
-    app.db.prepare('INSERT INTO ad_transitions(campaign_id,from_status,to_status,actor,note,created_at) VALUES (?,?,?,?,?,?)').run(id, null, 'submitted', 'advertiser', 'TEST MODE checkout: no payment taken', now);
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'submitted',?,?,?,?)`).run(advertiserId, ids[0], p.surface, p.tier, p.units, p.days, link, headline, q.net, q.vat, q.total, app.payments && app.payments.cfg.adsRequirePayment ? 'awaiting_payment' : 'test_mode_no_payment', reqStart, opts.demo ? 1 : 0, now, now);
+    const id = Number(r.lastInsertRowid); app.db.prepare('UPDATE ad_campaigns SET city_id=?, placement=? WHERE id=?').run(cityId, placement, id);
+    ids.forEach((cid, i) => app.db.prepare("INSERT INTO ad_campaign_creatives(campaign_id,creative_id,position,status,created_at) VALUES (?,?,?,'pending',?)").run(id, cid, i, now));
+    app.db.prepare('INSERT INTO ad_transitions(campaign_id,from_status,to_status,actor,note,created_at) VALUES (?,?,?,?,?,?)').run(id, null, 'submitted', 'advertiser', `TEST MODE checkout: no payment taken. ${q.placementLabel}, ${ids.length} design${ids.length > 1 ? 's' : ''}`, now);
     runAutoChecks(app, id);
     return id;
   })();
@@ -131,18 +158,49 @@ export function runAutoChecks(app, id) {
   if (restricted.length && rules?.rejectRestrictedAds) { app.db.prepare('UPDATE ad_campaigns SET reject_reason=?, flags=? WHERE id=?').run(`Auto-rejected: this city does not allow ${restricted.join(', ')} ads`, JSON.stringify(['city_rule:' + restricted.join('|')]), id); transition(app, id, 'rejected', 'system', 'city content rule'); return 'rejected'; }
   for (const k of restricted) flags.push('restricted_category:' + k);
   if (flags.length) flags.push('needs_regulator_paperwork_check');
-  const dup = app.db.prepare('SELECT COUNT(*) n FROM ad_creatives WHERE sha256=(SELECT sha256 FROM ad_creatives WHERE id=?) AND id!=?').get(c.creative_id, c.creative_id).n;
-  if (dup) flags.push('duplicate_creative_seen_before');
+  const designs = designRows(app, id); const dupOf = (cid) => app.db.prepare('SELECT COUNT(*) n FROM ad_creatives WHERE sha256=(SELECT sha256 FROM ad_creatives WHERE id=?) AND id!=?').get(cid, cid).n;
+  if (designs.some(d => dupOf(d.creative_id))) flags.push('duplicate_creative_seen_before');
+  if (designs.length > 1 && new Set(designs.map(d => app.db.prepare('SELECT sha256 FROM ad_creatives WHERE id=?').get(d.creative_id).sha256)).size < designs.length) flags.push('same_image_twice_in_campaign');
   app.db.prepare('UPDATE ad_campaigns SET flags=? WHERE id=?').run(JSON.stringify(flags), id);
   transition(app, id, 'human_review', 'system', flags.length ? 'flags: ' + flags.join(', ') : 'auto checks passed');
   return 'human_review';
 }
-export function decide(app, id, decision, actor = 'admin', reason = null) {
-  if (decision === 'approve') { transition(app, id, 'approved', actor, reason); scheduleCampaign(app, id); }
-  else if (decision === 'reject') { if (!reason) bad('REASON_REQUIRED', 'Give a rejection reason.'); app.db.prepare('UPDATE ad_campaigns SET reject_reason=? WHERE id=?').run(cleanText(reason, 200), id); transition(app, id, 'rejected', actor, reason); }
+/** the designs of a campaign, in rotation order. A campaign with no link rows (never happens after the migration) is shown as its one creative. */
+export function designRows(app, id) {
+  const rows = app.db.prepare('SELECT creative_id, position, status, reject_reason, gross, valid FROM ad_campaign_creatives WHERE campaign_id=? ORDER BY position, creative_id').all(id);
+  if (rows.length) return rows.map(r => ({ ...r, creative_id: Number(r.creative_id), position: Number(r.position), gross: Number(r.gross), valid: Number(r.valid) }));
+  const c = app.db.prepare('SELECT creative_id, status FROM ad_campaigns WHERE id=?').get(id); return c ? [{ creative_id: Number(c.creative_id), position: 0, status: ['approved', 'scheduled', 'live', 'completed'].includes(c.status) ? 'approved' : c.status === 'rejected' ? 'rejected' : 'pending', reject_reason: null, gross: 0, valid: 0 }] : [];
+}
+const setDesign = (app, id, cid, status, reason) => app.db.prepare('UPDATE ad_campaign_creatives SET status=?, reject_reason=?, decided_at=? WHERE campaign_id=? AND creative_id=?').run(status, reason ? cleanText(reason, 200) : null, app.clock.now(), id, cid);
+/** `extra.rejectDesigns`: creative ids of this campaign to reject while approving the rest (each needs the reason) */
+export function decide(app, id, decision, actor = 'admin', reason = null, extra = {}) {
+  if (decision === 'approve') {
+    const rej = (Array.isArray(extra.rejectDesigns) ? extra.rejectDesigns : []).map(Number); const ds = designRows(app, id);
+    if (rej.length) { if (!reason) bad('REASON_REQUIRED', 'Give a reason for the rejected design(s).'); for (const r of rej) if (!ds.some(d => d.creative_id === r)) bad('NO_DESIGN', 'That design is not part of this campaign.', 404); if (ds.every(d => rej.includes(d.creative_id) || d.status === 'rejected')) bad('NO_DESIGN_LEFT', 'At least one design must stay approved. Reject the whole campaign instead.', 409); }
+    transition(app, id, 'approved', actor, reason); // (no transaction: this is synchronous, nothing can run between these steps)
+    for (const d of ds) { if (rej.includes(d.creative_id)) setDesign(app, id, d.creative_id, 'rejected', reason); else if (d.status === 'pending') setDesign(app, id, d.creative_id, 'approved', null); }
+    scheduleCampaign(app, id);
+  }
+  else if (decision === 'reject') { if (!reason) bad('REASON_REQUIRED', 'Give a rejection reason.'); app.db.prepare('UPDATE ad_campaigns SET reject_reason=? WHERE id=?').run(cleanText(reason, 200), id); transition(app, id, 'rejected', actor, reason); for (const d of designRows(app, id)) if (d.status !== 'rejected') setDesign(app, id, d.creative_id, 'rejected', reason); }
   else if (decision === 'takedown') { app.db.prepare('UPDATE ad_campaigns SET end_at=? WHERE id=?').run(app.clock.now(), id); transition(app, id, 'completed', actor, reason || 'taken down'); app.db.prepare('DELETE FROM ad_assignments WHERE campaign_id=?').run(id); bump(app); }
   else bad('BAD_DECISION', 'approve | reject | takedown');
   return app.db.prepare('SELECT status FROM ad_campaigns WHERE id=?').get(id).status;
+}
+/** moderate ONE design of a campaign: reject (it leaves the rotation at once; the others keep running) or approve it again. Rejecting the last design that is not rejected ends the campaign (rejected before it runs, taken down once it does). */
+export function decideDesign(app, id, creativeId, decision, actor = 'admin', reason = null) {
+  const c = app.db.prepare('SELECT status FROM ad_campaigns WHERE id=?').get(id); if (!c) bad('NO_CAMPAIGN', 'Campaign not found.', 404);
+  const ds = designRows(app, id); const d = ds.find(x => x.creative_id === Number(creativeId)); if (!d) bad('NO_DESIGN', 'That design is not part of this campaign.', 404);
+  if (['rejected', 'completed'].includes(c.status)) bad('BAD_TRANSITION', `The campaign is ${c.status}; its designs can no longer change.`, 409);
+  if (decision === 'reject') {
+    if (!reason) bad('REASON_REQUIRED', 'Give a rejection reason.'); if (d.status === 'rejected') return { design: 'rejected', campaign: c.status };
+    const left = ds.filter(x => x.creative_id !== d.creative_id && x.status !== 'rejected').length;
+    if (!left) return { design: 'rejected', campaign: decide(app, id, ['submitted', 'auto_checks', 'human_review'].includes(c.status) ? 'reject' : 'takedown', actor, reason) };
+    setDesign(app, id, d.creative_id, 'rejected', reason); bump(app);
+  } else if (decision === 'approve') {
+    if (d.status === 'approved') return { design: 'approved', campaign: c.status };
+    setDesign(app, id, d.creative_id, 'approved', null); bump(app);
+  } else bad('BAD_DECISION', 'approve | reject');
+  return { design: decision === 'approve' ? 'approved' : 'rejected', campaign: app.db.prepare('SELECT status FROM ad_campaigns WHERE id=?').get(id).status };
 }
 const bump = (app) => { app.adsVersion = (app.adsVersion || 0) + 1; };
 /** approved -> scheduled: put the campaign on the least-loaded boards with a free rotation position */
@@ -152,18 +210,20 @@ export function scheduleCampaign(app, id) {
   if (app.payments?.cfg.adsRequirePayment && !['paid', 'test_mode_no_payment'].includes(c.payment_status)) { // approved ads wait for payment; tickAds retries and schedules once the money is confirmed
     const fl = JSON.parse(c.flags || '[]'); if (!fl.includes('waiting_for_payment')) app.db.prepare('UPDATE ad_campaigns SET flags=? WHERE id=?').run(JSON.stringify([...fl, 'waiting_for_payment']), id); return false;
   }
+  const start = Math.max(c.requested_start || now, now); const end = start + c.days * 86400000; const excl = c.placement === 'exclusive';
   return app.db.transaction(() => {
-    const load = app.db.prepare('SELECT slot_id, COUNT(*) n FROM ad_assignments GROUP BY slot_id').all(); const lm = Object.fromEntries(load.map(r => [r.slot_id, r.n]));
-    const cands = slotsFor(app, c.surface, c.tier, c.city_id).filter(s => (lm[s.id] || 0) < per).sort((a, b) => (lm[a.id] || 0) - (lm[b.id] || 0));
+    // what already sits on each board DURING this campaign's period (a shared campaign = 1 position, an exclusive one = every position)
+    const taken = app.db.prepare("SELECT s.slot_id, s.position, k.placement FROM ad_assignments s JOIN ad_campaigns k ON k.id=s.campaign_id WHERE s.campaign_id!=? AND k.status IN ('scheduled','live') AND k.start_at < ? AND k.end_at > ?").all(id, end, start);
+    const lm = {}; for (const t of taken) lm[t.slot_id] = (lm[t.slot_id] || 0) + (t.placement === 'exclusive' ? per : 1);
+    const cands = slotsFor(app, c.surface, c.tier, c.city_id).filter(s => excl ? !(lm[s.id] > 0) : (lm[s.id] || 0) < per).sort((a, b) => (lm[a.id] || 0) - (lm[b.id] || 0));
     if (cands.length < c.units) { app.db.prepare("UPDATE ad_campaigns SET flags=? WHERE id=?").run(JSON.stringify([...(JSON.parse(c.flags || '[]').filter(f => f !== 'waiting_for_space')), 'waiting_for_space']), id); return false; }
-    const taken = app.db.prepare('SELECT slot_id, position FROM ad_assignments').all();
-    for (const s of cands.slice(0, c.units)) {
-      const used = new Set(taken.filter(t => t.slot_id === s.id).map(t => t.position)); let pos = 0; while (used.has(pos)) pos++;
+    for (const s of cands.slice(0, c.units)) { // an exclusive campaign takes position 0 and (see lm above) fills the board: nobody else is placed there while it runs
+      const used = new Set(taken.filter(t => t.slot_id === s.id).map(t => Number(t.position))); let pos = 0; while (used.has(pos)) pos++;
       app.db.prepare('INSERT INTO ad_assignments(campaign_id,slot_id,position) VALUES (?,?,?)').run(id, s.id, pos);
     }
-    const start = Math.max(c.requested_start || now, now);
-    app.db.prepare('UPDATE ad_campaigns SET start_at=?, end_at=? WHERE id=?').run(start, start + c.days * 86400000, id);
-    transition(app, id, 'scheduled', 'system', `assigned to ${c.units} board(s)`);
+    app.db.prepare('UPDATE ad_campaigns SET start_at=?, end_at=? WHERE id=?').run(start, end, id);
+    app.db.prepare("UPDATE ad_campaigns SET flags=? WHERE id=?").run(JSON.stringify(JSON.parse(c.flags || '[]').filter(f => f !== 'waiting_for_space')), id);
+    transition(app, id, 'scheduled', 'system', `assigned to ${c.units} board(s)${excl ? ' (exclusive: whole board)' : ''}`);
     bump(app); return true;
   })();
 }
@@ -177,23 +237,33 @@ export function tickAds(app) {
 }
 
 // ---- serving + rotation -------------------------------------------------
+/** what is booked on a board at time `atMs`, in rotation order: one entry per campaign with its approved designs (`designs`, in order) and `creative` = the first design (kept for older callers) */
 export function liveOnSlot(app, slotId, atMs) {
-  return app.db.prepare(`SELECT c.id campaign, c.creative_id creative, c.headline, c.link_url, a.brand_name brand, s.position
-    FROM ad_assignments s JOIN ad_campaigns c ON c.id=s.campaign_id JOIN advertisers a ON a.id=c.advertiser_id
-    WHERE s.slot_id=? AND c.status IN ('live','completed') AND c.start_at<=? AND c.end_at>? ORDER BY s.position`).all(slotId, atMs, atMs);
+  const rows = app.db.prepare(`SELECT c.id campaign, c.creative_id creative, c.headline, c.link_url, c.placement, a.brand_name brand, s.position, k.creative_id design, k.status dstatus, k.position dpos
+    FROM ad_assignments s JOIN ad_campaigns c ON c.id=s.campaign_id JOIN advertisers a ON a.id=c.advertiser_id LEFT JOIN ad_campaign_creatives k ON k.campaign_id=c.id
+    WHERE s.slot_id=? AND c.status IN ('live','completed') AND c.start_at<=? AND c.end_at>? ORDER BY s.position, k.position, k.creative_id`).all(slotId, atMs, atMs);
+  const out = []; const by = new Map();
+  for (const r of rows) {
+    let e = by.get(r.campaign); if (!e) { e = { campaign: Number(r.campaign), creative: Number(r.creative), headline: r.headline, link_url: r.link_url, placement: r.placement, brand: r.brand, position: Number(r.position), designs: [], hasLinks: false }; by.set(r.campaign, e); out.push(e); }
+    if (r.design !== null && r.design !== undefined) { e.hasLinks = true; if (r.dstatus === 'approved') e.designs.push(Number(r.design)); }
+  }
+  return out.filter(e => e.hasLinks ? e.designs.length > 0 : true).map(e => { if (!e.hasLinks) e.designs = [e.creative]; else e.creative = e.designs[0]; delete e.hasLinks; return e; });
 }
 export const windowOf = (ms) => Math.floor(ms / AD_POLICY.rotationMs);
 export function adsSnapshot(app, now, cityId) {
   const slots = {};
-  const city = app.cities[cityId] || app.city; for (const b of [...city.billboards, ...(city.adSlots || [])]) { if (b.surface === 'ride_car') continue; const l = liveOnSlot(app, b.id, now); if (l.length) slots[b.id] = l.map(x => ({ c: x.campaign, i: x.creative, b: x.brand, h: x.headline })); } // the ride slot is served with the ride itself, not with the board list
+  const city = app.cities[cityId] || app.city; for (const b of [...city.billboards, ...(city.adSlots || [])]) { if (b.surface === 'ride_car') continue; const l = liveOnSlot(app, b.id, now); if (l.length) slots[b.id] = l.map(x => ({ c: x.campaign, i: x.creative, b: x.brand, h: x.headline, ...(x.designs.length > 1 ? { d: x.designs } : {}), ...(x.placement === 'exclusive' ? { x: 1 } : {}) })); } // the ride slot is served with the ride itself, not with the board list. d = the designs of a campaign when it has more than one; x = exclusive
   return { slots, rotationMs: AD_POLICY.rotationMs, serverNow: now };
 }
 import { rotIndex } from './adslots.js';
-export function expectedCampaign(app, slotId, win) {
+/** the campaign AND the design (creative) that is on in window `win`: campaigns take turns window by window; inside a campaign the designs take turns each time it comes round (the same rule as the client: pickFrame in adslots.js) */
+export function expectedFrame(app, slotId, win) {
   // membership is judged at the END of the window (or now, for the current window) so an ad that went live mid-window still counts
   const t = Math.min(win * AD_POLICY.rotationMs + AD_POLICY.rotationMs - 1, app.clock.now()); const list = liveOnSlot(app, slotId, t);
-  return list.length ? list[rotIndex(slotId, win, AD_POLICY.rotationMs) % list.length].campaign : null;
+  const f = pickFrame(list.map(x => ({ c: x.campaign, d: x.designs })), rotIndex(slotId, win, AD_POLICY.rotationMs)); return f ? { campaign: f.c, creative: f.i } : null;
 }
+export function expectedCampaign(app, slotId, win) { return expectedFrame(app, slotId, win)?.campaign ?? null; }
+const bumpDesign = (app, cid, creative, col) => { if (Number.isInteger(creative)) app.db.prepare(`UPDATE ad_campaign_creatives SET ${col}=${col}+1 WHERE campaign_id=? AND creative_id=?`).run(cid, creative); };
 
 // ---- impressions --------------------------------------------------------
 const bumpStat = (app, cid, col, n = 1, day) => app.db.prepare(`INSERT INTO ad_stats(campaign_id,day,${col}) VALUES (?,?,?) ON CONFLICT(campaign_id,day) DO UPDATE SET ${col}=ad_stats.${col}+?`).run(cid, day, n, n);
@@ -219,9 +289,14 @@ export function processEvidence(app, p, items, now) {
     if (!slot) { reject('unknown_surface'); continue; }
     if (slot.surface === 'ride_car') { reject('server_counted_surface'); continue; } // ride liveries are counted by the server per ride, never from client evidence
     if (winT > now + 5000 || winT < now - P.maxEvidenceAgeMs) { reject('stale_or_future_window'); continue; }
-    const exp = expectedCampaign(app, e.slot, e.win);
-    if (exp === null) { reject('creative_not_live_on_surface'); continue; }
-    if (exp !== e.c) { reject('creative_not_scheduled_in_window'); continue; }
+    const frame = expectedFrame(app, e.slot, e.win);
+    if (frame === null) { reject('creative_not_live_on_surface'); continue; }
+    if (frame.campaign !== e.c) { reject('creative_not_scheduled_in_window'); continue; }
+    const design = frame.creative; if (e.i !== undefined && e.i !== null && e.i !== design) { // the claim names a design: it must be the one that was on (older clients send no design: the scheduled one is credited)
+      if (Number.isInteger(e.i) && app.db.prepare('SELECT 1 FROM ad_campaign_creatives WHERE campaign_id=? AND creative_id=?').get(e.c, e.i)) bumpDesign(app, e.c, e.i, 'gross');
+      reject('design_not_scheduled_in_window'); continue;
+    }
+    bumpDesign(app, e.c, design, 'gross');
     if (radio) { // a radio spot: only in a spot window, only for someone who is in a car, listened long enough, one spot per player per window across every station
       if (!isSpotWindow(e.win, P.rotationMs)) { reject('not_a_spot_window'); continue; }
       if (slot.city !== p.city) { reject('wrong_city'); continue; }
@@ -235,7 +310,7 @@ export function processEvidence(app, p, items, now) {
     }
     const r = app.db.prepare('INSERT OR IGNORE INTO ad_impressions(campaign_id,slot_id,user_id,win,pct,ms,created_at) VALUES (?,?,?,?,?,?,?)').run(e.c, e.slot, p.id, e.win, Math.round(radio ? 100 : e.pct), Math.round(e.ms), now);
     if (r.changes !== 1) { reject('duplicate_in_window'); continue; }
-    bumpStat(app, e.c, 'valid', 1, day); res.accepted++;
+    bumpStat(app, e.c, 'valid', 1, day); bumpDesign(app, e.c, design, 'valid'); res.accepted++;
   }
   return res;
 }
@@ -243,11 +318,11 @@ export function processEvidence(app, p, items, now) {
 // ---- the Oya Ride livery: counted by the server alone (item 8) --------------------------------
 /** the sponsor on this city's ride cars for ride number `rideId` (rotates: ride 1 gets the first live sponsor, ride 2 the next ...). null when nobody is booked. */
 export function rideSponsor(app, cityId, rideId, now = app.clock.now()) {
-  const list = liveOnSlot(app, `ride:${cityId}`, now); if (!list.length) return null; const x = list[rideId % list.length];
-  return { c: x.campaign, i: x.creative, b: x.brand, h: x.headline };
+  const list = liveOnSlot(app, `ride:${cityId}`, now); if (!list.length) return null; const f = pickFrame(list.map(x => ({ c: x.campaign, d: x.designs })), rideId); const x = list.find(y => y.campaign === f.c); // rides take turns between sponsors, and a sponsor's designs take turns each time it comes round
+  return { c: x.campaign, i: f.i, b: x.brand, h: x.headline };
 }
 /** the ride was requested with this sponsor on the car: a claim was made (gross) */
-export function rideSponsorShown(app, sponsor, now = app.clock.now()) { if (sponsor) bumpStat(app, sponsor.c, 'gross', 1, dayKey(now)); }
+export function rideSponsorShown(app, sponsor, now = app.clock.now()) { if (sponsor) { bumpStat(app, sponsor.c, 'gross', 1, dayKey(now)); bumpDesign(app, sponsor.c, sponsor.i, 'gross'); } }
 /** the passenger got into the livered car: one valid impression for this ride, unless the player is a bot or headless. Returns true if counted. */
 export function rideSponsorBoarded(app, uid, rideId, sponsor, cityId, now = app.clock.now()) {
   if (!sponsor) return false; const p = app.world.players.get(uid); const day = dayKey(now); const slot = `ride:${cityId}`;
@@ -255,7 +330,7 @@ export function rideSponsorBoarded(app, uid, rideId, sponsor, cityId, now = app.
   const reject = (r) => { bumpReason(app, sponsor.c, 'impression', r); return false; };
   if (p?.isBot) return reject('invalid_traffic_bot'); if (p?.headless && app.filterHeadless) return reject('invalid_traffic_headless');
   const r = app.db.prepare('INSERT OR IGNORE INTO ad_impressions(campaign_id,slot_id,user_id,win,pct,ms,created_at) VALUES (?,?,?,?,?,?,?)').run(sponsor.c, slot, uid, Math.floor(now / 1000), 100, 0, now); // `win` = the second of boarding: unique per player and campaign (ride numbers restart with the server, so they cannot be the key)
-  if (r.changes !== 1) return reject('duplicate_in_window'); bumpStat(app, sponsor.c, 'valid', 1, day); return true;
+  if (r.changes !== 1) return reject('duplicate_in_window'); bumpStat(app, sponsor.c, 'valid', 1, day); bumpDesign(app, sponsor.c, sponsor.i, 'valid'); return true;
 }
 /** the ride was cancelled or never taken: the claim stays gross-only, with a reason */
 export function rideSponsorDropped(app, sponsor) { if (sponsor) bumpReason(app, sponsor.c, 'impression', 'ride_not_taken'); }
@@ -297,8 +372,12 @@ export function campaignStats(app, id) {
     ctrPct: s.valid ? Math.round((s.tv / s.valid) * 10000) / 100 : 0, filterReasons: reasons, daily };
 }
 export function campaignView(app, c) {
+  const placement = c.placement || DEFAULT_PLACEMENT; const spec = RATE_CARD.surfaces[c.surface]; const designs = designRows(app, c.id).map(d => ({ creativeId: d.creative_id, position: d.position, status: d.status, rejectReason: d.reject_reason || null, grossImpressions: d.gross, validImpressions: d.valid, filteredOut: Math.max(0, d.gross - d.valid) }));
+  const label = placementLabel(c.surface, placement); const tierLabel = spec?.tiers?.[c.tier]?.label || c.tier;
   return { id: c.id, brand: c.brand_name, surface: c.surface, tier: c.tier, units: c.units, days: c.days, headline: c.headline, linkUrl: c.link_url, status: c.status, rejectReason: c.reject_reason,
     flags: c.flags ? JSON.parse(c.flags) : [], priceTotal: c.price_total, priceNet: c.price_net, priceVat: c.price_vat, payment: c.payment_status, startAt: c.start_at, endAt: c.end_at, createdAt: c.created_at, creativeId: c.creative_id, demo: !!c.is_demo,
+    placement, placementLabel: label, designs, maxDesigns: maxCreatives(c.surface, placement),
+    invoiceLines: [{ description: `${spec?.label || c.surface} · ${tierLabel} · ${label}`, placement, placementLabel: label, boards: c.units, days: c.days, net: c.price_net, vat: c.price_vat, total: c.price_total }],
     slots: app.db.prepare('SELECT slot_id, position FROM ad_assignments WHERE campaign_id=?').all(c.id).map(r => r.slot_id) };
 }
 export function advertiserCampaigns(app, advertiserId) {

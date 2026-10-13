@@ -21,7 +21,7 @@ test('heartbeat: server clamps teleport/speed-hack trails and world bounds', asy
   await ok(s, 'POST', '/api/heartbeat', { uid: a, body: { trail: [{ a: 1000, x: 0, z: 0 }, { a: 0, x: 200, z: 0 }] } }); // 200m in 1s while walking
   const p = s.app.world.players.get(a); assert.ok(p.x < 15, `x was ${p.x}`);
   await ok(s, 'POST', '/api/heartbeat', { uid: a, body: { mode: 'drive', trail: [{ a: 0, x: 99999, z: -99999 }] } });
-  assert.ok(Math.abs(p.x) <= 240 && p.z >= -240);
+  const B = s.app.cities['lagos-mainland'].bounds; assert.ok(p.x >= B.minX && p.x <= B.maxX && p.z >= B.minZ && p.z <= B.maxZ, `${p.x},${p.z}`);
 });
 test('heartbeat: actions that need position use the clamped position (cannot teleport to a shop)', async () => {
   const s = makeServer(); const a = mkUser(s); at(s, a, 0, 0); const shop = s.app.city.shopById.shop_mart;
@@ -29,10 +29,10 @@ test('heartbeat: actions that need position use the clamped position (cannot tel
   assert.equal(r.json.error, 'TOO_FAR');
 });
 test('heartbeat: interval ladder grows with concurrent users (tells clients to slow down)', async () => {
-  const s = makeServer(); assert.equal(recommendedInterval(s.app, 10), 5000); assert.equal(recommendedInterval(s.app, 500), 12000); assert.equal(recommendedInterval(s.app, 5000), 20000);
-  assert.equal(recommendedInterval(s.app, 20000), 30000); assert.equal(recommendedInterval(s.app, 200000), 45000);
+  const s = makeServer(); assert.equal(recommendedInterval(s.app, 10), 10000); assert.equal(recommendedInterval(s.app, 500), 15000); assert.equal(recommendedInterval(s.app, 5000), 25000);
+  assert.equal(recommendedInterval(s.app, 20000), 35000); assert.equal(recommendedInterval(s.app, 200000), 45000);
   for (let i = 0; i < 60; i++) { const u = mkUser(s, { bot: true }); await ok(s, 'POST', '/api/heartbeat', { uid: u, body: {} }); }
-  assert.equal(ccuNow(s.app), 60); const r = await ok(s, 'POST', '/api/heartbeat', { uid: mkUser(s), body: {} }); assert.equal(r.interval, 12000);
+  assert.equal(ccuNow(s.app), 60); const r = await ok(s, 'POST', '/api/heartbeat', { uid: mkUser(s), body: {} }); assert.equal(r.interval, 15000);
   s.app.clock.advance(61000); assert.equal(ccuNow(s.app), 0); // idle players drop out of CCU
 });
 test('heartbeat: notifications are delivered once via cursor; chat is nearby-only and rate limited', async () => {
@@ -50,4 +50,14 @@ test('heartbeat: dev teleport is delivered once to the client', async () => {
   await ok(s, 'POST', '/api/dev/teleport', { uid: a, body: { x: 50, z: 50 } });
   const r = await ok(s, 'POST', '/api/heartbeat', { uid: a, body: {} }); assert.deepEqual(r.teleport, { x: 50, z: 50 });
   assert.equal((await ok(s, 'POST', '/api/heartbeat', { uid: a, body: {} })).teleport, undefined);
+});
+
+test('chat is pushed to someone nearby without waiting for the next heartbeat', async () => {
+  const s = makeServer(); const got = []; s.app.pushUser = (uid, msg) => got.push({ uid, msg });
+  const a = mkUser(s), b = mkUser(s), c = mkUser(s); at(s, a, 0, 0); at(s, b, 10, 0); at(s, c, 200, 100);
+  for (const u of [a, b, c]) await ok(s, 'POST', '/api/heartbeat', { uid: u, body: {} });
+  const r = await ok(s, 'POST', '/api/chat', { uid: a, body: { text: 'how far' } });
+  const ids = got.filter(g => g.msg.type === 'chat' && g.msg.t === 'how far').map(g => g.uid);
+  assert.ok(ids.includes(a) && ids.includes(b), ids.join(',')); assert.equal(ids.includes(c), false);
+  assert.equal(r.id > 0, true);
 });

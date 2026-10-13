@@ -2,6 +2,7 @@
 // Procedural vehicle + pedestrian models (all from primitives) and the simple waypoint traffic system.
 import * as THREE from 'three';
 import { Builder, mulberry32 } from './builder.js';
+import { gwagonGeo, cyberGeo } from './exclusive-cars.js';
 
 const BLACK = 0x17181b, GLASS = 0x28343f, YEL = 0xFFC20E;
 
@@ -59,6 +60,8 @@ export function okadaGeo(rnd) {
   return b.build();
 }
 export function carGeo(kind, color) {
+  if (kind === 'gwagon') return gwagonGeo(color);
+  if (kind === 'cyber') return cyberGeo(color);
   const b = new Builder(41 + (color & 255), 0.02);
   const suv = kind === 'suv', hatch = kind === 'hatch';
   const L = suv ? 4.6 : hatch ? 3.8 : 4.5, H = suv ? 0.95 : 0.7;

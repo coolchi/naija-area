@@ -16,7 +16,7 @@ import { getCreative, handleTap, tickAds } from './core/ads.js';
 import { tickScores } from './core/scores.js';
 import { tickRent, tickInterest } from './core/economy.js';
 import { tickSeasons } from './core/seasons.js';
-import { pruneWorld } from './core/world.js';
+import { pruneWorld, livePos, snapshotMoves } from './core/world.js';
 import { tickLand } from './core/social.js';
 import { tickGames } from './core/games.js';
 import { GameError } from './core/util.js';
@@ -132,7 +132,9 @@ export function buildServer(opts = {}) {
   // creatives: public only once an ad is scheduled/live/completed; admins and the owning advertiser can preview earlier
   ex.get('/media/creative/:id', (req, res) => {
     const id = Number(req.params.id); const c = Number.isInteger(id) ? getCreative(app, id) : null; if (!c) return res.status(404).end();
-    const pub = db.prepare("SELECT 1 FROM ad_campaigns WHERE creative_id=? AND status IN ('scheduled','live','completed')").get(id);
+    // a design is public once it is APPROVED in a campaign that is scheduled/live/completed (a rejected design of a running campaign stays private); a campaign with no design rows (pre-migration data) falls back to its one creative
+    const pub = db.prepare("SELECT 1 FROM ad_campaign_creatives k JOIN ad_campaigns c ON c.id=k.campaign_id WHERE k.creative_id=? AND k.status='approved' AND c.status IN ('scheduled','live','completed')").get(id)
+      || db.prepare("SELECT 1 FROM ad_campaigns c WHERE c.creative_id=? AND c.status IN ('scheduled','live','completed') AND NOT EXISTS (SELECT 1 FROM ad_campaign_creatives k WHERE k.campaign_id=c.id)").get(id);
     let ok = !!pub;
     if (!ok) { if (readAdmin(parseCookies(req.headers.cookie).na_a)) ok = true; else { const k = req.query.key; if (k) { const a = db.prepare('SELECT id FROM advertisers WHERE access_key=?').get(String(k)); if (a && a.id === c.advertiser_id) ok = true; } } }
     if (!ok) return res.status(404).end();
@@ -163,7 +165,9 @@ export function buildServer(opts = {}) {
     wss.handleUpgrade(req, socket, head, (ws) => {
       if (!sockets.has(uid)) sockets.set(uid, new Set()); sockets.get(uid).add(ws);
       ws.on('close', () => { const s = sockets.get(uid); s?.delete(ws); if (s && !s.size) sockets.delete(uid); });
-      ws.on('error', () => {}); ws.send(JSON.stringify({ type: 'hello' }));
+      ws.on('error', () => {});
+      ws.on('message', (raw) => { if (raw.length > 240) return; let msg; try { msg = JSON.parse(raw); } catch { return; } if (msg?.type === 'pos') livePos(app, uid, msg); });
+      ws.send(JSON.stringify({ type: 'hello' }));
     });
   });
   const timers = [];
@@ -174,6 +178,14 @@ export function buildServer(opts = {}) {
     timers.push(setInterval(() => { tickPayments(app).catch((e) => console.error('tickPayments', e)); }, 15000)); // asks the provider about payments whose webhook never came; sends recorded refunds
     timers.push(setInterval(() => { try { tickCalls(app); } catch (e) { console.error('tickCalls', e); } }, 1000));
     timers.push(setInterval(() => { try { tickAds(app); } catch (e) { console.error('tickAds', e); } }, 5000));
+    timers.push(setInterval(() => { // live positions, about 8 times a second, only to players who are connected and only when someone nearby moved
+      if (!sockets.size) return;
+      for (const [id, set] of sockets) {
+        let pack; const t0 = Date.now(); try { pack = snapshotMoves(app, id); } catch (e) { console.error('live', e); continue; }
+        if (!pack) continue; const msg = JSON.stringify({ type: 'mv', p: pack, ms: Date.now() - t0 });
+        for (const sock of set) if (sock.readyState === 1) try { sock.send(msg); } catch { /* closed */ }
+      }
+    }, 125));
     timers.push(setInterval(() => { try { tickRent(app); tickInterest(app); tickLand(app); tickGames(app); pruneWorld(app); tickVoice(app); tickSeasons(app); } catch (e) { console.error('tick', e); } }, 30000));
   }
   const close = () => new Promise((resolve) => { timers.forEach(clearInterval); clearInterval(loopTimer); loop.disable(); for (const s of sockets.values()) for (const ws of s) ws.terminate(); wss.close(); server.close(() => { try { db.close(); } catch {} resolve(); }); server.closeAllConnections?.(); });

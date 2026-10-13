@@ -25,7 +25,12 @@ Reference photos looked at (Wikimedia Commons, CC BY-SA, **not copied**): "Lekki
 - The creek is real water below the deck (`creeks` in the config): the player is kept on the deck by colliders on both sides, and a unit test checks the gap equals the road width.
 - The deck, pylon and cables are one merged mesh plus one line object (about 35 draw calls for the whole district in the smoke run).
 
+## What the mesh shows
+- Pylon: two panelled concrete legs on square pile caps in the creek. They stand outside the roadway (so a car can drive through), lean in through four framed openings that span the gap between the legs, then open into wide V horns. Course lines and a centre joint mark the concrete panels. Opening colours, bottom to top: teal, amber, blue, red, plus a vertical strip on each leg. They brighten at night with the street lights. The deck edge is a deep concrete girder, and the approach piers have caps and footings.
+- 28 stay cables, black-and-white parapet blocks, a rail, and curved lamp posts on the cable bridge only.
+- The district stays a straight corridor. The real deck has a gentle curve; bending it here would break the road and the two travel gates.
+
 ## NOT verified / simplified
-- Pylon silhouette is my reading of two photos; a local artist should compare it against more angles (leg spacing, the cross-beam positions and the top V are approximate).
-- Approach viaduct, toll plaza, the lane widening on the Ikoyi side and the real colour-changing night lighting are not modelled. Cable lengths are not exactly 55 to 119 m x 0.4.
+- Leg spacing, opening sizes and the exact flare of the horns are still a reading of reference photos, not a measured survey. A local artist should compare them on the demo.
+- Toll plaza, the lane widening on the Ikoyi side, and the real colour cycle (the openings hold one colour each) are not modelled. Cable lengths are not exactly 55 to 119 m x 0.4.
 - Real length is compressed: you cross 543 m in about a minute on foot instead of 1.36 km.

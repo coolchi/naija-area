@@ -47,9 +47,9 @@ export function makeAvatar(colorHex) {
   g.add(blobShadow(1.6, 1.6)); return g;
 }
 const carCache = new Map();
-export function makePlayerCar(colorHex) {
-  const key = new THREE.Color(colorHex).getHex(); if (!carCache.has(key)) carCache.set(key, carGeo('hatch', key));
-  const g = new THREE.Group(); const m = new THREE.Mesh(carCache.get(key), vcMat); m.position.y = 0.12; g.add(m); g.add(blobShadow(5.2, 2.8)); addPlayerHeadlamps(g); return g;
+export function makePlayerCar(colorHex, kind = 'hatch') {
+  const color = new THREE.Color(colorHex).getHex(); const key = kind + ':' + color; if (!carCache.has(key)) carCache.set(key, carGeo(kind, color));
+  const g = new THREE.Group(); const m = new THREE.Mesh(carCache.get(key), vcMat); m.position.y = 0.12; g.add(m); g.add(blobShadow(kind === 'cyber' ? 5.8 : 5.2, kind === 'gwagon' ? 3.1 : 2.8)); addPlayerHeadlamps(g, kind); return g;
 }
 /** a skin's glow (item 9): a flat coloured ring on the ground under an avatar or car (null removes it) */
 export function addSkinGlow(obj, hex, r) {
@@ -146,7 +146,7 @@ export class Ghosts {
     for (const p of list) {
       seen.add(p.id); let g = this.map.get(p.id);
       if (!g) { g = { id: p.id, name: p.ct ? `[${p.ct}] ${p.n}` : p.n, color: p.c, mode: -1, samples: [], obj: null, tag: null, act: '' }; this.map.set(p.id, g); }
-      g.mode = p.m; g.act = p.act || ''; g.e = p.e || ''; g.wear = p.w || []; if ((p.t || '') !== (g.title || '')) { g.title = p.t || ''; if (g.root) this.retag(g); }
+      g.mode = p.m; g.act = p.act || ''; g.e = p.e || ''; g.wear = p.w || []; if (p.bd && p.bd !== g.body) { g.body = p.bd; g.kind = null; } if ((p.t || '') !== (g.title || '')) { g.title = p.t || ''; if (g.root) this.retag(g); }
       const skKey = p.sk ? `${p.sk.a || ''}|${p.sk.c || ''}` : ''; if (g.skKey !== skKey) { g.skKey = skKey; g.sk = p.sk || null; if (g.root) { this.scene.remove(g.root); g.root = null; g.kind = null; } } // a new skin: rebuild the body in its colours
       for (const [off, x, z, ry] of p.s) { const t = serverNow + off; if (!g.samples.length || t > g.samples[g.samples.length - 1].t + 50) g.samples.push({ t, x, z, ry }); }
       if (g.samples.length > 60) g.samples.splice(0, g.samples.length - 60);
@@ -154,13 +154,24 @@ export class Ghosts {
     }
     for (const [id, g] of this.map) if (!seen.has(id)) { this.emotes?.clear(g); if (g.root) this.scene.remove(g.root); this.map.delete(id); }
   }
+  /** one websocket batch of nearby positions. Does not remove anyone: the heartbeat roster still decides who is gone. */
+  live(list, serverNow) {
+    for (const p of list || []) {
+      let g = this.map.get(p.id);
+      if (!g) { g = { id: p.id, name: p.n || 'Player', color: p.c || '#888888', mode: -1, samples: [], obj: null, tag: null, act: '' }; this.map.set(p.id, g); }
+      if (p.n) g.name = p.n; if (p.c) g.color = p.c; if (p.m === 0 || p.m === 1) g.mode = p.m;
+      const t = serverNow; if (!g.samples.length || t > g.samples[g.samples.length - 1].t + 40) g.samples.push({ t, x: p.x, z: p.z, ry: p.ry || 0 });
+      if (g.samples.length > 80) g.samples.splice(0, g.samples.length - 80); this.build(g);
+    }
+  }
   /** the name tag shows the name and, when the player has one, their title (achievements.js on the server) */
   retag(g) { const y = g.tag?.position.y ?? 3.6; if (g.tag) { g.root.remove(g.tag); g.tag.material.map?.dispose?.(); g.tag.material.dispose?.(); } g.tag = makeNameSprite(g.title ? `${g.name} · ${g.title}` : g.name, '#ffffff'); g.tag.position.set(0, y, 0); g.root.add(g.tag); }
   build(g) {
-    const want = g.mode === 1 ? 'car' : 'walk'; if (g.kind === want && g.root) return;
+    const body = g.body || 'hatch'; const want = g.mode === 1 ? 'car:' + body : 'walk'; if (g.kind === want && g.root) return;
     if (g.root) this.scene.remove(g.root);
-    const sl = this.skinLook?.(g.sk, want) || null; g.root = new THREE.Group(); g.obj = want === 'car' ? makePlayerCar(sl?.color || g.color) : makeAvatar(sl?.color || g.color); if (sl?.glow) addSkinGlow(g.obj, sl.glow, want === 'car' ? 3.4 : 1.1); g.root.add(g.obj);
-    g.tag = makeNameSprite(g.title ? `${g.name} · ${g.title}` : g.name, '#ffffff'); g.tag.position.set(0, want === 'car' ? 4.2 : 3.6, 0); g.root.add(g.tag); g.kind = want; this.scene.add(g.root); g.first = true;
+    const sl = this.skinLook?.(g.sk, g.mode === 1 ? 'car' : 'walk') || null; g.root = new THREE.Group(); g.obj = g.mode === 1 ? makePlayerCar(sl?.color || g.color, body) : makeAvatar(sl?.color || g.color); if (sl?.glow) addSkinGlow(g.obj, sl.glow, g.mode === 1 ? 3.4 : 1.1); g.root.add(g.obj);
+    const tagY = g.mode === 1 ? (body === 'gwagon' ? 5.05 : body === 'cyber' ? 4.65 : 4.2) : 3.6;
+    g.tag = makeNameSprite(g.title ? `${g.name} · ${g.title}` : g.name, '#ffffff'); g.tag.position.set(0, tagY, 0); g.root.add(g.tag); g.kind = want; this.scene.add(g.root); g.first = true;
   }
   update(renderT, viewer) {
     for (const g of this.map.values()) {

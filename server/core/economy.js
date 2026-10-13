@@ -367,12 +367,17 @@ export function leaderboard(app) {
   app.lbCache = { at: now, rows }; return rows;
 }
 const hairView = (app, st) => { if (!st.hair) return null; const S = app.balance.leisure.salon.styles.find(x => x.id === st.hair); return S ? { id: S.id, name: S.name, fresh: app.clock.now() - st.hair_at < app.balance.leisure.salon.freshMs } : null; };
+function ownedCar(app, uid) {
+  const row = app.db.prepare('SELECT model FROM player_cars WHERE user_id=? AND active=1').get(uid); const m = row && app.balance.cars.models[row.model];
+  return m ? { model: row.model, name: m.name, body: m.body, color: m.color, speed: m.speed, drive: m.drive || 0 } : null;
+}
 export function profile(app, uid) {
   const st = refreshNeeds(app, uid); const nw = netWorth(app, uid); const h = homeOf(app, uid);
   const sh = activeShift(app, uid); const u = app.db.prepare('SELECT username,is_guest,color,created_at FROM users WHERE id=?').get(uid);
   return { id: uid, cityId: cityIdOf(app, uid), username: u.username, guest: !!u.is_guest, color: u.color, cash: nw.cash, savings: nw.savings, netWorth: nw.total,
     pos: { x: st.x, z: st.z, ry: st.ry }, energy: Math.round(st.energy * 10) / 10, hunger: Math.round(st.hunger * 10) / 10, mood: Math.round(st.mood * 10) / 10, totalShifts: st.total_shifts, mode: st.mode, health: healthView(app, uid), hair: hairView(app, st), wear: wearView(app, uid),
     home: h ? propertyView(app, propDef(app, h.property_id), uid) : null,
+    car: ownedCar(app, uid),
     shift: sh ? { id: sh.id, jobId: sh.job_id, endsAt: sh.ends_at, startedAt: sh.started_at, wage: sh.wage } : null };
 }
 export function notifications(app, uid, limit = 20) {

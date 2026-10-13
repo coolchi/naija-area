@@ -4976,7 +4976,8 @@
      "label": "Kekere Hatch (used)",
      "x": -2.4,
      "z": -1.8,
-     "color": "#e9c46a"
+     "color": "#e9c46a",
+     "body": "hatch"
     },
     {
      "id": "car_oga",
@@ -4985,7 +4986,8 @@
      "label": "Oga Sedan",
      "x": 0.4,
      "z": -2.2,
-     "color": "#457b9d"
+     "color": "#457b9d",
+     "body": "sedan"
     },
     {
      "id": "car_bigboy",
@@ -4994,7 +4996,8 @@
      "label": "Big Boy SUV",
      "x": 2.8,
      "z": -1.4,
-     "color": "#2b2d42"
+     "color": "#2b2d42",
+     "body": "suv"
     },
     {
      "id": "car_senator",
@@ -5003,12 +5006,33 @@
      "label": "Senator Executive",
      "x": 0.4,
      "z": 0.6,
-     "color": "#d62828"
+     "color": "#d62828",
+     "body": "sedan"
+    },
+    {
+     "id": "car_gwagon",
+     "type": "car",
+     "model": "gwagon",
+     "body": "gwagon",
+     "label": "G-Wagon",
+     "x": -3.2,
+     "z": 2.2,
+     "color": "#161616"
+    },
+    {
+     "id": "car_cyber",
+     "type": "car",
+     "model": "cyber",
+     "body": "cyber",
+     "label": "Cybertruck",
+     "x": 3.2,
+     "z": 2.2,
+     "color": "#c5c9d0"
     }
    ],
    "room": {
-    "w": 9,
-    "d": 9,
+    "w": 14,
+    "d": 11,
     "wall": "#eef3f7",
     "trim": "#b8322a",
     "floor": {
@@ -5084,8 +5108,8 @@
      },
      {
       "k": "desk",
-      "x": -3.4,
-      "z": 3.2
+      "x": -5.7,
+      "z": 4.7
      },
      {
       "k": "plant",
@@ -5122,15 +5146,15 @@
      },
      {
       "k": "sofa",
-      "x": -3.3,
-      "z": 2.7,
+      "x": -5.5,
+      "z": 4.15,
       "c": "#1f6f7a",
       "rot": 1
      },
      {
       "k": "coffeeTable",
-      "x": -2,
-      "z": 2.7
+      "x": -4.0,
+      "z": 4.15
      },
      {
       "k": "waterDispenser",
@@ -5141,6 +5165,28 @@
       "k": "floorLamp",
       "x": -3.9,
       "z": 3.9
+     },
+     {
+      "k": "turntable",
+      "x": -3.2,
+      "z": 2.2
+     },
+     {
+      "k": "spot",
+      "x": -3.2,
+      "z": 2.2,
+      "c": "#fff6c8"
+     },
+     {
+      "k": "turntable",
+      "x": 3.2,
+      "z": 2.2
+     },
+     {
+      "k": "spot",
+      "x": 3.2,
+      "z": 2.2,
+      "c": "#fff6c8"
      }
     ],
     "detailV2": true

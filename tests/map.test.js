@@ -1,6 +1,6 @@
 import test from 'node:test'; import assert from 'node:assert/strict'; import fs from 'node:fs';
 import { indexCity } from '../server/core/city.js';
-import { buildModel, search, hitTest, labelRules, DEFAULT_LAYERS, LAYERS, KIND_COL } from '../client/src/map-model.js';
+import { buildModel, search, searchDistricts, roadTo, hitTest, labelRules, DEFAULT_LAYERS, LAYERS, KIND_COL } from '../client/src/map-model.js';
 const raw = JSON.parse(fs.readFileSync(new URL('../server/config/cities/lagos-mainland.json', import.meta.url)));
 const city = indexCity(raw); const model = buildModel(city);
 
@@ -32,4 +32,15 @@ test('map hit-test: markers beat buildings beat plots beat roads beat districts;
 test('map model works for a different city file with no venues/districts/plots (new cities reuse it)', () => {
   const tiny = indexCity({ id: 't', name: 'Tiny', bounds: { minX: -50, maxX: 50, minZ: -50, maxZ: 50 }, roads: [{ id: 'r', name: 'Only Road', x1: 0, z1: -50, x2: 0, z2: 50, width: 10 }], buildings: [{ kind: 'shop', x: 20, z: 20, w: 10, d: 10, h: 4, floors: 1, color: '#fff', id: 'b1' }], properties: [], shops: [], jobs: [], billboards: [], spawns: [], trafficLoops: [], landmarks: [], zones: [] });
   const m = buildModel(tiny); assert.equal(m.roads.length, 1); assert.equal(hitTest(m, 20, 20, 2).type, 'building'); assert.equal(hitTest(m, 0, 0, 1).type, 'road'); assert.deepEqual(search(m, 'only').map(i => i.id), ['r']);
+});
+
+test('Lekki-Ikoyi can be found from the mainland, including when the dash is an en dash', () => {
+  const load = (id) => JSON.parse(fs.readFileSync(new URL(`../server/config/cities/${id}.json`, import.meta.url)));
+  const bridge = buildModel(indexCity(load('lagos-bridge')));
+  assert.ok(search(bridge, 'Lekki\u2013Ikoyi').some(i => /Lekki-Ikoyi/.test(i.name)), 'the bridge map itself matches the typed dash');
+  const ids = ['lagos-mainland', 'lagos-island', 'lagos-vi-ikoyi', 'lagos-bridge', 'lagos-lekki'];
+  const cities = ids.map(id => { const c = load(id); return { id: c.id, district: c.name, links: (c.links || []).map(l => ({ id: l.id, name: l.name, to: l.to })) }; });
+  assert.equal(searchDistricts(cities, 'lagos-mainland', 'Lekki\u2013Ikoyi')[0].id, 'lagos-bridge');
+  const hops = roadTo(cities, 'lagos-mainland', 'lagos-bridge');
+  assert.equal(hops[0].to, 'lagos-island'); assert.equal(hops.at(-1).to, 'lagos-bridge'); assert.ok(hops[0].name.includes('Third Mainland'));
 });

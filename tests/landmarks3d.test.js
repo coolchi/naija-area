@@ -1,6 +1,6 @@
 // Pure helpers behind the creeks and bridges of the expanded Lagos (ground cut-outs, creek colliders, the deck gap that keeps players on the bridge).
 import test from 'node:test'; import assert from 'node:assert/strict'; import fs from 'node:fs';
-import { subtractRects, creekVisual, creekColliders } from '../client/src/landmarks3d.js';
+import { subtractRects, creekVisual, creekColliders, lekkiLegInnerZ, lekkiLegZ, lekkiStayCables } from '../client/src/landmarks3d.js';
 import { lampPositions } from '../client/src/lamps.js';
 const area = (r) => (r.x1 - r.x0) * (r.z1 - r.z0); const load = (id) => JSON.parse(fs.readFileSync(new URL(`../server/config/cities/${id}.json`, import.meta.url)));
 
@@ -21,4 +21,18 @@ test('real configs: every bridge gap matches a road crossing the creek, and the 
   for (const id of ['lagos-vi-ikoyi', 'lagos-bridge']) { const c = load(id); for (const k of c.creeks) { for (const [a, b] of k.gaps) assert.ok(c.roads.some(r => !r.pts && r.z1 === r.z2 && r.z1 > a && r.z1 < b && r.width / 2 <= (b - a) / 2 + 0.01), `${id}: a road runs through the gap ${a}..${b}`); } }
   const b = load('lagos-bridge'); const lamps = lampPositions(b); assert.ok(lamps.length >= 40, 'deck lamps: ' + lamps.length); assert.ok(lamps.some(l => Math.abs(l.x) < 5), 'lamps near the pylon');
   const cab = b.bridges.find(x => x.type === 'cable'); assert.equal(cab.scale, 0.4); assert.ok(Math.abs((cab.x1 - cab.x0) / cab.scale - 1360) < 5, 'deck length is the real 1.36 km at scale'); assert.ok(Math.abs(cab.deckWidth / cab.scale - 21.4) < 0.2, 'deck width 21.4 m at scale');
+});
+
+test('Lekki-Ikoyi pylon stays outside the carriageway and keeps 28 stay cables', () => {
+  const br = load('lagos-bridge').bridges.find(x => x.type === 'cable');
+  for (const y of [0, 2.2, 4.2]) assert.ok(lekkiLegInnerZ(br, y) >= br.deckWidth / 2 - 0.05, 'leg crosses the road at y=' + y + ' inner=' + lekkiLegInnerZ(br, y));
+  assert.ok(lekkiLegZ(br, br.pylonHeightAboveDeck) > lekkiLegZ(br, 18) + 4, 'the horns open into a wide V');
+  const seg = lekkiStayCables(br);
+  assert.equal(seg.length, 28 * 6, '4 groups of 7 cables');
+  for (let i = 0; i < seg.length; i += 6) {
+    const x1 = seg[i + 3], y1 = seg[i + 4], z1 = seg[i + 5];
+    assert.ok(y1 > 0 && y1 < 2, 'deck end of a cable');
+    assert.ok(Math.abs(x1 - (br.pylonX || 0)) < 50 && Math.abs(x1) < Math.max(Math.abs(br.x0), br.x1));
+    assert.ok(Math.abs(z1 - br.z) < br.deckWidth / 2);
+  }
 });

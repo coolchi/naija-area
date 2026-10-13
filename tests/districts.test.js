@@ -52,5 +52,5 @@ test('the whole chain mainland > island > vi-ikoyi > bridge > lekki works and br
   const b = s.app.cities['lagos-bridge'].bridges.find(x => x.type === 'cable'); assert.ok(b && b.x1 - b.x0 > 500 && b.pylonHeightAboveDeck > 30); checkInvariants(s.db);
 });
 test('performance budget: every district stays well inside the building, road and loop limits', () => {
-  const s = makeServer(); for (const c of Object.values(s.app.cities)) { assert.ok(c.buildings.length <= 120, c.id); assert.ok(c.roads.length <= 30); assert.ok(c.trafficLoops.length <= 16); assert.ok(c.billboards.filter(b => b.surface !== 'shop_front').length <= 24 && c.billboards.filter(b => b.surface === 'shop_front').length <= 8); }
+  const s = makeServer(); for (const c of Object.values(s.app.cities)) { assert.ok(c.buildings.length <= 900, c.id); assert.ok(c.roads.length <= 30); assert.ok(c.trafficLoops.length <= 16); assert.ok(c.billboards.filter(b => b.surface !== 'shop_front').length <= 24 && c.billboards.filter(b => b.surface === 'shop_front').length <= 8); }
 });

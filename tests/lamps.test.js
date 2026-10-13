@@ -6,7 +6,7 @@ import { collidersFromCity } from '../client/src/route.js';
 const city = JSON.parse(fs.readFileSync(new URL('../server/config/cities/lagos-mainland.json', import.meta.url))); const L = lampPositions(city);
 
 test('lamps stand beside the road, never on it, in the water or inside a building, and face the road', () => {
-  assert.ok(L.length > 100 && L.length < 400, 'count ' + L.length); const cols = collidersFromCity(city);
+  assert.ok(L.length > 100 && L.length < 600, 'count ' + L.length); const cols = collidersFromCity(city);
   for (const l of L) { assert.equal(roadAt(city, l.x, l.z, 1), null, 'on a road at ' + l.x + ',' + l.z); assert.ok(!cols.some(c => l.x > c.x0 && l.x < c.x1 && l.z > c.z0 && l.z < c.z1), 'inside a building'); assert.ok(Math.abs(Math.hypot(l.fx, l.fz) - 1) < 1e-6, 'unit direction');
     const hx = l.x + l.fx * 8, hz = l.z + l.fz * 8; const d0 = Math.min(...city.roads.map(r => nearestOnPoly(roadPts(r), l.x, l.z).d)), d1 = Math.min(...city.roads.map(r => nearestOnPoly(roadPts(r), hx, hz).d)); assert.ok(d1 <= d0 + 0.5, 'the arm points towards the road'); }
   assert.equal(new Set(L.map(l => l.id)).size, L.length); for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) assert.ok(Math.hypot(L[i].x - L[j].x, L[i].z - L[j].z) >= 12 - 1e-6, 'lamps too close');

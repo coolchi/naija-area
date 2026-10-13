@@ -20,7 +20,7 @@ export class GarageView {
     for (let s = 0; s < d.slots; s++) {
       const c = d.cars[s]; const x = -3.5 + s * 3.5;
       if (!c) { const sp = makeNameSprite('Empty slot', '#9aa5b1'); sp.scale.set(2.6, 0.65, 1); sp.position.set(x, 1.0, 0.4); this.cars.add(sp); continue; }
-      const car = makePlayerCar(c.color); car.scale.setScalar(0.62); car.position.set(x, 0.05, 0.5); car.rotation.y = Math.PI / 2 + 0.0; car.userData.carId = c.id; this.cars.add(car); this.slotCars.push(car);
+      const car = makePlayerCar(c.color, c.body || 'hatch'); car.scale.setScalar(c.body === 'gwagon' || c.body === 'cyber' ? 0.55 : 0.62); car.position.set(x, 0.05, 0.5); car.rotation.y = Math.PI / 2 + 0.0; car.userData.carId = c.id; this.cars.add(car); this.slotCars.push(car);
       const sp = makeNameSprite(`${c.active ? '✅ ' : ''}${c.name}`, c.active ? '#b9f6ca' : '#fff3c4'); sp.scale.set(3.0, 0.75, 1); sp.position.set(x, 2.0, 0.5); this.cars.add(sp);
       if (c.active) { const ring = new THREE.Mesh(new THREE.RingGeometry(1.6, 1.85, 40), new THREE.MeshBasicMaterial({ color: 0x35c46b, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })); ring.rotation.x = -Math.PI / 2; ring.position.set(x, 0.04, 0.5); this.cars.add(ring); this.anim.push(t => { ring.material.opacity = 0.55 + 0.3 * Math.sin(t * 3); }); }
     }

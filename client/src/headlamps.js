@@ -31,11 +31,13 @@ export class Headlamps {
   }
 }
 /** the player's own car: two glows, a beam on the road and one real spot light (kept in the scene at zero intensity by day so shaders never recompile) */
-export function addPlayerHeadlamps(carGroup) {
+const LAMP_AT = { hatch: { f: 2.05, y: 0.72, half: 0.7 }, sedan: { f: 2.2, y: 0.68, half: 0.72 }, suv: { f: 2.25, y: 0.88, half: 0.8 }, gwagon: { f: 2.42, y: 1.05, half: 0.86 }, cyber: { f: 2.58, y: 0.86, half: 0.96 } };
+export function addPlayerHeadlamps(carGroup, kind = 'hatch') {
+  const L = LAMP_AT[kind] || LAMP_AT.hatch;
   const parts = { beam: new THREE.Mesh(new THREE.PlaneGeometry(HEAD.beamLen.car * 1.25, HEAD.beamW.car * 1.2).rotateX(-Math.PI / 2).translate(HEAD.beamLen.car * 0.625, 0, 0), add(beamTexture())), glows: [] };
-  parts.beam.position.set(HEAD.front.car - 0.2, 0.15, 0); parts.beam.renderOrder = 3; parts.beam.frustumCulled = false; carGroup.add(parts.beam);
-  for (const s of [-1, 1]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1).rotateY(Math.PI / 2), add(glowTexture())); m.position.set(HEAD.front.car, 0.72, s * HEAD.half.car); m.renderOrder = 3; carGroup.add(m); parts.glows.push(m); }
-  const spot = new THREE.SpotLight(0xfff0cf, 0, HEAD.spotDistance, 0.55, 0.65, 1.2); spot.position.set(HEAD.front.car, 1.1, 0); spot.target.position.set(HEAD.front.car + 14, 0, 0); carGroup.add(spot, spot.target); parts.spot = spot; carGroup.userData.head = parts; return parts;
+  parts.beam.position.set(L.f - 0.2, 0.15, 0); parts.beam.renderOrder = 3; parts.beam.frustumCulled = false; carGroup.add(parts.beam);
+  for (const s of [-1, 1]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1).rotateY(Math.PI / 2), add(glowTexture())); m.position.set(L.f, L.y, s * L.half); m.renderOrder = 3; carGroup.add(m); parts.glows.push(m); }
+  const spot = new THREE.SpotLight(0xfff0cf, 0, HEAD.spotDistance, 0.55, 0.65, 1.2); spot.position.set(L.f, L.y + 0.35, 0); spot.target.position.set(L.f + 14, 0, 0); carGroup.add(spot, spot.target); parts.spot = spot; carGroup.userData.head = parts; return parts;
 }
 export function setPlayerHeadlamps(carGroup, level, driving) {
   const p = carGroup.userData.head; if (!p) return; const on = level > 0.02 && driving; p.beam.visible = on; for (const g of p.glows) g.visible = on; p.beam.material.opacity = level; for (const g of p.glows) g.material.opacity = level; p.spot.intensity = on ? HEAD.spotIntensity * level : 0;

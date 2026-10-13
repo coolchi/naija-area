@@ -115,7 +115,7 @@ class Game {
   async refreshProps() { const d = await get('/api/properties').catch(() => null); if (d) { this.props = d.properties; this.world.setMarkers(d.properties); } }
   refreshPlots() { for (const p of this.plots) { const m = this.plotMeshes[p.id]; if (m) m.flag.material.color.setHex(p.status === 'available' ? 0x35c46b : p.status === 'yours' ? 0xffc20e : 0x8a8f98); } }
   async refreshMe() { const r = await get('/api/me').catch(() => null); if (r?.user) this.update(r.user); }
-  update(u) { if (!u) return; this.user = u; this.ui.hud(u); this.syncWear(u.wear); }
+  update(u) { if (!u) return; this.user = u; this.ui.hud(u); this.syncWear(u.wear); this.ctrl?.setRide(u.car); }
   /** dress your own avatar in what the server says you wear (jewelry store and cap store) */
   /** skins (item 9): the look catalogue is public; your own worn skins come from /api/skins */
   skinLookOf(id) { return id ? this.skinCat?.get(id) || null : null; }

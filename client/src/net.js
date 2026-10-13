@@ -2,8 +2,17 @@
 import { post, ApiError } from './api.js';
 export class Net {
   constructor(game) { this.g = game; this.interval = 3000; this.fails = 0; this.timer = null; this.running = false; this.trail = []; this.notifSince = 0; this.chatSince = undefined; this.adsVersion = 0; this.since = 0; this.ws = null; this.inflight = false; }
-  start() { if (this.running) return; this.running = true; this.tick(); this.openWs(); }
-  stop() { this.running = false; clearTimeout(this.timer); try { this.ws?.close(); } catch { /* ignore */ } this.ws = null; }
+  start() { if (this.running) return; this.running = true; this.tick(); this.openWs(); this.liveTimer = setInterval(() => this.sendPos(), 125); }
+  stop() { this.running = false; clearTimeout(this.timer); clearInterval(this.liveTimer); try { this.ws?.close(); } catch { /* ignore */ } this.ws = null; }
+  /** about 8 times a second, only when the player has actually moved. The heartbeat trail stays the slow backup. */
+  sendPos() {
+    const g = this.g; if (!this.running || !g.playing || g.air?.flying || g.boats?.aboard) return;
+    const ws = this.ws; if (!ws || ws.readyState !== 1) return;
+    const c = g.ctrl; if (!c) return;
+    const x = +c.x.toFixed(2), z = +c.z.toFixed(2), ry = +c.ry.toFixed(3), m = c.mode === 'drive' ? 1 : 0;
+    const prev = this.lastLive; if (prev && prev.x === x && prev.z === z && prev.ry === ry && prev.m === m) return;
+    this.lastLive = { x, z, ry, m }; try { ws.send(JSON.stringify({ type: 'pos', x, z, ry, m })); } catch { /* socket closing */ }
+  }
   nudge() { if (!this.running) return; clearTimeout(this.timer); this.timer = setTimeout(() => this.tick(), 50); }
   sample(sn) { this.trail.push(sn); if (this.trail.length > 60) this.trail.shift(); }
   async tick() {
@@ -21,7 +30,7 @@ export class Net {
   openWs() {
     if (window.__naDemo) return; // static demo: no server to push from
     try { const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`); this.ws = ws;
-      ws.onmessage = (ev) => { try { const m = JSON.parse(ev.data); if (m.type === 'notification') { this.g.onPush(m); this.nudge(); } else if (typeof m.type === 'string' && m.type.startsWith('phone.')) this.g.phone2?.onPush(m); } catch { /* ignore */ } };
+      ws.onmessage = (ev) => { try { const m = JSON.parse(ev.data); if (m.type === 'notification') { this.g.onPush(m); this.nudge(); } else if (m.type === 'mv' && Array.isArray(m.p)) { this.g.liveMs = m.ms; this.g.ghosts?.live(m.p, this.g.serverNow()); } else if (typeof m.type === 'string' && m.type.startsWith('phone.')) this.g.phone2?.onPush(m); } catch { /* ignore */ } };
       ws.onclose = () => { if (this.running) setTimeout(() => this.running && this.openWs(), 5000); }; ws.onerror = () => {};
     } catch { /* heartbeat alone is enough */ }
   }

@@ -19,6 +19,12 @@ test('jobs: must be at the job location, shift timer enforced by server time, wa
   assert.equal((await call(s, 'POST', '/api/jobs/start', { uid: u, body: { jobId: 'shop' } })).json.error, 'COOLDOWN');
   s.app.clock.advance(21000); await ok(s, 'POST', '/api/jobs/start', { uid: u, body: { jobId: 'shop' } });
 });
+test('cab driver: a shift at the cab stand pays the fare wage', async () => {
+  const s = makeServer(); const u = mkUser(s); const job = s.app.balance.jobs.find(j => j.id === 'cab'); assert.equal(job.name, 'Cab Driver'); assert.equal(job.location, 'job_cab'); assert.ok(job.wage > 0);
+  assert.equal((await call(s, 'POST', '/api/jobs/start', { uid: u, body: { jobId: 'cab' } })).json.error, 'TOO_FAR');
+  near(s, u, 'job_cab'); const st = await ok(s, 'POST', '/api/jobs/start', { uid: u, body: { jobId: 'cab' } }); assert.equal(st.user.shift.jobId, 'cab');
+  s.app.clock.advance(job.durationSec * 1000 + 500); const c = await ok(s, 'POST', '/api/jobs/claim', { uid: u }); assert.equal(c.wage, job.wage); assert.equal(c.user.cash, 5000 + job.wage);
+});
 test('jobs: locked until enough shifts; needs gate working; energy/hunger spent on start', async () => {
   const s = makeServer(); const u = mkUser(s); near(s, u, 'job_pos');
   assert.equal((await call(s, 'POST', '/api/jobs/start', { uid: u, body: { jobId: 'pos' } })).json.error, 'JOB_LOCKED');

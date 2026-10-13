@@ -22,13 +22,21 @@ export class Controller {
   }
   setLook(color, name) {
     this.color = color; this.name = name; if (this.avatar) this.root.remove(this.avatar), this.root.remove(this.carObj);
-    const sk = this.skinLooks || {}; this.avatar = makeAvatar(sk.avatar?.color || color); this.carObj = makePlayerCar(sk.car?.color || color); if (sk.avatar?.glow) addSkinGlow(this.avatar, sk.avatar.glow, 1.1); if (sk.car?.glow) addSkinGlow(this.carObj, sk.car.glow, 3.4); this.root.add(this.avatar, this.carObj); this.carObj.visible = false;
+    const sk = this.skinLooks || {}; this.avatar = makeAvatar(sk.avatar?.color || color); this.carObj = makePlayerCar(sk.car?.color || this.ridePaint || color, this.rideBody || 'hatch'); if (sk.avatar?.glow) addSkinGlow(this.avatar, sk.avatar.glow, 1.1); if (sk.car?.glow) addSkinGlow(this.carObj, sk.car.glow, 3.4); this.root.add(this.avatar, this.carObj); this.carObj.visible = false;
     if (!this.tag) { this.tag = makeNameSprite(name || 'You', '#ffe27a'); this.root.add(this.tag); }
     this.applyMode();
   }
   /** the skins you have on (item 9): { avatar: {color, glow}, car: {color, glow} } looks from the catalogue; the body is rebuilt in those colours */
   setSkins(looks) { const key = JSON.stringify(looks || {}); if (key === this._skKey) return false; this._skKey = key; this.skinLooks = looks || {}; this.setLook(this.color, this.name); return true; }
-  applyMode() { document.body.classList.toggle('driving', this.mode === 'drive'); if (this.mode !== 'drive') this.hand = false; this.avatar.visible = this.mode === 'walk'; this.carObj.visible = this.mode === 'drive'; this.tag.position.set(0, this.mode === 'drive' ? 4.2 : 3.6, 0); }
+  /** owned car from /api/me: body picks the mesh, drive is the free-roam top speed (m/s). null car = the borrowed hatch. */
+  setRide(car) {
+    const body = car?.body || 'hatch', paint = car?.color || null, drive = car?.drive || 0;
+    if (body === this.rideBody && paint === this.ridePaint && drive === this.rideDrive) return;
+    this.rideBody = body; this.ridePaint = paint; this.rideDrive = drive; if (!this.root) return;
+    const vis = this.carObj?.visible; if (this.carObj) this.root.remove(this.carObj);
+    const sk = this.skinLooks || {}; this.carObj = makePlayerCar(sk.car?.color || paint || this.color, body); if (sk.car?.glow) addSkinGlow(this.carObj, sk.car.glow, 3.4); this.carObj.visible = !!vis; this.root.add(this.carObj); this.applyMode();
+  }
+  applyMode() { document.body.classList.toggle('driving', this.mode === 'drive'); if (this.mode !== 'drive') this.hand = false; this.avatar.visible = this.mode === 'walk'; this.carObj.visible = this.mode === 'drive'; const tall = this.rideBody === 'gwagon' ? 5.05 : this.rideBody === 'cyber' ? 4.65 : 4.2; this.tag.position.set(0, this.mode === 'drive' ? tall : 3.6, 0); }
   toggleCar() { if (this.auto) { this.auto = null; this.onAuto?.('manual'); } this.mode = this.mode === 'walk' ? 'drive' : 'walk'; this.stopAll(); this.applyMode(); if (this.mode === 'drive') this.camYaw = this.ry; return this.mode; }
   teleport(x, z) { this.x = x; this.z = z; this.stopAll(); this.knockT = 99; this.lookAt = null; }
   /** no velocity left in any model (mode change, teleport, arriving) */
@@ -85,7 +93,7 @@ export class Controller {
       this.x += w.vx * dt; this.z += w.vz * dt; this.v = w.speed;
     } else {
       c.x = this.x; c.z = this.z; c.ry = this.ry; const pedal = Math.abs(iy) > 0.15 ? iy : 0; const steer = Math.abs(ix) > 0.1 ? ix : 0;
-      carStep(c, { pedal, steer, hand: (this.hand || this.handTouch) && !this.frozen }, dt, P.car, { cap: envCap(zoneSpeedCap(c.x, c.z, this.roundabouts, P.car), this.envScale, P.car) });
+      const rideCfg = this.rideDrive ? { ...P.car, maxSpeed: this.rideDrive } : P.car; carStep(c, { pedal, steer, hand: (this.hand || this.handTouch) && !this.frozen }, dt, rideCfg, { cap: envCap(zoneSpeedCap(c.x, c.z, this.roundabouts, rideCfg), this.envScale, rideCfg) });
       this.x = c.x; this.z = c.z; this.ry = c.ry; this.v = c.v; ay = c.ay; ax = c.ax;
       if (performance.now() - this.dragT > 1500) this.camYaw += angDiff(this.camYaw, this.ry) * damp(3, dt);
     }

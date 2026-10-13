@@ -1,7 +1,9 @@
 // Presence + heartbeat. Plain-HTTP polling: client posts its movement trail + ad-view evidence, server answers with nearby
 // players' trails, state, world time, notifications and the recommended next interval (load adaptive).
-import { tick as flightTick, mini as flightMini } from './flight.js';
-import { tick as boatTick, mini as boatMini } from './boat.js';
+// Live movement is separate: the browser sends its position on the websocket about 8 times a second, and the server
+// pushes nearby players' latest positions back on the same socket. The heartbeat stays the full state sync.
+import { tick as flightTick, mini as flightMini, isFlying } from './flight.js';
+import { tick as boatTick, mini as boatMini, isAboard } from './boat.js';
 import { bad, clamp, cleanText } from './util.js';
 import { screen } from './filter.js';
 import { hiddenFrom, chatMuted } from './safety.js';
@@ -68,6 +70,38 @@ function applyTrail(app, p, trail, now) {
   p.suspicious = (p.suspicious || 0) + clampedCount; return clampedCount;
 }
 
+/** one live position from the websocket. Same speed and bounds clamp as the heartbeat trail. Returns false when dropped. */
+export function livePos(app, uid, body) {
+  const p = app.world.players.get(uid); if (!p || !body) return false;
+  const now = app.clock.now(); if (now - (p.liveAt || 0) < 100) return false;
+  const x = Number(body.x), z = Number(body.z); if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
+  if (isFlying(app, uid) || isAboard(app, uid)) return false;
+  if (body.m === 0 || body.m === 1) { const mode = body.m === 1 ? 'drive' : 'walk'; if (!(mode === 'drive' && p.mode !== 'drive' && parkedActive(app, uid))) p.mode = mode; }
+  applyTrail(app, p, [{ a: 0, x, z, ry: Number.isFinite(Number(body.ry)) ? Number(body.ry) : p.ry }], now);
+  p.liveAt = now; p.liveSeq = (p.liveSeq || 0) + 1; p.lastSeen = now; return true;
+}
+
+/** nearby players whose live position this viewer has not been sent yet. At most maxNearby, closest first. */
+export function snapshotMoves(app, uid) {
+  const p = app.world.players.get(uid); if (!p) return null;
+  const now = app.clock.now(); const hb = app.balance.heartbeat; const cutoff = now - hb.activeWindowMs;
+  if (!p.hideCache || now - p.hideCache.at > 2000) p.hideCache = { at: now, set: hiddenFrom(app, uid) };
+  const hidden = p.hideCache.set; const seen = p.sentLive || (p.sentLive = new Map()); const cand = [];
+  for (const o of app.world.players.values()) {
+    if (o.id === uid || o.city !== p.city || o.lastSeen < cutoff || hidden.has(o.id) || !o.liveSeq || seen.get(o.id) === o.liveSeq) continue;
+    const d = dist(o.x, o.z, p.x, p.z); if (d <= hb.nearbyRadius) cand.push([d, o]);
+  }
+  if (!cand.length) return null;
+  cand.sort((a, b) => a[0] - b[0]); const out = [];
+  for (const [, o] of cand.slice(0, hb.maxNearby)) { seen.set(o.id, o.liveSeq); out.push({ id: o.id, x: o.x, z: o.z, ry: o.ry, m: o.mode === 'drive' ? 1 : 0, n: o.name, c: o.color }); }
+  return out;
+}
+
+function carBody(app, o, now) {
+  if (o.carBody && now - (o.carBodyAt || 0) < 8000) return o.carBody;
+  const row = app.db.prepare('SELECT model FROM player_cars WHERE user_id=? AND active=1').get(o.id);
+  o.carBody = app.balance.cars.models[row?.model]?.body || 'hatch'; o.carBodyAt = now; return o.carBody;
+}
 export function heartbeat(app, uid, body, meta = {}) {
   const now = app.clock.now(); const w = app.world;
   const userRow = app.db.prepare('SELECT username,color,is_bot,is_guest FROM users WHERE id=?').get(uid);
@@ -94,7 +128,7 @@ export function heartbeat(app, uid, body, meta = {}) {
     // downsample trail to ~1 sample/2s newer than `since`
     const s = []; let lastT = 0; for (const t of o.trail) { if (t.t > since - 2000 && t.t - lastT >= 1800) { s.push([Math.round(t.t - now), t.x, t.z, t.ry]); lastT = t.t; } }
     if (!s.length) s.push([0, o.x, o.z, o.ry]);
-    const w = wearIds(app, o); const ct = clubTagOf(app, o); const sk = skinsOf(app, o); const tt = o.isBot ? '' : titleOf(app, o.id); const em = emoteOf(o, now); return { id: o.id, n: o.name, c: o.color, m: o.mode === 'drive' ? 1 : 0, act: o.activity || '', ...(w.length ? { w } : {}), ...(sk ? { sk } : {}), ...(ct ? { ct } : {}), ...(tt ? { t: tt } : {}), ...(em ? { e: em } : {}), s };
+    const w = wearIds(app, o); const ct = clubTagOf(app, o); const sk = skinsOf(app, o); const tt = o.isBot ? '' : titleOf(app, o.id); const em = emoteOf(o, now); const bd = o.mode === 'drive' ? carBody(app, o, now) : ''; return { id: o.id, n: o.name, c: o.color, m: o.mode === 'drive' ? 1 : 0, act: o.activity || '', ...(w.length ? { w } : {}), ...(sk ? { sk } : {}), ...(ct ? { ct } : {}), ...(tt ? { t: tt } : {}), ...(em ? { e: em } : {}), ...(bd ? { bd } : {}), s };
   });
   const ccu = ccuNow(app); const interval = recommendedInterval(app, ccu);
   // notifications since last id

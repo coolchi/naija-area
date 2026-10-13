@@ -47,7 +47,7 @@ export class CarParks {
   /** real players' parked cars: [{ lot, bay, x, z, ry, color, who? , mine? }] */
   setParked(list, myName) {
     this.parked = list; for (const c of this.cars) { this.real.remove(c); if (c.userData.tag) c.userData.tag.material.map?.dispose(); } this.cars = [];
-    for (const p of list) { const g = new THREE.Group(); const m = new THREE.Mesh(carG('hatch', new THREE.Color(p.color).getHex()), vcMat); m.position.y = 0.1; g.add(m); g.add(blobShadow(5.2, 2.8)); g.position.set(p.x, TOP, p.z); g.rotation.y = p.ry; const tag = makeNameSprite(p.mine ? 'Your car' : '@' + p.who, p.mine ? '#ffc20e' : '#ffffff'); tag.position.set(0, 3.2, 0); tag.scale.multiplyScalar(0.6); g.userData.tag = tag; g.add(tag); this.real.add(g); this.cars.push(g); }
+    for (const p of list) { const g = new THREE.Group(); const m = new THREE.Mesh(carG(p.body || 'hatch', new THREE.Color(p.color).getHex()), vcMat); m.position.y = 0.1; g.add(m); g.add(blobShadow(5.2, 2.8)); g.position.set(p.x, TOP, p.z); g.rotation.y = p.ry; const tag = makeNameSprite(p.mine ? 'Your car' : '@' + p.who, p.mine ? '#ffc20e' : '#ffffff'); tag.position.set(0, p.body === 'gwagon' ? 3.8 : 3.2, 0); tag.scale.multiplyScalar(0.6); g.userData.tag = tag; g.add(tag); this.real.add(g); this.cars.push(g); }
     void myName;
   }
   /** hide far lots completely (nothing drawn beyond cullDist) */

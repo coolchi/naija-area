@@ -17,7 +17,7 @@ export const parkedRow = (app, uid) => app.db.prepare('SELECT * FROM car_parking
 /** the parked car stops the player driving it elsewhere: used by the heartbeat */
 export function parkedActive(app, uid) { const r = parkedRow(app, uid); if (!r) return false; const a = app.db.prepare('SELECT id FROM player_cars WHERE user_id=? AND active=1').get(uid); return !!a && a.id === r.car_id; }
 export function expireOld(app, now = app.clock.now()) { const max = app.balance.parking.maxParkedMs; const old = app.db.prepare('SELECT user_id FROM car_parking WHERE parked_at < ?').all(now - max); for (const o of old) { app.db.prepare('DELETE FROM car_parking WHERE user_id=?').run(o.user_id); notify(app, o.user_id, 'car', 'Your parked car was taken back to your garage (parked too long).'); } return old.length; }
-const carView = (app, r) => { const c = app.db.prepare('SELECT model FROM player_cars WHERE id=?').get(r.car_id); const m = c && app.balance.cars.models[c.model]; return { lot: r.lot_id, bay: r.bay, x: r.x, z: r.z, ry: r.ry, parkedAt: r.parked_at, fee: r.fee, color: m?.color || '#888888', model: m?.name || 'Car' }; };
+const carView = (app, r) => { const c = app.db.prepare('SELECT model FROM player_cars WHERE id=?').get(r.car_id); const m = c && app.balance.cars.models[c.model]; return { lot: r.lot_id, bay: r.bay, x: r.x, z: r.z, ry: r.ry, parkedAt: r.parked_at, fee: r.fee, color: m?.color || '#888888', model: m?.name || 'Car', body: m?.body || 'hatch' }; };
 
 export function view(app, uid) {
   expireOld(app); const lots = lotsOf(app, uid); const rows = app.db.prepare('SELECT * FROM car_parking').all(); const mine = rows.find(r => r.user_id === uid); const hour = gameTime(app).hour;

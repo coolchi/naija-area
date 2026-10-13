@@ -29,8 +29,8 @@ export function carValue(app, uid) { const now = app.clock.now(); return rows(ap
 export function garageView(app, uid) {
   const C = app.balance.cars; const now = app.clock.now();
   return { slots: C.garageSlots, borrowed: C.borrowed, active: carFor(app, uid),
-    cars: rows(app, uid).map(c => { const m = modelDef(app, c.model); const cd = conditionOf(app, c, now); return { health: cd.health, damage: cd.damage, condition: cd.pct, conditionLabel: cd.label, perkUntil: cd.perkUntil, id: c.id, model: c.model, name: m.name, color: m.color, paid: c.paid, value: resaleValue(app, c, now), active: !!c.active, perM: m.perM, speed: m.speed, mood: m.mood, ageDays: Math.floor((now - c.bought_at) / DAY) }; }),
-    catalogue: Object.entries(C.models).map(([id, m]) => ({ id, name: m.name, price: m.price, perM: m.perM, speed: m.speed, mood: m.mood, color: m.color, estimate: true })), resale: C.resale };
+    cars: rows(app, uid).map(c => { const m = modelDef(app, c.model); const cd = conditionOf(app, c, now); return { health: cd.health, damage: cd.damage, condition: cd.pct, conditionLabel: cd.label, perkUntil: cd.perkUntil, id: c.id, model: c.model, name: m.name, color: m.color, body: m.body, paid: c.paid, value: resaleValue(app, c, now), active: !!c.active, perM: m.perM, speed: m.speed, mood: m.mood, ageDays: Math.floor((now - c.bought_at) / DAY) }; }),
+    catalogue: Object.entries(C.models).map(([id, m]) => ({ id, name: m.name, price: m.price, perM: m.perM, speed: m.speed, mood: m.mood, color: m.color, body: m.body, exclusive: !!m.exclusive, estimate: !m.exclusive })), resale: C.resale };
 }
 export function buyCar(app, uid, model, idemKey) {
   const m = modelDef(app, model); if (!m) bad('NO_MODEL', 'We do not sell that model.', 404);
