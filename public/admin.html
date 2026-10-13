@@ -13,9 +13,15 @@ body.admin main { max-width: 1100px; }
 .bar i { grid-column: 1 / -1; display: block; height: 8px; border-radius: 99px; background: var(--g); }
 .kv { display: grid; grid-template-columns: 140px 1fr; gap: 2px 10px; margin: 6px 0; }
 .kv .mut { font-weight: 800; }
-.adtable .dfig { width: 72px; } .adtable img.prev { width: 72px; height: 48px; object-fit: cover; display: block; }
 .adtable td { font-size: 13px; }
-.adtable .small { padding: 3px 8px; font-size: 12px; }
+button.adthumb { position: relative; display: block; padding: 0; background: none; box-shadow: none; border-radius: 8px; line-height: 1.2; font-size: 12px; color: var(--ink); }
+button.adthumb img.prev { width: 88px; height: 58px; object-fit: cover; display: block; }
+.adcount { position: absolute; right: 4px; bottom: 4px; background: #143d2a; color: #fff; font: 800 11px Nunito, sans-serif; line-height: 1.4; border-radius: 99px; padding: 1px 6px; }
+.admodal { position: fixed; inset: 0; z-index: 40; background: #0008; display: grid; place-items: center; padding: 16px; }
+.admodal[hidden] { display: none; }
+.admodal-card { background: #fffdf6; border-radius: 18px; padding: 16px; width: min(760px, 100%); max-height: min(92vh, 920px); overflow: auto; box-shadow: 0 16px 50px #0004; }
+.adstage { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; margin: 8px 0; }
+.adstage img { width: 100%; max-height: 420px; object-fit: contain; background: #1c1914; border-radius: 12px; }
 </style></head><body class="admin">
 <header class="top"><a href="/"><img src="/assets/logo.svg" alt="Naija Area"></a><b id="crumb">Admin</b><span class="sp"></span><button class="ghost" id="logout" style="display:none">Log out</button></header>
 <main>
@@ -41,7 +47,7 @@ body.admin main { max-width: 1100px; }
 </section>
 
 <section class="apage" data-page="ads" hidden>
-<div class="card"><h2>Adverts</h2><p class="mut">Totals are for the list below. Prices are the test-mode rate card.</p><div id="adStats" class="tiles"></div><div class="row"><select id="st" style="width:auto"><option value="human_review">Needs review</option><option value="live,scheduled,approved">Running / approved</option><option value="submitted,awaiting_payment,auto_checks">Submitted / unpaid</option><option value="rejected,takedown">Rejected / taken down</option><option value="auto_checks,human_review,approved,scheduled,live,completed,rejected,takedown,submitted">All</option></select><button class="ghost" id="reload">Reload</button></div><div id="q" class="scroll"></div></div>
+<div class="card"><h2>Adverts</h2><p class="mut">Totals are for the list below. Prices are the test-mode rate card.</p><div id="adStats" class="tiles"></div><div class="row"><select id="st" style="width:auto"><option value="auto_checks,human_review,approved,scheduled,live,completed,rejected,takedown,submitted" selected>All</option><option value="human_review">Needs review</option><option value="live,scheduled,approved">Running / approved</option><option value="submitted,awaiting_payment,auto_checks">Submitted / unpaid</option><option value="rejected,takedown">Rejected / taken down</option></select><button class="ghost" id="reload">Reload</button></div><div id="q" class="scroll"></div></div>
 </section>
 
 <section class="apage" data-page="players" hidden>
@@ -90,6 +96,14 @@ body.admin main { max-width: 1100px; }
 <p id="worldMsg" class="mut"></p>
 </div>
 </section>
+</div>
+<div id="adModal" class="admodal" hidden>
+<div class="admodal-card" role="dialog" aria-modal="true" aria-labelledby="adModalTitle">
+<div class="row"><b id="adModalTitle">Ad</b><span class="sp"></span><button class="ghost" id="adModalClose" type="button">Close</button></div>
+<div class="adstage"><button class="ghost" id="adPrev" type="button" data-adstep="-1">Previous</button><img id="adModalImg" alt=""><button class="ghost" id="adNext" type="button" data-adstep="1">Next</button></div>
+<div id="adModalMeta"></div>
+<div class="row" id="adModalActs"></div>
+</div>
 </div>
 </main>
 <script src="/js/admin.js"></script>

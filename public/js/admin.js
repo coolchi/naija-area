@@ -52,22 +52,75 @@ document.addEventListener('click', async (e) => {
   try { await j('/api/admin/reports/resolve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: b.dataset.k, target: b.dataset.t, action: b.dataset.r, note }) }); await reports(); } catch (er) { alert(er.message); }
 });
 
+let adRows = [];
+let adView = null;
+let adTicket = 0;
+function paintAd() {
+  const box = $('#adModal');
+  if (!adView) { box.hidden = true; return; }
+  const c = adRows.find(r => r.id === adView.id);
+  if (!c) { adView = null; box.hidden = true; return; }
+  const designs = c.designs || [];
+  const n = designs.length;
+  const i = n ? ((adView.index % n) + n) % n : 0;
+  adView.index = i;
+  const dsg = designs[i];
+  box.hidden = false;
+  $('#adModalTitle').textContent = `#${c.id} ${c.brand}` + (n > 1 ? ` · design ${i + 1} of ${n}` : '');
+  const img = $('#adModalImg');
+  if (dsg) { img.hidden = false; img.src = '/media/creative/' + dsg.creativeId; img.alt = `${c.brand} design ${i + 1}`; }
+  else { img.hidden = true; img.removeAttribute('src'); img.alt = 'No design'; }
+  $('#adPrev').hidden = n < 2;
+  $('#adNext').hidden = n < 2;
+  const s = c.stats || {};
+  const reasons = (s.filterReasons || []).map(r => `${esc(r.reason)} ×${r.n}`).join(', ');
+  $('#adModalMeta').innerHTML = `<p><b>${esc(c.headline || '(no headline)')}</b> <span class="tag">${esc(c.status)}</span> <span class="tag ${c.placement === 'exclusive' ? 'amber' : ''}">${esc(c.placementLabel)}</span>${c.demo ? ' <span class="tag">demo</span>' : ''}</p>
+<p class="mut">${esc(c.cityName || c.cityId || '—')} · ${esc(c.surface)} ${esc(c.tier)} ×${c.units} · ${c.days} days · ${naira(c.priceTotal)} · ${esc(c.email || '')}</p>
+${dsg ? `<p>Design ${i + 1}${n ? '/' + n : ''} <span class="tag">${esc(dsg.status)}</span> <span class="mut">${dsg.validImpressions} valid / ${dsg.grossImpressions} gross${dsg.filteredOut ? ' · ' + dsg.filteredOut + ' filtered' : ''}</span>${dsg.rejectReason ? `<br><span class="err">${esc(dsg.rejectReason)}</span>` : ''}</p>` : '<p class="mut">No designs on this board.</p>'}
+<p class="mut">Whole campaign: ${s.validImpressions || 0} valid / ${s.grossImpressions || 0} gross · ${s.tapsValid || 0} taps · click rate ${s.ctrPct || 0}%</p>
+${reasons ? `<p class="mut">Filtered because: ${reasons}</p>` : ''}${c.flags?.length ? `<p class="err">Flags: ${c.flags.map(esc).join(', ')}</p>` : ''}${c.rejectReason ? `<p class="err">${esc(c.rejectReason)}</p>` : ''}`;
+  const locked = ['rejected', 'completed'].includes(c.status);
+  const designBtn = !dsg || locked ? '' : `<button class="${dsg.status === 'rejected' ? '' : 'red'}" data-design="${dsg.status === 'rejected' ? 'approve' : 'reject'}" data-id="${c.id}" data-cid="${dsg.creativeId}">${dsg.status === 'rejected' ? 'Allow this design' : 'Reject this design'}</button>`;
+  const take = c.status === 'live' || c.status === 'scheduled' ? `<button class="alt" data-d="takedown" data-id="${c.id}">Take down</button>` : '';
+  $('#adModalActs').innerHTML = `${designBtn}<button data-d="approve" data-id="${c.id}">Approve</button><button class="red" data-d="reject" data-id="${c.id}">Reject</button>${take}`;
+}
+function openAd(id, index) { adView = { id: Number(id), index: Number(index) || 0 }; paintAd(); }
+function closeAd() { adView = null; const box = $('#adModal'); if (box) box.hidden = true; }
+
 async function queue() {
-  const d = await j('/api/admin/queue?status=' + encodeURIComponent($('#st').value));
+  const status = $('#st').value;
+  const ticket = ++adTicket;
+  $('#q').innerHTML = '<p class="mut">Loading…</p>';
+  let d;
+  try { d = await j('/api/admin/queue?status=' + encodeURIComponent(status)); }
+  catch (e) { if (ticket === adTicket) $('#q').innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+  if (ticket !== adTicket || $('#st').value !== status) return;
   const rows = d.rows || [];
+  adRows = rows;
   const tot = rows.reduce((a, c) => { const s = c.stats || {}; a.valid += s.validImpressions || 0; a.gross += s.grossImpressions || 0; a.filtered += s.filteredOut || 0; a.taps += s.tapsValid || 0; return a; }, { valid: 0, gross: 0, filtered: 0, taps: 0 });
   const ctr = tot.valid ? Math.round((tot.taps / tot.valid) * 10000) / 100 : 0;
   $('#adStats').innerHTML = [['Campaigns', rows.length], ['Valid impressions', tot.valid.toLocaleString('en-NG')], ['Filtered out', tot.filtered.toLocaleString('en-NG')], ['Taps', tot.taps.toLocaleString('en-NG')], ['Click rate', ctr + '%']].map(([k, v]) => `<div class="tile"><span class="mut">${k}</span><b>${v}</b></div>`).join('');
-  $('#q').innerHTML = rows.length ? `<table class="adtable"><tr><th></th><th>Campaign</th><th>Impressions</th><th>Taps</th><th>Where</th><th></th></tr>${rows.map(c => {
+  $('#q').innerHTML = rows.length ? `<table class="adtable"><tr><th></th><th>Campaign</th><th>Impressions</th><th>Taps</th><th>Where</th></tr>${rows.map(c => {
     const s = c.stats || {};
-    const reasons = (s.filterReasons || []).map(r => `${esc(r.reason)} ×${r.n}`).join(', ');
-    const thumbs = (c.designs || []).map((dsg, i) => `<figure class="dfig"><img class="prev" src="/media/creative/${dsg.creativeId}" alt="design ${i + 1}"><figcaption><span class="tag">${esc(dsg.status)}</span> ${dsg.validImpressions}/${dsg.grossImpressions}${dsg.rejectReason ? `<br><span class="err">${esc(dsg.rejectReason)}</span>` : ''}${['rejected', 'completed'].includes(c.status) ? '' : `<br><button class="${dsg.status === 'rejected' ? '' : 'red'} small" data-design="${dsg.status === 'rejected' ? 'approve' : 'reject'}" data-id="${c.id}" data-cid="${dsg.creativeId}">${dsg.status === 'rejected' ? 'Allow' : 'Reject'}</button>`}</figcaption></figure>`).join('') || '<span class="mut">No designs</span>';
-    return `<tr><td>${thumbs}</td><td><b>#${c.id} ${esc(c.brand)}</b> <span class="tag">${esc(c.status)}</span> <span class="tag ${c.placement === 'exclusive' ? 'amber' : ''}">${esc(c.placementLabel)}</span>${c.demo ? ' <span class="tag">demo</span>' : ''}<br>${esc(c.headline || '(no headline)')}<br><span class="mut">${esc(c.email)}</span>${c.flags.length ? `<br><span class="err">Flags: ${c.flags.map(esc).join(', ')}</span>` : ''}${c.rejectReason ? `<br><span class="err">${esc(c.rejectReason)}</span>` : ''}</td><td><b>${(s.validImpressions || 0).toLocaleString('en-NG')}</b> valid<br><span class="mut">${(s.grossImpressions || 0).toLocaleString('en-NG')} gross · ${s.filteredOut || 0} filtered · ${s.uniquePlayers || 0} players</span>${reasons ? `<br><span class="mut">${reasons}</span>` : ''}</td><td><b>${s.tapsValid || 0}</b> <span class="mut">/ ${s.tapsGross || 0}</span><br><span class="mut">${s.ctrPct || 0}%</span></td><td>${esc(c.cityName || c.cityId || '—')}<br><span class="mut">${esc(c.surface)} ${esc(c.tier)} ×${c.units} · ${c.days}d</span><br><b>${naira(c.priceTotal)}</b> <span class="mut">${esc(c.payment || '')}</span><br><span class="mut">${c.startAt ? when(c.startAt) + ' → ' + when(c.endAt) : 'not scheduled'}</span></td><td><div class="row"><button class="small" data-d="approve" data-id="${c.id}">Approve</button><button class="red small" data-d="reject" data-id="${c.id}">Reject</button>${c.status === 'live' || c.status === 'scheduled' ? `<button class="alt small" data-d="takedown" data-id="${c.id}">Take down</button>` : ''}</div></td></tr>`;
+    const designs = c.designs || [];
+    const first = designs[0];
+    const thumb = first ? `<button type="button" class="adthumb" data-adopen="${c.id}" data-adi="0" aria-label="${designs.length > 1 ? 'Preview ' + designs.length + ' designs' : 'Preview this design'}"><img class="prev" src="/media/creative/${first.creativeId}" alt="">${designs.length > 1 ? `<span class="adcount" aria-hidden="true">${designs.length}</span>` : ''}</button>` : `<button type="button" class="adthumb" data-adopen="${c.id}" data-adi="0">No design</button>`;
+    return `<tr><td>${thumb}</td><td><b>#${c.id} ${esc(c.brand)}</b> <span class="tag">${esc(c.status)}</span> <span class="tag ${c.placement === 'exclusive' ? 'amber' : ''}">${esc(c.placementLabel)}</span>${c.demo ? ' <span class="tag">demo</span>' : ''}${designs.length > 1 ? ` <span class="mut">${designs.length} designs</span>` : ''}<br>${esc(c.headline || '(no headline)')}<br><span class="mut">${esc(c.email)}</span></td><td><b>${(s.validImpressions || 0).toLocaleString('en-NG')}</b> valid<br><span class="mut">${(s.grossImpressions || 0).toLocaleString('en-NG')} gross · ${s.filteredOut || 0} filtered</span></td><td><b>${s.tapsValid || 0}</b><br><span class="mut">${s.ctrPct || 0}%</span></td><td>${esc(c.cityName || c.cityId || '—')}<br><span class="mut">${esc(c.surface)} ${esc(c.tier)} ×${c.units} · ${c.days}d</span><br><b>${naira(c.priceTotal)}</b></td></tr>`;
   }).join('')}</table>` : '<p class="mut">Nothing here.</p>';
+  if (adView) paintAd();
 }
 document.addEventListener('click', async (e) => {
+  if (e.target.id === 'adModal' || e.target.closest('#adModalClose')) { closeAd(); return; }
+  const step = e.target.closest('[data-adstep]'); if (step && adView) { adView.index += Number(step.dataset.adstep); paintAd(); return; }
+  const open = e.target.closest('[data-adopen]'); if (open) { openAd(open.dataset.adopen, open.dataset.adi); return; }
   const dg = e.target.closest('button[data-design]'); if (dg) { let reason = ''; if (dg.dataset.design === 'reject') { reason = prompt('Reason for rejecting this design (shown to the advertiser):') || ''; if (!reason) return; } try { await j(`/api/admin/campaigns/${dg.dataset.id}/designs/${dg.dataset.cid}/decision`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ decision: dg.dataset.design, reason }) }); await queue(); } catch (er) { alert(er.message); } return; }
   const b = e.target.closest('button[data-d]'); if (!b) return; let reason = ''; if (b.dataset.d !== 'approve') { reason = prompt('Reason (shown to the advertiser):') || ''; if (!reason) return; } try { await j(`/api/admin/campaigns/${b.dataset.id}/decision`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ decision: b.dataset.d, reason }) }); await queue(); } catch (er) { alert(er.message); }
+});
+document.addEventListener('keydown', (e) => {
+  if (!adView) return;
+  if (e.key === 'Escape') closeAd();
+  else if (e.key === 'ArrowLeft') { adView.index -= 1; paintAd(); }
+  else if (e.key === 'ArrowRight') { adView.index += 1; paintAd(); }
 });
 
 async function players() {
