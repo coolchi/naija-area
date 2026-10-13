@@ -6,6 +6,7 @@ import { planAdWalls } from './adwalls.js';
 import { roadPts, isCurved, offsetPoly, polyLen, roadAt } from './roadgeom.js';
 import { strut, subtractRects, creekVisual, creekColliders, drawExtraBuilding, drawLagosBlock, drawBeach, drawJetty, drawLink, drawBeamBridge, drawCableBridge, drawStadium, drawHill, drawWall, drawDyePits, drawMotorPark, drawFarm, drawPen, drawWell, drawPalmLine } from './landmarks3d.js';
 import { lampPositions, lampLevel, lampsOn, LAMP } from './lamps.js';
+import { nameTag } from './textures.js';
 
 const lerpC = (a, b, t) => new THREE.Color(a).lerp(new THREE.Color(b), t);
 /** sidewalk slab. A roundabout bites the block as a circular kerb, not a square corner. */
@@ -66,6 +67,25 @@ function cutCircle(poly, cx, cz, R) {
   return out;
 }
 
+// monipay.ng: violet mark (#6F2CDE), white disc, lowercase wordmark in near-black.
+const MONIPAY = { purple: '#6F2CDE', ink: '#16122A' };
+let ttaSign;
+function ttaSignTexture() {
+  if (ttaSign) return ttaSign;
+  const w = 1024, h = 320; const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+  g.fillStyle = '#10243a'; g.fillRect(0, 0, w, h); g.fillStyle = '#00c2b8'; g.fillRect(0, 0, 28, h);
+  g.fillStyle = '#ffffff'; g.font = '800 168px Nunito, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('TTA', w / 2 + 8, 128);
+  g.fillStyle = '#00c2b8'; g.font = '700 64px Nunito, system-ui, sans-serif'; g.fillText('TECH TALENT', w / 2 + 8, 248);
+  ttaSign = tex2(c); return ttaSign;
+}
+function monipaySignTexture() {
+  const w = 1024, h = 280; const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
+  const cy = h / 2; g.fillStyle = MONIPAY.purple; g.beginPath(); g.arc(148, cy, 98, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#ffffff'; g.font = '800 120px Nunito, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('m', 148, cy + 8);
+  g.fillStyle = MONIPAY.ink; g.font = '800 128px Nunito, system-ui, sans-serif'; g.textAlign = 'left'; g.fillText('monipay', 278, cy + 6);
+  return tex2(c);
+}
 function signTexture(text, bg, fg = '#fff', w = 512, hgt = 128) {
   const c = document.createElement('canvas'); c.width = w; c.height = hgt; const g = c.getContext('2d');
   g.fillStyle = bg; g.fillRect(0, 0, w, hgt); g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 6; g.strokeRect(6, 6, w - 12, hgt - 12);
@@ -186,6 +206,27 @@ export function buildWorld(city) {
       const cols = [0xd84315, 0x1e88e5, 0x43a047, 0xfdd835, 0x8e24aa, 0xf4511e];
       for (let i = 0; i < 12; i++) { const px = b.x - hw + 3 + (i % 4) * ((b.w - 6) / 3), pz = b.z - hd + 5 + Math.floor(i / 4) * ((b.d - 10) / 2); plain.box(3.4, 1.0, 1.8, px, 0, pz, cols[i % cols.length]); plain.box(3.8, 0.12, 2.2, px, 2.6, pz, cols[(i + 2) % cols.length], { noAO: true }); }
       const [sx, sz] = frontPos(b, 0.5); addSign(String(b.label || 'Balogun-style market').toUpperCase(), '#8d3b13', sx, 5.9, sz, 22, 2.4, b.face);
+    } else if (b.kind === 'bank') {
+      const purple = 0x6f2cde; const along = Math.abs(fz) > 0;
+      walls.box(b.w, b.h, b.d, b.x, 0, b.z, b.color || '#f7f4ff'); plain.box(b.w + 0.8, 0.55, b.d + 0.8, b.x, b.h, b.z, purple, { noAO: true });
+      const [sx, sz] = frontPos(b, 0.28); const sh = 2.4, sw = Math.min(b.w - 2, 15); const signY = 5.55;
+      const fasciaH = sh + 0.4;
+      plain.box(along ? sw + 0.5 : 0.16, fasciaH, along ? 0.16 : sw + 0.5, sx - fx * 0.14, signY - fasciaH / 2, sz - fz * 0.14, purple, { noAO: true });
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), new THREE.MeshBasicMaterial({ map: monipaySignTexture(), side: THREE.FrontSide }));
+      board.position.set(sx, signY, sz); board.rotation.y = Math.atan2(fx, fz); root.add(board); signs.push(board);
+      const [dx, dz] = frontPos(b, 0.06); glassB.box(Math.abs(fz) ? 6.2 : 0.2, 3.6, Math.abs(fz) ? 0.2 : 6.2, dx, 0.35, dz, 0xd9c8f5, { noAO: true, jit: 0 });
+      plain.box(Math.abs(fz) ? 2.4 : 0.22, 3.2, Math.abs(fz) ? 0.22 : 2.4, dx, 0, dz, purple, { noAO: true });
+      for (const s of [-1, 1]) plain.cyl(0.38, 0.42, 4.05, 6, b.x + (along ? s * 3.4 : fx * (hw + 0.45)), 0, b.z + (along ? fz * (hd + 0.45) : s * 3.4), 0xf7f4ff, { noAO: true });
+    } else if (b.kind === 'tta') {
+      walls.box(b.w, b.h * 0.72, b.d, b.x, 0, b.z, b.color || '#10243a');
+      walls.box(b.w * 0.92, b.h * 0.28, b.d * 0.92, b.x, b.h * 0.72, b.z, '#16344a');
+      plain.box(b.w + 0.5, 0.28, b.d + 0.5, b.x, b.h, b.z, 0x00c2b8, { noAO: true });
+      const [sx, sz] = frontPos(b, 0.18); const signY = b.h * 0.58; const sw = Math.min(b.w - 2, 14), sh = 3.1;
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), new THREE.MeshBasicMaterial({ map: ttaSignTexture(), side: THREE.FrontSide }));
+      board.position.set(sx, signY, sz); board.rotation.y = Math.atan2(fx, fz); root.add(board); signs.push(board);
+      const [dx, dz] = frontPos(b, 0.06); glassB.box(Math.abs(fz) ? 5.4 : 0.2, 3.1, Math.abs(fz) ? 0.2 : 5.4, dx, 0.3, dz, 0x9ad7e8, { noAO: true, jit: 0 });
+      plain.cyl(0.1, 0.1, 2.8, 6, b.x, b.h, b.z, 0xd0d5da, { noAO: true });
+      plain.box(0.9, 0.1, 0.9, b.x, b.h + 2.8, b.z, 0x00c2b8, { noAO: true, jit: 0 });
     } else if (b.kind === 'office' || b.kind === 'kiosk') {
       walls.box(b.w, b.h, b.d, b.x, 0, b.z, b.color); plain.box(b.w + 0.6, 0.3, b.d + 0.6, b.x, b.h, b.z, b.tag === "motoka" ? 0x2389e3 : 0x6b6d70);
       if (b.label && b.tag !== "motoka") { const [sx, sz] = frontPos(b, 0.12); addSign(b.label, '#0b6b3a', sx, b.h - 1.3, sz, Math.min(b.w - 1, 14), 2.2, b.face); }
@@ -286,6 +327,21 @@ export function buildWorld(city) {
   for (const p of city.properties) {
     const m = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({ color: 0x35c46b })); m.position.set(p.door.x, 5.2, p.door.z); root.add(m); doorMarkers[p.id] = m;
   }
+  // treasures sit behind buildings: a chest and a short label, not a map pin or a tall beacon
+  const treasures = {};
+  const bn = (n) => '₦' + (n / 1e9).toFixed(1) + 'bn';
+  for (const t of city.treasures || []) {
+    if (t.taken) continue;
+    const g = new THREE.Group(); g.position.set(t.x, 0, t.z);
+    const wood = new THREE.MeshLambertMaterial({ color: 0x8a5a24 });
+    const gold = new THREE.MeshBasicMaterial({ color: 0xffc20e });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.85, 1.0), wood); body.position.y = 0.65; g.add(body);
+    const lid = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.32, 1.05), new THREE.MeshLambertMaterial({ color: 0xd4a24a })); lid.position.y = 1.2; g.add(lid);
+    const band = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.2, 1.08), gold); band.position.y = 0.8; g.add(band);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(1.1, 1.55, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffc20e, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false })); ring.position.y = 0.2; g.add(ring);
+    const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: nameTag(bn(t.worth), '#ffc20e'), depthTest: false, transparent: true })); tag.scale.set(2.4, 0.6, 1); tag.position.y = 2.3; g.add(tag);
+    root.add(g); treasures[t.id] = g;
+  }
   // a home skin's accent (item 9): a coloured pole with a lantern beside the door, drawn for everybody (cosmetic)
   const accents = {}; const poleGeo = new THREE.BoxGeometry(0.5, 4.2, 0.5).translate(0, 2.1, 0), lampGeo = new THREE.SphereGeometry(0.7, 10, 8);
   const homeAccent = (p) => { const def = city.properties.find(x => x.id === p.id); if (!def) return; let a = accents[p.id];
@@ -297,7 +353,8 @@ export function buildWorld(city) {
   const fogC = new THREE.Color('#9fd3ee'); scene.fog = new THREE.Fog(fogC, 140, 520);
   let night = 0; applyLamps(0);
   const api = {
-    scene, colliders, palmSpots, boards, doorMarkers, labels, root, accents,
+    scene, colliders, palmSpots, boards, doorMarkers, labels, root, accents, treasures,
+    hideTreasures(ids) { for (const id of ids || []) { const g = treasures[id]; if (g) { root.remove(g); delete treasures[id]; } } },
     setMarkers(props) { for (const p of props) { const m = doorMarkers[p.id]; if (m) m.material.color.setHex(markerColor[p.status] || 0x35c46b); homeAccent(p); } },
     setTime(minutes) { // 0..1440
       const t = minutes / 1440; const a = (t - 0.25) * Math.PI * 2; const h = Math.sin(a); const day = Math.max(0, Math.min(1, h * 1.8 + 0.25));
@@ -308,7 +365,7 @@ export function buildWorld(city) {
       hemi.intensity = 0.52 + day * 0.48; hemi.color.set(lerpC('#6286b8', '#dfefff', day)); hemi.groundColor.set(lerpC('#786858', '#6b5f4a', day));
       wallMat.emissiveIntensity = night * 0.95; for (const m of pylonLights) m.material.color.copy(m.userData.base).multiplyScalar(0.28 + 0.72 * night); applyLamps(lampClock); return { day, night };
     },
-    animate(dt) { wt2.offset.x += dt * 0.004; wt2.offset.y += dt * 0.002; for (const t of creekTex) { t.offset.x += dt * 0.003; t.offset.y += dt * 0.0015; } lampClock += dt / 1000; lampFlickerT += dt; if (lampLvl > 0 && lampFlickerT > 90) { lampFlickerT = 0; applyLamps(lampClock); } },
+    animate(dt) { wt2.offset.x += dt * 0.004; wt2.offset.y += dt * 0.002; for (const t of creekTex) { t.offset.x += dt * 0.003; t.offset.y += dt * 0.0015; } for (const g of Object.values(treasures)) g.rotation.y += dt * 0.0008; lampClock += dt / 1000; lampFlickerT += dt; if (lampLvl > 0 && lampFlickerT > 90) { lampFlickerT = 0; applyLamps(lampClock); } },
     lamps, lampHeads, lampPools, get lampLevel() { return lampLvl; },
     get night() { return night; }
   };

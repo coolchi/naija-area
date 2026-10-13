@@ -23,6 +23,7 @@ import { planesNear } from './flight.js';
 import { titleOf } from './achievements.js';
 import * as guardian from './guardian.js';
 import { activeOf as emoteOf } from './emotes.js';
+import { takenInCity } from './treasures.js';
 
 export function createWorld() { return { players: new Map(), chatSeq: 0 }; }
 
@@ -149,7 +150,7 @@ export function heartbeat(app, uid, body, meta = {}) {
   const chatMax = app.db.prepare('SELECT COALESCE(MAX(id),0) m FROM chat_messages').get().m;
   const me = profile(app, uid);
   const resp = { now, interval, ccu, city: p.city, flight: flightMini(app, uid), boat: boatMini(app, uid), shed: interval >= 20000, world: gameTime(app, now), wx: weatherMini(app, p.city, now), fest: activeFestivals(app, now), pl: planesNear(app, p.city, p.x, p.z, now), th: throwsNear(app, p.city, p.x, p.z, hidden), bonk: takeBonk(app, uid), me, players, notifs, chat, chatCursor: chatMax,
-    knocks: knockState(app, uid), game: myMatchView(app, uid), venue: p.venue || null, gd: guardian.heartbeatInfo(app, uid), teleport: p.force || undefined, adsVersion: app.adsVersion, ads: body.adsVersion === app.adsVersion ? undefined : adsSnapshot(app, now, p.city), adResult };
+    knocks: knockState(app, uid), game: myMatchView(app, uid), venue: p.venue || null, gd: guardian.heartbeatInfo(app, uid), teleport: p.force || undefined, adsVersion: app.adsVersion, ads: body.adsVersion === app.adsVersion ? undefined : adsSnapshot(app, now, p.city), adResult, tr: takenInCity(app, p.city) };
   p.force = undefined;
   return resp;
 }

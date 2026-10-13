@@ -1,14 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Naija Area mark">
-  <title>Naija Area mark</title>
-  <defs><clipPath id="r"><rect width="512" height="512" rx="116"/></clipPath></defs>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Naija Area">
+  <title>Naija Area</title>
+  <defs><clipPath id="r"><rect width="512" height="512" rx="112"/></clipPath></defs>
   <g clip-path="url(#r)">
     <rect width="512" height="512" fill="#008751"/>
-    <rect y="360" width="512" height="152" fill="#FFC20E"/>
-    <rect y="360" width="512" height="26" fill="#1b1d21"/>
-    <rect y="440" width="512" height="72" fill="#1b1d21"/>
-    <rect x="22" y="470" width="54" height="12" rx="5" fill="#FFC20E"/><rect x="114" y="470" width="54" height="12" rx="5" fill="#FFC20E"/><rect x="206" y="470" width="54" height="12" rx="5" fill="#FFC20E"/><rect x="298" y="470" width="54" height="12" rx="5" fill="#FFC20E"/><rect x="390" y="470" width="54" height="12" rx="5" fill="#FFC20E"/><rect x="482" y="470" width="54" height="12" rx="5" fill="#FFC20E"/>
-    <path d="M215.91 300L166.41 300Q154.53 300 154.53 288.12L154.53 74.28Q154.53 62.40 166.41 62.40L200.72 62.40Q212.61 62.40 220.19 71.31L284.22 144.57L284.22 74.28Q284.22 62.40 296.10 62.40L345.60 62.40Q357.48 62.40 357.48 74.28L357.48 288.12Q357.48 300 345.60 300L296.10 300Q284.22 300 284.22 288.12L284.22 247.53L227.78 179.22L227.78 288.12Q227.78 300 215.91 300" fill="#00462a" transform="translate(0,12)"/>
-    <path d="M215.91 300L166.41 300Q154.53 300 154.53 288.12L154.53 74.28Q154.53 62.40 166.41 62.40L200.72 62.40Q212.61 62.40 220.19 71.31L284.22 144.57L284.22 74.28Q284.22 62.40 296.10 62.40L345.60 62.40Q357.48 62.40 357.48 74.28L357.48 288.12Q357.48 300 345.60 300L296.10 300Q284.22 300 284.22 288.12L284.22 247.53L227.78 179.22L227.78 288.12Q227.78 300 215.91 300" fill="#fff"/>
+    <rect y="368" width="512" height="144" fill="#FFC20E"/>
+    <rect y="368" width="512" height="18" fill="#14201a"/>
+    <rect y="446" width="512" height="66" fill="#14201a"/>
+    <rect x="36" y="466" width="44" height="12" rx="6" fill="#FFC20E"/>
+    <rect x="116" y="466" width="44" height="12" rx="6" fill="#FFC20E"/>
+    <rect x="196" y="466" width="44" height="12" rx="6" fill="#FFC20E"/>
+    <rect x="276" y="466" width="44" height="12" rx="6" fill="#FFC20E"/>
+    <rect x="356" y="466" width="44" height="12" rx="6" fill="#FFC20E"/>
+    <rect x="436" y="466" width="44" height="12" rx="6" fill="#FFC20E"/>
+    <path d="M329.43 117.49L329.43 294.10Q329.43 299.73 304.24 299.73Q279.05 299.73 276.90 295.71L232.15 212.10L232.15 295.44Q232.15 300.27 207.36 300.27Q182.57 300.27 182.57 295.44L182.57 116.15Q182.57 112.13 203.74 112.13Q212.05 112.13 223.17 113.61Q234.29 115.08 236.70 119.10L279.58 201.64L279.58 117.49Q279.58 112.40 304.51 112.40Q329.43 112.40 329.43 117.49" fill="#004e2e"/>
+    <path d="M329.43 109.49L329.43 286.10Q329.43 291.73 304.24 291.73Q279.05 291.73 276.90 287.71L232.15 204.10L232.15 287.44Q232.15 292.27 207.36 292.27Q182.57 292.27 182.57 287.44L182.57 108.15Q182.57 104.13 203.74 104.13Q212.05 104.13 223.17 105.61Q234.29 107.08 236.70 111.10L279.58 193.64L279.58 109.49Q279.58 104.40 304.51 104.40Q329.43 104.40 329.43 109.49" fill="#ffffff"/>
   </g>
-  <rect x="14" y="14" width="484" height="484" rx="104" fill="none" stroke="#fff" stroke-width="8" opacity=".9"/>
+  <rect x="14" y="14" width="484" height="484" rx="100" fill="none" stroke="#ffffff" stroke-width="8" opacity="0.92"/>
 </svg>

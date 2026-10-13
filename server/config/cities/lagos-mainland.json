@@ -10615,6 +10615,24 @@
    ],
    "id": "b058",
    "tag": "cloth"
+  },
+  {
+   "kind": "tta",
+   "x": -248,
+   "z": -32,
+   "w": 22,
+   "d": 16,
+   "h": 8,
+   "floors": 2,
+   "color": "#10243a",
+   "sign": "#00c2b8",
+   "label": "TTA",
+   "face": [
+    0,
+    1
+   ],
+   "id": "b_tta",
+   "tag": "tta"
   }
  ],
  "properties": [
@@ -15748,6 +15766,175 @@
       "r": 0.8,
       "yaw": 1.5707963267948966,
       "seed": 5
+     }
+    ],
+    "detailV2": true
+   }
+  },
+  {
+   "id": "venue_tta",
+   "name": "TTA Tech Talent",
+   "blurb": "Tech Talent. A training floor: desks, a word board and a notice about the programme.",
+   "buildingId": "b_tta",
+   "x": -248,
+   "z": -20.5,
+   "hours": [
+    8,
+    20
+   ],
+   "sign": "#00c2b8",
+   "kind": "tta",
+   "stations": [
+    {
+     "id": "about",
+     "type": "poster",
+     "label": "About TTA",
+     "x": -3.2,
+     "z": -2.2,
+     "color": "#00c2b8",
+     "text": "TTA is Tech Talent: desks to work at, a word board, and a place to meet other builders. This is the game version. Nothing here costs real money."
+    },
+    {
+     "id": "word",
+     "type": "casual",
+     "game": "word",
+     "label": "Word of the Day board",
+     "x": 3.2,
+     "z": -2.2,
+     "color": "#c8a23d"
+    },
+    {
+     "id": "rules",
+     "type": "poster",
+     "label": "House rules",
+     "x": -3.4,
+     "z": 2.6,
+     "color": "#f0c419",
+     "text": "Game money only. Be respectful: you can be reported, muted or blocked. The programme on the wall is a placeholder."
+    }
+   ],
+   "room": {
+    "w": 10,
+    "d": 8,
+    "wall": "#e7eef2",
+    "trim": "#00c2b8",
+    "floor": {
+     "style": "checker",
+     "a": "#d5e4ea",
+     "b": "#b7cdd6"
+    },
+    "windows": [
+     {
+      "wall": "left",
+      "at": 0,
+      "w": 2.6,
+      "big": true
+     },
+     {
+      "wall": "right",
+      "at": 0,
+      "w": 2.2,
+      "big": true
+     }
+    ],
+    "mood": "bright",
+    "door": "Enter",
+    "decor": [
+     {
+      "k": "neon",
+      "x": 0,
+      "z": -3.85,
+      "text": "TTA",
+      "c": "#00c2b8"
+     },
+     {
+      "k": "flag",
+      "x": -3.5,
+      "z": -3.87,
+      "y": 2.2
+     },
+     {
+      "k": "clock",
+      "x": -1.2,
+      "z": -3.87,
+      "y": 2.55
+     },
+     {
+      "k": "art",
+      "x": 1.1,
+      "z": -3.87,
+      "w": 1.2,
+      "h": 0.8,
+      "kind": "bars",
+      "y": 1.8
+     },
+     {
+      "k": "art",
+      "x": 3.3,
+      "z": -3.87,
+      "w": 1.1,
+      "h": 0.8,
+      "kind": "sun",
+      "y": 1.8
+     },
+     {
+      "k": "desk",
+      "x": -2.2,
+      "z": 0.2
+     },
+     {
+      "k": "chair",
+      "x": -2.2,
+      "z": 1.2,
+      "ry": 0,
+      "c": "#00a896"
+     },
+     {
+      "k": "desk",
+      "x": 1.6,
+      "z": 0.2
+     },
+     {
+      "k": "chair",
+      "x": 1.6,
+      "z": 1.2,
+      "ry": 0,
+      "c": "#00a896"
+     },
+     {
+      "k": "plant",
+      "x": -4.4,
+      "z": 3.2
+     },
+     {
+      "k": "plant",
+      "x": 4.4,
+      "z": 3.2
+     },
+     {
+      "k": "waterDispenser",
+      "x": 4.4,
+      "z": -1
+     },
+     {
+      "k": "floorLamp",
+      "x": -4.3,
+      "z": 0.2
+     },
+     {
+      "k": "shelf",
+      "x": 4.2,
+      "z": 2.2,
+      "c": "#8a5a2b"
+     },
+     {
+      "k": "crowd",
+      "x": 0.2,
+      "z": -1.4,
+      "n": 2,
+      "r": 0.8,
+      "yaw": 1.5707963267948966,
+      "seed": 11
      }
     ],
     "detailV2": true

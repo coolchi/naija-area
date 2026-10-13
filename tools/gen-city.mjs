@@ -1,6 +1,7 @@
 // Generates server/config/cities/lagos-mainland.json (deterministic). The JSON is the source of truth at runtime;
 // re-run this only if you want to regenerate the starter district. Hand-edit the JSON freely.
 import fs from 'node:fs';
+import { addTta } from './add-tta.mjs';
 let seed = 20261009; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
 const pick = (a) => a[Math.floor(rnd() * a.length)];
 const ROAD_W = 14;
@@ -231,6 +232,7 @@ const ROOMS = {
     decor: [{ k: 'mirror', x: -2.4, z: -3.9, oval: true }, { k: 'mirror', x: 0.4, z: -3.9, oval: true }, { k: 'dryer', x: 4.0, z: 0.4 }, { k: 'dryer', x: 4.0, z: 1.4 }, { k: 'dryer', x: 4.0, z: 2.4 }, { k: 'desk', x: 1.8, z: 3.0 }, { k: 'plant', x: -4.0, z: -3.4 }, { k: 'plant', x: 4.0, z: -3.6 }, { k: 'shelf', x: 3.2, z: -3.6, c: '#ffcad4', bottles: true }, { k: 'menu', x: -3.6, z: -3.9, text: 'GLOW BEAUTY' }] }
 };
 for (const v of city.venues) v.room = ROOMS[v.id] || { w: 9, d: 9 };
+addTta(city, { optional: true });
 fs.mkdirSync('server/config/cities', { recursive: true });
 fs.writeFileSync('server/config/cities/lagos-mainland.json', JSON.stringify(city, null, 1));
 console.log('buildings', city.buildings.length, 'props', city.properties.length, 'shops', city.shops.length, 'jobs', city.jobs.length, 'boards', city.billboards.length);

@@ -1,9 +1,9 @@
 // Pure (no DOM) model behind the full city map: everything is derived from the city JSON, so a new district or city file shows up with no code change.
 // Used by map.js (drawing + input) and by tests/map.test.js.
-export const KIND_COL = { house: '#8fb0c9', kiosk: '#9bc59d', market: '#e0a85c', office: '#9aa3b8', tower: '#6c7aa6', shop: '#f0c04a', airport: '#cfd8e3', hotel: '#d8b46a', landmark: '#c59be0', stadium: '#7fc08a', hut: '#c8a47a', block: '#d7c4a8' };
-export const KIND_NAME = { house: 'House', kiosk: 'Kiosk', market: 'Market', office: 'Office block', tower: 'Tower block', shop: 'Shop', airport: 'Airport terminal', hotel: 'Hotel', landmark: 'Landmark', stadium: 'Stadium', hut: 'Hut', block: 'Lagos block' };
+export const KIND_COL = { house: '#8fb0c9', kiosk: '#9bc59d', market: '#e0a85c', office: '#9aa3b8', tower: '#6c7aa6', shop: '#f0c04a', airport: '#cfd8e3', hotel: '#d8b46a', landmark: '#c59be0', stadium: '#7fc08a', hut: '#c8a47a', block: '#d7c4a8', bank: '#6F2CDE', tta: '#00c2b8' };
+export const KIND_NAME = { house: 'House', kiosk: 'Kiosk', market: 'Market', office: 'Office block', tower: 'Tower block', shop: 'Shop', airport: 'Airport terminal', hotel: 'Hotel', landmark: 'Landmark', stadium: 'Stadium', hut: 'Hut', block: 'Lagos block', bank: 'Bank', tta: 'Tech Talent' };
 export const MODEL_ICON = { mosque: '🕌', cathedral: '⛪', theatre: '🎭', chapel: '⛪', rock: '🪨' };
-export const KIND_ICON = { hut: '🛖', stadium: '🏟️', hotel: '🏨', club: '🎵', salon: '✂️', arts: '🎭' };
+export const KIND_ICON = { hut: '🛖', stadium: '🏟️', hotel: '🏨', club: '🎵', salon: '✂️', arts: '🎭', tta: '💻' };
 export const LM_ICON = { plaza: '⛲', clinic: '🏥', beach: '🏖️', jetty: '⛴️', hill: '⛰️', wall: '🧱', dyepits: '🎨', rock: '🪨', motorpark: '🚌', well: '🪣', farm: '🌾', pen: '🐐' };
 export const VENUE_ICON = { venue_mamaput: '🍲', venue_viewing: '📺', venue_joint: '🎲', venue_meco: '🔧', venue_motors: '🚗' };
 export const LAYERS = [['districts', 'Districts', '#d9c7a3'], ['roads', 'Roads and names', '#3d4046'], ['buildings', 'Buildings', '#8fb0c9'], ['venues', 'Venues and shops', '#ffc20e'], ['jobs', 'Jobs', '#4aa3ff'], ['homes', 'Homes for rent', '#e56b6f'],

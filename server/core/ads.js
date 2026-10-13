@@ -373,8 +373,10 @@ export function campaignStats(app, id) {
 }
 export function campaignView(app, c) {
   const placement = c.placement || DEFAULT_PLACEMENT; const spec = RATE_CARD.surfaces[c.surface]; const designs = designRows(app, c.id).map(d => ({ creativeId: d.creative_id, position: d.position, status: d.status, rejectReason: d.reject_reason || null, grossImpressions: d.gross, validImpressions: d.valid, filteredOut: Math.max(0, d.gross - d.valid) }));
-  const label = placementLabel(c.surface, placement); const tierLabel = spec?.tiers?.[c.tier]?.label || c.tier;
+  const label = placementLabel(c.surface, placement); const tierLabel = spec?.tiers?.[c.tier]?.label || c.tier; const city = app.cities?.[c.city_id];
+  const cityName = city ? (city.cityName && city.name && city.cityName !== city.name ? `${city.cityName} · ${city.name}` : (city.cityName || city.name)) : (c.city_id || '');
   return { id: c.id, brand: c.brand_name, surface: c.surface, tier: c.tier, units: c.units, days: c.days, headline: c.headline, linkUrl: c.link_url, status: c.status, rejectReason: c.reject_reason,
+    cityId: c.city_id || null, cityName, requestedStart: c.requested_start || null, updatedAt: c.updated_at || null,
     flags: c.flags ? JSON.parse(c.flags) : [], priceTotal: c.price_total, priceNet: c.price_net, priceVat: c.price_vat, payment: c.payment_status, startAt: c.start_at, endAt: c.end_at, createdAt: c.created_at, creativeId: c.creative_id, demo: !!c.is_demo,
     placement, placementLabel: label, designs, maxDesigns: maxCreatives(c.surface, placement),
     invoiceLines: [{ description: `${spec?.label || c.surface} · ${tierLabel} · ${label}`, placement, placementLabel: label, boards: c.units, days: c.days, net: c.price_net, vat: c.price_vat, total: c.price_total }],

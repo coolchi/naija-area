@@ -198,7 +198,7 @@ class Game {
 
   // ---- auth
   bindAuth() {
-    let tab = 'guest'; const form = $('#authForm'); const set = (t) => { tab = t; $$('#authTabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t)); $('#fUser').classList.toggle('hidden', t === 'guest'); $('#fPass').classList.toggle('hidden', t === 'guest'); $('#authGo').textContent = { guest: 'Play as guest', signup: 'Create account', login: 'Log in' }[t]; $('#authErr').textContent = ''; }; set('guest');
+    let tab = 'signup'; const form = $('#authForm'); const set = (t) => { tab = t; $$('#authTabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t)); $('#authGo').textContent = { signup: 'Create account', login: 'Log in' }[t]; $('#authErr').textContent = ''; }; set('signup');
     $$('#authTabs button').forEach(b => b.onclick = () => set(b.dataset.t));
     form.onsubmit = async (e) => { e.preventDefault(); const f = new FormData(form); const age18 = $('#age18').checked; $('#authErr').textContent = ''; if (tab !== 'login' && !age18) { $('#authErr').textContent = 'You must confirm you are 18 or older to play.'; return; }
       const btn = $('#authGo'); btn.disabled = true;
@@ -210,7 +210,7 @@ class Game {
     this.playing = true; this.user = user; setTimeout(() => this.ui.checkPayReturn?.(), 1500); $('#hud').classList.remove('hidden'); get('/api/weather').then(w => this.weather?.setZones(w.zones.map(q => ({ ...q })), w.speedByLevel)).catch(() => {}); this.cfg.jobs = (await get('/api/jobs').catch(() => ({ jobs: [] }))).jobs; this.ctrl.setLook(user.color, user.username); this.syncSkins();
     const spawns = this.city.spawns; const s = spawns[user.id % spawns.length]; const p = user.pos && (user.pos.x || user.pos.z) ? user.pos : null; this.ctrl.teleport(p?.x ?? s.x, p?.z ?? s.z); this.ctrl.ry = s.ry || 0; this.ctrl.camYaw = this.ctrl.ry; this.camera.position.set(this.ctrl.x - 10, 12, this.ctrl.z + 12);
     this.update(user); if (user.signup?.needed && (await setupFlow(this)) === 'moved') return; this.parking.load(); this.rideSvc.load(); this.tour ||= new Tour(this); this.tour.maybeStart(); this.tutorial ||= new TutorialCard(this); this.tutorial.start(); readyCount(this).then(n => { if (n > 0) this.ui.toast(`🎯 ${n} mission reward${n === 1 ? '' : 's'} waiting: phone > Missions`, 'money'); }); this.net.start(); this.phone2 = new PhoneSys(this); this.phone2.start(); this.refreshProps(); get('/api/plots').then(d => { this.plots = d.plots; this.refreshPlots(); }).catch(() => {});
-    this.ui.toast(user.guest ? `Welcome, ${user.username}! You are playing as a guest.` : `Welcome back, ${user.username}!`); if (!localStorage.getItem('na_tip') && !matchMedia('(pointer: coarse)').matches) { localStorage.setItem('na_tip', '1'); setTimeout(() => { if (!this.ui.sheetOpen) this.ui.toast('Tip: tap a building or the ground near a sign to open its sheet.'); }, 1800); }
+    this.ui.toast(`Welcome, ${user.username}!`); if (!localStorage.getItem('na_tip') && !matchMedia('(pointer: coarse)').matches) { localStorage.setItem('na_tip', '1'); setTimeout(() => { if (!this.ui.sheetOpen) this.ui.toast('Tip: tap a building or the ground near a sign to open its sheet.'); }, 1800); }
   }
   async refreshProps() { const d = await get('/api/properties').catch(() => null); if (d) { this.props = d.properties; this.world.setMarkers(d.properties); } }
   refreshPlots() { for (const p of this.plots) { const m = this.plotMeshes[p.id]; if (m) m.flag.material.color.setHex(p.status === 'available' ? 0x35c46b : p.status === 'yours' ? 0xffc20e : 0x8a8f98); } }
@@ -248,7 +248,7 @@ class Game {
     this.guardian?.onBeat(r.gd);
     this.air?.setTicket(r.flight); this.air?.setPlanes(r.pl); this.boats?.setTrip(r.boat);
     if (r.city && this.city?.id && r.city !== this.city.id && !this.cityChanging) { this.cityChanging = true; this.ui.toast('Arriving in a new city…'); setTimeout(() => location.reload(), 700); return; }
-    this.update(r.me); this.worldTime = r.world; this.ui.clock(r.world); this.world.setTime(r.world.minutesOfDay); this.weather?.apply(r.wx); this.weather?.afterTime(); this.festBadge(r.fest); this.throws?.ingest(r.th); if (r.bonk) this.throws?.onBonk(r.bonk); this.ghosts.ingest(r.players, this.serverNow()); this.ads.setSnapshot(r.ads);
+    this.update(r.me); this.worldTime = r.world; this.ui.clock(r.world); this.world.setTime(r.world.minutesOfDay); this.weather?.apply(r.wx); this.weather?.afterTime(); this.festBadge(r.fest); this.throws?.ingest(r.th); if (r.bonk) this.throws?.onBonk(r.bonk); this.ghosts.ingest(r.players, this.serverNow()); this.ads.setSnapshot(r.ads); this.noteTreasures(r.tr);
     for (const c of r.chat || []) this.showChat(c); for (const n of r.notifs || []) { if (!['knock', 'dm', 'knock_in', 'knock_no'].includes(n.kind) || true) { this.unread = (this.unread || 0) + 1; this.ui.toast(n.text, ['omo_onile'].includes(n.kind) ? 'bad' : n.kind === 'dm' ? '' : 'money'); if (n.kind === 'dm') this.audio?.play('notify'); if (n.kind === 'achievement') this.audio?.play('achieve'); } } this.ui.badge(this.unread || 0);
     this.lastKnocks = r.knocks; for (const k of r.knocks?.incoming || []) this.ui.hostKnock(k);
     if (r.teleport && !r.teleport.travelMs && !this.commute) { this.ctrl.teleport(r.teleport.x, r.teleport.z); }
@@ -260,6 +260,25 @@ class Game {
   // ---- places, tapping, actions
   nearest(maxD = 18) {
     let best = null, bd = maxD; const px = this.ctrl.x, pz = this.ctrl.z; for (const p of this.city.places) { const d = Math.hypot(p.x - px, p.z - pz); if (d < bd) { bd = d; best = p; } } return best ? { place: best, d: bd } : null;
+  }
+  nearestTreasure(maxD = 12) {
+    let best = null, bd = maxD; const px = this.ctrl.x, pz = this.ctrl.z;
+    for (const t of this.city.treasures || []) { if (t.taken) continue; const d = Math.hypot(t.x - px, t.z - pz); if (d < bd) { bd = d; best = t; } }
+    return best ? { t: best, d: bd } : null;
+  }
+  noteTreasures(ids) {
+    if (!ids?.length) return; const set = new Set(ids); let hit = false;
+    for (const t of this.city.treasures || []) if (set.has(t.id) && !t.taken) { t.taken = true; hit = true; }
+    if (hit) this.world?.hideTreasures(ids);
+    const bm = this.ui?.bigmap; if (hit && bm?.model) { const keep = (i) => !(i.type === 'treasure' && set.has(i.id)); bm.model.items = bm.model.items.filter(keep); bm.model.catalogue = bm.model.catalogue.filter(keep); }
+  }
+  async takeTreasure(t) {
+    if (this.busy) return; this.busy = true; this.ui.action(null);
+    try {
+      const r = await post('/api/treasures/claim', { id: t.id, pos: this.pos() });
+      this.noteTreasures([t.id]); if (r.user) this.update(r.user); this.ui.toast(r.text || 'Treasure taken.', 'money'); this.ui.sfx('ok');
+    } catch (e) { if (e.code === 'TAKEN') this.noteTreasures([t.id]); this.ui.error(e); }
+    finally { this.busy = false; }
   }
   tapPlace(clientX, clientY) {
     const v = new THREE.Vector2((clientX / this.size.w) * 2 - 1, -(clientY / this.size.h) * 2 + 1); const rc = new THREE.Raycaster(); rc.setFromCamera(v, this.camera);
@@ -281,7 +300,7 @@ class Game {
     if (best) { this.ui.sfx('ok'); this.ui.place(best.id); } else { this.setWaypoint(pt.x, pt.z, 'Tapped spot'); }
   }
   doAction() {
-    if (!this.playing || this.busy) return; if (this.ui.sheetOpen) return; const n = this.nearBoard || null; const np = this.nearest(this.actionRange || 18); if (np) this.ui.place(np.place.id); else if (n) this.ui.board(n);
+    if (!this.playing || this.busy) return; if (this.ui.sheetOpen) return; const nt = this.nearestTreasure(12); if (nt && nt.d <= 10) { this.takeTreasure(nt.t); return; } const n = this.nearBoard || null; const np = this.nearest(this.actionRange || 18); if (np) this.ui.place(np.place.id); else if (n) this.ui.board(n);
   }
   setWaypoint(x, z, label) { this.waypoint = { x, z, label }; this.dest.visible = true; this.dest.position.set(x, 0.3, z); }
   /** festivals on right now (heartbeat field fest): a small badge, and one toast per festival per page load */
@@ -331,9 +350,10 @@ class Game {
   }
   idleCam(now) { const a = now / 9000; this.camera.position.set(Math.cos(a) * 70, 38, Math.sin(a) * 70 - 20); this.camera.lookAt(0, 4, -20); this.camera.updateMatrixWorld(); }
   hudStep(now) {
-    if (now - (this.hudT || 0) < 200) return; this.hudT = now; const c = this.ctrl; const np = this.nearest(this.actionRange || 18); const nb = this.ads.nearest(c.x, c.z, 30); this.nearBoard = nb;
+    if (now - (this.hudT || 0) < 200) return; this.hudT = now; const c = this.ctrl; const nt = this.nearestTreasure(12); const np = this.nearest(this.actionRange || 18); const nb = this.ads.nearest(c.x, c.z, 30); this.nearBoard = nb;
     const area = this.city.area(c.x, c.z); const road = this.roadName(c.x, c.z); this.ui.loc(`📍 ${np ? np.place.name : road ? road : area}${np || road ? ' · ' + area : ''}`);
-    let label = null; if (np && !this.ui.sheetOpen) { const p = np.place; label = { shop: `🛒 ${p.name}`, job: `💼 Work here`, house: `🏠 ${p.name}`, plot: `🌍 ${p.name}`, landmark: `📍 ${p.name}` }[p.type]; if (p.type === 'shop') { const s = this.shops.find(x => x.id === p.id); if (s && !s.status.open) label = `🔒 ${p.name}: ${s.status.text}`; } } else if (nb && !this.ui.sheetOpen) label = '📢 Billboard';
+    const bn = (n) => '₦' + (n / 1e9).toFixed(1) + 'bn';
+    let label = null; if (nt && nt.d <= 10 && !this.ui.sheetOpen) label = `💰 Take ${bn(nt.t.worth)}`; else if (np && !this.ui.sheetOpen) { const p = np.place; label = { shop: `🛒 ${p.name}`, job: `💼 Work here`, house: `🏠 ${p.name}`, plot: `🌍 ${p.name}`, landmark: `📍 ${p.name}` }[p.type]; if (p.type === 'shop') { const s = this.shops.find(x => x.id === p.id); if (s && !s.status.open) label = `🔒 ${p.name}: ${s.status.text}`; } } else if (nb && !this.ui.sheetOpen) label = '📢 Billboard';
     this.ui.action(this.busy ? null : label); if (this.waypoint) { const d = Math.hypot(this.waypoint.x - c.x, this.waypoint.z - c.z); if (d < 5) { this.waypoint = null; this.dest.visible = false; this.ui.toast('You have arrived.'); } this.ui.waypoint(this.waypoint, d); } else this.ui.waypoint(null);
     if (this.dest.visible) this.dest.scale.setScalar(1 + Math.sin(now / 200) * 0.15); this.ui.minimap(c, this.city, this.ghosts, this.waypoint); if (this.user?.shift) this.ui.hud(this.user);
     this.activity = c.mode;

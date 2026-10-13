@@ -3,6 +3,7 @@
 // Every action writes the audit log. Sanction history is KEPT when an account is closed (to stop repeat abuse); a lawyer must confirm that (docs/MODERATION.md).
 import { bad, cleanText } from './util.js';
 import { notify } from './economy.js';
+import { balanceOf, cashId, savId } from './ledger.js';
 import { MOD } from '../config/moderation.js';
 import { registerPlayerData } from './account.js';
 
@@ -53,7 +54,10 @@ export function lookup(app, who) {
   const filed = app.db.prepare('SELECT COUNT(*) n, SUM(CASE WHEN status=\'dismissed\' THEN 1 ELSE 0 END) d FROM reports WHERE reporter_id=?').get(u.id);
   const chat = app.db.prepare('SELECT id, text, created_at FROM chat_messages WHERE user_id=? ORDER BY id DESC LIMIT ?').all(u.id, MOD.recentChatLines);
   const ban = activeBan(app, u.id);
-  return { user: { id: u.id, username: u.username, guest: !!u.is_guest, createdAt: u.created_at, chatMutedUntil: u.chat_muted_until > now ? u.chat_muted_until : null, online: !!app.world?.players?.has(u.id), deleted: /^deleted_/.test(u.username) },
+  const st = app.db.prepare('SELECT city_id, mode, x, z FROM player_state WHERE user_id=?').get(u.id);
+  const city = app.cities?.[st?.city_id];
+  const cityName = city ? (city.cityName && city.name && city.cityName !== city.name ? `${city.cityName} · ${city.name}` : (city.cityName || city.name)) : (st?.city_id || '');
+  return { user: { id: u.id, username: u.username, guest: !!u.is_guest, createdAt: u.created_at, lastSeen: u.last_seen, city: cityName, mode: st?.mode || null, x: st ? Math.round(st.x) : null, z: st ? Math.round(st.z) : null, cash: balanceOf(app.db, cashId(u.id)), savings: balanceOf(app.db, savId(u.id)), chatMutedUntil: u.chat_muted_until > now ? u.chat_muted_until : null, online: !!app.world?.players?.has(u.id), deleted: /^deleted_/.test(u.username) },
     ban, strikes, suggestBan: strikes >= MOD.strikesBeforeSuggestBan && !ban, history: hist, reportsAgainst: against, reportsFiled: { total: filed.n, dismissed: filed.d || 0 }, recentChat: chat };
 }
 export function overview(app) {
@@ -66,7 +70,7 @@ export function overview(app) {
 export function auditLog(app, { actor = '', action = '', q = '', before = 0, limit = MOD.auditPageSize } = {}) {
   const w = [], a = []; if (actor) { w.push('actor=?'); a.push(String(actor)); } if (action) { w.push('action LIKE ?'); a.push(String(action).replace(/[%_]/g, '') + '%'); } if (q) { w.push('detail LIKE ?'); a.push('%' + String(q).replace(/[%_]/g, '') + '%'); } if (before) { w.push('id<?'); a.push(Number(before)); }
   const rows = app.db.prepare(`SELECT id, actor, action, detail, created_at FROM audit_log ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY id DESC LIMIT ?`).all(...a, Math.min(300, Number(limit) || MOD.auditPageSize));
-  return { rows: rows.map(r => ({ id: r.id, actor: r.actor, action: r.action, detail: r.detail, at: r.created_at })), actions: app.db.prepare('SELECT DISTINCT action FROM audit_log ORDER BY action').all().map(r => r.action), actors: app.db.prepare('SELECT DISTINCT actor FROM audit_log ORDER BY actor').all().map(r => r.actor) };
+  return { rows: rows.map(r => ({ id: r.id, actor: r.actor, action: r.action, detail: r.detail, at: r.created_at })), actions: app.db.prepare('SELECT DISTINCT action FROM audit_log ORDER BY action').all().map(r => r.action), actors: app.db.prepare('SELECT DISTINCT actor FROM audit_log ORDER BY actor').all().map(r => r.actor), counts: app.db.prepare('SELECT action, COUNT(*) n FROM audit_log GROUP BY action ORDER BY n DESC').all() };
 }
 /** what a player may see about sanctions against them (in the data download) */
 export const exportMine = (app, uid) => app.db.prepare('SELECT id, kind, reason, note, until_at, created_at, lifted_at FROM sanctions WHERE user_id=? ORDER BY id').all(uid);

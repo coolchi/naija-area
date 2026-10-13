@@ -3,6 +3,7 @@ import * as flight from './flight.js';
 import * as boat from './boat.js';
 import { viewScores, buyTicket } from './stadium.js';
 import { cityOf, publicCity, cityList, onlineByCity, useLink } from './cities.js';
+import { publicTreasures, claimTreasure } from './treasures.js';
 import { GameError, bad, cleanText } from './util.js';
 import * as auth from './auth.js';
 import * as eco from './economy.js';
@@ -39,6 +40,7 @@ import * as missions from './missions.js';
 import * as achievements from './achievements.js';
 import * as seasons from './seasons.js';
 import * as moderation from './moderation.js';
+import { directory as playerDirectory } from './admin-directory.js';
 import * as guardian from './guardian.js';
 import * as emotes from './emotes.js';
 import { MOD as moderationOptions } from '../config/moderation.js';
@@ -66,7 +68,8 @@ route('POST', '/api/admin/radio', { auth: 'admin' }, (c) => { realRadioOn(c.app)
 route('GET', '/api/health', (c) => ({ ok: true, name: c.app.gameName, now: c.app.clock.now() }));
 route('GET', '/api/config', (c) => ({ realRadio: realRadioOn(c.app), movement: { maxWalkSpeed: c.app.balance.movement.maxWalkSpeed, maxDriveSpeed: c.app.balance.movement.maxDriveSpeed, slack: c.app.balance.movement.slack }, physx: c.app.balance.physx || null, adFormats: { radio: { everyMs: AD_FORMATS.radio.everyMs, stations: AD_FORMATS.radio.stations, minListenMs: AD_FORMATS.radio.minListenMs } }, crash: { enabled: !!c.app.balance.crash.enabled, regenPerMin: c.app.balance.crash.regenPerMin, max: c.app.balance.crash.maxHealth }, moodHappyAt: c.app.balance.mood.happyAt, emotes: emotes.publicList(), name: c.app.gameName, tagline: GAME_TAGLINE, minAge: MIN_AGE, testMode: true, devRoutes: !!c.app.devRoutes, rotationMs: AD_POLICY.rotationMs, balanceNote: c.app.balance._note,
   topupOptions: c.app.balance.topup.options, payments: paymentsConfig(c.app), ageCheck: ageConfig(c.app), phone: !!c.app.balance.phone.enabled, transport: c.app.balance.transport, shopChannels: c.app.balance.shops.channels, workTask: c.app.balance.work.task, land: { risk: c.app.balance.land.risk }, maxNameLen: c.app.balance.housing.maxNameLen, housing: { rentPeriodMs: c.app.balance.housing.rentPeriodMs }, furniture: c.app.balance.housing.furniture }));
-route('GET', '/api/city', (c) => publicCity(c.uid ? cityOf(c.app, c.uid) : c.app.city));
+route('GET', '/api/city', (c) => { const city = publicCity(c.uid ? cityOf(c.app, c.uid) : c.app.city); return { ...city, treasures: publicTreasures(c.app, city.id) }; });
+route('POST', '/api/treasures/claim', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); flight.assertNotFlying(c.app, c.uid); return { ...claimTreasure(c.app, c.uid, String(c.body.id || '')), user: eco.profile(c.app, c.uid) }; });
 route('POST', '/api/cities/link', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); flight.assertNotFlying(c.app, c.uid); return { ...useLink(c.app, c.uid, String(c.body.linkId || ''), c.body.idem), user: eco.profile(c.app, c.uid) }; });
 route('GET', '/api/cities', { auth: 'user' }, (c) => ({ cities: cityList(c.app, c.uid), online: onlineByCity(c.app) }));
 route('GET', '/api/stats', (c) => {
@@ -335,6 +338,7 @@ route('POST', '/api/admin/logout', (c) => { c.out.admin = 'clear'; return { ok: 
 route('GET', '/api/admin/queue', { auth: 'admin' }, (c) => ({ rows: ads.adminQueue(c.app, c.query.status ? String(c.query.status).split(',') : ['human_review']) }));
 route('POST', '/api/admin/campaigns/:id/decision', { auth: 'admin' }, (c) => { const st = ads.decide(c.app, Number(c.params.id), c.body.decision, 'admin', c.body.reason, { rejectDesigns: c.body.rejectDesigns }); c.app.db.prepare('INSERT INTO audit_log(actor,action,detail,created_at) VALUES (?,?,?,?)').run('admin', 'ad_' + c.body.decision, `campaign ${c.params.id}: ${c.body.reason || ''}${Array.isArray(c.body.rejectDesigns) && c.body.rejectDesigns.length ? ` (rejected designs ${c.body.rejectDesigns.join(',')})` : ''}`, c.app.clock.now()); return { ok: true, status: st }; });
 route('POST', '/api/admin/campaigns/:id/designs/:creative/decision', { auth: 'admin' }, (c) => { const r = ads.decideDesign(c.app, Number(c.params.id), Number(c.params.creative), c.body.decision, 'admin', c.body.reason); c.app.db.prepare('INSERT INTO audit_log(actor,action,detail,created_at) VALUES (?,?,?,?)').run('admin', 'ad_design_' + c.body.decision, `campaign ${c.params.id} design ${c.params.creative}: ${c.body.reason || ''}`, c.app.clock.now()); return { ok: true, ...r }; });
+route('GET', '/api/admin/players', { auth: 'admin' }, (c) => playerDirectory(c.app, { scope: String(c.query.scope || 'all'), q: c.query.q || '' }));
 route('GET', '/api/admin/overview', { auth: 'admin' }, (c) => {
   const a = c.app, db = a.db; const byStatus = db.prepare('SELECT status, COUNT(*) n FROM ad_campaigns GROUP BY status').all();
   const faucets = db.prepare("SELECT id, balance FROM accounts WHERE kind='system' ORDER BY id").all();

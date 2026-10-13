@@ -1,12 +1,98 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin · Naija Area</title><link rel="stylesheet" href="/pages.css"><meta name="robots" content="noindex"><link rel="icon" href="/assets/favicon-192.png"></head><body>
-<header class="top"><a href="/"><img src="/assets/logo.svg" alt="Naija Area"></a><b>Admin · moderation queue</b></header>
-<main><div class="card" id="login"><label>Admin password</label><div class="row"><input id="pw" type="password" style="flex:1" autocomplete="current-password" placeholder="Password"><input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" style="width:9em" placeholder="6-digit code"><button id="go">Log in</button></div><div class="err" id="err"></div></div><div id="out" style="display:none">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin · Naija Area</title><link rel="stylesheet" href="/pages.css"><meta name="robots" content="noindex"><link rel="icon" href="/assets/favicon-192.png">
+<style>
+body.admin main { max-width: 1100px; }
+.admin-nav { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 8px; }
+.admin-nav a { color: var(--ink); background: #fffdf6; text-decoration: none; font-weight: 800; font-size: 14px; padding: 7px 12px; border-radius: 999px; box-shadow: 0 2px 0 #0001; }
+.admin-nav a.on { background: var(--g); color: #fff; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 8px 0; }
+.tile { background: #f6f2e4; border-radius: 14px; padding: 10px 12px; }
+.tile b { display: block; font: 400 26px 'Lilita One', Nunito, sans-serif; color: var(--gd); }
+.scroll { overflow-x: auto; }
+.bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; margin: 8px 0; font-weight: 800; }
+.bar span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar i { grid-column: 1 / -1; display: block; height: 8px; border-radius: 99px; background: var(--g); }
+.kv { display: grid; grid-template-columns: 140px 1fr; gap: 2px 10px; margin: 6px 0; }
+.kv .mut { font-weight: 800; }
+.adtable .dfig { width: 72px; } .adtable img.prev { width: 72px; height: 48px; object-fit: cover; display: block; }
+.adtable td { font-size: 13px; }
+.adtable .small { padding: 3px 8px; font-size: 12px; }
+</style></head><body class="admin">
+<header class="top"><a href="/"><img src="/assets/logo.svg" alt="Naija Area"></a><b id="crumb">Admin</b><span class="sp"></span><button class="ghost" id="logout" style="display:none">Log out</button></header>
+<main>
+<div class="card" id="login"><label>Admin password</label><div class="row"><input id="pw" type="password" style="flex:1" autocomplete="current-password" placeholder="Password"><input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" style="width:9em" placeholder="6-digit code"><button id="go">Log in</button></div><div class="err" id="err"></div></div>
+<div id="out" style="display:none">
+<nav class="admin-nav" id="nav">
+<a href="#overview" data-page="overview">Overview</a>
+<a href="#ads" data-page="ads">Adverts</a>
+<a href="#players" data-page="players">Players</a>
+<a href="#reports" data-page="reports">Reports</a>
+<a href="#moderation" data-page="moderation">Moderation</a>
+<a href="#audit" data-page="audit">Audit log</a>
+<a href="#applications" data-page="applications">Applications</a>
+<a href="#ideas" data-page="ideas">Ideas</a>
+<a href="#signups" data-page="signups">Sign-up choices</a>
+<a href="#payments" data-page="payments">Payments</a>
+<a href="#economy" data-page="economy">Economy</a>
+<a href="#world" data-page="world">World</a>
+</nav>
+
+<section class="apage" data-page="overview">
 <div class="card"><h2>Overview</h2><div id="ov"></div></div>
-<div class="card"><h2>Campaigns</h2><div class="row"><select id="st" style="width:auto"><option value="human_review">Needs review</option><option value="live,scheduled,approved">Running / approved</option><option value="rejected,takedown">Rejected / taken down</option><option value="auto_checks,human_review,approved,scheduled,live,completed,rejected,takedown">All</option></select><button class="ghost" id="reload">Reload</button></div><div id="q"></div></div>
-<div class="card"><h2>Player reports</h2><div class="row"><select id="rst" style="width:auto"><option value="open">Open</option><option value="actioned,dismissed">Resolved</option></select><button class="ghost" id="rreload">Reload</button></div><div id="rq"></div></div><div class="card" id="appCard"><h2>Apply-to-join applications</h2><div class="row"><select id="ast" style="width:auto"><option value="new,review,shortlisted">Open</option><option value="accepted">Accepted</option><option value="declined,withdrawn">Declined / withdrawn</option><option value="new,review,shortlisted,accepted,declined,withdrawn">All</option></select><button class="ghost" id="areload">Reload</button></div><div id="aq"></div></div>
-<div class="card" id="modCard"><h2>Moderation: players, sanctions and audit log</h2><div id="modOv" class="row"></div>
+</section>
+
+<section class="apage" data-page="ads" hidden>
+<div class="card"><h2>Adverts</h2><p class="mut">Totals are for the list below. Prices are the test-mode rate card.</p><div id="adStats" class="tiles"></div><div class="row"><select id="st" style="width:auto"><option value="human_review">Needs review</option><option value="live,scheduled,approved">Running / approved</option><option value="submitted,awaiting_payment,auto_checks">Submitted / unpaid</option><option value="rejected,takedown">Rejected / taken down</option><option value="auto_checks,human_review,approved,scheduled,live,completed,rejected,takedown,submitted">All</option></select><button class="ghost" id="reload">Reload</button></div><div id="q" class="scroll"></div></div>
+</section>
+
+<section class="apage" data-page="players" hidden>
+<div class="card"><h2>Players</h2><p class="mut">Online means on the map in the last minute. Active means seen in the last 24 hours.</p><div id="plCounts" class="tiles"></div><div class="row"><select id="plScope" style="width:auto"><option value="all">All players</option><option value="online">Online now</option><option value="active">Active in 24 hours</option></select><input id="plQ" placeholder="Search username" style="flex:1"><button id="plGo">Show</button></div><div id="plRows" class="scroll"></div></div>
+</section>
+
+<section class="apage" data-page="reports" hidden>
+<div class="card"><h2>Player reports</h2><div class="row"><select id="rst" style="width:auto"><option value="open">Open</option><option value="actioned,dismissed">Resolved</option></select><button class="ghost" id="rreload">Reload</button></div><div id="rq"></div></div>
+</section>
+
+<section class="apage" data-page="moderation" id="modCard" hidden>
+<div class="card"><h2>Moderation</h2><div id="modOv" class="row"></div>
 <div class="row"><input id="modQ" placeholder="Player username or id" style="flex:1"><button id="modGo">Look up</button></div><div id="modPlayer"></div>
-<h3>Active mutes and bans</h3><div id="modActive"></div>
-<h3>Audit log</h3><div class="row"><select id="auAction" style="width:auto"><option value="">All actions</option></select><select id="auActor" style="width:auto"><option value="">All actors</option></select><input id="auQ" placeholder="Search text" style="flex:1"><button class="ghost" id="auGo">Search</button></div><div id="auRows"></div><button class="ghost" id="auMore" style="display:none">Older</button></div>
-<div class="card" id="ideaCard"><h2>Ideas from the Naija Area office</h2><div class="row"><select id="ist" style="width:auto"><option value="new">New</option><option value="merged,parked,built">Merged / parked / built</option><option value="rejected">Rejected</option><option value="new,merged,parked,rejected,built">All</option></select><button class="ghost" id="ireload">Reload</button></div><div id="iq"></div></div>
-<div class="card" id="suCard"><h2>Sign-up choices (cities and interests)</h2><div id="su"></div></div></div></main><script src="/js/admin.js"></script><script src="/js/admin-office.js"></script><script src="/js/admin-mod.js"></script></body></html>
+<h3>Active mutes and bans</h3><div id="modActive" class="scroll"></div></div>
+</section>
+
+<section class="apage" data-page="audit" hidden>
+<div class="card"><h2>Audit log</h2><p class="mut">Every admin decision, sanction, and ad action is written here.</p><div id="auCounts" class="row"></div><div class="row"><select id="auAction" style="width:auto"><option value="">All actions</option></select><select id="auActor" style="width:auto"><option value="">All actors</option></select><input id="auQ" placeholder="Search text" style="flex:1"><button class="ghost" id="auGo">Search</button></div><div id="auRows" class="scroll"></div><button class="ghost" id="auMore" style="display:none">Older</button></div>
+</section>
+
+<section class="apage" data-page="applications" hidden>
+<div class="card" id="appCard"><h2>Apply-to-join applications</h2><div id="appSum" class="row"></div><div class="row"><select id="ast" style="width:auto"><option value="new,review,shortlisted">Open</option><option value="accepted">Accepted</option><option value="declined,withdrawn">Declined / withdrawn</option><option value="new,review,shortlisted,accepted,declined,withdrawn">All</option></select><button class="ghost" id="areload">Reload</button></div><div id="aq"></div></div>
+</section>
+
+<section class="apage" data-page="ideas" hidden>
+<div class="card" id="ideaCard"><h2>Ideas from the Naija Area office</h2><div id="ideaSum" class="row"></div><div class="row"><select id="ist" style="width:auto"><option value="new">New</option><option value="merged,parked,built">Merged / parked / built</option><option value="rejected">Rejected</option><option value="new,merged,parked,rejected,built">All</option></select><input id="iFind" placeholder="Search title or player" style="flex:1"><button class="ghost" id="ireload">Reload</button></div><div id="iq"></div></div>
+</section>
+
+<section class="apage" data-page="signups" hidden>
+<div class="card" id="suCard"><h2>Sign-up choices</h2><p class="mut">Home city is where a player starts. City of interest is a wish, not a move. Interests do not change the game yet.</p><div id="su"></div></div>
+</section>
+
+<section class="apage" data-page="payments" hidden>
+<div class="card"><h2>Payments</h2><p class="mut">Test mode. No real money moves. Reconciliation only reads the ledger.</p><div class="row"><select id="paySt" style="width:auto"><option value="">All statuses</option><option value="paid">Paid</option><option value="pending">Pending</option><option value="failed">Failed</option><option value="review">Needs review</option><option value="refunded">Refunded</option></select><button class="ghost" id="payGo">Reload</button><button class="ghost" id="recGo">Reconcile</button></div><div id="recOut"></div><div id="payRows" class="scroll"></div></div>
+</section>
+
+<section class="apage" data-page="economy" hidden>
+<div class="card"><h2>Economy</h2><p class="mut">System accounts are the faucets and sinks. A negative faucet balance is money the game has given out.</p><div id="eco"></div></div>
+</section>
+
+<section class="apage" data-page="world" hidden>
+<div class="card"><h2>World</h2>
+<label>Real radio stations</label><div class="row"><button id="radioOn" class="ghost">Loading…</button><span class="mut">Players hear the live stations when this is on.</span></div>
+<label>Weather</label><div class="row"><select id="wx" style="width:auto"><option value="auto">Automatic</option><option value="clear">Clear</option><option value="cloudy">Cloudy</option><option value="rain">Rain</option><option value="storm">Storm</option></select><button id="wxGo">Set weather</button></div>
+<label>Scheduled jobs</label><div class="row"><button class="ghost" id="tickGo">Run rent, interest, land and ads now</button></div>
+<p id="worldMsg" class="mut"></p>
+</div>
+</section>
+</div>
+</main>
+<script src="/js/admin.js"></script>
+<script src="/js/admin-office.js"></script>
+<script src="/js/admin-mod.js"></script>
+</body></html>

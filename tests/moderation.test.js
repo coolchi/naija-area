@@ -9,6 +9,12 @@ const adm = (s, m, p, body, query) => call(s, m, p, { admin: true, body, query }
 const sanction = (s, who, kind, extra = {}) => adm(s, 'POST', '/api/admin/mod/sanction', { who, kind, reason: 'abusive', ...extra });
 const nameOf = (s, u) => s.app.db.prepare('SELECT username FROM users WHERE id=?').get(u).username;
 
+test('player directory: online and active filters, and players cannot read it', async () => {
+  const s = makeServer(); const a = mkUser(s, { ageMs: 600000 }); const b = mkUser(s); at(s, a, 3, 3); await ok(s, 'POST', '/api/heartbeat', { uid: a, body: {} });
+  const all = await ok(s, 'GET', '/api/admin/players', { admin: true }); assert.ok(all.rows.some(r => r.id === a && r.cash != null && r.city)); assert.ok(all.counts.players >= 2); assert.ok(all.counts.online >= 1);
+  const on = await ok(s, 'GET', '/api/admin/players?scope=online', { admin: true }); assert.ok(on.rows.some(r => r.id === a)); assert.equal(on.rows.some(r => r.id === b), false);
+  assert.equal((await call(s, 'GET', '/api/admin/players', { uid: a })).status, 401);
+});
 test('all moderator endpoints need the admin login', async () => {
   const s = makeServer(); for (const [m, p] of [['GET', '/api/admin/mod/overview'], ['GET', '/api/admin/mod/player?q=x'], ['POST', '/api/admin/mod/sanction'], ['POST', '/api/admin/mod/lift'], ['GET', '/api/admin/mod/sanctions'], ['GET', '/api/admin/mod/audit'], ['GET', '/api/admin/mod/options']]) assert.equal((await call(s, m, p, { uid: mkUser(s) })).status, 401, p);
 });

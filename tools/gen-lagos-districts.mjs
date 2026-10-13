@@ -78,6 +78,9 @@ const marketStall = (api, pre, x, z, nm) => { const s = clone(MARKET_SHOP); Obje
   // boat jetty (10 Oct 2026): Marina jetty with a ferry to the Lekki jetty. Fares and times are ESTIMATE placeholders.
   api.city.landmarks.push({ id: 'isl_jetty', kind: 'jetty', name: 'Marina jetty', x: 100, z: 160, z2: 186 });
   api.city.boat = { stops: [{ id: 'isl_marina', name: 'Marina jetty', x: 100, z: 163, r: 14, berth: { x: 100, z: 192 }, out: [1, 0], arrive: { x: 100, z: 163, ry: 0 } }], routes: [{ from: 'isl_marina', to: 'lk_jetty', fare: 900, crossMs: 30000 }] };
+  // Monipay Bank: Broad Street, west sidewalk. Added after the fill so a regen keeps isl_b44 at the end.
+  const monipay = api.add({ kind: 'bank', x: -74, z: -36, w: 22, d: 16, h: 14, floors: 4, color: '#f7f4ff', face: [1, 0], label: 'Monipay Bank' });
+  api.job('job_monipay', monipay.x + monipay.w / 2 + 4, monipay.z, 'Monipay Bank');
   write(api.city);
 }
 

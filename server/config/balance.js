@@ -5,8 +5,8 @@ const num = (k, d) => (env[k] !== undefined && env[k] !== '' ? Number(env[k]) : 
 
 export const BALANCE = {
   _note: 'ESTIMATE / placeholder values. Tune with real play data.',
-  startingCash: 5000,            // ESTIMATE
-  guestStartingCash: 3000,       // ESTIMATE
+  startingCash: 100000,         // new accounts start with ₦100,000
+  guestStartingCash: 3000,       // unused: guest login is off
   worldClock: { gameMinutesPerRealMinute: 15, startRealMs: Date.UTC(2026, 9, 1) }, // ESTIMATE: 96 real min = 1 game day
   needs: {
     // per real minute decay (ESTIMATE)
@@ -22,7 +22,9 @@ export const BALANCE = {
     { id: 'pos',     name: 'POS Agent',       desc: 'Run a POS kiosk: cash-in, cash-out, airtime.',          location: 'job_pos',   wage: 2600, durationSec: 150, cooldownSec: 45, energyCost: 15, hungerCost: 10, minShiftsToUnlock: 3 },
     { id: 'danfo',   name: 'Danfo Conductor', desc: 'Shout the route and collect fares on the yellow bus.',  location: 'job_bus',   wage: 3600, durationSec: 210, cooldownSec: 60, energyCost: 20, hungerCost: 12, minShiftsToUnlock: 6 },
     { id: 'farm',    name: 'Farm Hand',       desc: 'Weed, plant and harvest on a village farm.',            location: 'job_farm',  wage: 1500, durationSec: 90,  cooldownSec: 30, energyCost: 14, hungerCost: 9,  minShiftsToUnlock: 0 },
-    { id: 'vendor',  name: 'Market Trader',   desc: 'Sell provisions at a stall in the market.',             location: 'job_market',wage: 2200, durationSec: 120, cooldownSec: 40, energyCost: 14, hungerCost: 9,  minShiftsToUnlock: 1 }
+    { id: 'vendor',  name: 'Market Trader',   desc: 'Sell provisions at a stall in the market.',             location: 'job_market',wage: 2200, durationSec: 120, cooldownSec: 40, energyCost: 14, hungerCost: 9,  minShiftsToUnlock: 1 },
+    // Lagos Island only. ₦1,000,000 per real hour, 10 hours each, 10 people a day (Lagos midnight). skipNeeds: a 10-hour day must not be blocked by hunger.
+    { id: 'monipay', name: 'Monipay Bank', desc: 'Work the counter at Monipay Bank on Broad Street. ₦1,000,000 an hour, up to 10 hours. Only 10 people can work here each day.', location: 'job_monipay', wage: 1000000, durationSec: 3600, cooldownSec: 0, energyCost: 0, hungerCost: 0, minShiftsToUnlock: 0, maxHoursPerDay: 10, dailySlots: 10, skipNeeds: true }
   ],
   minNeedsToWork: { energy: 15, hunger: 10 },
   housing: {
@@ -129,7 +131,7 @@ export const BALANCE = {
     maxSavingsForInterest: 200000  // ESTIMATE cap so savings can't print money forever
   },
   transfer: {
-    minAmount: 100, maxPerTx: 20000, maxPerDay: 50000, // ESTIMATE
+    minAmount: 100, maxPerTx: 100000000, maxPerDay: 1000000000, // ₦100 million per transfer, ₦1 billion a day
     maxPerHourCount: 8, minAccountAgeMs: num('NA_TRANSFER_MIN_AGE_MS', 5 * 60 * 1000), allowGuests: false
   },
   topup: { // MOCK ONLY. 'Test top-up' mints fake test ₦. Real Monipay integration is a later step.

@@ -67,6 +67,9 @@ CREATE TABLE IF NOT EXISTS pass_xp_log (user_id INTEGER NOT NULL, day TEXT NOT N
   ,{ n: 16, name: 'ad_placement', sql: `
 CREATE TABLE IF NOT EXISTS ad_campaign_creatives (campaign_id INTEGER NOT NULL, creative_id INTEGER NOT NULL, position INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'pending', reject_reason TEXT, gross INTEGER NOT NULL DEFAULT 0, valid INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, decided_at INTEGER, PRIMARY KEY (campaign_id, creative_id));
 CREATE INDEX IF NOT EXISTS ix_acc_creative ON ad_campaign_creatives(creative_id);` }
+  ,{ n: 18, name: 'treasures', sql: `
+CREATE TABLE IF NOT EXISTS treasure_claims (treasure_id TEXT PRIMARY KEY, user_id INTEGER NOT NULL, amount INTEGER NOT NULL, claimed_at INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS ix_treasure_claims_user ON treasure_claims(user_id);` }
 ];
 // 16 (ad placement, 11 Oct 2026) also adds the column ad_campaigns.placement ('shared' | 'exclusive'): SQLite: migrate() in schema.js; Postgres: ALTER in 0016_ad_placement.sql.
 // Campaigns that existed before get one design row each from migrate() (SQLite) / the same INSERT in 0016 (Postgres).

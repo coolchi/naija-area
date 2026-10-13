@@ -62,7 +62,12 @@ export function stats(app) {
   const rows = app.db.prepare('SELECT home_city, interest_city, interests, skipped FROM signup_profiles').all(); const names = Object.fromEntries(startOptions(app).map(c => [c.id, c.name])); const home = {}, interest = {}, topics = {}; let skipped = 0, done = 0;
   for (const r of rows) { if (r.skipped) { skipped++; continue; } done++; if (r.home_city) home[r.home_city] = (home[r.home_city] || 0) + 1; if (r.interest_city) interest[r.interest_city] = (interest[r.interest_city] || 0) + 1; try { for (const i of JSON.parse(r.interests)) topics[i] = (topics[i] || 0) + 1; } catch { /* skip */ } }
   const list = (m, label) => Object.entries(m).sort((a, b) => b[1] - a[1]).map(([id, n]) => ({ id, label: label(id), n }));
-  return { total: rows.length, done, skipped, homeCities: list(home, id => names[id] || id), interestCities: list(interest, id => names[id] || id), interests: list(topics, id => INTEREST_OPTIONS.find(i => i.id === id)?.label || id) };
+  const topicLabel = (id) => INTEREST_OPTIONS.find(i => i.id === id)?.label || id;
+  const recent = app.db.prepare('SELECT u.id, u.username, p.home_city, p.interest_city, p.interests, p.skipped, p.completed_at, p.updated_at FROM signup_profiles p JOIN users u ON u.id=p.user_id ORDER BY p.updated_at DESC LIMIT 80').all().map(r => {
+    let interests = []; try { interests = JSON.parse(r.interests); } catch { /* corrupt row */ }
+    return { id: r.id, username: r.username, home: r.home_city ? (names[r.home_city] || r.home_city) : null, interest: r.interest_city ? (names[r.interest_city] || r.interest_city) : null, interests: interests.map(topicLabel), skipped: !!r.skipped, at: r.updated_at || r.completed_at };
+  });
+  return { total: rows.length, done, skipped, homeCities: list(home, id => names[id] || id), interestCities: list(interest, id => names[id] || id), interests: list(topics, topicLabel), recent };
 }
 export const exportMine = (app, uid) => parse(row(app, uid));
 export const deleteMine = (app, uid) => { app.db.prepare('DELETE FROM signup_profiles WHERE user_id=?').run(uid); };

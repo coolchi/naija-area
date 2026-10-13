@@ -4,6 +4,7 @@
 // Road travel only (no airport). Towns link to each other and Shagamu links to Lagos, each with a fare through the ledger.
 import fs from 'node:fs';
 import { district, SHOP, MARKET_SHOP, MAMAPUT, link, spawnsAround, write, clone, r1, curveRoad } from './lib/districts.mjs';
+import { addTta } from './add-tta.mjs';
 
 const fq = (b) => [r1(b.x + b.face[0] * ((b.face[0] ? b.w : b.d) / 2 + 3)), r1(b.z + b.face[1] * ((b.face[1] ? b.d : b.w) / 2 + 3))];
 const eatery = (api, pre, label, b) => { const d = fq(b); const s = clone(SHOP.shop_canteen.s); Object.assign(s, { id: `${pre}_shop_${api.city.shops.length + 1}`, name: label, x: d[0], z: d[1] }); delete s.buildingId; api.city.shops.push(s); return s; };
@@ -74,7 +75,7 @@ town({ id: 'ogun-ijebu', pre: 'ij', name: 'Ijebu Ode', bounds: { minX: -200, max
     boards(a, [[-140, -32, 1, 'major'], [20, -32, 1, 'street'], [-140, 77, -1, 'street'], [140, 77, -1, 'street']]);
     a.city.landmarks.push({ id: 'plaza', kind: 'plaza', name: 'Palace Square (generic square, not the palace)', x: 15, z: 22, cx: 15, cz: 22, size: 52 }); a.reserved.push({ x0: -12, x1: 42, z0: 0, z1: 48 });
     a.add({ kind: 'kiosk', x: 140, z: 20, w: 10, d: 8, h: 4, floors: 1, color: '#e9c46a', face: [0, 1] });
-  }, extraLoops: [] });
+  }, extraLoops: [] }, (c) => addTta(c));
 
 // ---- mainland: road link to Shagamu (idempotent) -------------------------------------------------------------------
 if (!process.env.NO_MAINLAND) {

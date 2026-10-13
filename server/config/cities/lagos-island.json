@@ -916,6 +916,22 @@
     1
    ],
    "id": "isl_b43"
+  },
+  {
+   "kind": "bank",
+   "x": -74,
+   "z": -36,
+   "w": 22,
+   "d": 16,
+   "h": 14,
+   "floors": 4,
+   "color": "#f7f4ff",
+   "face": [
+    1,
+    0
+   ],
+   "label": "Monipay Bank",
+   "id": "isl_b44"
   }
  ],
  "properties": [
@@ -1244,6 +1260,12 @@
    "x": -85,
    "z": -80,
    "label": "Market stall"
+  },
+  {
+   "id": "job_monipay",
+   "x": -59,
+   "z": -36,
+   "label": "Monipay Bank"
   }
  ],
  "billboards": [

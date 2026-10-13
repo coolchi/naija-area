@@ -1,0 +1,602 @@
+[
+  {
+    "id": "tr-abuja-01",
+    "city": "abuja",
+    "x": -40,
+    "z": -27.4
+  },
+  {
+    "id": "tr-abuja-02",
+    "city": "abuja",
+    "x": 40,
+    "z": -17
+  },
+  {
+    "id": "tr-abuja-03",
+    "city": "abuja",
+    "x": -40,
+    "z": 25.4
+  },
+  {
+    "id": "tr-abule-01",
+    "city": "ogun-abule",
+    "x": -129,
+    "z": -83.4
+  },
+  {
+    "id": "tr-abule-02",
+    "city": "ogun-abule",
+    "x": 112,
+    "z": 105
+  },
+  {
+    "id": "tr-abule-03",
+    "city": "ogun-abule",
+    "x": 138,
+    "z": -115.1
+  },
+  {
+    "id": "tr-abule-04",
+    "city": "ogun-abule",
+    "x": -12,
+    "z": 9.4
+  },
+  {
+    "id": "tr-abule-05",
+    "city": "ogun-abule",
+    "x": 9.7,
+    "z": -90.4
+  },
+  {
+    "id": "tr-abule-06",
+    "city": "ogun-abule",
+    "x": 33,
+    "z": 99.6
+  },
+  {
+    "id": "tr-abule-07",
+    "city": "ogun-abule",
+    "x": 78,
+    "z": -81.1
+  },
+  {
+    "id": "tr-abule-08",
+    "city": "ogun-abule",
+    "x": -96.5,
+    "z": -42.6
+  },
+  {
+    "id": "tr-abule-09",
+    "city": "ogun-abule",
+    "x": 9.2,
+    "z": -42.6
+  },
+  {
+    "id": "tr-abule-10",
+    "city": "ogun-abule",
+    "x": 28,
+    "z": 9.4
+  },
+  {
+    "id": "tr-abule-11",
+    "city": "ogun-abule",
+    "x": 93,
+    "z": -115.1
+  },
+  {
+    "id": "tr-abule-12",
+    "city": "ogun-abule",
+    "x": 123,
+    "z": -81.1
+  },
+  {
+    "id": "tr-ijebu-01",
+    "city": "ogun-ijebu",
+    "x": -179,
+    "z": -113.4
+  },
+  {
+    "id": "tr-ijebu-02",
+    "city": "ogun-ijebu",
+    "x": 140,
+    "z": 123
+  },
+  {
+    "id": "tr-ijebu-03",
+    "city": "ogun-ijebu",
+    "x": 148.9,
+    "z": -120.4
+  },
+  {
+    "id": "tr-ijebu-04",
+    "city": "ogun-ijebu",
+    "x": -36,
+    "z": 99
+  },
+  {
+    "id": "tr-ijebu-05",
+    "city": "ogun-ijebu",
+    "x": -11.6,
+    "z": -70
+  },
+  {
+    "id": "tr-ijebu-06",
+    "city": "ogun-ijebu",
+    "x": -147.6,
+    "z": 20
+  },
+  {
+    "id": "tr-ijebu-07",
+    "city": "ogun-ijebu",
+    "x": 140,
+    "z": 8
+  },
+  {
+    "id": "tr-ijebu-08",
+    "city": "ogun-ijebu",
+    "x": 70,
+    "z": -80.4
+  },
+  {
+    "id": "tr-ijebu-09",
+    "city": "ogun-ijebu",
+    "x": 66,
+    "z": 101.6
+  },
+  {
+    "id": "tr-ijebu-10",
+    "city": "ogun-ijebu",
+    "x": -86.2,
+    "z": -55.6
+  },
+  {
+    "id": "tr-ijebu-11",
+    "city": "ogun-ijebu",
+    "x": 179.9,
+    "z": -55.6
+  },
+  {
+    "id": "tr-ijebu-12",
+    "city": "ogun-ijebu",
+    "x": -115,
+    "z": -113.4
+  },
+  {
+    "id": "tr-ijebu-13",
+    "city": "ogun-ijebu",
+    "x": 117,
+    "z": -55.6
+  },
+  {
+    "id": "tr-ijebu-14",
+    "city": "ogun-ijebu",
+    "x": -179,
+    "z": -62.6
+  },
+  {
+    "id": "tr-ijebu-15",
+    "city": "ogun-ijebu",
+    "x": 27.6,
+    "z": -102.4
+  },
+  {
+    "id": "tr-ijebu-16",
+    "city": "ogun-ijebu",
+    "x": -39.6,
+    "z": -102.4
+  },
+  {
+    "id": "tr-ijebu-17",
+    "city": "ogun-ijebu",
+    "x": 117,
+    "z": -103
+  },
+  {
+    "id": "tr-ijebu-18",
+    "city": "ogun-ijebu",
+    "x": -2,
+    "z": 109.4
+  },
+  {
+    "id": "tr-lagos-01",
+    "city": "lagos-lekki",
+    "x": -225,
+    "z": -162.4
+  },
+  {
+    "id": "tr-lagos-02",
+    "city": "lagos-lekki",
+    "x": 222,
+    "z": 61
+  },
+  {
+    "id": "tr-lagos-03",
+    "city": "lagos-lekki",
+    "x": -60,
+    "z": 58
+  },
+  {
+    "id": "tr-lagos-04",
+    "city": "lagos-lekki",
+    "x": 101,
+    "z": -162.4
+  },
+  {
+    "id": "tr-lagos-05",
+    "city": "lagos-lekki",
+    "x": -84,
+    "z": -159.4
+  },
+  {
+    "id": "tr-lagos-06",
+    "city": "lagos-lekki",
+    "x": 207,
+    "z": -67.4
+  },
+  {
+    "id": "tr-lagos-07",
+    "city": "lagos-lekki",
+    "x": -139,
+    "z": -56
+  },
+  {
+    "id": "tr-lagos-08",
+    "city": "lagos-lekki",
+    "x": 207,
+    "z": -163.4
+  },
+  {
+    "id": "tr-lagos-09",
+    "city": "lagos-island",
+    "x": -220,
+    "z": -171.4
+  },
+  {
+    "id": "tr-lagos-10",
+    "city": "lagos-island",
+    "x": 229,
+    "z": 40.2
+  },
+  {
+    "id": "tr-lagos-11",
+    "city": "lagos-island",
+    "x": -92.7,
+    "z": 99.4
+  },
+  {
+    "id": "tr-lagos-12",
+    "city": "lagos-island",
+    "x": 87,
+    "z": -167.4
+  },
+  {
+    "id": "tr-lagos-13",
+    "city": "lagos-island",
+    "x": 79.2,
+    "z": 135.5
+  },
+  {
+    "id": "tr-lagos-14",
+    "city": "lagos-island",
+    "x": -72.4,
+    "z": -66.4
+  },
+  {
+    "id": "tr-lagos-15",
+    "city": "lagos-island",
+    "x": -220,
+    "z": 24.6
+  },
+  {
+    "id": "tr-lagos-16",
+    "city": "lagos-island",
+    "x": 118,
+    "z": -46.6
+  },
+  {
+    "id": "tr-lagos-17",
+    "city": "lagos-vi-ikoyi",
+    "x": -245,
+    "z": -168
+  },
+  {
+    "id": "tr-lagos-18",
+    "city": "lagos-vi-ikoyi",
+    "x": 216.2,
+    "z": 93.4
+  },
+  {
+    "id": "tr-lagos-19",
+    "city": "lagos-vi-ikoyi",
+    "x": -103.8,
+    "z": 94.4
+  },
+  {
+    "id": "tr-lagos-20",
+    "city": "lagos-vi-ikoyi",
+    "x": 17,
+    "z": -149
+  },
+  {
+    "id": "tr-lagos-21",
+    "city": "lagos-vi-ikoyi",
+    "x": 212.2,
+    "z": -159.4
+  },
+  {
+    "id": "tr-lagos-22",
+    "city": "lagos-vi-ikoyi",
+    "x": -132.5,
+    "z": -59.2
+  },
+  {
+    "id": "tr-lagos-23",
+    "city": "lagos-vi-ikoyi",
+    "x": -215,
+    "z": 104.4
+  },
+  {
+    "id": "tr-lagos-24",
+    "city": "lagos-vi-ikoyi",
+    "x": -246,
+    "z": -56.4
+  },
+  {
+    "id": "tr-lagos-25",
+    "city": "lagos-mainland",
+    "x": -462,
+    "z": -421.6
+  },
+  {
+    "id": "tr-lagos-26",
+    "city": "lagos-mainland",
+    "x": 453.1,
+    "z": 88
+  },
+  {
+    "id": "tr-lagos-27",
+    "city": "lagos-mainland",
+    "x": -195,
+    "z": 150.7
+  },
+  {
+    "id": "tr-lagos-28",
+    "city": "lagos-mainland",
+    "x": 144,
+    "z": -399
+  },
+  {
+    "id": "tr-lagos-29",
+    "city": "lagos-mainland",
+    "x": -185,
+    "z": -209.6
+  },
+  {
+    "id": "tr-lagos-30",
+    "city": "lagos-mainland",
+    "x": 156.5,
+    "z": -63.5
+  },
+  {
+    "id": "tr-lagos-31",
+    "city": "lagos-mainland",
+    "x": 456.6,
+    "z": -290
+  },
+  {
+    "id": "tr-lagos-32",
+    "city": "lagos-mainland",
+    "x": -466.5,
+    "z": -32
+  },
+  {
+    "id": "tr-lagos-33",
+    "city": "lagos-mainland",
+    "x": 40,
+    "z": 146.3
+  },
+  {
+    "id": "tr-lagos-34",
+    "city": "lagos-mainland",
+    "x": -76,
+    "z": -446
+  },
+  {
+    "id": "tr-lagos-35",
+    "city": "lagos-mainland",
+    "x": 264,
+    "z": 164
+  },
+  {
+    "id": "tr-lagos-36",
+    "city": "lagos-mainland",
+    "x": -45.6,
+    "z": -56.6
+  },
+  {
+    "id": "tr-lagos-37",
+    "city": "lagos-mainland",
+    "x": 360.6,
+    "z": -88
+  },
+  {
+    "id": "tr-lagos-38",
+    "city": "lagos-mainland",
+    "x": -265.6,
+    "z": -392
+  },
+  {
+    "id": "tr-lagos-39",
+    "city": "lagos-mainland",
+    "x": -270,
+    "z": -32
+  },
+  {
+    "id": "tr-lagos-40",
+    "city": "lagos-mainland",
+    "x": -392.8,
+    "z": -214
+  },
+  {
+    "id": "tr-lagos-41",
+    "city": "lagos-mainland",
+    "x": -453.4,
+    "z": 147
+  },
+  {
+    "id": "tr-lagos-42",
+    "city": "lagos-mainland",
+    "x": 60.5,
+    "z": -214
+  },
+  {
+    "id": "tr-lagos-43",
+    "city": "lagos-mainland",
+    "x": 424,
+    "z": -453
+  },
+  {
+    "id": "tr-lagos-44",
+    "city": "lagos-mainland",
+    "x": 211,
+    "z": -237
+  },
+  {
+    "id": "tr-lagos-45",
+    "city": "lagos-mainland",
+    "x": -60.2,
+    "z": -296.4
+  },
+  {
+    "id": "tr-lagos-46",
+    "city": "lagos-mainland",
+    "x": 319,
+    "z": 40.4
+  },
+  {
+    "id": "tr-lagos-47",
+    "city": "lagos-mainland",
+    "x": 156.5,
+    "z": 70.4
+  },
+  {
+    "id": "tr-lagos-48",
+    "city": "lagos-mainland",
+    "x": -70,
+    "z": 75.6
+  },
+  {
+    "id": "tr-lagos-49",
+    "city": "lagos-mainland",
+    "x": -320.5,
+    "z": 88
+  },
+  {
+    "id": "tr-lagos-50",
+    "city": "lagos-mainland",
+    "x": 358,
+    "z": -213
+  },
+  {
+    "id": "tr-lagos-51",
+    "city": "lagos-mainland",
+    "x": -290.8,
+    "z": -152
+  },
+  {
+    "id": "tr-lagos-52",
+    "city": "lagos-mainland",
+    "x": 354,
+    "z": -349
+  },
+  {
+    "id": "tr-lagos-53",
+    "city": "lagos-mainland",
+    "x": -176.4,
+    "z": -323.6
+  },
+  {
+    "id": "tr-lagos-54",
+    "city": "lagos-mainland",
+    "x": -401.8,
+    "z": -326
+  },
+  {
+    "id": "tr-lagos-55",
+    "city": "lagos-mainland",
+    "x": -174.4,
+    "z": 26
+  },
+  {
+    "id": "tr-lagos-56",
+    "city": "lagos-mainland",
+    "x": 455.8,
+    "z": -32
+  },
+  {
+    "id": "tr-lagos-57",
+    "city": "lagos-mainland",
+    "x": 24,
+    "z": -402.6
+  },
+  {
+    "id": "tr-lagos-58",
+    "city": "lagos-mainland",
+    "x": -62.8,
+    "z": -162.4
+  },
+  {
+    "id": "tr-lagos-59",
+    "city": "lagos-mainland",
+    "x": -294.7,
+    "z": -290
+  },
+  {
+    "id": "tr-lagos-60",
+    "city": "lagos-mainland",
+    "x": -180.3,
+    "z": -88
+  },
+  {
+    "id": "tr-lagos-61",
+    "city": "lagos-mainland",
+    "x": 444.5,
+    "z": -152
+  },
+  {
+    "id": "tr-lagos-62",
+    "city": "lagos-mainland",
+    "x": 59.5,
+    "z": -32
+  },
+  {
+    "id": "tr-lagos-63",
+    "city": "lagos-mainland",
+    "x": -172,
+    "z": -424
+  },
+  {
+    "id": "tr-lagos-64",
+    "city": "lagos-mainland",
+    "x": 264,
+    "z": -84.6
+  },
+  {
+    "id": "tr-lagos-65",
+    "city": "lagos-mainland",
+    "x": 238.4,
+    "z": -392
+  },
+  {
+    "id": "tr-lagos-66",
+    "city": "lagos-mainland",
+    "x": 146,
+    "z": -168.6
+  },
+  {
+    "id": "tr-lagos-67",
+    "city": "lagos-mainland",
+    "x": -398,
+    "z": 36
+  }
+]

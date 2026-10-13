@@ -40,12 +40,7 @@ export async function login(app, { username, password }) {
   app.db.prepare('UPDATE users SET last_seen=? WHERE id=?').run(app.clock.now(), u.id);
   return u.id;
 }
-export function guest(app, { age18 }, ipHash) {
-  if (age18 !== true) bad('AGE_REQUIRED', 'You must confirm you are 18 or over to play.');
-  for (let i = 0; i < 8; i++) {
-    const name = `Guest${Math.floor(1000 + Math.random() * 90000)}`;
-    if (!app.db.prepare('SELECT 1 FROM users WHERE username=?').get(name)) return newPlayer(app, { username: name, isGuest: true, ageConfirmed: true, ipHash });
-  }
-  bad('TRY_AGAIN', 'Could not create guest, try again.', 503);
+export function guest() {
+  bad('GUESTS_OFF', 'Guest play is turned off. Sign up or log in.', 403);
 }
 export const userRow = (db, uid) => db.prepare('SELECT id, username, is_guest, is_bot, color, created_at FROM users WHERE id=?').get(uid);

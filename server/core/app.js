@@ -8,9 +8,11 @@ import { carValue } from './cars.js';
 import { palette } from './homes.js';
 import { GAME_NAME } from '../config/game.js';
 import { BALANCE } from '../config/balance.js';
+import { scaleWorld } from './pricescale.js';
 
 /** Build the app object shared by every core module. db must offer better-sqlite3's API (prepare/transaction/exec). */
 export function createApp({ db, platform, cityJson, extraCities = [], balance = BALANCE, clock, gameName = GAME_NAME, filterHeadless = true }) {
+  ({ balance, cityJson, extraCities } = scaleWorld(balance, cityJson, extraCities));
   if (!db.managedSchema) { db.exec(SCHEMA); migrate(db); } // SQLite: idempotent in-code schema. Postgres: versioned migrations in server/migrations/pg, applied before createApp
   ensureSystemAccounts(db);
   const offset = { ms: 0 };

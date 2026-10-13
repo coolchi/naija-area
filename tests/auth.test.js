@@ -25,11 +25,15 @@ test('auth: login right/wrong password; unknown user same error', async () => {
   const w = await call(s, 'POST', '/api/auth/login', { body: { username: 'ngozi', password: 'nope' } }); assert.equal(w.status, 401);
   const u = await call(s, 'POST', '/api/auth/login', { body: { username: 'nobody', password: 'nope' } }); assert.equal(u.status, 401); assert.equal(u.json.message, w.json.message);
 });
-test('auth: guest play needs 18+ box, starts with guest cash, cannot be logged into', async () => {
+test('auth: guest play is turned off', async () => {
   const s = makeServer();
-  assert.equal((await call(s, 'POST', '/api/auth/guest', { body: {} })).json.error, 'AGE_REQUIRED');
-  const g = await ok(s, 'POST', '/api/auth/guest', { body: { age18: true } }); assert.equal(g.user.guest, true); assert.equal(g.user.cash, 3000);
-  assert.equal((await call(s, 'POST', '/api/auth/login', { body: { username: g.user.username, password: '' } })).status, 401);
+  const g = await call(s, 'POST', '/api/auth/guest', { body: { age18: true } });
+  assert.equal(g.status, 403); assert.equal(g.json.error, 'GUESTS_OFF');
+});
+test('auth: a new account starts with ₦100,000', async () => {
+  const s = makeServer();
+  const a = await ok(s, 'POST', '/api/auth/signup', { body: { username: 'ada_n', password: 'longenough1', age18: true } });
+  assert.equal(a.user.cash, 100000);
 });
 test('auth: protected routes need a session; admin routes need admin', async () => {
   const s = makeServer();
@@ -52,7 +56,7 @@ test('auth: login attempts are rate limited per IP', async () => {
 test('auth: HTTP signed-cookie session round trip + tampered cookie rejected + cross-origin POST blocked', async () => {
   const s = makeServer(); await new Promise(r => s.server.listen(0, '127.0.0.1', r)); const base = `http://127.0.0.1:${s.server.address().port}`;
   try {
-    const r = await fetch(base + '/api/auth/guest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ age18: true }) });
+    const r = await fetch(base + '/api/auth/signup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'cookie_user', password: 'longenough1', age18: true }) });
     const cookie = r.headers.get('set-cookie').split(';')[0]; assert.match(r.headers.get('set-cookie'), /HttpOnly/);
     assert.equal((await fetch(base + '/api/me', { headers: { cookie } })).status, 200);
     const bad = cookie.slice(0, -3) + 'xxx'; assert.equal((await fetch(base + '/api/me', { headers: { cookie: bad } })).status, 401);
@@ -60,6 +64,6 @@ test('auth: HTTP signed-cookie session round trip + tampered cookie rejected + c
   } finally { await s.close(); }
 });
 test('dev routes are 404 unless NA_DEV is on', async () => {
-  const s = makeServer({ dev: false }); const g = await ok(s, 'POST', '/api/auth/guest', { body: { age18: true } });
+  const s = makeServer({ dev: false }); const g = await ok(s, 'POST', '/api/auth/signup', { body: { username: 'dev_off', password: 'longenough1', age18: true } });
   assert.equal((await call(s, 'POST', '/api/dev/teleport', { uid: g.user.id, body: { x: 0, z: 0 } })).status, 404);
 });

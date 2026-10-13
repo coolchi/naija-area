@@ -2,7 +2,8 @@
 import { assertNotFlying } from './flight.js';
 import * as guardian from './guardian.js';
 import { cityOf, cityIdOf } from './cities.js';
-import { bad, clamp, cleanText, dayKey } from './util.js';
+import { bad, clamp, cleanText } from './util.js';
+import { dayKey, dayStart } from './rewards.js';
 import { screen } from './filter.js';
 import { typeOf, maxGuestsOf, layoutOf, reservedRects, plotStage } from './housing.js';
 import { decorOf, lovesOf } from './homes.js';
@@ -48,6 +49,22 @@ export function propDef(app, id) { return app.all.propertyById[id]; }
 
 // ---- JOBS ---------------------------------------------------------------
 export const jobDef = (app, id) => app.balance.jobs.find(j => j.id === id);
+/** Today's roster for a capped job. Day boundary is Lagos midnight. Hours count claimed shifts; a spot is taken by anyone who started today. */
+function shiftLimits(app, job, uid, now) {
+  const none = { hoursWorked: 0, hoursLeft: null, slotsLeft: null, slotsTotal: null, onRoster: false, hoursFull: false, slotsFull: false };
+  if (!job.maxHoursPerDay && !job.dailySlots) return none;
+  const start = dayStart(dayKey(now));
+  const rows = app.db.prepare("SELECT user_id, status FROM shifts WHERE job_id=? AND started_at>=? AND status IN ('active','claimed')").all(job.id, start);
+  const people = new Set(); let hoursWorked = 0;
+  for (const r of rows) { people.add(r.user_id); if (r.user_id === uid && r.status === 'claimed') hoursWorked++; }
+  const onRoster = people.has(uid);
+  return {
+    hoursWorked, hoursLeft: job.maxHoursPerDay ? Math.max(0, job.maxHoursPerDay - hoursWorked) : null,
+    slotsLeft: job.dailySlots ? Math.max(0, job.dailySlots - people.size) : null, slotsTotal: job.dailySlots || null, onRoster,
+    hoursFull: !!(job.maxHoursPerDay && hoursWorked >= job.maxHoursPerDay),
+    slotsFull: !!(job.dailySlots && !onRoster && people.size >= job.dailySlots)
+  };
+}
 export function jobsFor(app, uid) {
   const s = getState(app, uid); const now = app.clock.now();
   const active = activeShift(app, uid);
@@ -56,7 +73,8 @@ export function jobsFor(app, uid) {
     const last = app.db.prepare("SELECT claimed_at FROM shifts WHERE user_id=? AND job_id=? AND status='claimed' ORDER BY id DESC LIMIT 1").get(uid, j.id);
     const cdLeft = last ? Math.max(0, last.claimed_at + j.cooldownSec * 1000 - now) : 0;
     const loc = here.jobLoc[j.location];
-    return { ...j, locked: s.total_shifts < j.minShiftsToUnlock, shiftsNeeded: Math.max(0, j.minShiftsToUnlock - s.total_shifts), cooldownLeftMs: cdLeft, x: loc?.x, z: loc?.z, place: loc?.label };
+    const lim = shiftLimits(app, j, uid, now);
+    return { ...j, locked: s.total_shifts < j.minShiftsToUnlock, shiftsNeeded: Math.max(0, j.minShiftsToUnlock - s.total_shifts), cooldownLeftMs: cdLeft, x: loc?.x, z: loc?.z, place: loc?.label, hoursWorked: lim.hoursWorked, hoursLeft: lim.hoursLeft, slotsLeft: lim.slotsLeft, slotsTotal: lim.slotsTotal, onRoster: lim.onRoster };
   }).map(j => ({ ...j, active: active?.job_id === j.id }));
 }
 export function activeShift(app, uid) { return app.db.prepare("SELECT * FROM shifts WHERE user_id=? AND status='active'").get(uid); }
@@ -71,9 +89,14 @@ export function startShift(app, uid, jobId) {
     if (dist(st.x, st.z, loc.x, loc.z) > app.balance.interact.jobRadius + 6) bad('TOO_FAR', `Go to ${loc.label} to start this job.`);
     const last = app.db.prepare("SELECT claimed_at FROM shifts WHERE user_id=? AND job_id=? AND status='claimed' ORDER BY id DESC LIMIT 1").get(uid, job.id);
     if (last && now < last.claimed_at + job.cooldownSec * 1000) bad('COOLDOWN', 'You need a short break before this job again.', 429, { retryMs: last.claimed_at + job.cooldownSec * 1000 - now });
-    if (st.energy < Math.max(job.energyCost, app.balance.minNeedsToWork.energy)) bad('TOO_TIRED', 'Too tired to work. Eat/drink something or rest.');
-    if (st.hunger < Math.max(job.hungerCost, app.balance.minNeedsToWork.hunger)) bad('TOO_HUNGRY', 'Too hungry to work. Buy some food first.');
-    setNeeds(app, uid, st.energy - job.energyCost, st.hunger - job.hungerCost);
+    const lim = shiftLimits(app, job, uid, now);
+    if (lim.hoursFull) bad('HOURS_DONE', `You have already worked your ${job.maxHoursPerDay} hours at ${job.name} today. Come back tomorrow.`);
+    if (lim.slotsFull) bad('JOB_FULL', `${job.name} is full for today. Only ${job.dailySlots} people can work here. Come back tomorrow.`);
+    if (!job.skipNeeds) {
+      if (st.energy < Math.max(job.energyCost, app.balance.minNeedsToWork.energy)) bad('TOO_TIRED', 'Too tired to work. Eat/drink something or rest.');
+      if (st.hunger < Math.max(job.hungerCost, app.balance.minNeedsToWork.hunger)) bad('TOO_HUNGRY', 'Too hungry to work. Buy some food first.');
+    }
+    if (job.energyCost || job.hungerCost) setNeeds(app, uid, st.energy - job.energyCost, st.hunger - job.hungerCost);
     const r = app.db.prepare("INSERT INTO shifts(user_id,job_id,started_at,ends_at,wage,status) VALUES (?,?,?,?,?,'active')").run(uid, job.id, now, now + job.durationSec * 1000, job.wage);
     return { shiftId: Number(r.lastInsertRowid), endsAt: now + job.durationSec * 1000, job };
   })();
