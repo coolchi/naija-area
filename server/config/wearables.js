@@ -8,23 +8,25 @@
 // SLOTS: one equipped item per slot: head, neck, wrist, ears, fingers, ankle.
 // OPEN DECISIONS (assumptions, easy to change below): shop names are GENERIC working names; crowns are NOT unique (unlimited) unless `uniqueCrowns` is true;
 //   resale is OFF (`resale.enabled`: false) to keep status value, and when switched on pays `resale.fraction` of the price paid; gifting is NOT built.
-export const SLOTS = ['head', 'neck', 'wrist', 'ears', 'fingers', 'ankle'];
-export const SLOT_LABEL = { head: 'Head', neck: 'Neck', wrist: 'Wrist', ears: 'Ears', fingers: 'Fingers', ankle: 'Ankle' };
-export const MAX_SIZE = { head: 2.7, neck: 2.9, wrist: 2.9, ears: 2.9, fingers: 2.9, ankle: 2.4 };
+export const SLOTS = ['head', 'neck', 'wrist', 'ears', 'fingers', 'ankle', 'top', 'legs', 'shoes', 'dress'];
+export const SLOT_LABEL = { head: 'Head', neck: 'Neck', wrist: 'Wrist', ears: 'Ears', fingers: 'Fingers', ankle: 'Ankle', top: 'Shirts', legs: 'Trousers', shoes: 'Shoes', dress: 'Gowns' };
+export const MAX_SIZE = { head: 2.7, neck: 2.9, wrist: 2.9, ears: 2.9, fingers: 2.9, ankle: 2.4, top: 1.4, legs: 1.4, shoes: 1.4, dress: 1.4 };
 export const WEAR_RULES = {
   uniqueCrowns: false,                  // true: only one player at a time may own a given crown (the others show "taken")
   resale: { enabled: false, fraction: 0.5 }, // selling back is off by default (status items keep their value); fraction of the price paid
   shops: {                              // the venue field `wearShop` in the city JSON points here
     jewelry: { name: 'Naija Bling', blurb: 'Chains, rings, earrings, bracelets, watches and anklets. Very expensive, and the bigger the piece, the more it costs.' },
-    caps: { name: 'Cap Shop', blurb: 'Snapbacks, fila, bucket hats, agbada caps, fedoras and, for the very rich, crowns.' }
+    caps: { name: 'Cap Shop', blurb: 'Snapbacks, fila, bucket hats, agbada caps, fedoras and, for the very rich, crowns.' },
+    clothes: { name: 'Cloth Market', blurb: 'Shirts, trousers, shoes and gowns. Pick a male or female body, buy a piece, and wear it. A dearer piece is cut a little bigger.' }
   }
 };
 // materials the client draws with (shared)
-export const MATERIALS = { gold: 0xf2c230, rose: 0xe0a080, silver: 0xd5dce2, steel: 0x9aa3ab, diamond: 0xeaf6ff, black: 0x1b1b1f, cloth: 0x4a6fa5, red: 0xb3202a, green: 0x1b7a45, brown: 0x6b4a2b, white: 0xf4f4f0 };
+export const MATERIALS = { gold: 0xf2c230, rose: 0xe0a080, silver: 0xd5dce2, steel: 0x9aa3ab, diamond: 0xeaf6ff, black: 0x1b1b1f, cloth: 0x4a6fa5, red: 0xb3202a, green: 0x1b7a45, brown: 0x6b4a2b, white: 0xf4f4f0, navy: 0x1e3a5f, ankara: 0xd4a017, cream: 0xf3ead3, wine: 0x7a1f3d, khaki: 0xc2a878, denim: 0x3d5a80 };
 
 const J = (id, slot, name, price, size, kind, mat, extra = {}) => ({ id, shop: 'jewelry', slot, name, price, size, kind, mat, ...extra });
 const C = (id, name, price, size, kind, mat, extra = {}) => ({ id, shop: 'caps', slot: 'head', name, price, size, kind, mat, ...extra });
 const E = (id, slot, name, price, size, kind, mat, extra = {}) => ({ id, shop: 'event', slot, name, price, size, kind, mat, limited: true, ...extra });
+const K = (id, slot, name, price, size, kind, mat) => ({ id, shop: 'clothes', slot, name, price, size, kind, mat });
 // jewelry price ladder (ESTIMATE): tier 1 N150,000 ... tier 6 N5,500,000; size steps up with every tier
 export const WEARABLES = [
   J('neck_thin', 'neck', 'Thin gold chain', 150000, 1.0, 'chain', 'gold'),
@@ -70,6 +72,22 @@ export const WEARABLES = [
   E('fest_adha_cap', 'head', 'Ileya cap', 100000, 1.1, 'fila', 'green'),
   C('crown_prince', 'Prince crown', 20000000, 1.8, 'crown', 'gold', { gems: 'red', crown: true }),
   C('crown_king', 'King crown', 40000000, 2.2, 'crown', 'gold', { gems: 'diamond', crown: true, shine: 1 }),
-  C('crown_emperor', 'Emperor crown', 75000000, 2.6, 'crown', 'gold', { gems: 'diamond', crown: true, shine: 1 })
+  C('crown_emperor', 'Emperor crown', 75000000, 2.6, 'crown', 'gold', { gems: 'diamond', crown: true, shine: 1 }),
+  K('top_tee', 'top', 'Plain tee', 12000, 1.0, 'shirt', 'white'),
+  K('top_polo', 'top', 'Polo shirt', 22000, 1.08, 'shirt', 'navy'),
+  K('top_ankara', 'top', 'Ankara shirt', 38000, 1.16, 'shirt', 'ankara'),
+  K('top_senator', 'top', 'Senator shirt', 65000, 1.24, 'shirt', 'wine'),
+  K('legs_jog', 'legs', 'Joggers', 10000, 1.0, 'trousers', 'khaki'),
+  K('legs_jean', 'legs', 'Jeans', 18000, 1.08, 'trousers', 'denim'),
+  K('legs_chino', 'legs', 'Chinos', 32000, 1.16, 'trousers', 'brown'),
+  K('legs_agbada', 'legs', 'Agbada trousers', 55000, 1.24, 'trousers', 'cream'),
+  K('shoe_slip', 'shoes', 'Slippers', 8000, 1.0, 'shoes', 'brown'),
+  K('shoe_sneak', 'shoes', 'Sneakers', 15000, 1.08, 'shoes', 'white'),
+  K('shoe_loafer', 'shoes', 'Loafers', 26000, 1.16, 'shoes', 'black'),
+  K('shoe_boot', 'shoes', 'Boots', 45000, 1.24, 'shoes', 'wine'),
+  K('gown_day', 'dress', 'Day gown', 20000, 1.0, 'dress', 'cream'),
+  K('gown_ankara', 'dress', 'Ankara gown', 35000, 1.08, 'dress', 'ankara'),
+  K('gown_lace', 'dress', 'Lace gown', 60000, 1.16, 'dress', 'wine'),
+  K('gown_aso', 'dress', 'Aso-ebi gown', 95000, 1.24, 'dress', 'gold')
 ];
 export const wearableById = Object.fromEntries(WEARABLES.map(w => [w.id, w]));

@@ -29,7 +29,7 @@ export function indexCity(raw) {
 }
 
 /** Check a raw city config before it is allowed into the game (the city template checklist, enforced). Returns a list of problems (empty = ok). */
-export const CITY_LIMITS = { maxBuildings: 400, maxRoads: 120, maxBillboards: 60, maxTrafficLoops: 20, maxVenues: 30 }; // performance-rule budgets (ESTIMATE, tune from phone tests)
+export const CITY_LIMITS = { maxBuildings: 900, maxRoads: 120, maxBillboards: 60, maxTrafficLoops: 20, maxVenues: 30 }; // performance-rule budgets (ESTIMATE, tune from phone tests)
 export function validateCity(raw, limits = CITY_LIMITS) {
   const err = []; const need = (k, arr = true) => { if (raw[k] === undefined || (arr && !Array.isArray(raw[k]))) err.push(`missing ${arr ? 'list' : 'field'} "${k}"`); };
   for (const k of ['id', 'name', 'cityName']) need(k, false); need('bounds', false);

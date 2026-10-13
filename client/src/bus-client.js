@@ -14,15 +14,15 @@ export class BusStops {
     this.g = game; const city = game.city; this.stops = city.busStops || []; this.root = new THREE.Group(); this.state = 'idle'; this.t = 0; this.call = null; this.busy = false;
     const b = new Builder(41, 0.01);
     for (const s of this.stops) { const o = { ry: s.ry, noAO: true, jit: 0 }; const R = (lx, lz) => [s.x + Math.cos(s.ry) * lx + Math.sin(s.ry) * lz, s.z - Math.sin(s.ry) * lx + Math.cos(s.ry) * lz]; // local x along the road, z to the kerb side
-      b.box(5, 0.08, 2.4, s.x, 0.18, s.z, 0xa8a291, o); const [bx, bz] = R(0, 0.85); b.box(2.4, 0.12, 1.6, ...[bx, 0, bz].map((v, i) => i === 1 ? 2.35 : v), 0x2e6f95, o); // roof
-      for (const lx of [-1.1, 1.1]) { const [px, pz] = R(lx, 0.85); b.box(0.1, 2.3, 0.1, px, 0.2, pz, 0x555a60, o); }
-      const [kx, kz] = R(0, 1.55); b.box(2.2, 1.5, 0.06, kx, 0.9, kz, 0x9ec7da, { ...o, a: 0.5 }); const [qx, qz] = R(0, 0.95); b.box(2, 0.1, 0.5, qx, 0.62, qz, 0xb9792e, o); b.box(1.9, 0.08, 0.1, qx, 0.45, qz, 0x6b4a2a, o); // bench
-      const [sx, sz] = R(-2.1, 0.2); b.box(0.12, 3.1, 0.12, sx, 0.2, sz, 0x333333, o); }
+      const L = 9.6; b.box(L + 1.6, 0.08, 2.6, s.x, 0.18, s.z, 0xa8a291, o); const [bx, bz] = R(0, 0.85); b.box(L, 0.12, 1.7, bx, 2.35, bz, 0x2e6f95, o); // roof, long enough for a danfo
+      for (const lx of [-L / 2 + 0.2, -L / 6, L / 6, L / 2 - 0.2]) { const [px, pz] = R(lx, 0.85); b.box(0.1, 2.3, 0.1, px, 0.2, pz, 0x555a60, o); }
+      const [kx, kz] = R(0, 1.55); b.box(L - 0.4, 1.5, 0.06, kx, 0.9, kz, 0x9ec7da, { ...o, a: 0.5 }); const [qx, qz] = R(0, 0.95); b.box(L - 1.1, 0.1, 0.5, qx, 0.62, qz, 0xb9792e, o); b.box(L - 1.3, 0.08, 0.1, qx, 0.45, qz, 0x6b4a2a, o); // bench
+      const [sx, sz] = R(-L / 2 - 0.7, 0.2); b.box(0.12, 3.1, 0.12, sx, 0.2, sz, 0x333333, o); }
     this.root.add(new THREE.Mesh(b.build(), vcMat));
-    for (const s of this.stops) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.64), new THREE.MeshBasicMaterial({ map: signTex(s.name), side: THREE.DoubleSide })); const lx = -2.1, lz = 0.2; m.position.set(s.x + Math.cos(s.ry) * lx + Math.sin(s.ry) * lz, 3.0, s.z - Math.sin(s.ry) * lx + Math.cos(s.ry) * lz); m.rotation.y = s.ry + Math.PI / 2; this.root.add(m); }
+    for (const s of this.stops) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.64), new THREE.MeshBasicMaterial({ map: signTex(s.name), side: THREE.DoubleSide })); const lx = -5.5, lz = 0.2; m.position.set(s.x + Math.cos(s.ry) * lx + Math.sin(s.ry) * lz, 3.0, s.z - Math.sin(s.ry) * lx + Math.cos(s.ry) * lz); m.rotation.y = s.ry + Math.PI / 2; this.root.add(m); }
     game.scene.add(this.root);
     // NPC passengers waiting at each stop (two each); one walks to a danfo that stops, boards, and a new one turns up later
-    this.crowd = new Crowd(game.scene, Math.max(1, this.stops.length * 2), 11); this.pax = []; this.stops.forEach((s, k) => { for (let j = 0; j < 2; j++) this.pax.push({ stop: s, i: k * 2 + j, ax: Math.cos(s.ry) * (-0.6 + j * 1.3) + Math.sin(s.ry) * 0.9, az: -Math.sin(s.ry) * (-0.6 + j * 1.3) + Math.cos(s.ry) * 0.9, state: 'wait', t: 0, ph: j * 2.1 + k }); });
+    this.crowd = new Crowd(game.scene, Math.max(1, this.stops.length * 2), 11); this.pax = []; this.stops.forEach((s, k) => { for (let j = 0; j < 2; j++) this.pax.push({ stop: s, i: k * 2 + j, ax: Math.cos(s.ry) * (-3.4 + j * 4.2) + Math.sin(s.ry) * 0.9, az: -Math.sin(s.ry) * (-3.4 + j * 4.2) + Math.cos(s.ry) * 0.9, state: 'wait', t: 0, ph: j * 2.1 + k }); });
     this.chip = h('div', { id: 'busChip', class: 'pill hidden' }, h('button', { id: 'busBtn', class: 'park-btn', onclick: () => this.act() }, ''), h('button', { id: 'busCancel', class: 'park-btn dim', onclick: () => this.cancel(true) }, '✕'));
     document.body.appendChild(this.chip); this.cur = null; this.m4 = null;
   }

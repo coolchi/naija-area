@@ -1,0 +1,5 @@
+FlyNaija aircraft
+
+The mesh is based on "air india plane" (https://sketchfab.com/3d-models/air-india-plane-647b9156a5fe440485eef415bca64b94) by Meshmill (https://sketchfab.com/Meshmill), licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/).
+
+The livery in this game is not the original. It was recolored green and white and titled FlyNaija for Naija Area.

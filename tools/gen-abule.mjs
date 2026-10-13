@@ -21,7 +21,7 @@ const api = district({ id: 'ogun-abule', pre: 'al', name: 'Abule', bounds: B, se
   fill: (i, j) => ({ '0,0': ['houses', ['bungalow', 'selfcon'], 0.4, 2], '1,0': ['houses', ['bungalow', 'selfcon'], 0.4, 2], '0,1': ['houses', ['selfcon', 'bungalow'], 0.4, 1], '1,1': ['houses', ['bungalow', 'selfcon'], 0.4, 1] }[`${i},${j}`]),
   billboards: 3, build(a) {
     const c = a.city;
-    for (const [x, z, nz, tier] of [[-100, 14, -1, 'street'], [-30, -14, 1, 'major'], [-130, -14, 1, 'street']]) { a.billboard('road_billboard', tier, x, z, 0, nz, 12, 6, 9); a.reserved.push({ x0: x - 7, x1: x + 7, z0: z - 3, z1: z + 3 }); }
+    for (const [x, z, nz, tier] of [[-100, 14, -1, 'street'], [-30, -14, 1, 'major'], [-130, -14, 1, 'street']]) { a.billboard('road_billboard', tier, x, z, 0, nz, 8.4, 4.2, 4.2); a.reserved.push({ x0: x - 7, x1: x + 7, z0: z - 3, z1: z + 3 }); }
     // market square, stalls and the market stall shop
     c.landmarks.push({ id: 'plaza', kind: 'plaza', name: 'Market Square', x: 5, z: 48, cx: 5, cz: 48, size: 50 }); a.reserved.push({ x0: -22, x1: 32, z0: 22, z1: 74 });
     for (const [x, z, f] of [[-12, 17, [0, 1]], [8, 17, [0, 1]], [28, 17, [0, 1]], [-30, 40, [1, 0]], [-30, 58, [1, 0]]]) a.add({ kind: 'kiosk', x, z, w: 10, d: 8, h: 4, floors: 1, color: ['#a8c3a0', '#d8a28c', '#e3c870', '#9fb7b9'][Math.abs(x + z) % 4], face: f });

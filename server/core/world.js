@@ -39,8 +39,17 @@ function inBounds(city, x, z) { const b = city.bounds; return x >= b.minX && x <
 export function ensurePresence(app, uid) {
   let p = app.world.players.get(uid);
   if (!p) { const u = app.db.prepare('SELECT username,color,is_bot,is_guest FROM users WHERE id=?').get(uid); const st = getState(app, uid);
-    p = { id: uid, city: app.cities[st.city_id] ? st.city_id : app.defaultCityId, name: u.username, color: u.color, isBot: !!u.is_bot, isGuest: !!u.is_guest, x: st.x, z: st.z, ry: st.ry, mode: st.mode, trail: [], lastSeen: app.clock.now(), lastPersist: 0, headless: false, chatSince: app.world.chatSeq }; app.world.players.set(uid, p); }
+    p = { id: uid, city: app.cities[st.city_id] ? st.city_id : app.defaultCityId, name: u.username, color: u.color, isBot: !!u.is_bot, isGuest: !!u.is_guest, gender: st.gender === 'female' ? 'female' : 'male', x: st.x, z: st.z, ry: st.ry, mode: st.mode, trail: [], lastSeen: app.clock.now(), lastPersist: 0, headless: false, chatSince: app.world.chatSeq }; app.world.players.set(uid, p); }
   return p;
+}
+/** male or female body. Clothes and jewelry stay; the client rebuilds the rig. */
+export function setGender(app, uid, gender) {
+  const g = gender === 'female' || gender === 'male' ? gender : '';
+  if (!g) bad('BAD_GENDER', 'Choose male or female.');
+  getState(app, uid);
+  app.db.prepare('UPDATE player_state SET gender=? WHERE user_id=?').run(g, uid);
+  const p = app.world?.players?.get(uid); if (p) p.gender = g;
+  return { gender: g, text: g === 'female' ? 'Female body.' : 'Male body.' };
 }
 /** actions carry the client's current position; it goes through the same speed clamp as the trail */
 export function syncPos(app, uid, pos) {
@@ -119,16 +128,14 @@ export function heartbeat(app, uid, body, meta = {}) {
   let adResult = null;
   if (!stale && !flying && Array.isArray(body.evidence) && body.evidence.length) adResult = processEvidence(app, p, body.evidence.slice(0, 40), now);
   // other players near me
-  const hb = app.balance.heartbeat; const since = Number.isFinite(body.since) ? body.since : 0; const cutoff = now - hb.activeWindowMs;
+  const hb = app.balance.heartbeat; const cutoff = now - hb.activeWindowMs;
   const cand = [];
   const hidden = hiddenFrom(app, uid);
   for (const o of w.players.values()) { if (o.id === uid || o.city !== p.city || o.lastSeen < cutoff || hidden.has(o.id)) continue; const d = dist(o.x, o.z, p.x, p.z); if (d <= hb.nearbyRadius) cand.push([d, o]); }
   cand.sort((a, b) => a[0] - b[0]);
   const players = cand.slice(0, hb.maxNearby).map(([, o]) => {
-    // downsample trail to ~1 sample/2s newer than `since`
-    const s = []; let lastT = 0; for (const t of o.trail) { if (t.t > since - 2000 && t.t - lastT >= 1800) { s.push([Math.round(t.t - now), t.x, t.z, t.ry]); lastT = t.t; } }
-    if (!s.length) s.push([0, o.x, o.z, o.ry]);
-    const w = wearIds(app, o); const ct = clubTagOf(app, o); const sk = skinsOf(app, o); const tt = o.isBot ? '' : titleOf(app, o.id); const em = emoteOf(o, now); const bd = o.mode === 'drive' ? carBody(app, o, now) : ''; return { id: o.id, n: o.name, c: o.color, m: o.mode === 'drive' ? 1 : 0, act: o.activity || '', ...(w.length ? { w } : {}), ...(sk ? { sk } : {}), ...(ct ? { ct } : {}), ...(tt ? { t: tt } : {}), ...(em ? { e: em } : {}), ...(bd ? { bd } : {}), s };
+    const s = [[0, o.x, o.z, o.ry]]; // current spot only: walking is the live websocket, this poll is chat, ads and money
+    const w = wearIds(app, o); const ct = clubTagOf(app, o); const sk = skinsOf(app, o); const tt = o.isBot ? '' : titleOf(app, o.id); const em = emoteOf(o, now); const bd = o.mode === 'drive' ? carBody(app, o, now) : ''; return { id: o.id, n: o.name, c: o.color, m: o.mode === 'drive' ? 1 : 0, act: o.activity || '', ...(w.length ? { w } : {}), ...(sk ? { sk } : {}), ...(ct ? { ct } : {}), ...(tt ? { t: tt } : {}), ...(em ? { e: em } : {}), ...(bd ? { bd } : {}), ...(o.gender === 'female' ? { sx: 'f' } : {}), s };
   });
   const ccu = ccuNow(app); const interval = recommendedInterval(app, ccu);
   // notifications since last id
@@ -158,9 +165,16 @@ export function sendChat(app, uid, text) {
   if (p.lastText === t.toLowerCase() && now - (p.lastTextAt || 0) < S.dupWindowMs) bad('SPAM', 'You just said that.', 429);
   p.lastText = t.toLowerCase(); p.lastTextAt = now;
   p.lastChat = now;
-  app.db.prepare('INSERT INTO chat_messages(user_id,username,x,z,text,created_at,city_id) VALUES (?,?,?,?,?,?,?)').run(uid, p.name, p.x, p.z, t, now, p.city);
+  const id = Number(app.db.prepare('INSERT INTO chat_messages(user_id,username,x,z,text,created_at,city_id) VALUES (?,?,?,?,?,?,?)').run(uid, p.name, p.x, p.z, t, now, p.city).lastInsertRowid);
   app.db.prepare('DELETE FROM chat_messages WHERE id < (SELECT MAX(id) FROM chat_messages) - ?').run(app.balance.chat.keep);
-  return { ok: true };
+  const tt = titleOf(app, uid); const msg = { type: 'chat', id, u: p.name, t, ...(tt ? { tt } : {}) };
+  for (const o of app.world.players.values()) {
+    if (o.city !== p.city || dist(o.x, o.z, p.x, p.z) > app.balance.chat.radius) continue;
+    if (o.id !== uid && hiddenFrom(app, o.id).has(uid)) continue;
+    const see = guardian.chatFeedFilter(app, o.id); if (see && !see(uid)) continue;
+    app.pushUser?.(o.id, msg);
+  }
+  return { ok: true, id };
 }
 export function leaveWorld(app, uid) {
   const p = app.world.players.get(uid); if (!p) return;

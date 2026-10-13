@@ -17,7 +17,7 @@ export const parkedRow = (app, uid) => app.db.prepare('SELECT * FROM car_parking
 /** the parked car stops the player driving it elsewhere: used by the heartbeat */
 export function parkedActive(app, uid) { const r = parkedRow(app, uid); if (!r) return false; const a = app.db.prepare('SELECT id FROM player_cars WHERE user_id=? AND active=1').get(uid); return !!a && a.id === r.car_id; }
 export function expireOld(app, now = app.clock.now()) { const max = app.balance.parking.maxParkedMs; const old = app.db.prepare('SELECT user_id FROM car_parking WHERE parked_at < ?').all(now - max); for (const o of old) { app.db.prepare('DELETE FROM car_parking WHERE user_id=?').run(o.user_id); notify(app, o.user_id, 'car', 'Your parked car was taken back to your garage (parked too long).'); } return old.length; }
-const carView = (app, r) => { const c = app.db.prepare('SELECT model FROM player_cars WHERE id=?').get(r.car_id); const m = c && app.balance.cars.models[c.model]; return { lot: r.lot_id, bay: r.bay, x: r.x, z: r.z, ry: r.ry, parkedAt: r.parked_at, fee: r.fee, color: m?.color || '#888888', model: m?.name || 'Car', body: m?.body || 'hatch' }; };
+const carView = (app, r) => { const c = app.db.prepare('SELECT model FROM player_cars WHERE id=?').get(r.car_id); const m = c && app.balance.cars.models[c.model]; return { lot: r.lot_id, bay: r.bay, x: r.x, z: r.z, ry: r.ry, parkedAt: r.parked_at, fee: r.fee, color: m?.color || '#888888', model: m?.name || 'Car', modelId: c?.model || '', body: m?.body || 'hatch' }; };
 
 export function view(app, uid) {
   expireOld(app); const lots = lotsOf(app, uid); const rows = app.db.prepare('SELECT * FROM car_parking').all(); const mine = rows.find(r => r.user_id === uid); const hour = gameTime(app).hour;
@@ -31,7 +31,7 @@ export function park(app, uid, idemKey) {
   assertNotFlying(app, uid);
   const P = app.balance.parking; if (!P.enabled) bad('OFF', 'Parking is switched off.', 409);
   const p = ensurePresence(app, uid); if (p.mode !== 'drive') bad('NOT_DRIVING', 'Drive your car into the car park first.', 409);
-  const car = carFor(app, uid); if (!car.owned) bad('NO_OWN_CAR', 'Only your own car can be parked here. Buy one at Naija Auto Mart.', 409);
+  const car = carFor(app, uid); if (!car.owned) bad('NO_OWN_CAR', 'Only your own car can be parked here. Buy one at Motoka AutoMart Showroom.', 409);
   if (parkedRow(app, uid)) bad('ALREADY_PARKED', 'Your car is already parked.', 409);
   const lot = lotsOf(app, uid).find(l => inLot(l, p.x, p.z, P.lotPadM)); if (!lot) bad('NOT_IN_LOT', 'You are not inside a car park.', 409);
   return app.db.transaction(() => {

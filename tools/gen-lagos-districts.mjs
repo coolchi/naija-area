@@ -143,7 +143,7 @@ const marketStall = (api, pre, x, z, nm) => { const s = clone(MARKET_SHOP); Obje
       const cb = a.venueBuilding('office', 'Beach Canteen', 222, 38, 26, 18, 6, [0, -1], '#c8553d'); const ms = eatery(a, 'lk', 'Beach Canteen', cb); a.venue('lk_venue_canteen', cb, { name: 'Beach Canteen', blurb: 'Eat, then challenge somebody to Whot or Ayo.', hours: [6, 22], sign: '#c8553d', shopId: ms.id, stations: clone(MAMAPUT.stations).map(s => (s.shopId ? { ...s, shopId: ms.id } : s)), room: clone(MAMAPUT.room) });
       const sb = a.venueBuilding('stadium', 'City Stadium', 130, 45, 80, 66, 16, [0, -1], '#d7d4cc', { model: 'stadium', nocollideCheck: false }); stadiumVenue(a, 'lk', sb);
       a.city.carParks.push({ id: 'lk_cp_stadium', name: 'Stadium Car Park', x: 222, z: 70, w: 32, d: 18, gate: 'w', fee: 0, kind: 'venue', venueId: 'lk_venue_stadium', blurb: 'Free for match-goers (ESTIMATE rule: fee 0).' });
-      a.billboard('road_billboard', 'major', 100, -12, 0, 1, 12, 6, 9); a.billboard('road_billboard', 'major', 160, -12, 0, 1, 12, 6, 9); // stadium-side ad inventory
+      a.billboard('road_billboard', 'major', 100, -12, 0, 1, 8.4, 4.2, 4.2); a.billboard('road_billboard', 'major', 160, -12, 0, 1, 8.4, 4.2, 4.2); // stadium-side ad inventory
       clinic(a, 'lk', -200, 40, [1, 0]); const pos = a.add({ kind: 'kiosk', x: -60, z: 40, w: 10, d: 8, h: 4, floors: 1, color: '#4aa3ff', face: [0, -1] }); a.job('job_pos', pos.x, pos.z + 7, 'POS kiosk');
       a.city.landmarks.push({ id: 'plaza', kind: 'plaza', name: 'Lekki Phase 1 Roundabout Garden', x: 20, z: -58, cx: 20, cz: -55, size: 44 });
       a.city.landmarks.push({ id: 'eleko', kind: 'beach', name: 'Eleko Beach', x: 170, z: 135, cx: 170, cz: 135, w: 150, d: 66, huts: 6 });
@@ -165,7 +165,7 @@ const marketStall = (api, pre, x, z, nm) => { const s = clone(MARKET_SHOP); Obje
 // ---- mainland: National Theatre landmark + link to the island (idempotent) --------------------------------------
 {
   const f = new URL('../server/config/cities/lagos-mainland.json', import.meta.url); const c = JSON.parse(fs.readFileSync(f));
-  c.buildings = c.buildings.filter(b => b.model !== 'theatre'); { c.buildings.push({ kind: 'landmark', model: 'theatre', x: -202, z: 139.5, w: 56, d: 22, h: 18, floors: 1, color: '#d8d6cf', face: [0, -1], label: 'National Theatre', id: 'b_theatre', nocollideCheck: true }); }
+  c.buildings = c.buildings.filter(b => b.model !== 'theatre'); { c.buildings.push({ kind: 'landmark', model: 'theatre', x: -230, z: 148, w: 52, d: 34, h: 22, floors: 1, color: '#e6e0d2', face: [0, -1], label: 'National Theatre', id: 'b_theatre', nocollideCheck: true }); }
   c.links = [{ id: 'to-island', name: 'Third Mainland Bridge road', to: 'lagos-island', x: 120, z: 140, r: 16, fare: 200, arrive: { x: -190, z: -10, ry: 0 } }];
   fs.writeFileSync(f, JSON.stringify(c, null, 1)); console.log('mainland: National Theatre + link added');
 }

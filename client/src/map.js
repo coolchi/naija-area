@@ -2,9 +2,9 @@
 // All geometry comes from the city JSON via map-model.js. The STATIC layer (ground, districts, roads, buildings, plots) is drawn once into an offscreen bitmap and
 // blitted each frame; only labels, markers and players are redrawn live, so it stays light on phones.
 import { offsetPoly, polyLen, pointAt } from './roadgeom.js';
-import { h, $ } from './api.js';
+import { h, $, get } from './api.js';
 import { homeMarkers, remaining, etaLabel, etaSeconds } from './route.js';
-import { buildModel, search, hitTest, labelRules, KIND_COL, LAYERS, DEFAULT_LAYERS } from './map-model.js';
+import { buildModel, search, searchDistricts, roadTo, hitTest, labelRules, KIND_COL, LAYERS, DEFAULT_LAYERS } from './map-model.js';
 
 export class CityMap {
   constructor(game) { this.g = game; this.model = null; this.layers = { ...DEFAULT_LAYERS }; this.open_ = false; this.cache = null; this.sel = null; this.hover = null; this.pins = new Map(); }
@@ -22,6 +22,7 @@ export class CityMap {
     this.bind(); this.onKey = (e) => { if (e.key === 'Escape') { if (e.target === this.input) { this.input.blur(); this.list.classList.add('hidden'); } else this.close(); e.stopPropagation(); } }; document.addEventListener('keydown', this.onKey, true);
     this.onResize = () => this.resize(); addEventListener('resize', this.onResize); const loop = () => { if (!this.open_) return; this.draw(); this.raf = requestAnimationFrame(loop); }; this.raf = requestAnimationFrame(loop);
     if (focusId) this.focusOn(this.model.catalogue.find(i => i.id === focusId)); window.__bigmap = this;
+    get('/api/cities').then((r) => { this.cities = r.cities || []; if (this.open_ && document.activeElement === this.input) this.showList(); }).catch(() => { this.cities = this.cities || []; });
   }
   close() { if (!this.open_) return; this.open_ = false; cancelAnimationFrame(this.raf); document.removeEventListener('keydown', this.onKey, true); removeEventListener('resize', this.onResize); this.root.remove(); this.cache = null; }
   /** the player's own homes: always on the map, in the search list, one tap to go there */
@@ -100,7 +101,7 @@ export class CityMap {
     const hi = this.sel || this.hover; if (hi?.rect) { c.strokeStyle = '#ff3b30'; c.lineWidth = 3; c.setLineDash([]); c.strokeRect(this.sx(hi.rect.x0), this.sz(hi.rect.z0), (hi.rect.x1 - hi.rect.x0) * k, (hi.rect.z1 - hi.rect.z0) * k); }
     else if (hi && hi.x != null) { c.strokeStyle = '#ff3b30'; c.lineWidth = 3; c.beginPath(); c.arc(this.sx(hi.x), this.sz(hi.z), 20, 0, 7); c.stroke(); }
     const nv = this.g.nav?.active; if (nv) { const pts = nv.pts; c.lineJoin = 'round'; c.lineCap = 'round'; c.strokeStyle = '#ffffffcc'; c.lineWidth = 7; c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(this.sx(q[0]), this.sz(q[1])) : c.moveTo(this.sx(q[0]), this.sz(q[1]))); c.stroke(); c.strokeStyle = '#8e2de2'; c.lineWidth = 4; c.setLineDash([10, 6]); c.lineDashOffset = -t / 60; c.stroke(); c.setLineDash([]); c.lineDashOffset = 0;
-      const e = pts[pts.length - 1], ex = this.sx(e[0]), ey = this.sz(e[1]); c.fillStyle = '#8e2de2'; c.beginPath(); c.arc(ex, ey, 9, 0, 7); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 2.5; c.stroke(); const me0 = this.g.ctrl; const rem = remaining(pts, nv.i, me0.x, me0.z); this.text(c, `${nv.dest.name || 'Destination'} · ${Math.round(rem)} m · ${etaLabel(etaSeconds(rem, nv.mode))}`, ex, ey - 18, { s: 12, fill: '#5a189a' }); }
+      const e = pts[pts.length - 1], ex = this.sx(e[0]), ey = this.sz(e[1]); c.fillStyle = '#8e2de2'; c.beginPath(); c.arc(ex, ey, 9, 0, 7); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 2.5; c.stroke(); const me0 = this.g.ctrl; const rem = remaining(pts, nv.i, me0.x, me0.z); const kmh = Math.max(0, Math.round((me0.groundSpeed?.() || 0) * 3.6)); this.text(c, `${nv.dest.name || 'Destination'} · ${Math.round(rem)} m · ${etaLabel(etaSeconds(rem, nv.mode, nv.pace || 1))} · ${kmh} km/h`, ex, ey - 18, { s: 12, fill: '#5a189a' }); }
     for (const hm of this.homes()) { const px = this.sx(hm.x), py = this.sz(hm.z); if (!this.onScreen(px, py, 60)) continue; c.fillStyle = '#e63946'; c.beginPath(); c.arc(px, py, 14, 0, 7); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 3; c.stroke(); c.font = '16px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fff'; c.fillText('🏠', px, py + 1); this.text(c, 'My house', px, py + 25, { s: 12, w: 800, fill: '#b3261e' }); }
     const wp = this.g.waypoint; if (wp && !nv) { c.fillStyle = '#b44cff'; c.beginPath(); c.arc(this.sx(wp.x), this.sz(wp.z), 7, 0, 7); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 2; c.stroke(); }
     if (L.players) for (const p of this.others) { const px = this.sx(p.x), py = this.sz(p.z); if (!this.onScreen(px, py)) continue; c.fillStyle = '#fff'; c.beginPath(); c.arc(px, py, 5, 0, 7); c.fill(); c.fillStyle = p.color || '#2a9d8f'; c.beginPath(); c.arc(px, py, 3.4, 0, 7); c.fill(); if (labelRules.player(k)) this.text(c, p.name, px, py - 12, { s: 10 }); }
@@ -133,8 +134,28 @@ export class CityMap {
     row2.push(h('button', { class: 'btn small ghost', onclick: () => { g.setWaypoint(it.x, it.z, it.name); g.ui.toast(`Waypoint set: ${it.name}.`); this.close(); } }, '📍 Waypoint')); rows.push(h('div', { class: 'bm-actions' }, ...row2)); return rows;
   }
   showList() {
-    const res = search(this.model, this.input.value); this.list.classList.remove('hidden');
-    this.list.replaceChildren(...(res.length ? res.map(it => h('button', { class: 'bm-item', 'data-id': it.id, onclick: () => { this.list.classList.add('hidden'); this.input.blur(); this.focusOn(it); this.select({ ...it, rect: it.type === 'plot' ? { x0: it.x - it.size / 2, x1: it.x + it.size / 2, z0: it.z - it.size / 2, z1: it.z + it.size / 2 } : undefined }); } }, h('span', {}, `${it.icon || (it.type === 'road' ? '🛣' : '📍')} ${it.name}`), h('small', { class: 'mut' }, it.group))) : [h('div', { class: 'mut', style: 'padding:10px' }, 'Nothing found.')]));
+    const q = this.input.value;
+    const local = search(this.model, q, 8);
+    const remote = searchDistricts(this.cities, this.g.city?.id, q).map((c) => {
+      const hops = roadTo(this.cities, this.g.city?.id, c.id) || [];
+      const via = hops.map(h => h.name).filter(Boolean).join(' → ');
+      return { id: 'city:' + c.id, type: 'othercity', cityId: c.id, name: c.district || c.name, icon: String(c.id).includes('bridge') ? '🌉' : '🗺', group: via ? `Other district · ${via}` : 'Other district', hops, lines: [via ? `From here: ${via}.` : 'Another district.'] };
+    });
+    const res = [...local, ...remote];
+    this.list.classList.remove('hidden');
+    this.list.replaceChildren(...(res.length ? res.map(it => h('button', { class: 'bm-item', 'data-id': it.id, onclick: () => this.pick(it) }, h('span', {}, `${it.icon || (it.type === 'road' ? '🛣' : '📍')} ${it.name}`), h('small', { class: 'mut' }, it.group))) : [h('div', { class: 'mut', style: 'padding:10px' }, 'Nothing found.')]));
+  }
+  pick(it) {
+    this.list.classList.add('hidden'); this.input.blur();
+    if (it.type === 'othercity') {
+      const gate = it.hops?.[0] && this.model.catalogue.find(i => i.id === 'link_' + it.hops[0].linkId);
+      if (!gate) { this.g.ui.toast(`${it.name} is another district.`); return; }
+      this.focusOn(gate);
+      this.select({ ...gate, name: it.name, icon: it.icon, lines: [`${it.name} is another district.`, ...(it.lines || [])] });
+      return;
+    }
+    this.focusOn(it);
+    this.select({ ...it, rect: it.type === 'plot' ? { x0: it.x - it.size / 2, x1: it.x + it.size / 2, z0: it.z - it.size / 2, z1: it.z + it.size / 2 } : undefined });
   }
   drawLegend() {
     const row = (l) => h('label', { class: 'bm-lg' }, h('input', { type: 'checkbox', 'data-layer': l[0], checked: this.layers[l[0]], onchange: (e) => { this.layers[l[0]] = e.target.checked; this.cache = null; } }), h('i', { style: `background:${l[2]}` }), l[1]);

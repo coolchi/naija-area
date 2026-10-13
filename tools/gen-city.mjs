@@ -131,17 +131,17 @@ city.shops.push({ id: 'shop_market', name: 'Balogun-style Market Stall', desc: '
   { id: 'rice', name: 'Rice and stew (small)', price: 900, hunger: 38, energy: 5 }, { id: 'zobo', name: 'Zobo drink', price: 300, hunger: 5, energy: 6 }, { id: 'pie', name: 'Meat pie', price: 400, hunger: 20, energy: 0 } ] });
 for (const sh of city.shops) if (!sh.channel) sh.channel = 'supermarket';
 city.jobs = Object.entries(jobMeta).map(([id, v]) => ({ id, x: +v.x.toFixed(1), z: +v.z.toFixed(1), label: v.label }));
-const bb = (id, surface, tier, x, z, nx, nz, w, h, y = 9) => city.billboards.push({ id, surface, tier, x, z, nx, nz, w, h, y });
-bb('bb01', 'road_billboard', 'street', -60, -110, 0, -1, 12, 6);
-bb('bb02', 'road_billboard', 'street', 60, -110, 0, -1, 12, 6);
-bb('bb03', 'road_billboard', 'street', -110, 60, -1, 0, 12, 6);
-bb('bb04', 'road_billboard', 'major', 110, -60, 1, 0, 12, 6);
-bb('bb05', 'road_billboard', 'major', -60, 10, 0, -1, 12, 6);
-bb('bb06', 'road_billboard', 'major', 60, -10, 0, 1, 12, 6);
-bb('bb07', 'road_billboard', 'mega', -100, 112, 0, 1, 16, 8, 11);
-bb('bb08', 'road_billboard', 'mega', 100, 110, 0, -1, 16, 8, 11);
-bb('ap01', 'airport_board', 'standard', 160, -170, 0, 1, 12, 6);
-bb('ap02', 'airport_board', 'standard', 205, -170, 0, 1, 12, 6);
+const bb = (id, surface, tier, x, z, nx, nz, w, h, y = 4.2) => city.billboards.push({ id, surface, tier, x, z, nx, nz, w, h, y });
+bb('bb01', 'road_billboard', 'street', -60, -110, 0, -1, 8.4, 4.2);
+bb('bb02', 'road_billboard', 'street', 60, -110, 0, -1, 8.4, 4.2);
+bb('bb03', 'road_billboard', 'street', -110, 60, -1, 0, 8.4, 4.2);
+bb('bb04', 'road_billboard', 'major', 110, -60, 1, 0, 8.4, 4.2);
+bb('bb05', 'road_billboard', 'major', -60, 10, 0, -1, 8.4, 4.2);
+bb('bb06', 'road_billboard', 'major', 60, -10, 0, 1, 8.4, 4.2);
+bb('bb07', 'road_billboard', 'mega', -100, 112, 0, 1, 11.2, 5.6, 4.9);
+bb('bb08', 'road_billboard', 'mega', 100, 110, 0, -1, 11.2, 5.6, 4.9);
+bb('ap01', 'airport_board', 'standard', 160, -170, 0, 1, 8.4, 4.2);
+bb('ap02', 'airport_board', 'standard', 205, -170, 0, 1, 8.4, 4.2);
 for (const [i, x] of [-150, -50, 50, 150].entries()) bb(`lg0${i + 1}`, 'lagoon_plot', 'plot6x6', x, 205, 0, -1, 24, 24, 13);
 city.spawns = [{ x: -12, z: -12 }, { x: 12, z: -12 }, { x: -12, z: 12 }, { x: 12, z: 12 }, { x: 0, z: 22 }, { x: -24, z: 0 }].map(s => ({ x: s.x, z: s.z, ry: 0 }));
 // traffic loops (clockwise, right-hand traffic) offset 3.5 m into the lane

@@ -62,7 +62,7 @@ const D = {
   lamp(g, k, o) { k.cyl(0.02, 1.2, 0x333, 0, 3.0); const c = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.4, 14, 1, true), new THREE.MeshBasicMaterial({ color: o.c, side: THREE.DoubleSide })); c.position.y = 2.25; g.add(c); const gl = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.9, 1.4, 14, 1, true), new THREE.MeshBasicMaterial({ color: o.c, transparent: true, opacity: 0.1, side: THREE.DoubleSide })); gl.position.y = 1.4; g.add(gl); },
   lift(g, k) { for (const s of [-1.5, 1.5]) k.box(0.22, 2.6, 0.3, 0xe07b00, s, 1.3, 0); k.box(3.4, 0.2, 0.35, 0xe07b00, 0, 2.55); k.box(2.6, 0.12, 1.6, 0x444a50, 0, 0.65, 0.7); k.box(0.2, 0.6, 0.2, 0x8a8f95, 0, 0.3, 0.7); },
   hazard(g, k, o) { const n = Math.round((o.w || 6) / 0.6); for (let i = 0; i < n; i++) k.box(0.3, 0.025, o.d || 0.8, i % 2 ? 0xffd60a : 0x222222, -(o.w || 6) / 2 + 0.3 + i * 0.6, 0.015, 0); },
-  turntable(g, k, o, R, anim) { const t = k.cyl(1.55, 0.14, 0xdddddd, 0, 0.07, 0, 28); k.cyl(1.6, 0.04, 0xb8322a, 0, 0.16, 0, 28, null, 1.6).scale.set(1, 1, 1); anim.push(tt => { t.rotation.y = tt * 0.15; }); },
+  turntable(g, k, o, R, anim) { const t = k.cyl(1.55, 0.14, 0xdddddd, 0, 0.07, 0, 28); k.cyl(1.6, 0.04, 0x2389e3, 0, 0.16, 0, 28, null, 1.6).scale.set(1, 1, 1); anim.push(tt => { t.rotation.y = tt * 0.15; }); },
   spot(g, k, o) { const c = new THREE.Mesh(new THREE.ConeGeometry(1.0, 2.6, 16, 1, true), new THREE.MeshBasicMaterial({ color: o.c, transparent: true, opacity: 0.1, side: THREE.DoubleSide })); c.position.y = 1.6; c.rotation.x = Math.PI; g.add(c); },
   stage(g, k, o) { k.box(o.w, 0.35, o.d, 0x2b2540, 0, 0.175); k.box(o.w, 0.04, 0.06, 0xff4fd8, 0, 0.37, o.d / 2); },
   rig(g, k, o, R, anim) { k.box(R.w - 1.5, 0.08, 0.08, 0x333, 0, 3.15, -R.d / 2 + 2); const cols = o.warm ? [0xffb703, 0xfb8500, 0xffd166, 0xe76f51] : [0xff006e, 0x3a86ff, 0x06d6a0, 0xffbe0b, 0x8338ec, 0xfb5607]; const cones = cols.map((c, i) => { const co = new THREE.Mesh(new THREE.ConeGeometry(0.5, 3.0, 12, 1, true), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.16, side: THREE.DoubleSide })); const piv = new THREE.Group(); piv.position.set(-(R.w - 2.5) / 2 + i * (R.w - 2.5) / (cols.length - 1), 3.1, -R.d / 2 + 2); co.position.y = -1.5; co.rotation.x = Math.PI; piv.add(co); g.add(piv); return piv; }); anim.push(t => cones.forEach((c, i) => { c.rotation.z = Math.sin(t * 1.3 + i) * 0.5; c.rotation.x = Math.cos(t * 0.9 + i * 1.7) * 0.45; })); },
@@ -235,17 +235,28 @@ function houseExtras(scene, lay, CELL, anim) {
   void k;
 }
 
-// ---- garage: three car slots on a painted floor, with the owner's cars (see client/src/garage-view.js)
-export function garageShell(scene, anim) {
-  const R = { w: 11.4, d: 7.2 }; const k = kit(scene); const fl = new THREE.Mesh(new THREE.BoxGeometry(R.w, 0.2, R.d), M(0x8d8f93, { map: PR.surfaces().tile(R.w / 2.2, R.d / 2.2) })); fl.position.y = -0.1; scene.add(fl);
+// ---- garage: five car slots on a painted floor, with the owner's cars (see client/src/garage-view.js)
+export function garageShell(scene, anim, slots = 5) {
+  const n = Math.max(1, slots | 0); const gap = 2.8; const xOf = (s) => (s - (n - 1) / 2) * gap;
+  const R = { w: Math.max(12, (n - 1) * gap + 5.4), d: 7.6 }; const k = kit(scene);
+  const fl = new THREE.Mesh(new THREE.BoxGeometry(R.w, 0.2, R.d), M(0x8d8f93, { map: PR.surfaces().tile(R.w / 2.2, R.d / 2.2) })); fl.position.y = -0.1; scene.add(fl);
   const wall = M(0xdcd6c8, { map: PR.surfaces().stucco(4, 1.4) }); const back = new THREE.Mesh(new THREE.BoxGeometry(R.w, 3.6, 0.2), wall); back.position.set(0, 1.8, -R.d / 2); const left = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3.6, R.d), wall); left.position.set(-R.w / 2, 1.8, 0); scene.add(back, left);
   k.box(R.w, 0.4, 0.22, 0xe07b00, 0, 3.4, -R.d / 2 + 0.02); k.box(0.22, 0.4, R.d, 0xe07b00, -R.w / 2 + 0.02, 3.4, 0);
-  const shut = kit(scene); for (let i = 0; i < 9; i++) shut.box(4.2, 0.2, 0.08, i % 2 ? 0xb9bcc2 : 0xaaaeb5, -2.4, 0.15 + i * 0.26, -R.d / 2 + 0.14);
-  const zb = -R.d / 2; put(scene, PR.workbench(2.8), 3.4, 0, zb + 0.55); put(scene, PR.toolWall(2.6, 1.5), 3.4, 1.15, zb + 0.1); put(scene, PR.toolCart(), 5.0, 0, zb + 0.6); put(scene, PR.bookshelf(1.5, 0.45, 2.0, { c: 0x6b6f75, stuff: 'pots' }), 0.9, 0, zb + 0.35);
-  put(scene, PR.toolWall(1.8, 1.4), -5.55, 1.2, -0.6, Math.PI / 2); put(scene, PR.tyreStack(4), -5.1, 0, 2.2); put(scene, PR.oilDrum(0xd62828), -5.15, 0, -2.2); put(scene, PR.oilDrum(0x2e5eaa), -5.15, 0, -1.4);
-  k.cyl(0.28, 0.9, 0x2a9d8f, -5.1, 0.45, 0.8, 14); k.cyl(0.04, 0.3, 0x222222, -5.1, 1.05, 0.8, 6); put(scene, PR.wallArt(1.1, 0.7, 'sun'), -2.0, 1.9, zb + 0.12); put(scene, PR.flag(1.0, 0.6), 1.5, 2.2, zb + 0.12); put(scene, PR.clock(0.24), 0.0, 2.9, zb + 0.12);
-  for (let i = 0; i < 3; i++) { const tube = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.06, 0.12), new THREE.MeshBasicMaterial({ color: 0xfff7d6 })); tube.position.set(-3.5 + i * 3.5, 3.3, -0.6); scene.add(tube); }
-  for (let s = 0; s < 3; s++) { const x = -3.5 + s * 3.5; for (const dx of [-1.55, 1.55]) k.box(0.08, 0.02, 4.8, 0xffffff, x + dx, 0.015, 0.6); k.box(3.1, 0.02, 0.08, 0xffffff, x, 0.015, 3.0); const n = makeNameSprite(`SLOT ${s + 1}`, '#ffe08a'); n.scale.set(2.6, 0.65, 1); n.position.set(x, 0.1, 3.0); n.material.depthTest = true; scene.add(n); }
-  for (let i = 0; i < 3; i++) { const b = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.35, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff1b8, side: THREE.DoubleSide })); b.position.set(-3.5 + i * 3.5, 3.2, 0.5); scene.add(b); const gl = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 1.5, 3.0, 14, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff1b8, transparent: true, opacity: 0.06, side: THREE.DoubleSide })); gl.position.set(-3.5 + i * 3.5, 1.7, 0.5); scene.add(gl); }
-  put(scene, PR.tyreStack(3), 5.0, 0, 2.6); put(scene, PR.plant({ h: 1.1 }), 5.2, 0, 1.3); const pl = new THREE.PointLight(0xfff0d0, 0.5, 20); pl.position.set(0, 3.0, 0); scene.add(pl); void anim; return R;
+  const shut = kit(scene); for (let i = 0; i < 9; i++) shut.box(R.w - 1.2, 0.16, 0.08, i % 2 ? 0xb9bcc2 : 0xaaaeb5, 0, 0.15 + i * 0.26, -R.d / 2 + 0.14);
+  const zb = -R.d / 2; const edge = R.w / 2 - 0.9;
+  put(scene, PR.workbench(2.2), edge - 0.2, 0, zb + 0.55); put(scene, PR.toolWall(2.2, 1.4), edge - 0.2, 1.15, zb + 0.1);
+  put(scene, PR.toolWall(1.8, 1.4), -R.w / 2 + 0.15, 1.2, -0.6, Math.PI / 2); put(scene, PR.tyreStack(4), -R.w / 2 + 0.7, 0, 2.4);
+  put(scene, PR.oilDrum(0xd62828), -R.w / 2 + 0.55, 0, -2.2); put(scene, PR.oilDrum(0x2e5eaa), -R.w / 2 + 0.55, 0, -1.4);
+  k.cyl(0.28, 0.9, 0x2a9d8f, -R.w / 2 + 0.7, 0.45, 0.2, 14); k.cyl(0.04, 0.3, 0x222222, -R.w / 2 + 0.7, 1.05, 0.2, 6);
+  put(scene, PR.wallArt(1.1, 0.7, 'sun'), -1.6, 1.9, zb + 0.12); put(scene, PR.flag(1.0, 0.6), 1.2, 2.2, zb + 0.12); put(scene, PR.clock(0.24), 0.0, 2.9, zb + 0.12);
+  for (let s = 0; s < n; s++) {
+    const x = xOf(s);
+    const tube = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.12), new THREE.MeshBasicMaterial({ color: 0xfff7d6 })); tube.position.set(x, 3.3, -0.6); scene.add(tube);
+    for (const dx of [-1.15, 1.15]) k.box(0.08, 0.02, 4.8, 0xffffff, x + dx, 0.015, 0.6);
+    k.box(2.3, 0.02, 0.08, 0xffffff, x, 0.015, 3.0);
+    const sp = makeNameSprite(`SLOT ${s + 1}`, '#ffe08a'); sp.scale.set(2.2, 0.55, 1); sp.position.set(x, 0.1, 3.0); sp.material.depthTest = true; scene.add(sp);
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.3, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff1b8, side: THREE.DoubleSide })); cone.position.set(x, 3.2, 0.5); scene.add(cone);
+    const gl = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 1.15, 3.0, 14, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff1b8, transparent: true, opacity: 0.06, side: THREE.DoubleSide })); gl.position.set(x, 1.7, 0.5); scene.add(gl);
+  }
+  put(scene, PR.plant({ h: 1.1 }), edge, 0, 1.2); const pl = new THREE.PointLight(0xfff0d0, 0.55, 28); pl.position.set(0, 3.0, 0); scene.add(pl); void anim; return R;
 }

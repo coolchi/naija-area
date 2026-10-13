@@ -1,7 +1,7 @@
-// Heartbeat loop (HTTP poll, load-adaptive interval from the server) + optional WebSocket push for notifications/knocks.
+// Heartbeat loop: a slow HTTP poll for chat backup, ad evidence and money. Positions go out on the websocket.
 import { post, ApiError } from './api.js';
 export class Net {
-  constructor(game) { this.g = game; this.interval = 3000; this.fails = 0; this.timer = null; this.running = false; this.trail = []; this.notifSince = 0; this.chatSince = undefined; this.adsVersion = 0; this.since = 0; this.ws = null; this.inflight = false; }
+  constructor(game) { this.g = game; this.interval = 10000; this.fails = 0; this.timer = null; this.running = false; this.trail = []; this.notifSince = 0; this.chatSince = undefined; this.adsVersion = 0; this.since = 0; this.ws = null; this.inflight = false; }
   start() { if (this.running) return; this.running = true; this.tick(); this.openWs(); this.liveTimer = setInterval(() => this.sendPos(), 125); }
   stop() { this.running = false; clearTimeout(this.timer); clearInterval(this.liveTimer); try { this.ws?.close(); } catch { /* ignore */ } this.ws = null; }
   /** about 8 times a second, only when the player has actually moved. The heartbeat trail stays the slow backup. */
@@ -30,7 +30,7 @@ export class Net {
   openWs() {
     if (window.__naDemo) return; // static demo: no server to push from
     try { const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`); this.ws = ws;
-      ws.onmessage = (ev) => { try { const m = JSON.parse(ev.data); if (m.type === 'notification') { this.g.onPush(m); this.nudge(); } else if (m.type === 'mv' && Array.isArray(m.p)) { this.g.liveMs = m.ms; this.g.ghosts?.live(m.p, this.g.serverNow()); } else if (typeof m.type === 'string' && m.type.startsWith('phone.')) this.g.phone2?.onPush(m); } catch { /* ignore */ } };
+      ws.onmessage = (ev) => { try { const m = JSON.parse(ev.data); if (m.type === 'notification') { this.g.onPush(m); this.nudge(); } else if (m.type === 'mv' && Array.isArray(m.p)) { this.g.liveMs = m.ms; this.g.ghosts?.live(m.p, this.g.serverNow()); } else if (m.type === 'chat') this.g.showChat?.(m); else if (typeof m.type === 'string' && m.type.startsWith('phone.')) this.g.phone2?.onPush(m); } catch { /* ignore */ } };
       ws.onclose = () => { if (this.running) setTimeout(() => this.running && this.openWs(), 5000); }; ws.onerror = () => {};
     } catch { /* heartbeat alone is enough */ }
   }

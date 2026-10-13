@@ -2,7 +2,7 @@
 import { get, post, fmtN, h } from './api.js';
 
 const dots = (i, n) => '●'.repeat(i + 1) + '○'.repeat(n - i - 1); // the size ladder of the slot: one more dot = bigger and dearer
-const SLOT_ICON = { head: '🧢', neck: '📿', wrist: '⌚', ears: '💎', fingers: '💍', ankle: '✨' };
+const SLOT_ICON = { head: '🧢', neck: '📿', wrist: '⌚', ears: '💎', fingers: '💍', ankle: '✨', top: '👕', legs: '👖', shoes: '👟', dress: '👗' };
 
 export async function wearSheet(g, venueId, st = {}) {
   const ui = g.ui; const draw = async (keepScroll) => {
@@ -10,7 +10,8 @@ export async function wearSheet(g, venueId, st = {}) {
     const isCaps = d.shop === 'caps'; const bySlot = new Map(); for (const it of d.items) { const key = it.crown ? 'crown' : it.slot; if (!bySlot.has(key)) bySlot.set(key, []); bySlot.get(key).push(it); }
     const slotOrder = [...bySlot.keys()]; if (st.focus && bySlot.has(st.focus)) slotOrder.unshift(...slotOrder.splice(slotOrder.indexOf(st.focus), 1));
     const kids = [h('div', { class: 'row sp' }, h('b', {}, `Your cash: ${fmtN(d.cash)}`), h('span', { class: `tag ${d.open ? 'green' : 'amber'}` }, d.open ? 'Open' : `Closed · ${d.hours[0]}:00 to ${d.hours[1]}:00`)), h('p', { class: 'mut' }, d.note)];
-    const act = async (path, body, okMsg) => { const r = await ui.guard(() => post(path, body)); if (r) { ui.toast(r.text || okMsg, r.charged ? 'money' : undefined); g.refreshMe?.(); g.net?.nudge(); g.syncWear?.(r.worn); draw(true); } };
+    const act = async (path, body, okMsg) => { const r = await ui.guard(() => post(path, body)); if (r) { ui.toast(r.text || okMsg, r.charged ? 'money' : undefined); await g.refreshMe?.(); g.net?.nudge(); g.syncWear?.(r.worn); draw(true); } };
+    if (d.shop === 'clothes') { const mine = g.user?.gender === 'female' ? 'female' : 'male'; const pick = (gender, label) => h('button', { class: `btn small ${mine === gender ? '' : 'ghost'}`, onclick: () => act('/api/avatar/gender', { gender }, label + ' body.') }, label); kids.push(h('div', { class: 'row', style: 'gap:8px;margin-top:8px' }, h('span', {}, 'Body'), pick('male', 'Male'), pick('female', 'Female'))); }
     for (const slot of slotOrder) {
       const items = bySlot.get(slot); const label = slot === 'crown' ? 'Crowns' : slot === 'head' ? 'Caps and hats' : d.slots.find(s => s.id === slot)?.label || slot;
       kids.push(h('b', { style: 'display:block;margin-top:10px' }, `${slot === 'crown' ? '👑' : SLOT_ICON[slot] || ''} ${label}`));

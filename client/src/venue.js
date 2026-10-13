@@ -49,14 +49,14 @@ export class Venue {
     else if (st.type === 'tv') { const u = PR.tvUnit(3.0); grp.add(u); const t = PR.tv(2.7, { wall: true }); t.position.set(0, 1.0, -0.3); grp.add(t); }
     else if (st.type === 'check') { const c = makePlayerCar(st.color || '#3a7ca5'); c.scale.setScalar(0.34); c.position.y = 0.55; grp.add(c); box(2.0, 0.5, 1.1, 0x555a60, 0.25); box(0.2, 0.4, 0.2, 0xe0a020, 0.7).position.x = 1.15; }
     else if (st.type === 'service') { grp.add(PR.workbench(2.0)); const tc = PR.toolCart(); tc.position.set(1.4, 0, 0.1); grp.add(tc); for (let i = 0; i < 3; i++) box(0.25, 0.25, 0.25, [0xd6402f, 0x2e7dd1, 0xe0a020][i], 1.1).position.x = -0.6 + i * 0.6; }
-    else if (st.type === 'car') { const exclusive = st.body === 'gwagon' || st.body === 'cyber'; const c = makePlayerCar(st.color || '#888', st.body || 'hatch'); c.scale.setScalar(exclusive ? 0.32 : 0.38); c.rotation.y = Math.PI / 6; grp.add(c); box(exclusive ? 2.2 : 1.8, 0.06, exclusive ? 1.15 : 1.0, 0xdddddd, 0.03); }
+    else if (st.type === 'car') { const exclusive = st.body === 'gwagon' || st.body === 'cyber'; const c = makePlayerCar(st.color || '#888', st.body || 'hatch'); c.scale.setScalar(exclusive ? 0.62 : 0.38); c.rotation.y = Math.PI / 6; grp.add(c); box(exclusive ? 2.2 : 1.8, 0.06, exclusive ? 1.15 : 1.0, 0xdddddd, 0.03); }
     const sp = makeNameSprite(`${ICON[st.type] || ''} ${shortLabel(st.label)}`, '#fff3c4'); sp.scale.set(2.8, 0.7, 1); grp.userData.label = sp; sp.position.y = st.type === 'dj' ? 2.3 : st.type === 'songs' ? 3.3 : st.type === 'dance' ? 1.2 : st.type === 'style' ? 2.5 : st.type === 'car' ? 1.8 : st.type === 'tv' ? 3.0 : st.type === 'board' ? 2.8 : 2.1; grp.add(sp);
     grp.position.set(st.x, 0, st.z); if (st.type === 'poster') grp.rotation.y = 0; grp.traverse(o => { o.userData.stationId = st.id; }); this.stations.add(grp); this.meshes[st.id] = grp;
   }
   people_refresh() {
-    this.people.clear(); const d = this.data; const names = new Set(); const put = (u, color, x, z, wear) => { if (names.has(u)) return; names.add(u); const a = makeAvatar(color || '#2e9b5e'); a.scale.setScalar(0.55); applyWear(a, wear || [], this.g.wearCat); a.position.set(x, 0, z); const t = makeNameSprite('@' + u, '#ffffff'); t.scale.set(1.6, 0.4, 1); t.position.y = 2.2; a.add(t); this.people.add(a); };
+    this.people.clear(); const d = this.data; const names = new Set(); const put = (u, color, x, z, wear, gender) => { if (names.has(u)) return; names.add(u); const a = makeAvatar(color || '#2e9b5e', gender); a.scale.setScalar(0.55); applyWear(a, wear || [], this.g.wearCat); a.position.set(x, 0, z); const t = makeNameSprite('@' + u, '#ffffff'); t.scale.set(1.6, 0.4, 1); t.position.y = 2.2; a.add(t); this.people.add(a); };
     this.sportsStage?.sync(d.stations); for (const st of d.stations) if (st.type === 'game' && st.match && !st.sport) { const m = st.match; m.players.forEach((u, k) => put(u, null, st.x + [-1.25, 1.25, -0.5, 0.5][k], st.z + (k < 2 ? 0.5 : 1.5))); }
-    for (const o of d.occupants) { const hx = hash(o.username); put(o.username, o.color, -3 + (hx % 7) * 1.0, d.room.d / 2 - 1.1 - ((hx >> 4) % 2) * 0.8, o.w); }
+    for (const o of d.occupants) { const hx = hash(o.username); put(o.username, o.color, -3 + (hx % 7) * 1.0, d.room.d / 2 - 1.1 - ((hx >> 4) % 2) * 0.8, o.w, o.sx === 'f' ? 'female' : 'male'); }
   }
   chrome() {
     const d = this.data; this.strip = h('div', { class: 'vstrip' }); this.panel = h('div', { class: 'vpanel hidden' });

@@ -28,7 +28,7 @@ export class ParkingClient {
   async act() {
     const c = this.cur; if (!c || this.busy) return; this.busy = true; const g = this.g;
     try {
-      if (c.kind === 'hint') { g.ui.toast('Buy your own car at Naija Auto Mart to park it here.'); return; }
+      if (c.kind === 'hint') { g.ui.toast('Buy your own car at Motoka AutoMart Showroom to park it here.'); return; }
       if (c.kind === 'park') { const r = await post('/api/parking/park', { idemKey: Math.random().toString(36).slice(2) }); g.ctrl.mode = 'walk'; g.ctrl.applyMode(); g.ctrl.teleport(r.out.x, r.out.z); g.ui.toast(r.text); g.ui.sfx('ok'); g.net.nudge?.(); g.refresh?.(); }
       else { const r = await post('/api/parking/take', {}); g.ctrl.teleport(r.at.x, r.at.z); g.ctrl.ry = r.at.ry; g.ctrl.mode = 'drive'; g.ctrl.applyMode(); g.ctrl.camYaw = r.at.ry; g.ui.toast(r.text); g.ui.sfx('horn'); g.net.nudge?.(); }
       await this.load();

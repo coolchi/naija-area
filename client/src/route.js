@@ -6,7 +6,7 @@ import { polyLen, roadAt } from './roadgeom.js';
 
 /** speeds used for the ETA (m/s). ESTIMATES: walking matches the controller (5.2 m/s), driving is a typical average with corners and junctions. */
 export const NAV = { walk: 5.2, drive: 9, driveMax: 11, arriveWalk: 1.4, arriveDrive: 3.6, stuckSeconds: 2.6, stuckMetres: 0.6, nearEnough: 12, snapMax: 60 };
-export const etaSeconds = (length, mode = 'walk') => Math.max(1, Math.round(length / (mode === 'drive' ? NAV.drive : NAV.walk)));
+export const etaSeconds = (length, mode = 'walk', pace = 1) => Math.max(1, Math.round(length / ((mode === 'drive' ? NAV.drive : NAV.walk) * (pace > 0 ? pace : 1))));
 export const etaLabel = (sec) => sec < 45 ? `~${Math.max(5, Math.round(sec / 5) * 5)} s` : `~${Math.max(1, Math.round(sec / 60))} min`;
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 /** collision rectangles the way the world builds them (buildings with a 0.6 m margin, roundabout islands) so tests and tools do not need THREE */
@@ -48,7 +48,7 @@ export const remaining = (pts, i, x, z) => { if (i >= pts.length) return 0; let 
 const angDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a)); const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 /** Autopilot: follows a route polyline on foot or by car. Pure state machine; the controller applies collisions afterwards and calls observe() for stuck detection. */
 export class Auto {
-  constructor(pts, kind = 'walk') { this.pts = pts; this.kind = kind; this.i = 1; this.done = false; this.stuck = false; this.t = 0; this.ref = null; }
+  constructor(pts, kind = 'walk', opt = null) { this.pts = pts; this.kind = kind; this.i = 1; this.done = false; this.stuck = false; this.t = 0; this.ref = null; this.driveMax = opt && opt.driveMax || NAV.driveMax; }
   /** one step: returns the new { x, z, ry, v } */
   step(x, z, ry, v, dt) {
     const P = this.pts, drive = this.kind === 'drive', arrive = drive ? NAV.arriveDrive : NAV.arriveWalk;
@@ -58,7 +58,7 @@ export class Auto {
     if (!drive) { const nry = ry + err * Math.min(1, dt * 12); const sp = NAV.walk; return { x: x + dx / d * sp * dt, z: z + dz / d * sp * dt, ry: nry, v: sp }; }
     // driving: steer to the next point, slow for corners (turn angle two points ahead) and for the end of the route
     let turn = 0; if (this.i + 1 < P.length) { const h1 = Math.atan2(-(P[this.i][1] - z), P[this.i][0] - x), h2 = Math.atan2(-(P[this.i + 1][1] - P[this.i][1]), P[this.i + 1][0] - P[this.i][0]); turn = Math.abs(angDiff(h1, h2)); }
-    const rem = remaining(P, this.i, x, z); const corner = d < 16 ? NAV.driveMax * (1 - 0.72 * Math.min(1, turn / 1.2)) : NAV.driveMax; const vt = Math.max(2, Math.min(corner, Math.sqrt(2 * 7 * Math.max(0, rem - arrive)) + 1.5, Math.abs(err) > 0.7 ? 4 : NAV.driveMax));
+    const rem = remaining(P, this.i, x, z); const cap = this.driveMax; const corner = d < 16 ? cap * (1 - 0.72 * Math.min(1, turn / 1.2)) : cap; const vt = Math.max(2, Math.min(corner, Math.sqrt(2 * 7 * Math.max(0, rem - arrive)) + 1.5, Math.abs(err) > 0.7 ? 4 : cap));
     const nv = v < vt ? Math.min(vt, v + 6 * dt) : Math.max(vt, v - 12 * dt); const nry = ry + clamp(err * 3, -1.9, 1.9) * dt * Math.min(1, 0.4 + nv / 5);
     return { x: x + Math.cos(nry) * nv * dt, z: z - Math.sin(nry) * nv * dt, ry: nry, v: nv };
   }

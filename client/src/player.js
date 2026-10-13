@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { fwd, makeAvatar, makePlayerCar, makeNameSprite, addSkinGlow } from './entities.js';
+import { fwd, makeAvatar, makePlayerCar, makeNameSprite, addSkinGlow, poseAvatar } from './entities.js';
+import { spinWheels } from '../sample/wheels.js';
 import { PHYS } from './physics-config.js';
 import { PHYSX } from '../../server/config/physx.js';
 import { newJump, jumpStep } from '../../server/core/physx.js';
@@ -15,19 +16,20 @@ export class Controller {
   constructor(canvas, city, colliders, color, name) {
     this.city = city; this.colliders = colliders; this.canvas = canvas;
     this.x = 0; this.z = 0; this.ry = 0; this.mode = 'walk'; this.v = 0; this.cam = 12; this.camYaw = 0; this.camPitch = 0.62; this.dragT = 0; this.frozen = false;
-    this.walker = newWalker(); this.car = newCar(); this.susp = newSusp(); this.shake = 0; this.shakeT = 0; this.knockT = 99; this.knockDir = [0, 0]; this.bumpAt = 0; this.stepAt = 0; this.camBack = 0; this.lookAt = null; this._shk = { x: 0, y: 0, z: 0 }; this.prevRy = 0; this.prevV = 0; this.hand = false; this.obstacles = null; this.roundabouts = city.roundabouts || [];
+    this.walker = newWalker(); this.car = newCar(); this.susp = newSusp(); this.shake = 0; this.shakeT = 0; this.knockT = 99; this.knockDir = [0, 0]; this.bumpAt = 0; this.stepAt = 0; this.camBack = 0; this.lookAt = null; this._shk = { x: 0, y: 0, z: 0 }; this.prevRy = 0; this.prevV = 0; this.hand = false; this.obstacles = null; this.roundabouts = city.roundabouts || []; this.islands = (city.roundabouts || []).map(o => ({ x: o.x, z: o.z, r: o.islandR }));
     this.jump = newJump(); this.jumpBtn = false; this.solids = null; this.keys = new Set(); this.joy = { x: 0, y: 0, active: false }; this.run = false; this.moving = false; this.blocked = false;
-    this.root = new THREE.Group(); this.setLook(color, name);
+    this.gender = 'male'; this.root = new THREE.Group(); this.setLook(color, name);
     this.bind();
   }
   setLook(color, name) {
     this.color = color; this.name = name; if (this.avatar) this.root.remove(this.avatar), this.root.remove(this.carObj);
-    const sk = this.skinLooks || {}; this.avatar = makeAvatar(sk.avatar?.color || color); this.carObj = makePlayerCar(sk.car?.color || this.ridePaint || color, this.rideBody || 'hatch'); if (sk.avatar?.glow) addSkinGlow(this.avatar, sk.avatar.glow, 1.1); if (sk.car?.glow) addSkinGlow(this.carObj, sk.car.glow, 3.4); this.root.add(this.avatar, this.carObj); this.carObj.visible = false;
+    const sk = this.skinLooks || {}; this.avatar = makeAvatar(sk.avatar?.color || color, this.gender === 'female' ? 'female' : 'male'); this.carObj = makePlayerCar(sk.car?.color || this.ridePaint || color, this.rideBody || 'hatch'); if (sk.avatar?.glow) addSkinGlow(this.avatar, sk.avatar.glow, 1.1); if (sk.car?.glow) addSkinGlow(this.carObj, sk.car.glow, 3.4); this.root.add(this.avatar, this.carObj); this.carObj.visible = false;
     if (!this.tag) { this.tag = makeNameSprite(name || 'You', '#ffe27a'); this.root.add(this.tag); }
     this.applyMode();
   }
   /** the skins you have on (item 9): { avatar: {color, glow}, car: {color, glow} } looks from the catalogue; the body is rebuilt in those colours */
   setSkins(looks) { const key = JSON.stringify(looks || {}); if (key === this._skKey) return false; this._skKey = key; this.skinLooks = looks || {}; this.setLook(this.color, this.name); return true; }
+  setBody(gender) { const g = gender === 'female' ? 'female' : 'male'; if (this.gender === g) return false; this.gender = g; this.setLook(this.color, this.name); return true; }
   /** owned car from /api/me: body picks the mesh, drive is the free-roam top speed (m/s). null car = the borrowed hatch. */
   setRide(car) {
     const body = car?.body || 'hatch', paint = car?.color || null, drive = car?.drive || 0;
@@ -36,8 +38,22 @@ export class Controller {
     const vis = this.carObj?.visible; if (this.carObj) this.root.remove(this.carObj);
     const sk = this.skinLooks || {}; this.carObj = makePlayerCar(sk.car?.color || paint || this.color, body); if (sk.car?.glow) addSkinGlow(this.carObj, sk.car.glow, 3.4); this.carObj.visible = !!vis; this.root.add(this.carObj); this.applyMode();
   }
-  applyMode() { document.body.classList.toggle('driving', this.mode === 'drive'); if (this.mode !== 'drive') this.hand = false; this.avatar.visible = this.mode === 'walk'; this.carObj.visible = this.mode === 'drive'; const tall = this.rideBody === 'gwagon' ? 5.05 : this.rideBody === 'cyber' ? 4.65 : 4.2; this.tag.position.set(0, this.mode === 'drive' ? tall : 3.6, 0); }
+  applyMode() { document.body.classList.toggle('driving', this.mode === 'drive'); if (this.mode !== 'drive') this.hand = false; this.avatar.visible = this.mode === 'walk'; this.carObj.visible = this.mode === 'drive'; const tall = this.rideBody === 'gwagon' ? 2.55 : this.rideBody === 'cyber' ? 2.35 : 2.15; this.tag.position.set(0, this.mode === 'drive' ? tall : 2.45, 0); }
   toggleCar() { if (this.auto) { this.auto = null; this.onAuto?.('manual'); } this.mode = this.mode === 'walk' ? 'drive' : 'walk'; this.stopAll(); this.applyMode(); if (this.mode === 'drive') this.camYaw = this.ry; return this.mode; }
+  /** roundabout grass is a circle. A square in the middle catches the bumper and stops the car. */
+  pushIslands(p, rad, rest, dt) {
+    if (!this.islands?.length) return { hit: false, impact: 0 };
+    const drive = this.mode === 'drive';
+    const self = drive ? carCircles(p.x, p.z, this.ry, 1.5, this._isl || (this._isl = [])) : [[0, 0]];
+    return resolveCircles(p, self, drive ? 0.55 : Math.min(rad, 0.55), this.islands, rest, dt, PHYS.collide);
+  }
+  /** the parked car is solid. You stop at the body; Enter gets you in. */
+  pushOwnCar(p, rad, rest, dt) {
+    if (this.mode === 'drive' || !this.ownSolid) return { hit: false, impact: 0 };
+    const list = this.ownSolid();
+    if (!list.length) return { hit: false, impact: 0 };
+    return resolveCircles(p, [[0, 0]], Math.min(rad, 0.7), list, rest, dt, PHYS.collide);
+  }
   teleport(x, z) { this.x = x; this.z = z; this.stopAll(); this.knockT = 99; this.lookAt = null; }
   /** no velocity left in any model (mode change, teleport, arriving) */
   stopAll() { this.v = 0; Object.assign(this.walker, { vx: 0, vz: 0, speed: 0 }); Object.assign(this.car, { v: 0, lat: 0, steer: 0, th: 0, yaw: 0, ax: 0, ay: 0 }); this.susp = newSusp(); }
@@ -104,12 +120,12 @@ export class Controller {
     // collisions: slide along building boxes (bounce a little, lose speed, shake the camera), bump ambient traffic, stay inside the district + off the water
     const rad = drive ? 2.0 : 0.7; this.blocked = false; let impact = 0;
     if (auto) {
-      const p = { x: this.x, z: this.z, vx: 0, vz: 0 }; const r = resolveBoxes(p, this.colliders, rad, 0, dt, P.collide); this.x = p.x; this.z = p.z; if (r.hit) { this.blocked = true; if (drive) this.v *= 0.5; }
+      const p = { x: this.x, z: this.z, vx: 0, vz: 0 }; const r = resolveBoxes(p, this.colliders, rad, 0, dt, P.collide); const ri = this.pushIslands(p, rad, 0, dt); const ro = this.pushOwnCar(p, rad, 0, dt); this.x = p.x; this.z = p.z; if (r.hit || ri.hit || ro.hit) { this.blocked = true; if (drive) this.v *= 0.5; }
     } else {
       const p = drive ? Object.assign(carVel(c), { x: this.x, z: this.z }) : { x: this.x, z: this.z, vx: w.vx, vz: w.vz };
-      const r = resolveBoxes(p, this.colliders, rad, drive ? P.collide.carRestitution : P.collide.walkRestitution, dt, P.collide); impact = r.impact; let hit = r.hit;
+      const r = resolveBoxes(p, this.colliders, rad, drive ? P.collide.carRestitution : P.collide.walkRestitution, dt, P.collide); impact = r.impact; let hit = r.hit; { const ri = this.pushIslands(p, rad, drive ? P.collide.carRestitution : P.collide.walkRestitution, dt); hit = hit || ri.hit; impact = Math.max(impact, ri.impact || 0); } { const ro = this.pushOwnCar(p, rad, P.collide.walkRestitution, dt); hit = hit || ro.hit; impact = Math.max(impact, ro.impact || 0); }
       if (drive && P.collide.npcCars && this.obstacles) { const list = this.obstacles(this.x, this.z, P.collide.npcRange + 4); if (list.length) { const self = carCircles(p.x, p.z, this.ry, P.collide.selfOffset, this._offs || (this._offs = [])); const r2 = resolveCircles(p, self, P.collide.selfR, list, P.collide.carRestitution, dt, P.collide); hit = hit || r2.hit; impact = Math.max(impact, r2.impact); } }
-      if (this.solids && !auto) { const L = this.solids(p.x, p.z, drive ? 8 : 3, this.jump.y); if (L.props.length) { const self = drive ? carCircles(p.x, p.z, this.ry, P.collide.selfOffset, this._offs || (this._offs = [])) : ZERO; const r3 = resolveCircles(p, self, drive ? P.collide.selfR : PHYSX.walkerRadius, L.props, drive ? P.collide.carRestitution : 0, dt, P.collide); hit = hit || r3.hit; impact = Math.max(impact, r3.impact); }
+      if (this.solids && !auto) { const L = this.solids(p.x, p.z, drive ? 8 : 7, this.jump.y); if (L.props.length) { const self = drive ? carCircles(p.x, p.z, this.ry, P.collide.selfOffset, this._offs || (this._offs = [])) : ZERO; const r3 = resolveCircles(p, self, drive ? P.collide.selfR : PHYSX.walkerRadius, L.props, drive ? P.collide.carRestitution : 0, dt, P.collide); hit = hit || r3.hit; impact = Math.max(impact, r3.impact); }
         if (L.peds.length && PHYSX.ped.enabled) { const self = drive ? carCircles(p.x, p.z, this.ry, P.collide.selfOffset, this._offs || (this._offs = [])) : ZERO; const r4 = resolveCircles(p, self, drive ? P.collide.selfR : PHYSX.walkerRadius, L.peds, drive ? P.collide.carRestitution : 0, dt, P.collide); hit = hit || r4.hit; impact = Math.max(impact, r4.impact); if (drive && r4.hit && Math.hypot(p.vx, p.vz) > 3) { p.vx *= 1 - PHYSX.ped.bumpSpeedLoss; p.vz *= 1 - PHYSX.ped.bumpSpeedLoss; } } }
       this.x = p.x; this.z = p.z; this.blocked = hit;
       if (drive) { c.x = p.x; c.z = p.z; setCarVel(c, p.vx, p.vz); this.v = c.v; } else { w.vx = p.vx; w.vz = p.vz; w.speed = Math.hypot(w.vx, w.vz); this.v = w.speed; }
@@ -121,11 +137,11 @@ export class Controller {
     this.root.position.set(this.x, 0, this.z); this.root.rotation.y = this.ry;
     // visuals
     if (!drive) {
-      const steps = gaitStep(w, dt, P.walk); const b = this.avatar.userData.body; b.position.y = w.bob; b.rotation.z = -w.lean; b.rotation.x = w.sway; this.avatar.position.y = pose.y + this.jump.y; this.avatar.rotation.z = pose.tilt;
+      const steps = gaitStep(w, dt, P.walk); const b = this.avatar.userData.body; b.position.y = w.bob; b.rotation.z = -w.lean; b.rotation.x = w.sway; poseAvatar(this.avatar, w.phase, w.speed); this.avatar.position.y = pose.y + this.jump.y; this.avatar.rotation.z = pose.tilt;
       if (steps > 0 && P.audio.footsteps && !this.jump.air && w.speed > P.audio.footstepMinSpeed) { const now = performance.now(); if (now - this.stepAt > 90) { this.stepAt = now; this.onStep?.(w.speed / P.walk.runSpeed); } }
     } else {
       if (auto) { const l = ambientLean(oldRy, this.ry, oldV, this.v, Math.max(dt, 1e-3)); ax = l.ax; ay = l.ay; }
-      suspStep(this.susp, ax, ay, kick, dt, P.susp); const m = this.carObj.children[0]; if (m) { m.rotation.x = this.susp.roll; m.rotation.z = this.susp.pitch; m.position.y = 0.12 + this.susp.y; } this.avatar.position.y = 0; this.avatar.rotation.z = 0;
+      suspStep(this.susp, ax, ay, kick, dt, P.susp); const m = this.carObj.children[0]; if (m) { m.rotation.x = this.susp.roll; m.rotation.z = this.susp.pitch; m.position.y = 0.12 + this.susp.y; } spinWheels(this.carObj, this.v * dt); this.avatar.position.y = 0; this.avatar.rotation.z = 0;
     }
     this.prevRy = this.ry; this.prevV = this.v;
   }

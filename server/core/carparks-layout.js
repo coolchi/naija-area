@@ -34,6 +34,6 @@ export function nearestFree(lot, x, z, blocked = []) { const bl = new Set(blocke
 export function parkingChip(st) {
   const lot = lotAt(st.lots, st.x, st.z, 1);
   if (st.mine) { if (st.mode === 'walk' && Math.hypot(st.mine.x - st.x, st.mine.z - st.z) <= st.takeRange) return { kind: 'take', label: '🚗 Take my car' }; return null; }
-  if (lot && st.mode === 'drive') return st.ownedCar ? { kind: 'park', lot, label: lot.fee ? `🅿️ Park here · ₦${lot.fee}` : '🅿️ Park here · free' } : { kind: 'hint', lot, label: '🅿️ Park your own car here (buy one at Naija Auto Mart)' };
+  if (lot && st.mode === 'drive') return st.ownedCar ? { kind: 'park', lot, label: lot.fee ? `🅿️ Park here · ₦${lot.fee}` : '🅿️ Park here · free' } : { kind: 'hint', lot, label: '🅿️ Park your own car here (buy one at Motoka AutoMart Showroom)' };
   return null;
 }

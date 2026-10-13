@@ -12,6 +12,13 @@ export function resaleValue(app, car, now = app.clock.now()) {
   return Math.floor(car.paid * Math.max(R.floorFraction, 1 - R.firstDriveOffFraction - R.perDayDepreciation * days));
 }
 const rows = (app, uid) => app.db.prepare('SELECT * FROM player_cars WHERE user_id=? ORDER BY id').all(uid);
+/** inside the mart, or on the forecourt where the display cars stand */
+function atShowroom(app, p) {
+  if (p.venue === 'venue_motors') return true;
+  const city = (app.cities && app.cities[p.city]) || app.city;
+  const v = (city?.venues || []).find(x => x.id === 'venue_motors'); if (!v) return false;
+  return Math.hypot((p.x || 0) - v.x, (p.z || 0) - v.z) <= 26;
+}
 /** Meco: condition 40..100 (falls with days since the last service or purchase) and the short post-service perk. */
 export function conditionOf(app, car, now = app.clock.now()) {
   const M = app.balance.cars.meco; const days = Math.max(0, (now - Math.max(car.bought_at, car.serviced_at || 0)) / DAY);
@@ -34,7 +41,7 @@ export function garageView(app, uid) {
 }
 export function buyCar(app, uid, model, idemKey) {
   const m = modelDef(app, model); if (!m) bad('NO_MODEL', 'We do not sell that model.', 404);
-  const p = ensurePresence(app, uid); if (p.venue !== 'venue_motors') bad('NOT_IN_SHOWROOM', 'Go inside the showroom to buy a car.', 409);
+  const p = ensurePresence(app, uid); if (!atShowroom(app, p)) bad('NOT_IN_SHOWROOM', 'Stand at Motoka AutoMart Showroom, or go inside, to buy a car.', 409);
   return app.db.transaction(() => {
     const have = rows(app, uid); if (have.length >= app.balance.cars.garageSlots) bad('GARAGE_FULL', `Your garage holds ${app.balance.cars.garageSlots} cars. Sell one first.`, 409);
     move(app, { from: cashId(uid), to: SYS.SINK_CARS, amount: m.price, reason: 'car_purchase', ref: model, userId: uid, idemKey: idemKey ? `car:${uid}:${idemKey}` : null });
@@ -68,7 +75,7 @@ export function mecoCheck(app, uid) {
 export function mecoService(app, uid, idemKey) {
   const p = ensurePresence(app, uid); if (p.venue !== 'venue_meco') bad('NOT_AT_MECO', 'Go inside Meco to service your car.', 409);
   return app.db.transaction(() => {
-    const c = app.db.prepare('SELECT * FROM player_cars WHERE user_id=? AND active=1').get(uid); if (!c) bad('NO_CAR', 'You no get your own car yet. Buy one at the Auto Mart.', 409);
+    const c = app.db.prepare('SELECT * FROM player_cars WHERE user_id=? AND active=1').get(uid); if (!c) bad('NO_CAR', 'You no get your own car yet. Buy one at Motoka AutoMart Showroom.', 409);
     const now = app.clock.now(); const M = app.balance.cars.meco; if ((c.serviced_until || 0) > now) bad('STILL_FRESH', 'Your car still dey sweet from the last service. Come back later.', 409);
     move(app, { from: cashId(uid), to: SYS.SINK_CARS, amount: M.serviceFee, reason: 'car_service', ref: String(c.id), userId: uid, idemKey: idemKey ? `carsvc:${uid}:${idemKey}` : null });
     app.db.prepare('UPDATE player_cars SET serviced_at=?, serviced_until=? WHERE id=?').run(now, now + M.perkMs, c.id);

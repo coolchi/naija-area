@@ -238,7 +238,7 @@ export function migrate(db, { later = true } = {}) {
   add('player_state', 'last_flight_at', 'INTEGER NOT NULL DEFAULT 0'); add('player_state', 'last_boat_at', 'INTEGER NOT NULL DEFAULT 0');
   add('users', 'chat_muted_until', 'INTEGER NOT NULL DEFAULT 0');
   add('property_owner', 'name_hidden', 'INTEGER NOT NULL DEFAULT 0'); add('property_owner', 'wall_color', "TEXT NOT NULL DEFAULT 'cream'"); add('property_owner', 'floor_color', "TEXT NOT NULL DEFAULT 'oak'");
-  add('player_state', 'mood', 'REAL NOT NULL DEFAULT 60'); add('player_state', 'hair', 'TEXT'); add('player_state', 'hair_at', 'INTEGER NOT NULL DEFAULT 0');
+  add('player_state', 'mood', 'REAL NOT NULL DEFAULT 60'); add('player_state', 'hair', 'TEXT'); add('player_state', 'hair_at', 'INTEGER NOT NULL DEFAULT 0'); add('player_state', 'gender', "TEXT NOT NULL DEFAULT 'male'");
   db.exec(PHONE_SQL);
   db.exec(PAYMENTS_SQL);
   db.exec(AGE_SQL);

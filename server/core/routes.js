@@ -192,6 +192,7 @@ route('POST', '/api/wearables/buy', { auth: 'user' }, (c) => wear.buy(c.app, c.u
 route('POST', '/api/wearables/equip', { auth: 'user' }, (c) => wear.equip(c.app, c.uid, c.body.itemId));
 route('POST', '/api/wearables/unequip', { auth: 'user' }, (c) => wear.unequip(c.app, c.uid, c.body.slot));
 route('POST', '/api/wearables/sell', { auth: 'user' }, (c) => wear.sell(c.app, c.uid, c.body.itemId, c.body.idem));
+route('POST', '/api/avatar/gender', { auth: 'user' }, (c) => world.setGender(c.app, c.uid, c.body?.gender));
 // first-five-minutes tutorial
 route('GET', '/api/tutorial', { auth: 'user' }, (c) => tutorial.view(c.app, c.uid));
 route('POST', '/api/tutorial/ack', { auth: 'user' }, (c) => tutorial.ack(c.app, c.uid, String(c.body.step || '')));

@@ -13,16 +13,16 @@ export class Nav {
   /** both estimates for a destination (cached by rounded position; null route means "no way through") */
   estimate(dest) {
     const c = this.g.ctrl; const key = `${Math.round(c.x / 4)},${Math.round(c.z / 4)}>${Math.round(dest.x)},${Math.round(dest.z)}`; if (this.cache.has(key)) return this.cache.get(key); const G = this.ensureGrid(); const out = {};
-    for (const m of ['walk', 'drive']) { const r = findRoute(G, [c.x, c.z], [dest.x, dest.z], m); out[m] = r ? { length: r.length, sec: etaSeconds(r.length, m), label: etaLabel(etaSeconds(r.length, m)) } : null; }
+    const pace = c.rideDrive > NAV.driveMax ? 2 : 1; for (const m of ['walk', 'drive']) { const r = findRoute(G, [c.x, c.z], [dest.x, dest.z], m); const sp = m === 'drive' ? pace : 1; const sec = r ? etaSeconds(r.length, m, sp) : 0; out[m] = r ? { length: r.length, sec, label: etaLabel(sec) } : null; }
     if (this.cache.size > 40) this.cache.clear(); this.cache.set(key, out); return out;
   }
   /** begin navigation. opts.mode 'walk' | 'drive' (default: what the player is doing now); opts.auto false = guidance only */
   start(dest, opts = {}) {
     const g = this.g, c = g.ctrl; if (g.busy || c.frozen) return null; const mode = opts.mode || c.mode; const auto = opts.auto !== false;
     const route = findRoute(this.ensureGrid(), [c.x, c.z], [dest.x, dest.z], mode); if (!route) { g.ui.toast('No way through to there from here. Try the travel options instead.'); return null; }
-    this.cancel('replaced', true); if (c.mode !== mode) { if (mode === 'drive' && g.parking?.blocksDriving()) return null; c.toggleCar(); g.net.nudge?.(); }
-    this.active = { dest, mode, auto, pts: route.pts, length: route.length, i: 1, started: performance.now() };
-    if (auto) c.auto = new Auto(route.pts, mode); g.setWaypoint(dest.x, dest.z, dest.name); this.draw(route.pts); this.chip.classList.remove('hidden'); this.t = 0; this.tick(0); g.ui.sfx?.('ok'); return this.active;
+    this.cancel('replaced', true); if (c.mode !== mode) { g.toggleCar(mode === 'drive' ? { summon: true } : {}); if (c.mode !== mode) return null; }
+    const pace = mode === 'drive' && c.rideDrive > NAV.driveMax ? 2 : 1; this.active = { dest, mode, auto, pts: route.pts, length: route.length, i: 1, started: performance.now(), pace };
+    if (auto) c.auto = new Auto(route.pts, mode, { driveMax: NAV.driveMax * pace }); g.setWaypoint(dest.x, dest.z, dest.name); this.draw(route.pts); this.chip.classList.remove('hidden'); this.t = 0; this.tick(0); g.ui.sfx?.('ok'); return this.active;
   }
   cancel(why = 'stopped', silent = false) { const a = this.active; this.g.ctrl.auto = null; if (this.mesh) { this.g.scene.remove(this.mesh); this.mesh.geometry.dispose(); this.mesh = null; } this.active = null; this.chip.classList.add('hidden');
     if (a && !silent) { if (why !== 'arrived') { this.g.waypoint = null; this.g.dest.visible = false; } if (why === 'stopped') this.g.ui.toast('Navigation stopped. You have the controls.'); else if (why === 'manual') this.g.ui.toast('You took over. Navigation stopped.'); else if (why === 'stuck') this.g.ui.toast('Something is in the way. You have the controls; the route is still shown.'); } }
@@ -40,6 +40,6 @@ export class Nav {
     const rem = remaining(a.pts, a.i, c.x, c.z); const end = a.pts[a.pts.length - 1]; const dEnd = Math.hypot(end[0] - c.x, end[1] - c.z);
     if ((au && au.done) || dEnd < (a.mode === 'drive' ? NAV.arriveDrive + 1.5 : NAV.arriveWalk + 1.5) || (au?.stuck && dEnd < NAV.nearEnough)) { this.cancel('arrived', true); this.g.ui.toast(`You have arrived at ${a.dest.name || 'your destination'}.`); this.g.ui.sfx?.('ok'); return; }
     if (au?.stuck) { this.cancel('stuck'); return; }
-    if (this.t > 0.4 || dt === 0) { this.t = 0; const sec = etaSeconds(rem, a.mode); $('#navText').textContent = `🧭 ${a.dest.name || 'Destination'} · ${Math.round(rem)} m · ${etaLabel(sec)} ${a.mode === 'drive' ? '🚗' : '🚶'}${a.auto ? ' auto' : ' guide'}`; }
+    if (this.t > 0.4 || dt === 0) { this.t = 0; const sec = etaSeconds(rem, a.mode, a.pace || 1); const kmh = Math.max(0, Math.round((c.groundSpeed?.() || 0) * 3.6)); $('#navText').textContent = `🧭 ${a.dest.name || 'Destination'} · ${Math.round(rem)} m · ${etaLabel(sec)} · ${kmh} km/h ${a.mode === 'drive' ? '🚗' : '🚶'}${a.auto ? ' auto' : ' guide'}`; }
   }
 }

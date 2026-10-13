@@ -2,7 +2,7 @@
 // Most lamps are steady, about 1 in 12 flickers, about 1 in 14 is broken and stays dark: Lagos flavour. All numbers are placeholders (ESTIMATE) in LAMP.
 import { roadPts, isCurved, polyLen, pointAt, nearestOnPoly, roadAt } from './roadgeom.js';
 
-export const LAMP = { spacing: 38, curveSpacing: 30, height: 6.4, armLen: 0.9, poolR: 7.5, poolOffset: 3.2, flickerShare: 1 / 12, brokenShare: 1 / 14, onFrom: 0.28, fullAt: 0.6, ra: 4, kerb: 1.8 };
+export const LAMP = { spacing: 38, curveSpacing: 30, height: 6.4, armLen: 0.9, poolR: 11, poolOffset: 4.4, flickerShare: 1 / 12, brokenShare: 1 / 14, onFrom: 0.28, fullAt: 0.6, ra: 4, kerb: 1.8 };
 const hash = (n) => { let x = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35); x ^= x >>> 16; return (x >>> 0) / 4294967296; };
 const kindOf = (i) => { const r = hash(i * 7919 + 13); return r < LAMP.brokenShare ? 'broken' : r < LAMP.brokenShare + LAMP.flickerShare ? 'flicker' : 'steady'; };
 
@@ -13,7 +13,7 @@ export function lampPositions(city) {
   for (const o of city.roundabouts || []) for (const rr of [o.outerR + 6.5, o.outerR + 9.5]) for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + i * Math.PI / 2; add(o.x + Math.cos(a) * rr, o.z + Math.sin(a) * rr); } // the four corners, away from the crossing roads
   for (const r of city.roads) { if (!isCurved(r)) continue; const pts = roadPts(r), L = polyLen(pts); const n = Math.floor(L / LAMP.curveSpacing); for (let i = 1; i < n; i++) { const q = pointAt(pts, L * i / n); const side = i % 2 ? 1 : -1; const off = r.width / 2 + LAMP.kerb; add(q[0] - Math.sin(q[2]) * side * off, q[1] + Math.cos(q[2]) * side * off); } }
   for (const z of city.zones || []) { for (let x = z.x0 + 12; x < z.x1 - 6; x += LAMP.spacing) for (const zz of [z.z0 + 2, z.z1 - 2]) add(x, zz); for (let zz = z.z0 + 20; zz < z.z1 - 6; zz += LAMP.spacing) for (const xx of [z.x0 + 2, z.x1 - 2]) add(xx, zz); }
-  for (const br of city.bridges || []) { const a = br.type === 'cable' ? br.x0 : br.a, b = br.type === 'cable' ? br.x1 : br.b, w = (br.type === 'cable' ? br.deckWidth : br.width) / 2 + 0.9; for (let x = a + 8; x < b - 6; x += br.type === 'cable' ? 22 : 24) for (const sd of [-1, 1]) { const id = out.length; out.push({ x: Math.round(x * 100) / 100, z: br.z + sd * w, fx: 0, fz: -sd, id, kind: kindOf(id) }); } }
+  for (const br of city.bridges || []) { const a = br.type === 'cable' ? br.x0 : br.a, b = br.type === 'cable' ? br.x1 : br.b, w = (br.type === 'cable' ? br.deckWidth : br.width) / 2 + 0.9; for (let x = a + 8; x < b - 6; x += br.type === 'cable' ? 22 : 24) for (const sd of [-1, 1]) { const id = out.length; out.push({ x: Math.round(x * 100) / 100, z: br.z + sd * w, fx: 0, fz: -sd, id, kind: kindOf(id), bridge: br.type === "cable" }); } }
   return out;
 }
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };

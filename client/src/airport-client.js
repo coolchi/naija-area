@@ -14,6 +14,8 @@ export class AirportClient {
     this.plan = planFlight(this.ap, [0, -60]); this.field = makeAirfield(this.ap); game.scene.add(this.field);
     this.parked = makePlane(); this.parked.position.set(this.ap.apron.x, 0, this.ap.apron.z); this.parked.rotation.y = -this.plan.taxiHeading; game.scene.add(this.parked);
     this.plane = makePlane(); this.plane.visible = false; game.scene.add(this.plane);
+    const Bb = game.city.bounds; const cx = (Bb.minX + Bb.maxX) / 2, cz = (Bb.minZ + Bb.maxZ) / 2; const reach = Math.min(380, (Bb.maxX - Bb.minX) * 0.32);
+    this.sky = []; for (let i = 0; i < 4; i++) { const m = makePlane(); m.name = 'sky-plane'; game.scene.add(m); this.sky.push({ m, ang: i * 1.57 + 0.4, alt: 86 + i * 32, w: 0.11 + i * 0.025, rx: reach * (0.62 + i * 0.14), rz: reach * (0.48 + i * 0.1), cx, cz, bank: i % 2 ? -0.18 : 0.14 }); }
     this.others = new Map(); this.pl = []; this.hideParked = false; // planes other players are on (heartbeat field pl), drawn from the same pure path
     this.chip = h('div', { id: 'airChip', class: 'pill hidden' }, h('button', { id: 'airBtn', class: 'park-btn', onclick: () => this.openBoard() }, ''));
     this.banner = h('div', { id: 'airBanner', class: 'pill hidden' }); document.body.append(this.chip, this.banner);
@@ -26,7 +28,7 @@ export class AirportClient {
     for (const p of this.pl) {
       if (this.flying && this.flight && p.kind === 'dep' && p.t0 === this.flight.departsAt) continue; // that one is mine
       const pose = p.kind === 'dep' ? departPose(this.plan, (serverNow - p.t0) / 1000) : landingPose(this.plan, (serverNow - (p.t1 - T * 1000)) / 1000); if (!pose) continue; seen.add(p.id);
-      let m = this.others.get(p.id); if (!m) { m = this.plane.clone(); m.userData.att = { roll: pose.roll, pitch: pose.pitch, yaw: pose.yaw }; g.scene.add(m); this.others.set(p.id, m); }
+      let m = this.others.get(p.id); if (!m) { m = makePlane(); m.userData.att = { roll: pose.roll, pitch: pose.pitch, yaw: pose.yaw }; g.scene.add(m); this.others.set(p.id, m); }
       m.visible = true; m.position.set(pose.x, pose.y, pose.z); const A = PHYS.plane, att = m.userData.att; att.roll = smoothAngle(att.roll, pose.roll, A.attitudeRate, dt); att.pitch = smoothAngle(att.pitch, pose.pitch, A.attitudeRate, dt); att.yaw = smoothAngle(att.yaw, pose.yaw, A.attitudeRate, dt); m.rotation.set(att.roll, att.yaw, att.pitch, 'YZX');
       if (p.kind === 'arr' || (serverNow - p.t0) / 1000 < this.plan.F.taxiS + this.plan.F.rollS) park = true;
     }
@@ -66,7 +68,10 @@ export class AirportClient {
     const left = f.arriveAt - g.serverNow(); this.banner.textContent = left > 0 ? `✈ Flying to ${f.toName} · ${mmss(left)}` : `✈ Landing in ${f.toName}…`; if (left <= 300 && !this.nudged) { this.nudged = true; setTimeout(() => g.net.nudge?.(), 600); }
   }
   tick(dt) {
-    if (!this.ap) return; this.drawOthers(performance.now(), Math.min(0.1, dt / 1000)); if (this.flying) return; const g = this.g; this.t += dt; if (this.t < 400) return; this.t = 0; const tk = this.ticket;
+    if (!this.ap) return;
+    const sec = Math.min(0.05, dt / 1000);
+    for (const s of this.sky) { s.ang += s.w * sec; const x = s.cx + Math.cos(s.ang) * s.rx, z = s.cz + Math.sin(s.ang) * s.rz; const heading = Math.atan2(Math.cos(s.ang) * s.rz, -Math.sin(s.ang) * s.rx); s.m.position.set(x, s.alt, z); s.m.rotation.set(0.05, -heading, s.bank, 'YZX'); }
+    this.drawOthers(performance.now(), Math.min(0.1, dt / 1000)); if (this.flying) return; const g = this.g; this.t += dt; if (this.t < 400) return; this.t = 0; const tk = this.ticket;
     let label = null; if (tk && tk.state === 'ticketed') label = `🎫 ${tk.toName} · leaves in ${mmss(tk.departsAt - g.serverNow())}`; else if (!tk && this.near()) label = '✈ Departures';
     if (g.commute || g.busy || g.interior?.open || g.venue?.open || g.garage?.open || g.ui.sheetOpen) label = null; this.chip.classList.toggle('hidden', !label); if (label) $('#airBtn').textContent = label;
     if (this.parked) { const d = Math.hypot(g.ctrl.x - this.ap.apron.x, g.ctrl.z - this.ap.apron.z); this.parked.visible = d < 520 && !(tk && tk.state === 'flying') && !this.hideParked; this.field.visible = d < 520; }

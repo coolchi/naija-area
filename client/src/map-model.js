@@ -1,7 +1,7 @@
 // Pure (no DOM) model behind the full city map: everything is derived from the city JSON, so a new district or city file shows up with no code change.
 // Used by map.js (drawing + input) and by tests/map.test.js.
-export const KIND_COL = { house: '#8fb0c9', kiosk: '#9bc59d', market: '#e0a85c', office: '#9aa3b8', tower: '#6c7aa6', shop: '#f0c04a', airport: '#cfd8e3', hotel: '#d8b46a', landmark: '#c59be0', stadium: '#7fc08a', hut: '#c8a47a' };
-export const KIND_NAME = { house: 'House', kiosk: 'Kiosk', market: 'Market', office: 'Office block', tower: 'Tower block', shop: 'Shop', airport: 'Airport terminal', hotel: 'Hotel', landmark: 'Landmark', stadium: 'Stadium', hut: 'Hut' };
+export const KIND_COL = { house: '#8fb0c9', kiosk: '#9bc59d', market: '#e0a85c', office: '#9aa3b8', tower: '#6c7aa6', shop: '#f0c04a', airport: '#cfd8e3', hotel: '#d8b46a', landmark: '#c59be0', stadium: '#7fc08a', hut: '#c8a47a', block: '#d7c4a8' };
+export const KIND_NAME = { house: 'House', kiosk: 'Kiosk', market: 'Market', office: 'Office block', tower: 'Tower block', shop: 'Shop', airport: 'Airport terminal', hotel: 'Hotel', landmark: 'Landmark', stadium: 'Stadium', hut: 'Hut', block: 'Lagos block' };
 export const MODEL_ICON = { mosque: '🕌', cathedral: '⛪', theatre: '🎭', chapel: '⛪', rock: '🪨' };
 export const KIND_ICON = { hut: '🛖', stadium: '🏟️', hotel: '🏨', club: '🎵', salon: '✂️', arts: '🎭' };
 export const LM_ICON = { plaza: '⛲', clinic: '🏥', beach: '🏖️', jetty: '⛴️', hill: '⛰️', wall: '🧱', dyepits: '🎨', rock: '🪨', motorpark: '🚌', well: '🪣', farm: '🌾', pen: '🐐' };
@@ -24,7 +24,7 @@ export function buildModel(city) {
   for (const s of city.boat?.stops || []) items.push({ type: 'landmark', id: s.id, name: s.name, x: s.x, z: s.z, icon: '⛵', lines: ['Boat jetty', 'Call a boat here. Fares are placeholders.'] });
   for (const l of city.carParks || []) items.push({ type: 'landmark', id: l.id, name: l.name, x: l.x, z: l.z, lot: { w: l.w, d: l.d }, icon: '🅿️', lines: ['Car park', l.fee ? `Fee ₦${l.fee} (ESTIMATE)` : 'Free parking', l.blurb || ''], placeId: null, group: 'Car parks' });
   for (const b of city.busStops || []) items.push({ type: 'landmark', id: b.id, name: b.name, x: b.x, z: b.z, icon: '🚏', lines: ['Bus stop: wait here and a danfo will stop for you.', 'Ride fares are the normal danfo fare.'], placeId: b.id, group: 'Bus stops' });
-  for (const b of city.buildings) if (b.kind === 'airport') { const door = city.airport?.door; const ax = Number.isFinite(door?.x) ? door.x : b.x, az = Number.isFinite(door?.z) ? door.z : b.z; items.push({ type: 'landmark', id: b.id, name: b.label || 'Airport', x: ax, z: az, icon: '✈️', lines: ['Departures'], placeId: placeOf('airport') ? 'airport' : null, group: 'Landmarks' }); }
+  for (const b of city.buildings) if (b.kind === 'airport') { const door = city.airport?.door; const ax = Number.isFinite(door?.x) ? door.x : b.x, az = Number.isFinite(door?.z) ? door.z : b.z; items.push({ type: 'landmark', id: b.id, name: b.label || 'Airport', x: ax, z: az, icon: '✈️', lines: ['FlyNaija'], placeId: placeOf('airport') ? 'airport' : null, group: 'Landmarks' }); }
   for (const b of city.buildings) if (b.kind === 'landmark') items.push({ type: 'landmark', id: b.id, name: b.label, x: b.x, z: b.z, icon: MODEL_ICON[b.model] || '🏛️', lines: [b.sacred ? 'Landmark. A place of worship: please be respectful.' : 'Landmark'], placeId: null, group: 'Landmarks' });
   for (const l of city.links || []) items.push({ type: 'landmark', id: `link_${l.id}`, name: l.name, x: l.x, z: l.z, icon: '🌉', lines: [`Road to ${l.to}. Walk to the gate and tap Go.`, `Fare ₦${l.fare ?? 200} (ESTIMATE)`], placeId: null, group: 'Road links' });
   for (const br of city.bridges || []) items.push({ type: 'landmark', id: `bridge_${br.id}`, name: br.name, x: br.type === 'cable' ? (br.pylonX || 0) : (br.a + br.b) / 2, z: br.z, icon: '🌉', lines: [br.type === 'cable' ? 'Cable-stayed bridge with a single pylon' : 'Bridge'], placeId: null, group: 'Landmarks' });
@@ -43,11 +43,39 @@ export function buildModel(city) {
   return { city, items, roads, roundabouts, districts, buildings, catalogue, bounds: city.bounds, water: city.water || null, zones: city.zones || [] };
 }
 
-/** simple ranked search over names (prefix > word start > substring) */
+const fold = (s) => String(s || '').toLowerCase().replace(/[\u2010-\u2015\u2212]/g, '-').replace(/\s+/g, ' ').trim();
+/** simple ranked search over names (prefix > word start > substring). A typed dash matches a hyphen, so Lekki–Ikoyi finds Lekki-Ikoyi. */
 export function search(model, q, limit = 12) {
-  const s = String(q || '').trim().toLowerCase(); if (!s) return model.catalogue.filter(i => ['venue', 'shop', 'landmark', 'district'].includes(i.type)).slice(0, limit);
-  const out = []; for (const it of model.catalogue) { const n = it.name.toLowerCase(); let sc = -1; if (n.startsWith(s)) sc = 3; else if (n.split(/[\s(]+/).some(w => w.startsWith(s))) sc = 2; else if (n.includes(s) || (it.group || '').toLowerCase().startsWith(s)) sc = 1; if (sc > 0) out.push([sc, it]); }
+  const s = fold(q); if (!s) return model.catalogue.filter(i => ['venue', 'shop', 'landmark', 'district'].includes(i.type)).slice(0, limit);
+  const out = []; for (const it of model.catalogue) { const n = fold(it.name); const words = n.split(/[\s(\-]+/).filter(Boolean); let sc = -1; if (n.startsWith(s)) sc = 3; else if (words.some(w => w.startsWith(s))) sc = 2; else if (n.includes(s) || fold(it.group || '').startsWith(s)) sc = 1; if (sc > 0) out.push([sc, it]); }
   return out.sort((a, b) => b[0] - a[0] || a[1].name.localeCompare(b[1].name)).slice(0, limit).map(x => x[1]);
+}
+/** districts on other maps whose names match. The bridge is its own district, so a search on the mainland can still name it. */
+export function searchDistricts(cities, hereId, q, limit = 4) {
+  const s = fold(q); if (!s) return [];
+  const out = [];
+  for (const c of cities || []) {
+    if (!c || c.id === hereId) continue;
+    const n = fold(c.district || c.name || ''); const words = n.split(/[\s(\-]+/).filter(Boolean);
+    let sc = -1; if (n.startsWith(s)) sc = 3; else if (words.some(w => w.startsWith(s))) sc = 2; else if (n.includes(s)) sc = 1;
+    if (sc > 0) out.push([sc, c]);
+  }
+  return out.sort((a, b) => b[0] - a[0] || String(a[1].district || '').localeCompare(String(b[1].district || ''))).slice(0, limit).map(x => x[1]);
+}
+/** road links to follow from one district to another. Each hop is {from, linkId, name, to}. */
+export function roadTo(cities, fromId, toId) {
+  const by = new Map((cities || []).map(c => [c.id, c]));
+  const q = [[fromId, []]], seen = new Set([fromId]);
+  while (q.length) {
+    const [id, path] = q.shift();
+    if (id === toId) return path;
+    for (const l of by.get(id)?.links || []) {
+      if (!l?.to || seen.has(l.to)) continue;
+      seen.add(l.to);
+      q.push([l.to, path.concat([{ from: id, linkId: l.id, name: l.name, to: l.to }])]);
+    }
+  }
+  return null;
 }
 
 /** what is under world point (x, z)? k = pixels per world unit (bigger k = smaller tolerance in world units). Markers beat buildings beat plots beat roads beat districts. */

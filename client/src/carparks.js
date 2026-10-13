@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Builder } from '../sample/builder.js';
 import { carGeo } from '../sample/vehicles.js';
+import { gwagonRig } from '../sample/gwagon-rig.js';
+import { cyberRig } from '../sample/cyber-rig.js';
 import { bays, ambientBays, ambientLook, gatePos, SLOT_HOURS, BAY } from '../../server/core/carparks-layout.js';
 import { makeNameSprite, blobShadow } from './entities.js';
 
@@ -47,7 +49,7 @@ export class CarParks {
   /** real players' parked cars: [{ lot, bay, x, z, ry, color, who? , mine? }] */
   setParked(list, myName) {
     this.parked = list; for (const c of this.cars) { this.real.remove(c); if (c.userData.tag) c.userData.tag.material.map?.dispose(); } this.cars = [];
-    for (const p of list) { const g = new THREE.Group(); const m = new THREE.Mesh(carG(p.body || 'hatch', new THREE.Color(p.color).getHex()), vcMat); m.position.y = 0.1; g.add(m); g.add(blobShadow(5.2, 2.8)); g.position.set(p.x, TOP, p.z); g.rotation.y = p.ry; const tag = makeNameSprite(p.mine ? 'Your car' : '@' + p.who, p.mine ? '#ffc20e' : '#ffffff'); tag.position.set(0, p.body === 'gwagon' ? 3.8 : 3.2, 0); tag.scale.multiplyScalar(0.6); g.userData.tag = tag; g.add(tag); this.real.add(g); this.cars.push(g); }
+    for (const p of list) { const g = new THREE.Group(); const body = p.body || 'hatch'; const rig = body === 'gwagon' ? gwagonRig : body === 'cyber' ? cyberRig : null; if (rig) { const car = rig(p.color); car.position.y = 0.1; g.add(car); } else { const m = new THREE.Mesh(carG(body, new THREE.Color(p.color).getHex()), vcMat); m.position.y = 0.1; g.add(m); } g.add(blobShadow(body === 'cyber' ? 5.8 : 5.2, body === 'gwagon' ? 3.1 : 2.8)); g.position.set(p.x, TOP, p.z); g.rotation.y = p.ry; const tag = makeNameSprite(p.mine ? 'Your car' : '@' + p.who, p.mine ? '#ffc20e' : '#ffffff'); tag.position.set(0, body === 'gwagon' ? 2.45 : body === 'cyber' ? 2.3 : 2.1, 0); g.userData.tag = tag; g.userData.mine = !!p.mine; g.userData.buyModel = p.mine ? '' : (p.modelId || ''); g.add(tag); this.real.add(g); this.cars.push(g); }
     void myName;
   }
   /** hide far lots completely (nothing drawn beyond cullDist) */

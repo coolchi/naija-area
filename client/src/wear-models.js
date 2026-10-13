@@ -52,6 +52,22 @@ export function buildItem(b, it, cat) {
       for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; const px = -0.02 + Math.cos(a) * r * 0.92, pz = Math.sin(a) * r * 0.92; b.cone(0.05 * s, 0.24 * s, 5, px, y0 + 0.1 * s, pz, m, NO); b.ico(0.03 * s, px, y0 + 0.34 * s, pz, i % 2 && gem ? gem : 0xfff1a8, { ...NO, detail: 0 }); }
       if (gem) b.ico(0.045 * s, -0.02 + r, y0 + 0.05 * s, 0, gem, { ...NO, detail: 0 });
       break; }
+    case 'shirt': {
+      b.box(0.56 * s, 0.7 * s, 0.92 * s, 0, 1.02, 0, m, NO);
+      b.box(0.28 * s, 0.5 * s, 0.22 * s, 0, 1.16, 0.5 * s, m, NO);
+      b.box(0.28 * s, 0.5 * s, 0.22 * s, 0, 1.16, -0.5 * s, m, NO);
+      b.box(0.18 * s, 0.06 * s, 0.22 * s, 0.16 * s, 1.62, 0, 0xf4f4f0, NO);
+      break; }
+    case 'trousers': {
+      for (const z of [0.2, -0.2]) b.box(0.38 * s, 0.8 * s, 0.32 * s, 0, 0.02, z, m, NO);
+      break; }
+    case 'shoes': {
+      for (const z of [0.2, -0.2]) { b.box(0.48 * s, 0.12 * s, 0.28 * s, 0.06, 0, z, m, NO); b.box(0.14 * s, 0.05 * s, 0.24 * s, -0.14, 0, z, 0x111111, NO); }
+      break; }
+    case 'dress': {
+      b.box(0.72 * s, 1.15 * s, 1.02 * s, 0, 0.2, 0, m, NO);
+      b.box(0.46 * s, 0.2 * s, 0.84 * s, 0, 1.28, 0, m, NO);
+      break; }
   }
   void shine;
 }
@@ -78,12 +94,26 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 const mergeInto = (geos) => mergeGeometries(geos.map(g => { const c = g.clone(); for (const k of Object.keys(c.attributes)) if (!['position', 'normal', 'color', 'uv'].includes(k)) c.deleteAttribute(k); return c; }), false);
 
 /** dress `avatar` (from makeAvatar) in the given item ids using the catalogue. Safe to call every heartbeat: nothing happens unless the set changed. */
+const CLOTH_KIND = new Set(['shirt', 'trousers', 'shoes', 'dress']);
+function paintCloth(avatar, items, cat) {
+  const c = avatar.userData?.cloth; if (!c) return;
+  const pick = (kind) => items.find(it => it.kind === kind);
+  const hex = (it) => { const n = it && cat?.materials?.[it.mat]; return Number.isFinite(n) ? n : null; };
+  const dress = pick('dress'), top = pick('shirt'), legs = pick('trousers'), shoes = pick('shoes');
+  c.shirt.color.setHex(hex(dress) ?? hex(top) ?? c.base.shirt);
+  c.legs.color.setHex(hex(dress) ?? hex(legs) ?? c.base.trousers);
+  c.shoes.color.setHex(hex(shoes) ?? c.base.shoes);
+  if (c.dress) { c.dress.visible = !!dress; if (dress && hex(dress) != null) c.dress.material.color.setHex(hex(dress)); }
+  if (c.belt) c.belt.visible = !dress;
+}
 export function applyWear(avatar, ids, cat) {
   if (!avatar?.userData?.body || !cat) return; const key = (ids || []).join(',');
   if (avatar.userData.wearKey === key) return; avatar.userData.wearKey = key; const body = avatar.userData.body;
   if (avatar.userData.wearMesh) { body.remove(avatar.userData.wearMesh); avatar.userData.wearMesh = null; }
-  const items = (ids || []).map(id => cat.byId[id]).filter(Boolean); if (!items.length) return;
-  const m = new THREE.Mesh(comboGeo(items, cat), WEAR_MAT); m.name = 'wear'; m.frustumCulled = true; body.add(m); avatar.userData.wearMesh = m;
+  const items = (ids || []).map(id => cat.byId[id]).filter(Boolean);
+  paintCloth(avatar, items, cat);
+  const jewels = items.filter(it => !CLOTH_KIND.has(it.kind)); if (!jewels.length) return;
+  const m = new THREE.Mesh(comboGeo(jewels, cat), WEAR_MAT); m.name = 'wear'; m.frustumCulled = true; body.add(m); avatar.userData.wearMesh = m;
 }
 /** hide the pieces on far-away avatars (detail drops with distance) */
 export function wearLod(avatar, visible) { const m = avatar?.userData?.wearMesh; if (m && m.visible !== visible) m.visible = visible; }

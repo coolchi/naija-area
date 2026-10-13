@@ -7,7 +7,7 @@ export const STEPS = [
   { icon: '💼', title: 'Earn money', touch: 'Go to a blue job marker (Corner Mart is the easiest) and start a shift. Game money only: nothing here costs real money.', desk: 'Go to a blue job marker (Corner Mart is the easiest) and start a shift. Game money only: nothing here costs real money.' },
   { icon: '🍲', title: 'Look after yourself', touch: 'Watch the bars top left: energy ⚡, hunger 🍲, health ❤️ and mood 😊. Eat at Mama Put, rest at home.', desk: 'Watch the bars top left: energy ⚡, hunger 🍲, health ❤️ and mood 😊. Eat at Mama Put, rest at home.' },
   { icon: '📱', title: 'Your phone', touch: 'Tap 📱 for wallet, jobs, garage, games, map and Oya Ride. Create a free account to add friends, chat and call.', desk: 'Press P or click 📱 for wallet, jobs, garage, games, map and Oya Ride. Create a free account to add friends, chat and call.' },
-  { icon: '🚗', title: 'Cars and the road', touch: 'Tap the 🚗 button to drive. Traffic stops for you, but not always: a hit hurts your health (never your account).', desk: 'Press C or click 🚗 to drive. Traffic stops for you, but not always: a hit hurts your health (never your account).' }
+  { icon: '🚗', title: 'Cars and the road', touch: 'Walk up to your own car and tap it to get in. Traffic stops for you, but not always: a hit hurts your health (never your account).', desk: 'Walk up to your own car and tap it (or press C beside it) to get in. Traffic stops for you, but not always: a hit hurts your health (never your account).' }
 ];
 export const stepText = (s, touch) => (touch ? s.touch : s.desk);
 /** one line telling the player what to try next, or null. Order matters: the first match wins. `u` is the /api/me user. */
@@ -20,7 +20,7 @@ export function nextHint(u) {
   if (u.health && u.health.health != null && u.health.health < 40) return { id: 'hurt', text: 'Your health is low. Rest, or visit the Community Clinic.' };
   if (!u.home) return { id: 'home', text: 'Get a place to stay: tap a green 🏠 house marker and rent a room.' };
   if (u.guest) return { id: 'account', text: 'Create a free account (phone menu) to keep your progress and add friends.' };
-  if ((u.cash || 0) >= 20000) return { id: 'spend', text: 'Got money? Play a game at Mama Put, or look at cars at Naija Auto Mart.' };
+  if ((u.cash || 0) >= 20000) return { id: 'spend', text: 'Got money? Play a game at Mama Put, or look at cars at Motoka AutoMart Showroom.' };
   return null;
 }
 export const seenTour = (store) => { try { return !!store.getItem(TOUR_KEY); } catch { return true; } };

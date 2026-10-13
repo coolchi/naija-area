@@ -17,6 +17,7 @@ export const BALANCE = {
   jobs: [
     // durationSec = shift timer; cooldownSec after claim before this job again; energyCost/hungerCost deducted at start
     { id: 'rider',   name: 'Delivery Rider',  desc: 'Pick up and drop off food orders around the district.', location: 'job_rider', wage: 1800, durationSec: 90,  cooldownSec: 30, energyCost: 12, hungerCost: 8,  minShiftsToUnlock: 0 },
+    { id: 'cab',     name: 'Cab Driver',      desc: 'Drive passengers across the district and collect the fare.', location: 'job_cab', wage: 3200, durationSec: 120, cooldownSec: 40, energyCost: 14, hungerCost: 8, minShiftsToUnlock: 0 },
     { id: 'shop',    name: 'Shop Assistant',  desc: 'Stock shelves and serve customers at the mini-mart.', location: 'job_shop',  wage: 1300, durationSec: 60,  cooldownSec: 20, energyCost: 8,  hungerCost: 6,  minShiftsToUnlock: 0 },
     { id: 'pos',     name: 'POS Agent',       desc: 'Run a POS kiosk: cash-in, cash-out, airtime.',          location: 'job_pos',   wage: 2600, durationSec: 150, cooldownSec: 45, energyCost: 15, hungerCost: 10, minShiftsToUnlock: 3 },
     { id: 'danfo',   name: 'Danfo Conductor', desc: 'Shout the route and collect fares on the yellow bus.',  location: 'job_bus',   wage: 3600, durationSec: 210, cooldownSec: 60, energyCost: 20, hungerCost: 12, minShiftsToUnlock: 6 },
@@ -107,14 +108,14 @@ export const BALANCE = {
     // Meco mechanic (ALL ESTIMATE placeholders). Condition falls with days since the last service (or purchase) down to a floor; a rough car (below roughBelow)
     // gives a smaller mood bump on rides. A service resets condition and gives a SHORT perk: cheaper fuel per metre and a small extra mood bump for perkMs.
     meco: { serviceFee: 20000, perkMs: 3 * 3600000, fareDiscount: 0.10, perkMood: 1, wearPerDay: 4, wearFloor: 40, roughBelow: 60, roughMoodPenalty: 2 },
-    garageSlots: 3, resale: { firstDriveOffFraction: 0.12, perDayDepreciation: 0.01, floorFraction: 0.5 }, // value = paid * max(floor, 1 - firstDriveOff - perDay * ageDays)
+    garageSlots: 5, resale: { firstDriveOffFraction: 0.12, perDayDepreciation: 0.01, floorFraction: 0.5 }, // value = paid * max(floor, 1 - firstDriveOff - perDay * ageDays)
     models: {
       kekere: { name: 'Kekere Hatch (used)', price: 900000, perM: 0.30, speed: 14, mood: 1, color: '#e9c46a', body: 'hatch' },
       oga: { name: 'Oga Sedan', price: 2500000, perM: 0.28, speed: 18, mood: 3, color: '#457b9d', body: 'sedan' },
       bigboy: { name: 'Big Boy SUV', price: 6000000, perM: 0.45, speed: 24, mood: 6, color: '#2b2d42', body: 'suv' },
       senator: { name: 'Senator Executive', price: 15000000, perM: 0.40, speed: 28, mood: 8, color: '#d62828', body: 'sedan' },
       // Exclusive pair. Prices set by Sherif: 10 billion and 20 billion. drive = free-roam top speed in m/s (under the server clamp).
-      gwagon: { name: 'G-Wagon', price: 10000000000, perM: 0.55, speed: 34, drive: 23, mood: 12, color: '#161616', body: 'gwagon', exclusive: true },
+      gwagon: { name: 'G-Wagon', price: 10000000000, perM: 0.55, speed: 34, drive: 23, mood: 12, color: '#19b4ee', body: 'gwagon', exclusive: true },
       cyber: { name: 'Cybertruck', price: 20000000000, perM: 0.12, speed: 42, drive: 25, mood: 14, color: '#c5c9d0', body: 'cyber', exclusive: true }
     }
   },
@@ -140,12 +141,12 @@ export const BALANCE = {
   movement: { maxWalkSpeed: 7, maxDriveSpeed: 26, slack: 1.6 }, // m/s; server clamps teleports
   interact: { shopRadius: 16, jobRadius: 16, houseRadius: 22 },
   heartbeat: {
-    // adaptive polling interval by concurrent users (ESTIMATE ladder; tune with real load)
+    // Slow state poll. Positions move on the websocket. This ladder is for chat backup, ad evidence and money. ESTIMATE.
     ladder: [
-      { maxCcu: 50,    ms: 5000 },
-      { maxCcu: 1000,  ms: 12000 },
-      { maxCcu: 10000, ms: 20000 },
-      { maxCcu: 50000, ms: 30000 },
+      { maxCcu: 50,    ms: 10000 },
+      { maxCcu: 1000,  ms: 15000 },
+      { maxCcu: 10000, ms: 25000 },
+      { maxCcu: 50000, ms: 35000 },
       { maxCcu: Infinity, ms: 45000 }
     ],
     activeWindowMs: 60000, nearbyRadius: 260, maxNearby: 60, trailKeep: 20

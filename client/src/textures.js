@@ -39,10 +39,16 @@ export function glowTexture() {
   gr.addColorStop(0, 'rgba(0,0,0,.55)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return tex(c);
 }
 export function nameTag(text, color = '#ffffff') {
-  const c = cv(256, 64), g = c.getContext('2d'); g.font = '700 30px Nunito, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  for (let size = 30; size > 15 && g.measureText(text).width > 218; size -= 2) g.font = `700 ${size}px Nunito, system-ui, sans-serif`; // long labels shrink to fit the tag instead of being cut off
-  const w = Math.min(244, g.measureText(text).width + 24); g.fillStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.roundRect(128 - w / 2, 10, w, 44, 14); g.fill();
-  g.fillStyle = color; g.fillText(text, 128, 33);
+  const c = cv(512, 128), g = c.getContext('2d');
+  g.textAlign = 'left'; g.textBaseline = 'middle';
+  let size = 46;
+  g.font = `600 ${size}px Nunito, system-ui, sans-serif`;
+  for (; size > 26 && g.measureText(text).width > 400; size -= 2) g.font = `600 ${size}px Nunito, system-ui, sans-serif`;
+  const tw = g.measureText(text).width, w = Math.min(468, tw + 64), x = 256 - w / 2, y = 34, h = 60;
+  g.fillStyle = 'rgba(6,10,16,.78)'; g.beginPath(); g.roundRect(x, y, w, h, h / 2); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,.28)'; g.lineWidth = 2; g.stroke();
+  g.fillStyle = color; g.beginPath(); g.roundRect(x + 14, y + 18, 4, 24, 2); g.fill();
+  g.fillStyle = color; g.fillText(text, x + 30, y + h / 2 + 1);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 /** house ad shown when a board has no paying advertiser */

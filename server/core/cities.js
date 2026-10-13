@@ -12,7 +12,7 @@ export const cityOf = (app, uid) => app.cities[cityIdOf(app, uid)];
 /** what the client may download about a city (no server-side index tables) */
 export const publicCity = (c) => { const { adSlots, adSlotById, propertyById, shopById, jobLoc, billboardById, buildingById, plotById, placeById, venueById, busStopById, carParkById, area, ...rest } = c; return rest; };
 /** short list for the phone/map: id, name, state, whether you can go there now */
-export const cityList = (app, uid) => Object.values(app.cities).map(c => ({ id: c.id, name: c.cityName || c.name, district: c.name, kind: c.kind || 'city', state: c.state || null, here: c.id === cityIdOf(app, uid), enabled: c.enabled !== false }));
+export const cityList = (app, uid) => Object.values(app.cities).map(c => ({ id: c.id, name: c.cityName || c.name, district: c.name, kind: c.kind || 'city', state: c.state || null, here: c.id === cityIdOf(app, uid), enabled: c.enabled !== false, links: (c.links || []).map(l => ({ id: l.id, name: l.name, to: l.to })) }));
 /** Move a player into another city at one of its spawn points. Used by the airport and by tests. Server-authoritative; the client reloads its world on the next heartbeat. */
 export function enterCity(app, uid, cityId, spawnIdx = 0) {
   const c = app.cities[cityId]; if (!c || c.enabled === false) bad('NO_CITY', 'That place is not open yet.', 404);

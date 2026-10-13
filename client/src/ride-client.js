@@ -5,7 +5,7 @@ import { Builder } from '../sample/builder.js';
 import { carGeo } from '../sample/vehicles.js';
 import { findRoute } from './route.js';
 import { roadAt } from './roadgeom.js';
-import { posAlong, pathLength, driverProgress, startCandidates } from './ride.js';
+import { posAlong, pathLength, driverProgress, pickDriverRoute } from './ride.js';
 import { h, $, get, post } from './api.js';
 
 const vcMat = new THREE.MeshLambertMaterial({ vertexColors: true });
@@ -16,7 +16,7 @@ function makeHail(colorHex) {
 }
 /** the sponsor's livery on both sides of the car (item 8): the creative as a decal, loaded when the image arrives; the brand name shows meanwhile */
 function addLivery(car, sp) {
-  if (!sp) return; const mats = []; for (const sx of [1, -1]) { const m = new THREE.MeshBasicMaterial({ color: 0xf4f1e8 }); mats.push(m); const pl = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.85), m); pl.position.set(sx * 0.94, 0.78, 0); pl.rotation.y = sx * Math.PI / 2; car.add(pl); }
+  if (!sp) return; const mats = []; for (const sz of [1, -1]) { const m = new THREE.MeshBasicMaterial({ color: 0xf4f1e8 }); mats.push(m); const pl = new THREE.Mesh(new THREE.PlaneGeometry(1.85, 0.72), m); pl.position.set(0.15, 0.92, sz * 1.14); pl.rotation.y = sz > 0 ? 0 : Math.PI; car.add(pl); }
   const img = new Image(); img.onload = () => { const t = new THREE.Texture(img); t.colorSpace = THREE.SRGBColorSpace; t.needsUpdate = true; for (const m of mats) { m.map = t; m.needsUpdate = true; } car.userData.liveryLoaded = true; };
   img.src = window.__naMedia ? window.__naMedia(sp.i) : `/media/creative/${sp.i}`; car.userData.livery = sp.b;
 }
@@ -28,9 +28,10 @@ export class RideClient {
   removeCar() { if (this.car) { this.g.scene.remove(this.car); this.car = null; } this.path = null; }
   /** pick a drivable start point about driverDist m away and route from it to the player's pickup spot */
   plan() {
-    const g = this.g, r = this.ride; this.removeCar(); const grid = g.nav.ensureGrid(); const from = [r.from.x, r.from.z]; let route = null;
-    for (const c of startCandidates(from[0], from[1], r.driverDist)) { if (!roadAt(g.city, c[0], c[1], 0)) continue; const rt = findRoute(grid, c, from, 'drive'); if (rt && rt.length > r.driverDist * 0.6 && rt.length < r.driverDist * 3) { route = rt; break; } }
-    const pts = route ? route.pts.slice() : [[from[0] + r.driverDist * 0.7, from[1] + r.driverDist * 0.7], from]; // fallback: straight in
+    const g = this.g, r = this.ride; this.removeCar(); const from = [r.from.x, r.from.z];
+    const route = pickDriverRoute(from, r.driverDist, { roadAt, findRoute, grid: g.nav.ensureGrid(), city: g.city });
+    if (!route) return; // no street in: do not drive a straight line through buildings
+    const pts = route.pts.slice();
     // stop a few metres short of the player so the car pulls up beside, not on top
     const total = pathLength(pts); const stopAt = Math.max(1, total - 4.5); this.path = pts; this.len = stopAt; this.car = makeHail(new THREE.Color(r.driver.color).getHex()); addLivery(this.car, r.sponsor); g.scene.add(this.car); this.place(0);
   }

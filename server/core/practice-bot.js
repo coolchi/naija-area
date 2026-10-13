@@ -10,6 +10,8 @@ export function startPracticeBot(app, { intervalMs = 1500, name = 'Practice_Bot'
   const step = () => {
     try {
       const p = ensurePresence(app, uid); p.lastSeen = app.clock.now(); games.expireStale(app);
+      const city = app.cities[p.city] || app.city; const spawn = (city.spawns || []).find(s => Math.hypot((s.x || 0) - p.x, (s.z || 0) - p.z) < 2.2);
+      if (spawn) { p.x = spawn.x + 4.2; p.z = spawn.z + 1.6; p.trail = [{ t: app.clock.now(), x: p.x, z: p.z, ry: p.ry || 0 }]; app.db.prepare('UPDATE player_state SET x=?, z=? WHERE user_id=?').run(p.x, p.z, uid); }
       const act = app.db.prepare("SELECT * FROM game_matches WHERE status='active' AND turn_user=?").get(uid);
       if (act) { const v = games.viewFor(app, uid, act); const b = v.board; let mv;
         if (act.kind === 'whot') { if (b.playable.length) { const c = b.hand.find(x => x.id === b.playable[0]); const cnt = {}; for (const h of b.hand) cnt[h.s] = (cnt[h.s] || 0) + 1; const shape = SHAPES.slice().sort((a, z) => (cnt[z] || 0) - (cnt[a] || 0))[0]; mv = { card: c.id, shape }; } else mv = { action: 'draw' }; }

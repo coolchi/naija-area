@@ -4,8 +4,13 @@
 <h1>Put your brand on a Naija Area billboard</h1>
 <div class="banner">TEST MODE: rates are ESTIMATES and no payment is taken. Campaigns still go through real moderation and real impression counting, so you can see exactly how it will work.</div>
 <div class="card" id="s1"><h2>1. Who are you?</h2><div class="grid"><div><label>Brand name</label><input id="brand" maxlength="60" placeholder="e.g. Mama Tee Foods"></div><div><label>Email</label><input id="email" type="email" placeholder="you@brand.com"></div></div><p class="row"><button id="reg">Get my access key</button><span class="mut">Already registered? <a href="/advertiser">Open your dashboard</a>.</span></p><div id="keybox" style="display:none"></div><div id="e1" class="err"></div></div>
-<div class="card" id="s2"><h2>2. Pick a surface and get a quote</h2><div class="grid"><div><label>Surface</label><select id="surface"></select></div><div><label>Tier</label><select id="tier"></select></div><div><label>Number of boards</label><select id="units"></select></div><div><label>Duration</label><select id="days"></select></div></div><div id="quote" style="margin-top:10px"></div></div>
-<div class="card" id="s3"><h2>3. Your creative</h2><p class="mut" id="spec"></p>
+<div class="card" id="s2"><h2>2. Pick a surface and get a quote</h2><div class="grid"><div><label>Surface</label><select id="surface"></select></div><div><label>Tier</label><select id="tier"></select></div><div><label>Number of boards</label><select id="units"></select></div><div><label>Duration</label><select id="days"></select></div></div><fieldset class="placement" id="placement" aria-describedby="placementNote"><legend>Placement</legend>
+<div class="pcards">
+<label class="pcard on" id="pcShared"><input type="radio" name="placement" value="shared" checked><span class="pc-title">Shared rotating</span><span class="pc-price" id="ppShared"></span><span class="pc-meta" id="pmShared"></span></label>
+<label class="pcard" id="pcExclusive"><input type="radio" name="placement" value="exclusive"><span class="pc-title">Exclusive <span class="tag amber">whole board</span></span><span class="pc-price" id="ppExclusive"></span><span class="pc-meta" id="pmExclusive"></span></label>
+</div><p class="mut small" id="placementNote">Shared: your ad takes turns with other brands on the board (cheaper). Exclusive: your ad is alone on the board and never shares it. ESTIMATE prices, test mode.</p></fieldset>
+<div id="quote" style="margin-top:10px"></div></div>
+<div class="card" id="s3"><h2>3. Your creative <span class="mut" id="designCount"></span></h2><p class="mut" id="spec"></p>
 <div class="cgrid">
 <div class="cleft">
 <div id="drop" class="drop" tabindex="0" role="button" aria-label="Choose or drop your image" aria-describedby="spec dropHint">
@@ -15,6 +20,7 @@
 <div id="dropBusy" class="drop-busy hidden">Uploading…</div>
 </div>
 <div id="fileMeta" class="filemeta hidden"><div class="fm-line"><b id="fmName"></b><span class="mut" id="fmInfo"></span><span class="tag" id="fmState"></span></div><div class="row"><button type="button" class="ghost" id="replaceBtn">Replace</button><button type="button" class="red" id="removeBtn">Remove</button></div></div>
+<div id="designs" class="designs hidden"><div class="designs-head"><b id="designsTitle">Your designs</b><span class="mut" id="designsHint"></span></div><ol id="designList" class="dlist"></ol><button type="button" class="ghost" id="addDesign">Add another design</button><p class="mut small" id="rotNote"></p></div>
 <div id="e3" class="err" role="alert"></div><div id="w3" class="warnmsg" role="status"></div><div id="n3" class="mut" role="status"></div>
 </div>
 <div class="cright"><div class="mut mocklabel">Rough preview: how it may look in the game</div>
