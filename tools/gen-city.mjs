@@ -51,9 +51,9 @@ const shopDefs = {
     { id: 'pie', name: 'Meat pie', price: 400, hunger: 20, energy: 0 },
     { id: 'energy_drink', name: 'Energy drink', price: 600, hunger: 0, energy: 28 } ] },
   shop_canteen: { id: 'shop_canteen', name: 'Mama Put Canteen', desc: 'Jollof, rice and stew. Proper food.', sign: '#c8553d', items: [
-    { id: 'jollof', name: 'Jollof rice + chicken', price: 1500, hunger: 55, energy: 8 },
-    { id: 'amala', name: 'Amala + ewedu', price: 1100, hunger: 45, energy: 6 },
-    { id: 'zobo', name: 'Zobo drink', price: 300, hunger: 5, energy: 6 } ] },
+    { id: 'jollof', name: 'Jollof rice + chicken', price: 1500, hunger: 55, energy: 40 },
+    { id: 'amala', name: 'Amala + ewedu', price: 1100, hunger: 45, energy: 32 },
+    { id: 'zobo', name: 'Zobo drink', price: 300, hunger: 5, energy: 12 } ] },
   shop_suya: { id: 'shop_suya', name: 'Suya Spot', desc: 'Hot suya off the grill, late.', sign: '#8a3b12', items: [
     { id: 'suya', name: 'Suya (pepper, no onions)', price: 900, hunger: 32, energy: 3 },
     { id: 'bread', name: 'Agege bread', price: 350, hunger: 18, energy: 0 } ] }
@@ -155,7 +155,7 @@ city.trafficLoops = [
 // land plots (empty lots): ESTIMATE prices; growth/week and omo-onile risk are placeholders
 const plotDefs = [['Ikorodu Gardens', 'Ikorodu', 600, 1500000, 0.02, 'high'], ['Epe Green Estate', 'Epe', 600, 2500000, 0.03, 'medium'], ['Ibeju Corridor Lot', 'Ibeju-Lekki', 600, 4000000, 0.04, 'high'], ['Lekki Phase 2 (C of O)', 'Lekki Phase 2', 600, 15000000, 0.025, 'low']];
 city.plots = []; const lots = city.zones.filter(z => z.id === 'blk00' || z.id === 'blk30');
-const lotCenters = [[-156, -156], [156, -152], [209, -152], [-30, 141]]; // hand-placed in empty lots
+const lotCenters = [[-156, -156], [156, -152], [209, -152], [120, 170]]; // hand-placed in empty lots (p4 clear of Motoka forecourt)
 plotDefs.forEach((d, i) => city.plots.push({ id: `p${i + 1}`, name: d[0], area: d[1], sqm: d[2], price: d[3], growthPerWeek: d[4], risk: d[5], x: lotCenters[i][0], z: lotCenters[i][1], size: i === 3 ? 16 : 26 }));
 // venues: enterable rooms with stations (data-driven). Room coordinates are metres from the room centre (door on the +z wall).
 const kiosks = city.buildings.filter(b => b.kind === 'kiosk').sort((a, b) => a.x - b.x); const kd = (b) => ({ buildingId: b.id, x: +b.x.toFixed(1), z: +(b.z - b.d / 2 - 3).toFixed(1) });

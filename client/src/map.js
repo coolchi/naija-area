@@ -7,7 +7,7 @@ import { homeMarkers, remaining, etaLabel, etaSeconds } from './route.js';
 import { buildModel, search, searchDistricts, roadTo, hitTest, labelRules, KIND_COL, LAYERS, DEFAULT_LAYERS } from './map-model.js';
 
 export class CityMap {
-  constructor(game) { this.g = game; this.model = null; this.layers = { ...DEFAULT_LAYERS }; this.open_ = false; this.cache = null; this.sel = null; this.hover = null; this.pins = new Map(); }
+  constructor(game) { this.g = game; this.model = null; this.layers = { ...DEFAULT_LAYERS }; this.open_ = false; this.cache = null; this.sel = null; this.hover = null; this.pins = new Map(); this.follow = true; }
   get isOpen() { return this.open_; }
   open(focusId) {
     if (this.open_) return; const g = this.g; this.model = this.model || buildModel(g.city); this.syncHomes(); this.open_ = true; this.dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -15,10 +15,10 @@ export class CityMap {
     this.card = h('div', { class: 'bm-card hidden' }); this.list = h('div', { class: 'bm-list hidden' }); this.legend = h('div', { class: 'bm-legend hidden' });
     this.input = h('input', { class: 'bm-search', placeholder: 'Search places, roads, districts…', type: 'search', autocomplete: 'off' });
     this.input.addEventListener('input', () => this.showList()); this.input.addEventListener('focus', () => this.showList());
-    const top = h('div', { class: 'bm-top' }, h('b', { class: 'bm-title' }, `🗺 ${g.city.name || 'Map'}`), this.input, h('button', { class: 'bm-btn', id: 'bmMe', title: 'Centre on me', onclick: () => this.centreMe() }, '◎'), h('button', { class: 'bm-btn', id: 'bmHome', title: 'My house', onclick: () => this.goHome() }, '🏠'), h('button', { class: 'bm-btn', id: 'bmLegend', title: 'Layers', onclick: () => this.legend.classList.toggle('hidden') }, '☰'), h('button', { class: 'bm-btn', id: 'bmClose', onclick: () => this.close() }, '✕'));
+    const top = h('div', { class: 'bm-top' }, h('b', { class: 'bm-title' }, `🗺 ${g.city.name || 'Map'}`), this.input, h('button', { class: 'bm-btn', id: 'bmMe', title: 'Follow me', onclick: () => this.centreMe() }, '◎'), h('button', { class: 'bm-btn', id: 'bmHome', title: 'My house', onclick: () => this.goHome() }, '🏠'), h('button', { class: 'bm-btn', id: 'bmLegend', title: 'Layers', onclick: () => this.legend.classList.toggle('hidden') }, '☰'), h('button', { class: 'bm-btn', id: 'bmClose', onclick: () => this.close() }, '✕'));
     const zoom = h('div', { class: 'bm-zoom' }, h('button', { class: 'bm-btn', id: 'bmIn', onclick: () => this.zoomBy(1.5) }, '+'), h('button', { class: 'bm-btn', id: 'bmOut', onclick: () => this.zoomBy(1 / 1.5) }, '−'));
     this.root = h('div', { id: 'bigmap' }, this.canvas, top, this.list, this.legend, zoom, this.card); document.body.appendChild(this.root); this.drawLegend();
-    this.resize(); this.fit(); const me = g.ctrl; if (me) { this.v.cx = me.x; this.v.cz = me.z; this.v.k = Math.max(this.v.k, 1.6); }
+    this.resize(); this.fit(); this.follow = true; const me = g.ctrl; if (me) { this.v.cx = me.x; this.v.cz = me.z; this.v.k = Math.max(this.v.k, 1.6); }
     this.bind(); this.onKey = (e) => { if (e.key === 'Escape') { if (e.target === this.input) { this.input.blur(); this.list.classList.add('hidden'); } else this.close(); e.stopPropagation(); } }; document.addEventListener('keydown', this.onKey, true);
     this.onResize = () => this.resize(); addEventListener('resize', this.onResize); const loop = () => { if (!this.open_) return; this.draw(); this.raf = requestAnimationFrame(loop); }; this.raf = requestAnimationFrame(loop);
     if (focusId) this.focusOn(this.model.catalogue.find(i => i.id === focusId)); window.__bigmap = this;
@@ -28,7 +28,7 @@ export class CityMap {
   /** the player's own homes: always on the map, in the search list, one tap to go there */
   homes() { return homeMarkers(this.g.user); }
   syncHomes() { const cat = this.model.catalogue; for (let i = cat.length - 1; i >= 0; i--) if (String(cat[i].id).startsWith('myhouse:')) cat.splice(i, 1); for (const hm of this.homes()) cat.unshift({ id: 'myhouse:' + hm.id, type: 'myhouse', name: `My house: ${hm.name}`, icon: '🏠', x: hm.x, z: hm.z, group: 'my home house', lines: [hm.tier, hm.area].filter(Boolean) }); }
-  goHome() { const hs = this.homes(); if (!hs.length) { this.g.ui.toast('You have no home yet. Open a house on the map to rent or buy one.'); return; } const hm = hs[0]; const it = this.model.catalogue.find(i => i.id === 'myhouse:' + hm.id); this.v.cx = hm.x; this.v.cz = hm.z; this.v.k = Math.max(this.v.k, 3.2); this.select(it); }
+  goHome() { const hs = this.homes(); if (!hs.length) { this.g.ui.toast('You have no home yet. Open a house on the map to rent or buy one.'); return; } const hm = hs[0]; const it = this.model.catalogue.find(i => i.id === 'myhouse:' + hm.id); this.follow = false; this.v.cx = hm.x; this.v.cz = hm.z; this.v.k = Math.max(this.v.k, 3.2); this.select(it); }
   toggle() { this.open_ ? this.close() : this.open(); }
   resize() { const r = this.root.getBoundingClientRect(); this.W = Math.max(200, Math.round(r.width)); this.H = Math.max(200, Math.round(r.height)); this.canvas.width = this.W * this.dpr; this.canvas.height = this.H * this.dpr; this.canvas.style.width = this.W + 'px'; this.canvas.style.height = this.H + 'px'; }
   extent() { const B = this.model.bounds, w = this.model.water; return { x0: Math.min(B.minX, w?.minX ?? B.minX), x1: Math.max(B.maxX, w?.maxX ?? B.maxX), z0: B.minZ, z1: Math.max(B.maxZ, w?.maxZ ?? B.maxZ) }; }
@@ -38,8 +38,8 @@ export class CityMap {
   wx(px) { return (px - this.W / 2) / this.v.k + this.v.cx; } wz(py) { return (py - this.H / 2) / this.v.k + this.v.cz; }
   zoomAt(px, py, f) { const x = this.wx(px), z = this.wz(py); this.v.k = Math.min(this.kMax, Math.max(this.kMin, this.v.k * f)); this.v.cx = x - (px - this.W / 2) / this.v.k; this.v.cz = z - (py - this.H / 2) / this.v.k; }
   zoomBy(f) { this.zoomAt(this.W / 2, this.H / 2, f); }
-  centreMe() { const c = this.g.ctrl; this.v.cx = c.x; this.v.cz = c.z; this.v.k = Math.max(this.v.k, 2.5); }
-  focusOn(it) { if (!it) return; this.v.cx = it.x; this.v.cz = it.z; this.v.k = Math.max(this.v.k, it.type === 'district' ? this.kMin * 1.8 : it.type === 'road' ? 2 : 4.5); }
+  centreMe() { const c = this.g.ctrl; this.follow = true; this.v.cx = c.x; this.v.cz = c.z; this.v.k = Math.max(this.v.k, 2.5); }
+  focusOn(it) { if (!it) return; this.follow = false; this.v.cx = it.x; this.v.cz = it.z; this.v.k = Math.max(this.v.k, it.type === 'district' ? this.kMin * 1.8 : it.type === 'road' ? 2 : 4.5); }
   // ---- static layer
   drawStatic(c, tx, tz, k, view) {
     const m = this.model, E = this.extent(), L = this.layers; c.fillStyle = '#2b6f8a'; c.fillRect(tx(E.x0 - 100), tz(E.z0 - 100), (E.x1 - E.x0 + 200) * k, (E.z1 - E.z0 + 200) * k);
@@ -73,6 +73,7 @@ export class CityMap {
   }
   // ---- live drawing
   draw() {
+    if (this.follow) { const me = this.g.ctrl; if (me) { this.v.cx = me.x; this.v.cz = me.z; } }
     const c = this.ctx, k = this.v.k, dpr = this.dpr; c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, this.W, this.H);
     const sl = this.staticLayer();
     if (k <= sl.ppu * 1.2) { c.imageSmoothingEnabled = true; c.drawImage(sl.cv, this.sx(sl.ox), this.sz(sl.oz), sl.cv.width * k / sl.ppu, sl.cv.height * k / sl.ppu); } else this.drawStatic(c, (x) => this.sx(x), (z) => this.sz(z), k, true);
@@ -169,7 +170,7 @@ export class CityMap {
       const r = cv.getBoundingClientRect(); if (!pts.has(e.pointerId)) { if (e.pointerType === 'mouse' && !this.sel) { const it = this.hitAt(e.clientX - r.left, e.clientY - r.top); this.hover = it; this.showCard(it, false); cv.style.cursor = it && it.type !== 'water' ? 'pointer' : 'grab'; } return; }
       pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pts.size === 2 && pinch) { const [a, b] = [...pts.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); this.zoomAt((a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top, d / pinch.d); pinch.d = d; moved = 99; }
-      else if (drag) { const dx = e.clientX - drag.x, dy = e.clientY - drag.y; moved += Math.abs(dx) + Math.abs(dy); drag.x = e.clientX; drag.y = e.clientY; this.v.cx -= dx / this.v.k; this.v.cz -= dy / this.v.k; }
+      else if (drag) { const dx = e.clientX - drag.x, dy = e.clientY - drag.y; moved += Math.abs(dx) + Math.abs(dy); drag.x = e.clientX; drag.y = e.clientY; if (dx || dy) this.follow = false; this.v.cx -= dx / this.v.k; this.v.cz -= dy / this.v.k; }
     });
     const up = (e) => { const r = cv.getBoundingClientRect(); const had = pts.has(e.pointerId); pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (!pts.size) { if (had && moved < 8 && e.type === 'pointerup') { const it = this.hitAt(e.clientX - r.left, e.clientY - r.top); this.select(it); } drag = null; } else if (pts.size === 1) { const [p] = [...pts.values()]; drag = { x: p.x, y: p.y }; } };
     cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);

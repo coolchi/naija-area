@@ -8,7 +8,9 @@
 //   * One skin per kind is worn at a time: kind `avatar` (shirt colour + optional glow ring), `car` (paint + optional underglow, on the car you drive), `home` (facade accent on the outside and
 //     wall and floor colours inside, for the one home you own).
 // Fields: id, kind, name, price (shop only), rarity (common | rare | epic), and the look:
-//   avatar: { color } shirt hex, { glow } optional ring colour under the feet.
+//   avatar: { color } shirt hex, { glow } optional ring colour under the feet,
+//           { body: 'hd' | 'casual' | 'casual_f' } optional high-res mesh upgrade (cosmetic only).
+//           { gender: 'male' | 'female' } required profile gender for body upgrades (set at signup).
 //   car:    { color } paint hex, { glow } optional underglow colour.
 //   home:   { accent } facade door-frame hex, { wall, floor } interior hex.
 export const KINDS = { avatar: 'Avatar', car: 'Car', home: 'Home' };
@@ -20,6 +22,11 @@ export const SKINS = [
   { id: 'av_suya_red',      kind: 'avatar', name: 'Suya Red',        price: 14000,  rarity: 'common', sell: 'shop', color: '#c0392b' },
   { id: 'av_adire_indigo',  kind: 'avatar', name: 'Adire Indigo',    price: 30000,  rarity: 'rare',   sell: 'shop', color: '#2d2f7a', glow: '#6c7bff' },
   { id: 'av_coral_agbada',  kind: 'avatar', name: 'Coral Agbada',    price: 45000,  rarity: 'rare',   sell: 'shop', color: '#e8735a', glow: '#ffb199' },
+  // Body upgrades (ESTIMATE face values; NA_PRICE_SCALE multiplies in production like guns).
+  // Soldier Man reuses the HD mesh. Male bodies need a male profile; Casual Woman needs female (signup only).
+  { id: 'av_hd_body',       kind: 'avatar', name: 'Soldier Man',     price: 10_000_000_000, rarity: 'rare', sell: 'shop', color: '#3d4a2e', body: 'hd', gender: 'male' },
+  { id: 'av_casual_man',    kind: 'avatar', name: 'Casual Man',      price: 100_000_000,    rarity: 'rare', sell: 'shop', color: '#5a6b3a', body: 'casual', gender: 'male' },
+  { id: 'av_casual_woman',  kind: 'avatar', name: 'Casual Woman',    price: 50_000_000,     rarity: 'rare', sell: 'shop', color: '#c45c26', body: 'casual_f', gender: 'female' },
   { id: 'av_gold_aso_oke',  kind: 'avatar', name: 'Gold Aso-oke',    price: 120000, rarity: 'epic',   sell: 'shop', color: '#d4a017', glow: '#ffe066' },
   { id: 'av_pass_sunrise',  kind: 'avatar', name: 'Sunrise Kaftan',  rarity: 'common', sell: 'pass', color: '#f2994a' },
   { id: 'av_pass_midnight', kind: 'avatar', name: 'Midnight Senator', rarity: 'rare',  sell: 'pass', color: '#14213d', glow: '#4cc9f0' },

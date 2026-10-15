@@ -12,6 +12,7 @@ export class GameAudio {
   constructor(opts = {}) {
     this.opts = opts; this.store = opts.store || (typeof localStorage !== 'undefined' ? localStorage : { getItem: () => null, setItem() {} }); this.set = readSettings(this.store);
     this.ctx = null; this.last = new Map(); this.voices = 0; this.nextBar = 0; this.bar = 0; this.engineNodes = null; this.stats = { played: 0, dropped: 0, bars: 0 };
+    this.adhanOn = false; this.adhanTimer = null; this.adhanPhrase = 0; this.adhanGain = null;
   }
   get AC() { return this.opts.AudioContextClass || (typeof window !== 'undefined' ? (window.AudioContext || window.webkitAudioContext) : null); }
   /** call from a tap or key handler (safe to call many times) */
@@ -49,12 +50,39 @@ export class GameAudio {
     if (!this.engineNodes) { const o = c.createOscillator(), o2 = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain(); o.type = 'sawtooth'; o2.type = 'square'; f.type = 'lowpass'; g.gain.value = 0; o.connect(f); o2.connect(f); f.connect(g); g.connect(this.sfxBus); o.start(); o2.start(); this.engineNodes = { o, o2, f, g }; }
     const n = this.engineNodes, sp = Math.max(0, Math.abs(speed)); const hzv = Math.min(E.maxHz, E.baseHz + sp * E.perMs); n.o.frequency.setTargetAtTime(hzv, c.currentTime, 0.08); n.o2.frequency.setTargetAtTime(hzv * 0.5, c.currentTime, 0.08); n.f.frequency.setTargetAtTime(E.cutoff + sp * E.cutoffPerMs, c.currentTime, 0.08); n.g.gain.setTargetAtTime(E.gain * (E.idleFloor + Math.min(1, sp / 20) * (1 - E.idleFloor)) * 4, c.currentTime, 0.1);
   }
-  /** call about every 100 ms: schedules the music a little ahead. Quiet while the radio plays, and off on low-end phones when asked. */
+  /** call about every 100 ms: schedules the music a little ahead. Quiet while the radio plays, adhan, or on low-end phones when asked. */
   tick() {
     if (!this.ctx || this.ctx.state !== 'running') return; const M = SOUND.music; const hidden = typeof document !== 'undefined' && document.hidden;
-    const quiet = !this.set.on || this.set.music <= 0 || hidden || (M.duckWhenRadio && this.opts.radioPlaying?.()) || (M.quietOnLowEnd && this.opts.isLowEnd?.()); const c = this.ctx;
+    const quiet = !this.set.on || this.set.music <= 0 || hidden || this.adhanOn || (M.duckWhenRadio && this.opts.radioPlaying?.()) || (M.quietOnLowEnd && this.opts.isLowEnd?.()); const c = this.ctx;
     if (quiet) { this.nextBar = 0; return; } if (!this.nextBar || this.nextBar < c.currentTime - 0.5) this.nextBar = c.currentTime + 0.1;
     const night = !!this.opts.night?.(); while (this.nextBar < c.currentTime + M.aheadSec) { this.scheduleBar(this.nextBar, this.bar, night); this.nextBar += barSec(); this.bar++; this.stats.bars++; }
+  }
+  /** Start a looping stylised adhan while the player is inside a mosque. Uses the music bus / music volume. */
+  startAdhan() {
+    this.unlock(); if (!this.ctx || this.adhanOn) return; this.adhanOn = true; this.adhanPhrase = 0; this.nextBar = 0;
+    if (!this.adhanGain) { this.adhanGain = this.ctx.createGain(); this.adhanGain.gain.value = 0; this.adhanGain.connect(this.musicBus); }
+    const now = this.ctx.currentTime; this.adhanGain.gain.cancelScheduledValues(now); this.adhanGain.gain.setValueAtTime(this.adhanGain.gain.value || 0.0001, now); this.adhanGain.gain.linearRampToValueAtTime(SOUND.adhan.gain, now + 0.6);
+    this._schedAdhan();
+  }
+  stopAdhan() {
+    this.adhanOn = false; if (this.adhanTimer) { clearTimeout(this.adhanTimer); this.adhanTimer = null; }
+    if (this.ctx && this.adhanGain) { const now = this.ctx.currentTime; this.adhanGain.gain.cancelScheduledValues(now); this.adhanGain.gain.setValueAtTime(Math.max(0.0001, this.adhanGain.gain.value), now); this.adhanGain.gain.linearRampToValueAtTime(0.0001, now + 0.4); }
+  }
+  _schedAdhan() {
+    if (!this.adhanOn || !this.ctx || this.ctx.state !== 'running') return;
+    if (!this.set.on || this.set.music <= 0) { this.adhanTimer = setTimeout(() => this._schedAdhan(), 800); return; }
+    const A = SOUND.adhan; const phrase = A.phrases[this.adhanPhrase % A.phrases.length]; this.adhanPhrase++;
+    const c = this.ctx; let t = c.currentTime + 0.05;
+    for (const hz of phrase) {
+      const o = c.createOscillator(), g = c.createGain(), f = c.createBiquadFilter();
+      o.type = 'sine'; f.type = 'lowpass'; f.frequency.value = 1800;
+      o.frequency.setValueAtTime(hz, t); o.frequency.setValueAtTime(hz * 1.01, t + A.noteSec * 0.45); o.frequency.setValueAtTime(hz, t + A.noteSec);
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.55, t + 0.08); g.gain.linearRampToValueAtTime(0.4, t + A.noteSec * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + A.noteSec);
+      o.connect(f); f.connect(g); g.connect(this.adhanGain); o.start(t); o.stop(t + A.noteSec + 0.05);
+      t += A.noteSec + A.gapSec;
+    }
+    const waitMs = Math.max(400, (t - c.currentTime + A.phraseGapSec) * 1000);
+    this.adhanTimer = setTimeout(() => this._schedAdhan(), waitMs);
   }
   scheduleBar(t, bar, night) {
     const c = this.ctx, k = night ? SOUND.music.nightGain : 1;

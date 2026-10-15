@@ -6,6 +6,10 @@ import { Builder } from '../sample/builder.js';
 import { carGeo } from '../sample/vehicles.js';
 import { gwagonRig } from '../sample/gwagon-rig.js';
 import { cyberRig } from '../sample/cyber-rig.js';
+import { mclarenRig } from '../sample/mclaren-rig.js';
+import { g63Rig } from '../sample/g63-rig.js';
+import { micraRig } from '../sample/micra-rig.js';
+import { micra12Rig } from '../sample/micra12-rig.js';
 import { bays, ambientBays, ambientLook, gatePos, SLOT_HOURS, BAY } from '../../server/core/carparks-layout.js';
 import { makeNameSprite, blobShadow } from './entities.js';
 
@@ -39,9 +43,11 @@ export class CarParks {
     for (const l of this.lots) { const s = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.3), new THREE.MeshBasicMaterial({ map: signTex(l.name), side: THREE.DoubleSide })); const gx = l.gate === 'w' ? l.x - l.w / 2 : l.x + l.w / 2; s.position.set(gx + (l.gate === 'w' ? -1.6 : 1.6), 4.1, l.z + l.d / 2 + 0.6); s.rotation.y = 0; this.root.add(s); const t = s.clone(); t.rotation.y = Math.PI; this.root.add(t); }
     world.scene.add(this.root);
   }
-  /** ambient cars fill the bays no player holds; rebuild a lot only when its slot (or its taken bays) changed */
+  /** ambient cars fill the bays no player holds; rebuild a lot only when its slot (or its taken bays) changed. Motoka's lot is filled by showroom stock instead, so every car there is buyable. */
   setHour(hour, parkedList = this.parked || []) {
-    for (const l of this.lots) { const taken = parkedList.filter(p => p.lot === l.id).map(p => p.bay); const key = Math.floor(hour / SLOT_HOURS) + ':' + taken.join(','); if (this.slot.get(l.id) === key) continue; this.slot.set(l.id, key);
+    for (const l of this.lots) {
+      if (l.id === 'cp_motors' || l.venueId === 'venue_motors') { const old = this.amb.get(l.id); if (old) { this.root.remove(old); old.geometry.dispose(); this.amb.delete(l.id); } this.slot.set(l.id, 'motoka'); continue; }
+      const taken = parkedList.filter(p => p.lot === l.id).map(p => p.bay); const key = Math.floor(hour / SLOT_HOURS) + ':' + taken.join(','); if (this.slot.get(l.id) === key) continue; this.slot.set(l.id, key);
       const old = this.amb.get(l.id); if (old) { this.root.remove(old); old.geometry.dispose(); }
       const set = ambientBays(l, hour, taken); const bl = bays(l); const parts = []; for (const i of set) { const k = ambientLook(l, i, hour); const g = carG(k.type, COLORS[k.color]).clone(); g.rotateY(bl[i].ry); g.translate(bl[i].x, TOP + 0.1, bl[i].z); parts.push(g); }
       if (!parts.length) { this.amb.delete(l.id); continue; } const m = new THREE.Mesh(mergeGeometries(parts), vcMat); m.userData.lot = l.id; this.root.add(m); this.amb.set(l.id, m); for (const g of parts) g.dispose(); }
@@ -49,7 +55,7 @@ export class CarParks {
   /** real players' parked cars: [{ lot, bay, x, z, ry, color, who? , mine? }] */
   setParked(list, myName) {
     this.parked = list; for (const c of this.cars) { this.real.remove(c); if (c.userData.tag) c.userData.tag.material.map?.dispose(); } this.cars = [];
-    for (const p of list) { const g = new THREE.Group(); const body = p.body || 'hatch'; const rig = body === 'gwagon' ? gwagonRig : body === 'cyber' ? cyberRig : null; if (rig) { const car = rig(p.color); car.position.y = 0.1; g.add(car); } else { const m = new THREE.Mesh(carG(body, new THREE.Color(p.color).getHex()), vcMat); m.position.y = 0.1; g.add(m); } g.add(blobShadow(body === 'cyber' ? 5.8 : 5.2, body === 'gwagon' ? 3.1 : 2.8)); g.position.set(p.x, TOP, p.z); g.rotation.y = p.ry; const tag = makeNameSprite(p.mine ? 'Your car' : '@' + p.who, p.mine ? '#ffc20e' : '#ffffff'); tag.position.set(0, body === 'gwagon' ? 2.45 : body === 'cyber' ? 2.3 : 2.1, 0); g.userData.tag = tag; g.userData.mine = !!p.mine; g.userData.buyModel = p.mine ? '' : (p.modelId || ''); g.add(tag); this.real.add(g); this.cars.push(g); }
+    for (const p of list) { const g = new THREE.Group(); const body = p.body || 'hatch'; const isMicra = body === 'micra' || body === 'micra12'; const rig = body === 'gwagon' ? gwagonRig : body === 'g63' ? g63Rig : body === 'cyber' ? cyberRig : body === 'mclaren' ? mclarenRig : body === 'micra' ? micraRig : body === 'micra12' ? micra12Rig : null; if (rig) { const car = rig(p.color); car.position.y = 0.1; g.add(car); } else { const m = new THREE.Mesh(carG(body, new THREE.Color(p.color).getHex()), vcMat); m.position.y = 0.1; g.add(m); } g.add(blobShadow(body === 'cyber' ? 8.6 : body === 'mclaren' ? 6.3 : body === 'g63' ? 5.4 : isMicra ? 4.4 : 5.2, body === 'gwagon' || body === 'g63' ? 3.1 : body === 'cyber' ? 4.2 : body === 'mclaren' ? 3.15 : isMicra ? 2.5 : 2.8)); g.position.set(p.x, TOP, p.z); g.rotation.y = p.ry; const tag = makeNameSprite(p.mine ? 'Your car' : '@' + p.who, p.mine ? '#ffc20e' : '#ffffff'); tag.position.set(0, body === 'gwagon' || body === 'g63' ? 2.45 : body === 'cyber' ? 2.95 : body === 'mclaren' ? 2.35 : isMicra ? 1.95 : 2.1, 0); g.userData.tag = tag; g.userData.mine = !!p.mine; g.userData.buyModel = p.mine ? '' : (p.modelId || ''); g.add(tag); this.real.add(g); this.cars.push(g); }
     void myName;
   }
   /** hide far lots completely (nothing drawn beyond cullDist) */

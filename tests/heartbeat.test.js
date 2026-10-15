@@ -51,6 +51,15 @@ test('heartbeat: dev teleport is delivered once to the client', async () => {
   const r = await ok(s, 'POST', '/api/heartbeat', { uid: a, body: {} }); assert.deepEqual(r.teleport, { x: 50, z: 50 });
   assert.equal((await ok(s, 'POST', '/api/heartbeat', { uid: a, body: {} })).teleport, undefined);
 });
+test('heartbeat: drive mode + position persist immediately and /api/me prefers live presence', async () => {
+  const s = makeServer(); const a = mkUser(s); at(s, a, 10, 20);
+  await ok(s, 'POST', '/api/heartbeat', { uid: a, body: { mode: 'drive', trail: [{ a: 0, x: 10, z: 20, ry: 1.2 }] } });
+  const row = s.app.db.prepare('SELECT x,z,ry,mode FROM player_state WHERE user_id=?').get(a);
+  assert.equal(row.mode, 'drive'); assert.ok(Math.abs(row.x - 10) < 0.01); assert.ok(Math.abs(row.z - 20) < 0.01);
+  const live = s.app.world.players.get(a); live.x = 88.5; live.z = -41.25; live.ry = 0.55; live.mode = 'drive';
+  const me = (await ok(s, 'GET', '/api/me', { uid: a })).user;
+  assert.equal(me.mode, 'drive'); assert.equal(me.pos.x, 88.5); assert.equal(me.pos.z, -41.25); assert.equal(me.pos.ry, 0.55);
+});
 
 test('chat is pushed to someone nearby without waiting for the next heartbeat', async () => {
   const s = makeServer(); const got = []; s.app.pushUser = (uid, msg) => got.push({ uid, msg });

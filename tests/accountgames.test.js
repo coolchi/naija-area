@@ -8,7 +8,7 @@ import { registeredNames } from '../server/core/account.js';
 import { enterCity } from '../server/core/cities.js';
 import * as auth from '../server/core/auth.js';
 
-const mkReg = (s, name) => auth.signup(s.app, { username: name, password: 'secret-pass-1', age18: true }, 'ip');
+const mkReg = (s, name) => auth.signup(s.app, { username: name, password: 'secret-pass-1', age18: true, email: `${name}@example.com` }, 'ip');
 const V = (s, id) => s.app.city.venues.find(v => v.id === id);
 const enter = async (s, u, id) => { const v = V(s, id); at(s, u, v.x, v.z); await ok(s, 'POST', '/api/heartbeat', { uid: u, body: {} }); return ok(s, 'POST', '/api/venue/enter', { uid: u, body: { venueId: id } }); };
 

@@ -96,9 +96,13 @@ export function resolveBoxes(p, boxes, rad, restitution, dt, cfg = PHYS.collide,
 /** circles (two per obstacle car): same response. circles = [{x,z,r}]; the mover is described by its own circle(s) [{ox,oz}] around p with radius selfR */
 export function resolveCircles(p, selfOffsets, selfR, circles, restitution, dt, cfg = PHYS.collide) {
   let impact = 0, nxo = 0, nzo = 0, hit = false;
-  for (const o of circles) for (const s of selfOffsets) {
-    const sx = p.x + s[0], sz = p.z + s[1]; const dx = sx - o.x, dz = sz - o.z; const d = Math.hypot(dx, dz), rr = selfR + o.r; if (d >= rr) continue;
-    const nx = d < 1e-4 ? 1 : dx / d, nz = d < 1e-4 ? 0 : dz / d; const pen = rr - d; p.x += nx * pen; p.z += nz * pen; hit = true; contact(p, nx, nz, restitution, dt, cfg); const vn = -(p.lastVn || 0); if (vn > impact) { impact = vn; nxo = nx; nzo = nz; }
+  if (!Number.isFinite(p.x) || !Number.isFinite(p.z)) return { hit, impact, nx: nxo, nz: nzo };
+  for (const o of circles) {
+    if (!o || !Number.isFinite(o.x) || !Number.isFinite(o.z) || !Number.isFinite(o.r)) continue;
+    for (const s of selfOffsets) {
+      const sx = p.x + s[0], sz = p.z + s[1]; const dx = sx - o.x, dz = sz - o.z; const d = Math.hypot(dx, dz), rr = selfR + o.r; if (d >= rr) continue;
+      const nx = d < 1e-4 ? 1 : dx / d, nz = d < 1e-4 ? 0 : dz / d; const pen = rr - d; p.x += nx * pen; p.z += nz * pen; hit = true; contact(p, nx, nz, restitution, dt, cfg); const vn = -(p.lastVn || 0); if (vn > impact) { impact = vn; nxo = nx; nzo = nz; }
+    }
   }
   return { hit, impact, nx: nxo, nz: nzo };
 }

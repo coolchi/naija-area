@@ -6,7 +6,7 @@ import { registeredNames } from '../server/core/account.js';
 import { EVENTS } from '../server/config/events.js';
 import * as auth from '../server/core/auth.js';
 
-const mkReg = async (s, name, cash = 300000) => { const u = await auth.signup(s.app, { username: name, password: 'secret-pass-1', age18: true }, 'ip'); s.db.prepare('UPDATE users SET created_at=? WHERE id=?').run(s.app.clock.now() - 3 * HOUR, u); const { move, cashId, SYS } = await import('../server/core/ledger.js'); move(s.app, { from: SYS.FAUCET_TESTTOPUP, to: cashId(u), amount: cash, reason: 'test_topup', userId: u }); return u; };
+const mkReg = async (s, name, cash = 300000) => { const u = await auth.signup(s.app, { username: name, password: 'secret-pass-1', age18: true, email: `${name}@example.com` }, 'ip'); s.db.prepare('UPDATE users SET created_at=? WHERE id=?').run(s.app.clock.now() - 3 * HOUR, u); const { move, cashId, SYS } = await import('../server/core/ledger.js'); move(s.app, { from: SYS.FAUCET_TESTTOPUP, to: cashId(u), amount: cash, reason: 'test_topup', userId: u }); return u; };
 
 test('the Track G modules register their data with the account module', () => { for (const n of ['businesses', 'marketplace', 'clubs', 'events']) assert.ok(registeredNames().includes(n), n); });
 test('download lists what a player has in each Track G feature; closing the account removes it and leaves the ledger whole', async () => {

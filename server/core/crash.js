@@ -9,6 +9,7 @@ import { bad } from './util.js';
 import { getState, refreshNeeds, notify, addMood } from './economy.js';
 import { move, cashId, balanceOf, SYS } from './ledger.js';
 import { ensurePresence, teleport } from './world.js';
+import { applyBodyDamage, mekoRepair, carStateOf } from './meko.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 /** deterministic number in [0,1) from the secret seed, the player and a counter */
@@ -68,16 +69,23 @@ export function impact(app, uid, body = {}) {
   return app.db.transaction(() => {
     const st = getState(app, uid); const drive = st.mode === 'drive'; const own = drive ? activeCar(app, uid) : null; const seq = ev.id;
     const dmg = drive ? between(rand01(seedOf(app), uid, seq, 'dmg'), C.driving.min, C.driving.max) : between(rand01(seedOf(app), uid, seq, 'dmg'), C.onFoot.min, C.onFoot.max);
-    let carDamage = 0, fee = 0, waived = 0, carHealth = null;
-    if (own) { carDamage = Math.min(100 - (own.damage || 0), between(rand01(seedOf(app), uid, seq, 'car'), C.car.min, C.car.max)); app.db.prepare('UPDATE player_cars SET damage=damage+? WHERE id=?').run(carDamage, own.id); carHealth = 100 - (own.damage || 0) - carDamage;
-      const due = carDamage * C.feePerCarPoint, cash = balanceOf(app.db, cashId(uid)); fee = Math.min(due, cash); waived = due - fee; if (fee > 0) move(app, { from: cashId(uid), to: SYS.SINK_CARS, amount: fee, reason: 'crash_damage', ref: String(ev.id), userId: uid, idemKey: `crash:${ev.id}` }); }
+    let carDamage = 0, fee = 0, waived = 0, carHealth = null, smoke = false, wrecked = false;
+    if (own) {
+      const raw = between(rand01(seedOf(app), uid, seq, 'car'), C.car.min, C.car.max);
+      const br = applyBodyDamage(app, uid, own, raw, st.x, st.z, st.ry);
+      carDamage = br.damage; carHealth = br.carHealth; smoke = br.smoke; wrecked = br.wrecked;
+      const due = carDamage * C.feePerCarPoint, cash = balanceOf(app.db, cashId(uid)); fee = Math.min(due, cash); waived = due - fee; if (fee > 0) move(app, { from: cashId(uid), to: SYS.SINK_CARS, amount: fee, reason: 'crash_damage', ref: String(ev.id), userId: uid, idemKey: `crash:${ev.id}` });
+    }
     const hv = healthOf(app, uid); let health = clamp(hv.health - dmg, 0, C.maxHealth); let ko = false, pos = null, clinicFee = 0;
     if (health <= 0) { ko = true; health = C.clinic.koHealth; const cl = clinicPlace(app, cityOf(app, uid)); if (cl) { teleport(app, uid, cl.x, cl.z); pos = { x: cl.x, z: cl.z }; }
       const cash = balanceOf(app.db, cashId(uid)); clinicFee = Math.min(C.clinic.koFee, cash); if (clinicFee > 0) move(app, { from: cashId(uid), to: SYS.SINK_FEES, amount: clinicFee, reason: 'clinic_fee', ref: `ko:${ev.id}`, userId: uid, idemKey: `ko:${ev.id}` }); addMood(app, uid, -C.clinic.koMood); }
     setHealth(app, uid, health); app.db.prepare('UPDATE player_state SET crash_cd_until=? WHERE user_id=?').run(now + C.cooldownMs, uid);
     app.db.prepare("UPDATE crash_events SET state=?, damage=?, car_id=?, car_damage=?, fee=? WHERE id=?").run(ko ? 'ko' : 'confirmed', dmg, own?.id ?? null, carDamage, fee + clinicFee, ev.id);
-    const text = ko ? 'You collapsed. Good people carried you to the Community Clinic. You are okay, but rest small.' : own ? `A ${ev.vtype} bumped your car. Health -${dmg}${carDamage ? `, car -${carDamage}` : ''}.` : `A ${ev.vtype} knocked you! Health -${dmg}. Watch the road.`;
-    return { ok: true, hit: true, ko, damage: dmg, health, maxHealth: C.maxHealth, carDamage, carHealth, fee, waived, clinicFee, cash: balanceOf(app.db, cashId(uid)), pos, cooldownUntil: now + C.cooldownMs, text };
+    const text = ko ? 'You collapsed. Good people carried you to the Community Clinic. You are okay, but rest small.'
+      : wrecked ? `A ${ev.vtype} wrecked your car. Call a tow to Motoka Meko.`
+      : own ? `A ${ev.vtype} bumped your car. Health -${dmg}${carDamage ? `, car -${carDamage}` : ''}${smoke ? ' · smoking' : ''}.`
+      : `A ${ev.vtype} knocked you! Health -${dmg}. Watch the road.`;
+    return { ok: true, hit: true, ko, damage: dmg, health, maxHealth: C.maxHealth, carDamage, carHealth, smoke, wrecked, fee, waived, clinicFee, cash: balanceOf(app.db, cashId(uid)), pos, cooldownUntil: now + C.cooldownMs, text };
   })();
 }
 
@@ -91,12 +99,28 @@ export function treat(app, uid, idemKey) {
     return { ok: true, fee, health: C.maxHealth, mood, cash: balanceOf(app.db, cashId(uid)), text: 'Nurse don treat you. You dey strong again.' }; })();
 }
 export const clinicInfo = (app, uid) => { const C = app.balance.crash; const cl = clinicPlace(app, cityOf(app, uid)); const hv = healthView(app, uid); const missing = Math.ceil(C.maxHealth - hv.health); return { name: cl?.name || 'Community Clinic', health: hv.health, max: hv.max, fee: missing < 2 ? 0 : Math.max(C.clinic.minFee, missing * C.clinic.feePerPoint), estimate: true, regenPerMin: C.regenPerMin }; };
-/** Meco repair of crash damage (fee per car health point) */
-export function repair(app, uid, idemKey) {
-  const C = app.balance.crash; const p = ensurePresence(app, uid); if (p.venue !== 'venue_meco') bad('NOT_AT_MECO', 'Go inside Meco to repair your car.', 409);
-  return app.db.transaction(() => { const c = activeCar(app, uid); if (!c) bad('NO_CAR', 'You no get your own car yet.', 409); if (!c.damage) bad('NO_DAMAGE', 'Your car no get crash damage.', 409);
-    const fee = c.damage * C.repairPerPoint; const cash = balanceOf(app.db, cashId(uid)); if (cash < fee) bad('NO_FUNDS', `Repair costs ₦${fee}.`, 402, { fee });
-    move(app, { from: cashId(uid), to: SYS.SINK_CARS, amount: fee, reason: 'car_repair', ref: String(c.id), userId: uid, idemKey: idemKey ? `carfix:${uid}:${idemKey}` : null }); app.db.prepare('UPDATE player_cars SET damage=0 WHERE id=?').run(c.id);
-    notify(app, uid, 'car', 'Meco don fix the crash damage. Fresh as new!'); return { ok: true, fee, carHealth: 100, cash: balanceOf(app.db, cashId(uid)), text: 'Body work done. 🔧' }; })();
+/** Motoka Meko (or classic Meco) repair of crash damage */
+export function repair(app, uid, idemKey) { return mekoRepair(app, uid, idemKey); }
+
+/** Client reports a hard bump while driving an owned car. Builds toward smoke → wreck. */
+export function collide(app, uid, body = {}) {
+  const C = app.balance.crash; if (!C.enabled) return { ok: true, damage: 0, reason: 'off' };
+  const now = app.clock.now(); const p = ensurePresence(app, uid);
+  if (p.mode !== 'drive') bad('NOT_DRIVING', 'You are not driving.', 409);
+  if (p.venue) bad('INSIDE', 'Not on the road.', 409);
+  const own = activeCar(app, uid); if (!own) return { ok: true, damage: 0, reason: 'borrowed' };
+  if (own.wrecked || (own.damage || 0) >= (C.wreckAt ?? 100)) bad('WRECKED', 'Your car is wrecked. Call a tow to Motoka Meko.', 409);
+  const impact = Number(body.impact) || 0; const Col = C.collide || {};
+  if (impact < (Col.minImpact ?? 5)) return { ok: true, damage: 0, reason: 'soft' };
+  if (!app.limiter.hit(`collide:${uid}`, Col.perMin ?? 36, 60000, now)) return { ok: true, damage: 0, reason: 'rate' };
+  const last = p.collideAt || 0; if (now - last < (Col.minMs ?? 450)) return { ok: true, damage: 0, reason: 'wait' };
+  p.collideAt = now;
+  const pts = Math.min(Col.maxPerHit ?? 14, Math.max(1, Math.round(impact * (Col.pointsPerMs ?? 0.55))));
+  const r = applyBodyDamage(app, uid, own, pts, p.x, p.z, p.ry);
+  const st = carStateOf(app, { ...own, damage: (own.damage || 0) + r.damage, wrecked: r.wrecked ? 1 : 0 });
+  const wasSmoke = (own.damage || 0) >= (C.smokeAt ?? 55);
+  const text = r.justWrecked ? '💥 Car don wreck! Call a tow truck to Motoka Meko.' : (!wasSmoke && r.smoke) ? `💨 Engine dey smoke. Car health ${st.health}.` : r.damage ? `💥 Bump — car health ${st.health}.` : null;
+  return { ok: true, ...r, health: st.health, smoke: st.smoke, repairFee: st.repairFee, text };
 }
+
 void refreshNeeds;

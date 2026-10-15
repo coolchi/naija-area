@@ -15,7 +15,8 @@ export function nextHint(u) {
   if (!u) return null;
   if (u.shift) return { id: 'shift', text: 'Your shift is running. Wait for the timer, then collect your pay.' };
   if (!u.totalShifts) return { id: 'first_job', text: 'Start your first job: go to a blue 💼 marker (Corner Mart is the easiest).' };
-  if (u.hunger != null && u.hunger < 35) return { id: 'hungry', text: 'You are hungry. Eat at Mama Put Canteen or buy food at Corner Mart.' };
+  if (u.fainted) return { id: 'fainted', text: 'You fainted from hunger. Call a cab or a friend to take you to a canteen, then eat to regain strength.' };
+  if (u.hunger != null && u.hunger < 35) return { id: 'hungry', text: 'Food is low. Eat at Mama Put Canteen before you faint.' };
   if (u.energy != null && u.energy < 30) return { id: 'tired', text: 'You are tired. Rest at home or buy a drink.' };
   if (u.health && u.health.health != null && u.health.health < 40) return { id: 'hurt', text: 'Your health is low. Rest, or visit the Community Clinic.' };
   if (!u.home) return { id: 'home', text: 'Get a place to stay: tap a green 🏠 house marker and rent a room.' };

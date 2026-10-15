@@ -1,8 +1,9 @@
 // The plane's flight as a pure function of time (10 Oct 2026): taxi from the apron to the runway, take-off roll, climb, then a banked circle over the district.
 // Everything is derived from the airport config (apron point and runway), so any city's airport reuses it. Units: metres and seconds. Visual only: the server decides when you land.
-export const FLIGHT = { taxiS: 5, rollS: 7, climbS: 9, rollLen: 170, climbH: 70, circleR: 170, bank: 0.35, cruiseWobble: 6,
+// climbH stays above typical towers; roof-map clearance still lifts over the tallest blocks.
+export const FLIGHT = { taxiS: 5, rollS: 7, climbS: 9, rollLen: 170, climbH: 150, circleR: 170, bank: 0.35, cruiseWobble: 6,
   // what OTHER players see (item 7): a departing plane circles for circleShowS then leaves in a straight climb for exitS and vanishes at exitH metres up; an arriving plane lands in landS (= the take-off run played backwards). Keep balance.flight.planes.depVisibleS >= taxi+roll+climb+circleShowS+exitS.
-  circleShowS: 12, exitS: 10, exitH: 320 };
+  circleShowS: 12, exitS: 10, exitH: 420 };
 const ss = (u) => { const k = Math.max(0, Math.min(1, u)); return k * k * (3 - 2 * k); };
 const lerpAng = (a, b, k) => { let d = ((b - a + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI; return a + d * k; };
 /** precompute the geometry for one airport; `towards` is a point the circuit should bend toward (the middle of the city) */

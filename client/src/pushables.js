@@ -5,17 +5,22 @@ import { PHYSX } from '../../server/config/physx.js';
 import { newPushable, pushContact, pushStep, pushAgainstBoxes, pushSpots } from '../../server/core/physx.js';
 import { carCircles, carVel } from './kinematics.js';
 import { PHYS } from './physics-config.js';
+import { roadAt } from './roadgeom.js';
 
 const MAT = { crate: 0x9a6b3a, barrel: 0xc23b2e, ball: 0xf2f2ee };
 export class Pushables {
-  constructor(scene, spawns, boxes, cfg = PHYSX) {
-    this.cfg = cfg; this.boxes = boxes || []; this.items = []; this.far = 0; this.scene = scene; this._offs = [];
+  constructor(scene, spawns, boxes, cfg = PHYSX, city = null) {
+    this.cfg = cfg; this.boxes = boxes || []; this.city = city; this.items = []; this.far = 0; this.scene = scene; this._offs = [];
     const geo = { crate: new THREE.BoxGeometry(1, 0.9, 1), barrel: new THREE.CylinderGeometry(0.4, 0.4, 1.0, 10), ball: new THREE.SphereGeometry(cfg.solids.ball.r, 10, 8) }; const mat = Object.fromEntries(Object.entries(MAT).map(([k, c]) => [k, new THREE.MeshLambertMaterial({ color: c })]));
     if (!cfg.push.enabled) return;
     for (const sp of pushSpots(spawns, cfg.push)) { if (this.blocked(sp)) continue; const o = newPushable(sp.kind, sp.x, sp.z); o.idle = 0; const h = cfg.solids[sp.kind].h; o.mesh = new THREE.Mesh(geo[sp.kind], mat[sp.kind]); o.mesh.position.set(o.x, h / 2, o.z); o.mesh.userData.pushable = sp.kind; scene.add(o.mesh); this.items.push(o); }
   }
-  /** a spot inside a building box would trap the object: skip it */
-  blocked(sp) { return this.boxes.some(b => sp.x > b.x0 - 0.5 && sp.x < b.x1 + 0.5 && sp.z > b.z0 - 0.5 && sp.z < b.z1 + 0.5); }
+  /** a spot inside a building box or on the asphalt would trap the object / clutter the road: skip it */
+  blocked(sp) {
+    if (this.boxes.some(b => sp.x > b.x0 - 0.5 && sp.x < b.x1 + 0.5 && sp.z > b.z0 - 0.5 && sp.z < b.z1 + 0.5)) return true;
+    if (this.city && roadAt(this.city, sp.x, sp.z, 1.2)) return true;
+    return false;
+  }
   /** `ctrl` is the player Controller: reads position, mode, velocities and jump height */
   update(dt, ctrl) {
     if (!this.items.length) return; const P = this.cfg.push, drive = ctrl.mode === 'drive'; const w = ctrl.walker, c = ctrl.car;

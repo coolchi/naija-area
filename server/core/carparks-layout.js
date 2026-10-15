@@ -30,10 +30,19 @@ export function ambientBays(lot, hour, taken = []) {
 export function ambientLook(lot, bay, hour) { const r = hash(hashStr(lot.id) * 3 + bay * 131 + Math.floor(hour / SLOT_HOURS) * 7); return { type: ['sedan', 'suv', 'hatch'][Math.floor(r * 3)], color: Math.floor(hash(r * 1e6) * 8) }; }
 /** nearest free bay to a point; `blocked` is a Set/array of bay indexes that are not available */
 export function nearestFree(lot, x, z, blocked = []) { const bl = new Set(blocked); let best = null; for (const b of bays(lot)) { if (bl.has(b.i)) continue; const d = Math.hypot(b.x - x, b.z - z); if (!best || d < best.d) best = { ...b, d }; } return best; }
-/** what the parking chip should offer right now (pure, tested): st = { mode, x, z, lots, mine (parked car or null), ownedCar, takeRange } */
+/** what the parking chip should offer right now (pure, tested): st = { mode, x, z, lots, mine (parked car or null), ownedCar, takeRange, carBody? } */
 export function parkingChip(st) {
   const lot = lotAt(st.lots, st.x, st.z, 1);
   if (st.mine) { if (st.mode === 'walk' && Math.hypot(st.mine.x - st.x, st.mine.z - st.z) <= st.takeRange) return { kind: 'take', label: '🚗 Take my car' }; return null; }
+  // Motoka Meko garage: drive in to fix crash damage (not a normal park bay)
+  if (lot && (lot.id === 'cp_meko' || lot.kind === 'service') && st.mode === 'drive' && st.ownedCar) {
+    const dmg = st.carBody?.damage || 0;
+    if (dmg > 0 || st.carBody?.wrecked) {
+      const fee = st.carBody?.repairFee;
+      return { kind: 'fix', lot, label: fee != null ? `🔧 Fix car · ₦${fee}` : '🔧 Fix car at Motoka Meko' };
+    }
+    return { kind: 'hint', lot, label: '🔧 Motoka Meko Garage — your car is fine' };
+  }
   if (lot && st.mode === 'drive') return st.ownedCar ? { kind: 'park', lot, label: lot.fee ? `🅿️ Park here · ₦${lot.fee}` : '🅿️ Park here · free' } : { kind: 'hint', lot, label: '🅿️ Park your own car here (buy one at Motoka AutoMart Showroom)' };
   return null;
 }

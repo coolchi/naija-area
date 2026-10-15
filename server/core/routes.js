@@ -3,7 +3,8 @@ import * as flight from './flight.js';
 import * as boat from './boat.js';
 import { viewScores, buyTicket } from './stadium.js';
 import { cityOf, publicCity, cityList, onlineByCity, useLink } from './cities.js';
-import { publicTreasures, claimTreasure } from './treasures.js';
+import { publicTreasures, claimTreasure, adminTreasures } from './treasures.js';
+import * as referrals from './referrals.js';
 import { GameError, bad, cleanText } from './util.js';
 import * as auth from './auth.js';
 import * as eco from './economy.js';
@@ -21,9 +22,16 @@ import * as cars from './cars.js';
 import * as parking from './parking.js';
 import * as bus from './bus.js';
 import * as ride from './ride.js';
+import * as carpool from './carpool.js';
+import * as meko from './meko.js';
 import * as crash from './crash.js';
+import * as faint from './faint.js';
 import * as homes from './homes.js';
+import * as fight from './fight.js';
+import * as police from './police.js';
 import * as wear from './wearables.js';
+import * as guns from './guns.js';
+import * as bodyguards from './bodyguards.js';
 import * as business from './business.js';
 import * as market from './market.js';
 import * as clubs from './clubs.js';
@@ -66,8 +74,8 @@ const realRadioOn = (app) => { const rt = (app.runtime ||= {}); if (rt.realRadio
 route('GET', '/api/admin/radio', { auth: 'admin' }, (c) => ({ realRadio: realRadioOn(c.app) }));
 route('POST', '/api/admin/radio', { auth: 'admin' }, (c) => { realRadioOn(c.app); c.app.runtime.realRadio = c.body.enabled !== false && c.body.enabled !== 'false'; return { realRadio: c.app.runtime.realRadio }; });
 route('GET', '/api/health', (c) => ({ ok: true, name: c.app.gameName, now: c.app.clock.now() }));
-route('GET', '/api/config', (c) => ({ realRadio: realRadioOn(c.app), movement: { maxWalkSpeed: c.app.balance.movement.maxWalkSpeed, maxDriveSpeed: c.app.balance.movement.maxDriveSpeed, slack: c.app.balance.movement.slack }, physx: c.app.balance.physx || null, adFormats: { radio: { everyMs: AD_FORMATS.radio.everyMs, stations: AD_FORMATS.radio.stations, minListenMs: AD_FORMATS.radio.minListenMs } }, crash: { enabled: !!c.app.balance.crash.enabled, regenPerMin: c.app.balance.crash.regenPerMin, max: c.app.balance.crash.maxHealth }, moodHappyAt: c.app.balance.mood.happyAt, emotes: emotes.publicList(), name: c.app.gameName, tagline: GAME_TAGLINE, minAge: MIN_AGE, testMode: true, devRoutes: !!c.app.devRoutes, rotationMs: AD_POLICY.rotationMs, balanceNote: c.app.balance._note,
-  topupOptions: c.app.balance.topup.options, payments: paymentsConfig(c.app), ageCheck: ageConfig(c.app), phone: !!c.app.balance.phone.enabled, transport: c.app.balance.transport, shopChannels: c.app.balance.shops.channels, workTask: c.app.balance.work.task, land: { risk: c.app.balance.land.risk }, maxNameLen: c.app.balance.housing.maxNameLen, housing: { rentPeriodMs: c.app.balance.housing.rentPeriodMs }, furniture: c.app.balance.housing.furniture }));
+route('GET', '/api/config', (c) => ({ realRadio: realRadioOn(c.app), movement: { maxWalkSpeed: c.app.balance.movement.maxWalkSpeed, maxDriveSpeed: c.app.balance.movement.maxDriveSpeed, slack: c.app.balance.movement.slack }, physx: c.app.balance.physx || null, adFormats: { radio: { everyMs: AD_FORMATS.radio.everyMs, stations: AD_FORMATS.radio.stations, minListenMs: AD_FORMATS.radio.minListenMs } }, crash: { enabled: !!c.app.balance.crash.enabled, regenPerMin: c.app.balance.crash.regenPerMin, max: c.app.balance.crash.maxHealth, smokeAt: c.app.balance.crash.smokeAt, wreckAt: c.app.balance.crash.wreckAt, collideMin: c.app.balance.crash.collide?.minImpact }, moodHappyAt: c.app.balance.mood.happyAt, emotes: emotes.publicList(), name: c.app.gameName, tagline: GAME_TAGLINE, minAge: MIN_AGE, testMode: true, devRoutes: !!c.app.devRoutes, rotationMs: AD_POLICY.rotationMs, balanceNote: c.app.balance._note,
+  topupOptions: c.app.balance.topup.options, payments: paymentsConfig(c.app), ageCheck: ageConfig(c.app), phone: !!c.app.balance.phone.enabled, transport: c.app.balance.transport, shopChannels: c.app.balance.shops.channels, workTask: c.app.balance.work.task, land: { risk: c.app.balance.land.risk }, maxNameLen: c.app.balance.housing.maxNameLen, housing: { rentPeriodMs: c.app.balance.housing.rentPeriodMs }, needs: { faintAt: c.app.balance.needs.faintAt, warnAt: c.app.balance.needs.warnAt }, facades: Object.entries(c.app.balance.decor.walls).map(([id, [name, hex]]) => ({ id, name, hex })), furniture: c.app.balance.housing.furniture, fight: { punchHealthPct: c.app.balance.fight.punchHealthPct, stealNetWorthPct: c.app.balance.fight.stealNetWorthPct }, gym: { maxStrength: c.app.balance.gym.maxStrength } }));
 route('GET', '/api/city', (c) => { const city = publicCity(c.uid ? cityOf(c.app, c.uid) : c.app.city); return { ...city, treasures: publicTreasures(c.app, city.id) }; });
 route('POST', '/api/treasures/claim', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); flight.assertNotFlying(c.app, c.uid); return { ...claimTreasure(c.app, c.uid, String(c.body.id || '')), user: eco.profile(c.app, c.uid) }; });
 route('POST', '/api/cities/link', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); flight.assertNotFlying(c.app, c.uid); return { ...useLink(c.app, c.uid, String(c.body.linkId || ''), c.body.idem), user: eco.profile(c.app, c.uid) }; });
@@ -86,6 +94,9 @@ route('POST', '/api/auth/login', { rate: 'auth' }, async (c) => { const uid = aw
 route('POST', '/api/auth/guest', { rate: 'auth' }, (c) => { const uid = auth.guest(c.app, c.body, c.ipHash); c.out.session = uid; return { ok: true, user: meView(c.app, uid) }; });
 route('POST', '/api/auth/logout', (c) => { if (c.uid) world.leaveWorld(c.app, c.uid); c.out.session = 'clear'; return { ok: true }; });
 route('GET', '/api/me', { auth: 'user' }, (c) => { missions.recordLogin(c.app, c.uid); achievements.evaluate(c.app, c.uid); return { user: meView(c.app, c.uid) }; });
+route('GET', '/api/referrals/preview', { rate: 'auth' }, (c) => referrals.previewRef(c.app, c.query.ref || c.query.code || ''));
+route('GET', '/api/referrals', { auth: 'user' }, (c) => referrals.mine(c.app, c.uid));
+route('POST', '/api/referrals/invite', { auth: 'user', rate: 'auth' }, async (c) => referrals.inviteByEmail(c.app, c.uid, c.body.email));
 
 // ---- world
 route('POST', '/api/heartbeat', { auth: 'user' }, (c) => world.heartbeat(c.app, c.uid, c.body || {}, { headless: c.headless }));
@@ -111,6 +122,9 @@ route('POST', '/api/property/leave', { auth: 'user' }, (c) => soc.leaveHome(c.ap
 route('POST', '/api/visit/knock', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return soc.knock(c.app, c.uid, c.body.propertyId); });
 route('POST', '/api/visit/respond', { auth: 'user' }, (c) => soc.respondKnock(c.app, c.uid, c.body.knockId, c.body.accept === true));
 route('POST', '/api/visit/cancel', { auth: 'user' }, (c) => soc.cancelKnock(c.app, c.uid));
+route('POST', '/api/carpool/offer', { auth: 'user' }, (c) => carpool.offer(c.app, c.uid, c.body.targetId, c.body.pos));
+route('POST', '/api/carpool/respond', { auth: 'user' }, (c) => carpool.respond(c.app, c.uid, c.body.accept === true, c.body.pos));
+route('POST', '/api/carpool/leave', { auth: 'user' }, (c) => carpool.leave(c.app, c.uid));
 route('POST', '/api/report', { auth: 'user' }, (c) => safety.createReport(c.app, c.uid, c.body));
 route('POST', '/api/social/mute', { auth: 'user' }, (c) => safety.setBlock(c.app, c.uid, c.body.username, c.body.kind ?? null));
 route('GET', '/api/social/blocks', { auth: 'user' }, (c) => ({ rows: safety.listBlocks(c.app, c.uid), reasons: safety.REASONS }));
@@ -123,6 +137,11 @@ route('POST', '/api/venue/leave', { auth: 'user' }, (c) => venues.leaveVenue(c.a
 route('GET', '/api/stadium/scores', { auth: 'user' }, (c) => viewScores(c.app, c.uid));
 route('POST', '/api/stadium/ticket', { auth: 'user' }, (c) => buyTicket(c.app, c.uid, c.body.idem));
 route('POST', '/api/venue/act', { auth: 'user' }, (c) => venues.act(c.app, c.uid, c.body.venueId, c.body.stationId, c.body));
+route('POST', '/api/fight/punch', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return fight.punch(c.app, c.uid, c.body.username, c.body.idem); });
+route('GET', '/api/police', { auth: 'user' }, (c) => police.stationView(c.app, c.uid));
+route('GET', '/api/police/status', { auth: 'user' }, (c) => police.policeStatus(c.app, c.uid));
+route('POST', '/api/police/report', { auth: 'user' }, (c) => police.reportCase(c.app, c.uid, c.body));
+route('POST', '/api/police/bail', { auth: 'user' }, (c) => police.bailOut(c.app, c.uid, c.body));
 route('GET', '/api/phone/friends', { auth: 'user' }, (c) => phone.friendsView(c.app, c.uid));
 route('POST', '/api/phone/friends/request', { auth: 'user' }, (c) => phone.friendRequest(c.app, c.uid, c.body.username));
 route('POST', '/api/phone/friends/respond', { auth: 'user' }, (c) => phone.friendRespond(c.app, c.uid, c.body.id, !!c.body.accept));
@@ -132,6 +151,7 @@ route('POST', '/api/phone/settings', { auth: 'user' }, (c) => phone.setSettings(
 route('GET', '/api/phone/threads', { auth: 'user' }, (c) => phone.threadsView(c.app, c.uid));
 route('GET', '/api/phone/thread', { auth: 'user' }, (c) => phone.threadView(c.app, c.uid, String(c.query.with || ''), Number(c.query.after) || 0, c.query.read !== '0'));
 route('POST', '/api/phone/messages', { auth: 'user' }, (c) => phone.sendText(c.app, c.uid, c.body.to, c.body.text));
+route('POST', '/api/phone/pay', { auth: 'user' }, (c) => { const r = phone.sendPay(c.app, c.uid, c.body.to, c.body.amount, c.body.idem); return { ...r, user: eco.profile(c.app, c.uid) }; });
 route('POST', '/api/phone/voice', { auth: 'user' }, (c) => phone.sendVoice(c.app, c.uid, String(c.query.to || ''), c.raw, { durationMs: c.headers?.['x-duration-ms'], mime: c.headers?.['content-type'], waveform: String(c.headers?.['x-waveform'] || '').split(',').filter(Boolean).map(Number) }));
 route('GET', '/api/phone/call', { auth: 'user' }, (c) => phone.callState(c.app, c.uid));
 route('POST', '/api/phone/call/start', { auth: 'user' }, (c) => phone.callStart(c.app, c.uid, c.body.to));
@@ -174,6 +194,18 @@ route('POST', '/api/clubs/hangout', { auth: 'user' }, (c) => clubs.hangout(c.app
 route('POST', '/api/throw', { auth: 'user' }, (c) => { c.app.limiter.hit?.(`throw:${c.uid}`, 60, 60000, c.app.clock.now()); return throws.throwBall(c.app, c.uid, c.body); });
 route('GET', '/api/weather', { auth: 'user' }, (c) => weather.view(c.app, c.uid));
 route('POST', '/api/admin/weather', { auth: 'admin' }, (c) => weather.force(c.app, c.body.state));
+route('GET', '/api/admin/time', { auth: 'admin' }, (c) => ({ world: eco.gameTime(c.app) }));
+route('POST', '/api/admin/time', { auth: 'admin' }, (c) => {
+  const hour = Number(c.body.hour), minute = Number(c.body.minute ?? 0);
+  if (!Number.isFinite(hour) || hour < 0 || hour > 23 || !Number.isFinite(minute) || minute < 0 || minute > 59) bad('BAD_TIME', 'Use hour 0–23 and minute 0–59.', 400);
+  const mins = Math.floor(hour) * 60 + Math.floor(minute);
+  const gt = eco.gameTime(c.app);
+  const wc = c.app.balance.worldClock;
+  const gameMins = (gt.day - 1) * 1440 + mins;
+  wc.startRealMs = Date.now() - (gameMins / wc.gameMinutesPerRealMinute) * 60000;
+  return { ok: true, world: eco.gameTime(c.app) };
+});
+
 route('GET', '/api/events', { auth: 'user' }, (c) => events.view(c.app, c.uid));
 route('POST', '/api/events/buy', { auth: 'user' }, (c) => events.buy(c.app, c.uid, String(c.body.event || ''), String(c.body.item || ''), c.body.idem));
 // skins shop (avatar, car, home looks) and the battle pass: GAME MONEY ONLY, see server/core/skins.js, pass.js and docs/PASS_SKINS.md
@@ -195,6 +227,16 @@ route('POST', '/api/wearables/buy', { auth: 'user' }, (c) => wear.buy(c.app, c.u
 route('POST', '/api/wearables/equip', { auth: 'user' }, (c) => wear.equip(c.app, c.uid, c.body.itemId));
 route('POST', '/api/wearables/unequip', { auth: 'user' }, (c) => wear.unequip(c.app, c.uid, c.body.slot));
 route('POST', '/api/wearables/sell', { auth: 'user' }, (c) => wear.sell(c.app, c.uid, c.body.itemId, c.body.idem));
+// gun shop + bodyguard desk (Iron Gate Armoury)
+route('GET', '/api/guns/catalogue', (c) => guns.catalogue(c.app));
+route('GET', '/api/guns/shop', { auth: 'user' }, (c) => guns.shopView(c.app, c.uid, String(c.query.venueId || '')));
+route('GET', '/api/guns/mine', { auth: 'user' }, (c) => guns.gunView(c.app, c.uid));
+route('POST', '/api/guns/buy', { auth: 'user' }, (c) => guns.buy(c.app, c.uid, c.body.venueId, c.body.itemId, c.body.idem));
+route('POST', '/api/guns/equip', { auth: 'user' }, (c) => guns.equip(c.app, c.uid, c.body.itemId));
+route('POST', '/api/guns/unequip', { auth: 'user' }, (c) => guns.unequip(c.app, c.uid));
+route('GET', '/api/bodyguard', { auth: 'user' }, (c) => bodyguards.deskView(c.app, c.uid, String(c.query.venueId || '')));
+route('POST', '/api/bodyguard/hire', { auth: 'user' }, (c) => bodyguards.hire(c.app, c.uid, c.body.venueId, c.body.plan, c.body.idem, !!c.body.withCar));
+route('POST', '/api/bodyguard/dismiss', { auth: 'user' }, (c) => bodyguards.dismiss(c.app, c.uid));
 route('POST', '/api/avatar/gender', { auth: 'user' }, (c) => world.setGender(c.app, c.uid, c.body?.gender));
 // first-five-minutes tutorial
 route('GET', '/api/tutorial', { auth: 'user' }, (c) => tutorial.view(c.app, c.uid));
@@ -268,6 +310,7 @@ route('GET', '/api/casual/word', { auth: 'user' }, (c) => casual.wordState(c.app
 route('POST', '/api/casual/word/guess', { auth: 'user' }, (c) => casual.wordGuess(c.app, c.uid, c.body.word));
 route('GET', '/api/scoreboard', { auth: 'user' }, (c) => games.scoreboard(c.app, { kind: c.query.kind, weekOffset: Number(c.query.weekOffset) || 0 }));
 route('GET', '/api/garage', { auth: 'user' }, (c) => cars.garageView(c.app, c.uid));
+route('GET', '/api/motoka/stock', { auth: 'user' }, (c) => cars.motokaYard(c.app, c.uid));
 route('POST', '/api/garage/buy', { auth: 'user' }, (c) => cars.buyCar(c.app, c.uid, c.body.model, c.body.idemKey));
 route('POST', '/api/garage/use', { auth: 'user' }, (c) => cars.setActive(c.app, c.uid, Number(c.body.carId)));
 route('GET', '/api/boat', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, undefined); return boat.view(c.app, c.uid); });
@@ -282,6 +325,13 @@ route('GET', '/api/ride/quote', { auth: 'user' }, (c) => ride.quote(c.app, c.uid
 route('POST', '/api/ride/request', { auth: 'user' }, (c) => ride.request(c.app, c.uid, String(c.body.placeId || '')));
 route('POST', '/api/ride/cancel', { auth: 'user' }, (c) => ride.cancel(c.app, c.uid));
 route('POST', '/api/ride/start', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return { ...ride.start(c.app, c.uid, c.body.idem), user: eco.profile(c.app, c.uid) }; });
+// hunger faint: cab or friend to a canteen
+route('GET', '/api/needs/faint', { auth: 'user' }, (c) => faint.faintStatus(c.app, c.uid));
+route('POST', '/api/needs/rescue/cab', { auth: 'user' }, (c) => { const r = faint.rescueCab(c.app, c.uid); return { ...r, user: eco.profile(c.app, c.uid) }; });
+route('POST', '/api/needs/rescue/friend', { auth: 'user' }, (c) => faint.rescueFriendAsk(c.app, c.uid, c.body.username));
+route('POST', '/api/needs/rescue/accept', { auth: 'user' }, (c) => { const r = faint.rescueFriendAccept(c.app, c.uid, c.body.id); return { ...r, user: eco.profile(c.app, c.uid) }; });
+route('POST', '/api/needs/rescue/decline', { auth: 'user' }, (c) => faint.rescueFriendDecline(c.app, c.uid, c.body.id));
+route('POST', '/api/needs/sip', { auth: 'user' }, (c) => { const r = faint.sipAtFood(c.app, c.uid); return { ...r, user: eco.profile(c.app, c.uid) }; });
 route('POST', '/api/bus/call', { auth: 'user' }, (c) => bus.call(c.app, c.uid, String(c.body.stopId || '')));
 route('POST', '/api/bus/board', { auth: 'user' }, (c) => bus.board(c.app, c.uid, String(c.body.stopId || '')));
 route('POST', '/api/bus/cancel', { auth: 'user' }, (c) => bus.cancel(c.app, c.uid));
@@ -291,17 +341,23 @@ route('POST', '/api/parking/take', { auth: 'user' }, (c) => parking.take(c.app, 
 route('GET', '/api/mechanic', { auth: 'user' }, (c) => cars.mecoCheck(c.app, c.uid));
 route('POST', '/api/crash/roll', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return crash.roll(c.app, c.uid, c.body); });
 route('POST', '/api/crash/impact', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return crash.impact(c.app, c.uid, c.body); });
+route('POST', '/api/crash/collide', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return crash.collide(c.app, c.uid, c.body); });
 route('GET', '/api/clinic', { auth: 'user' }, (c) => crash.clinicInfo(c.app, c.uid));
 route('POST', '/api/clinic/treat', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return crash.treat(c.app, c.uid, c.body.idemKey); });
 route('POST', '/api/mechanic/repair', { auth: 'user' }, (c) => crash.repair(c.app, c.uid, c.body.idemKey));
+route('GET', '/api/tow', { auth: 'user' }, (c) => meko.towStatus(c.app, c.uid));
+route('GET', '/api/tow/quote', { auth: 'user' }, (c) => meko.towQuote(c.app, c.uid));
+route('POST', '/api/tow/request', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return meko.towRequest(c.app, c.uid); });
 route('POST', '/api/mechanic/service', { auth: 'user' }, (c) => cars.mecoService(c.app, c.uid, c.body.idemKey));
 route('POST', '/api/garage/sell', { auth: 'user' }, (c) => cars.sellCar(c.app, c.uid, Number(c.body.carId), c.body.idemKey));
 route('POST', '/api/property/decor', { auth: 'user' }, (c) => homes.setDecor(c.app, c.uid, c.body.propertyId, c.body.wall, c.body.floor, c.body.idemKey));
+route('POST', '/api/property/facade', { auth: 'user' }, (c) => { const r = homes.setFacade(c.app, c.uid, c.body.propertyId, c.body.color, c.body.idemKey); return { ...r, user: eco.profile(c.app, c.uid) }; });
 route('POST', '/api/visit/love', { auth: 'user' }, (c) => homes.love(c.app, c.uid, c.body.propertyId));
 route('POST', '/api/visit/act', { auth: 'user' }, (c) => homes.act(c.app, c.uid, c.body.propertyId, c.body.action));
 route('POST', '/api/room/say', { auth: 'user' }, (c) => homes.say(c.app, c.uid, c.body.propertyId, c.body.text));
 route('GET', '/api/room', { auth: 'user' }, (c) => homes.room(c.app, c.uid, String(c.query.propertyId), c.query.since));
 route('POST', '/api/visit/kick', { auth: 'user' }, (c) => homes.kick(c.app, c.uid, c.body.propertyId, c.body.username));
+route('POST', '/api/property/power/restore', { auth: 'user' }, (c) => homes.restorePower(c.app, c.uid, c.body.propertyId));
 route('POST', '/api/dm', { auth: 'user' }, (c) => soc.sendDm(c.app, c.uid, c.body.to, c.body.text));
 route('GET', '/api/travel/quote', { auth: 'user' }, (c) => soc.travelQuote(c.app, c.uid, c.query.place));
 route('POST', '/api/travel', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); return { ...soc.travel(c.app, c.uid, c.body.placeId, c.body.mode, c.body.idem), user: eco.profile(c.app, c.uid) }; });
@@ -339,10 +395,12 @@ route('GET', '/api/admin/queue', { auth: 'admin' }, (c) => ({ rows: ads.adminQue
 route('POST', '/api/admin/campaigns/:id/decision', { auth: 'admin' }, (c) => { const st = ads.decide(c.app, Number(c.params.id), c.body.decision, 'admin', c.body.reason, { rejectDesigns: c.body.rejectDesigns }); c.app.db.prepare('INSERT INTO audit_log(actor,action,detail,created_at) VALUES (?,?,?,?)').run('admin', 'ad_' + c.body.decision, `campaign ${c.params.id}: ${c.body.reason || ''}${Array.isArray(c.body.rejectDesigns) && c.body.rejectDesigns.length ? ` (rejected designs ${c.body.rejectDesigns.join(',')})` : ''}`, c.app.clock.now()); return { ok: true, status: st }; });
 route('POST', '/api/admin/campaigns/:id/designs/:creative/decision', { auth: 'admin' }, (c) => { const r = ads.decideDesign(c.app, Number(c.params.id), Number(c.params.creative), c.body.decision, 'admin', c.body.reason); c.app.db.prepare('INSERT INTO audit_log(actor,action,detail,created_at) VALUES (?,?,?,?)').run('admin', 'ad_design_' + c.body.decision, `campaign ${c.params.id} design ${c.params.creative}: ${c.body.reason || ''}`, c.app.clock.now()); return { ok: true, ...r }; });
 route('GET', '/api/admin/players', { auth: 'admin' }, (c) => playerDirectory(c.app, { scope: String(c.query.scope || 'all'), q: c.query.q || '' }));
+route('GET', '/api/admin/treasures', { auth: 'admin' }, (c) => adminTreasures(c.app, { city: c.query.city || '', q: c.query.q || '' }));
 route('GET', '/api/admin/overview', { auth: 'admin' }, (c) => {
   const a = c.app, db = a.db; const byStatus = db.prepare('SELECT status, COUNT(*) n FROM ad_campaigns GROUP BY status').all();
   const faucets = db.prepare("SELECT id, balance FROM accounts WHERE kind='system' ORDER BY id").all();
-  return { users: db.prepare('SELECT COUNT(*) n FROM users').get().n, online: world.ccuNow(a), moneySupply: moneySupply(db), systemAccounts: faucets, ledger: checkInvariants(db), campaignsByStatus: byStatus, interval: world.recommendedInterval(a, world.ccuNow(a)) };
+  const tr = adminTreasures(a);
+  return { users: db.prepare('SELECT COUNT(*) n FROM users').get().n, online: world.ccuNow(a), moneySupply: moneySupply(db), systemAccounts: faucets, ledger: checkInvariants(db), campaignsByStatus: byStatus, interval: world.recommendedInterval(a, world.ccuNow(a)), treasures: tr.summary };
 });
 route('GET', '/api/admin/ledger/:username', { auth: 'admin' }, (c) => { const u = c.app.db.prepare('SELECT id FROM users WHERE username=?').get(c.params.username); if (!u) bad('NO_USER', 'No such user', 404); return { rows: history(c.app.db, u.id, 100), balance: balanceOf(c.app.db, cashId(u.id)) }; });
 route('POST', '/api/admin/tick', { auth: 'admin' }, (c) => ({ ads: ads.tickAds(c.app), rent: eco.tickRent(c.app), interest: eco.tickInterest(c.app), land: soc.tickLand(c.app) }));

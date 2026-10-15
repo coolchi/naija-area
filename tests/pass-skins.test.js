@@ -19,13 +19,18 @@ const addXp = (s, u, xp) => { const se = pass.seasonAt(s.app); const row = s.db.
 
 test('skins config: unique ids, three kinds, shop skins have prices, pass skins have none, looks are valid colours and ONLY looks (nothing that changes play)', () => {
   assert.equal(new Set(SKINS.map(s => s.id)).size, SKINS.length); const hex = /^#[0-9a-f]{6}$/i;
-  const allowed = new Set(['id', 'kind', 'name', 'price', 'rarity', 'sell', 'color', 'glow', 'accent', 'wall', 'floor']);
+  const allowed = new Set(['id', 'kind', 'name', 'price', 'rarity', 'sell', 'color', 'glow', 'accent', 'wall', 'floor', 'body', 'gender']);
   for (const s of SKINS) {
     for (const k of Object.keys(s)) assert.ok(allowed.has(k), `${s.id} has a non-cosmetic field: ${k}`);
     assert.ok(['avatar', 'car', 'home'].includes(s.kind) && ['common', 'rare', 'epic'].includes(s.rarity) && ['shop', 'pass'].includes(s.sell), s.id);
     if (s.sell === 'shop') assert.ok(Number.isInteger(s.price) && s.price > 0, s.id); else assert.equal(s.price, undefined, s.id + ' pass skins are never priced');
     const colours = s.kind === 'home' ? [s.accent, s.wall, s.floor] : [s.color]; for (const c of colours) assert.match(c, hex, s.id); if (s.glow) assert.match(s.glow, hex);
+    if (s.body) assert.ok(['hd', 'casual', 'casual_f'].includes(s.body), s.id + ' body upgrade is cosmetic mesh only');
+    if (s.gender) assert.ok(['male', 'female'].includes(s.gender), s.id + ' gender gate');
   }
+  assert.equal(skinById.av_hd_body?.name, 'Soldier Man'); assert.equal(skinById.av_hd_body?.price, 10_000_000_000); assert.equal(skinById.av_hd_body?.body, 'hd'); assert.equal(skinById.av_hd_body?.gender, 'male');
+  assert.equal(skinById.av_casual_man?.price, 100_000_000); assert.equal(skinById.av_casual_man?.body, 'casual'); assert.equal(skinById.av_casual_man?.gender, 'male');
+  assert.equal(skinById.av_casual_woman?.price, 50_000_000); assert.equal(skinById.av_casual_woman?.body, 'casual_f'); assert.equal(skinById.av_casual_woman?.gender, 'female');
   for (const kind of ['avatar', 'car', 'home']) { assert.ok(SKINS.filter(s => s.kind === kind && s.sell === 'shop').length >= 4, kind); assert.ok(SKINS.filter(s => s.kind === kind && s.sell === 'pass').length >= 2, kind); }
   const byRarity = (kind, r) => SKINS.filter(s => s.kind === kind && s.sell === 'shop' && s.rarity === r).map(s => s.price); for (const kind of ['avatar', 'car', 'home']) assert.ok(Math.max(...byRarity(kind, 'common')) < Math.min(...byRarity(kind, 'epic')), kind + ': epic costs more than common');
   assert.equal(SKIN_RULES.realMoney.enabled, false); assert.equal(PASS.realMoney.enabled, false);
@@ -69,10 +74,11 @@ test('equipping: you must own it, one skin per kind, a home skin needs a home, u
 test('a home skin repaints the interior and shows an accent on the door while you own the home, and only then', async () => {
   const s = makeServer(); setNow(s, IN); const u = rich(s, 800000); const h = skinById.home_terracotta; const p = s.app.city.properties.filter(x => x.tier === 1)[0];
   at(s, u, p.door.x, p.door.z); await ok(s, 'POST', '/api/property/acquire', { uid: u, body: { propertyId: p.id, mode: 'rent' } }); await ok(s, 'POST', '/api/heartbeat', { uid: u, body: {} }); await ok(s, 'POST', '/api/property/enter', { uid: u });
-  await ok(s, 'POST', '/api/skins/buy', { uid: u, body: { skin: h.id } }); const plain = await ok(s, 'GET', `/api/property/${p.id}/interior`, { uid: u }); assert.notEqual(plain.wall.hex, h.wall);
-  await ok(s, 'POST', '/api/skins/equip', { uid: u, body: { skin: h.id } }); const dressed = await ok(s, 'GET', `/api/property/${p.id}/interior`, { uid: u }); assert.equal(dressed.wall.hex, h.wall); assert.equal(dressed.floor.hex, h.floor);
+  const before = await ok(s, 'GET', `/api/property/${p.id}/interior`, { uid: u }); assert.notEqual(before.wall.hex, h.wall);
+  // Buying a skin now equips it when you can wear it (you already have a home here).
+  await ok(s, 'POST', '/api/skins/buy', { uid: u, body: { skin: h.id } }); const dressed = await ok(s, 'GET', `/api/property/${p.id}/interior`, { uid: u }); assert.equal(dressed.wall.hex, h.wall); assert.equal(dressed.floor.hex, h.floor);
   const list = await ok(s, 'GET', '/api/properties', { uid: mkUser(s, { cash: 10 }) }); assert.equal(list.properties.find(x => x.id === p.id).homeSkin, h.accent, 'everybody sees the accent on the door');
-  await ok(s, 'POST', '/api/skins/unequip', { uid: u, body: { kind: 'home' } }); const back = await ok(s, 'GET', `/api/property/${p.id}/interior`, { uid: u }); assert.equal(back.wall.hex, plain.wall.hex);
+  await ok(s, 'POST', '/api/skins/unequip', { uid: u, body: { kind: 'home' } }); const back = await ok(s, 'GET', `/api/property/${p.id}/interior`, { uid: u }); assert.equal(back.wall.hex, before.wall.hex);
   const list2 = await ok(s, 'GET', '/api/properties', { uid: u }); assert.equal(list2.properties.find(x => x.id === p.id).homeSkin, undefined);
 });
 
@@ -134,9 +140,36 @@ test('guests and every route need a sign-in where it should; the catalogue is pu
   const s = makeServer(); for (const [m, p] of [['GET', '/api/skins'], ['GET', '/api/pass'], ['POST', '/api/skins/buy'], ['POST', '/api/pass/claim'], ['POST', '/api/pass/premium']]) assert.equal((await call(s, m, p, { body: {} })).status, 401, p);
   assert.equal((await call(s, 'GET', '/api/skins/catalogue')).status, 200);
 });
+test('body upgrades: Soldier/Casual Man need Man; Casual Woman needs Woman signup; Man cannot switch to Woman', async () => {
+  const s = makeServer(); setNow(s, IN);
+  const man = mkUser(s, { cash: 20_000_000_000 });
+  assert.equal((await ok(s, 'GET', '/api/me', { uid: man })).user.gender, 'male');
+  const manShop = await ok(s, 'GET', '/api/skins', { uid: man });
+  assert.ok(!manShop.items.some(i => i.id === 'av_casual_woman'), 'Casual Woman is not listed for Man players');
+  assert.ok(manShop.items.some(i => i.id === 'av_casual_man'));
+  assert.equal((await P(s, man, '/api/skins/buy', { skin: 'av_casual_woman' })).json.error, 'WRONG_GENDER');
+  const soldier = await ok(s, 'POST', '/api/skins/buy', { uid: man, body: { skin: 'av_hd_body', idem: 'sol' } });
+  assert.equal(soldier.charged, 10_000_000_000); assert.equal(soldier.skin.name, 'Soldier Man');
+  await ok(s, 'POST', '/api/skins/buy', { uid: man, body: { skin: 'av_casual_man', idem: 'cm' } });
+  assert.equal((await P(s, man, '/api/avatar/gender', { gender: 'female' })).json.error, 'GENDER_LOCKED');
+
+  const woman = await auth.signup(s.app, { username: 'skin_wom', password: 'secret-pass-1', age18: true, email: 'skin_wom@example.com', gender: 'female' }, 'ip');
+  s.db.prepare('UPDATE users SET created_at=? WHERE id=?').run(s.app.clock.now() - 3 * HOUR, woman);
+  move(s.app, { from: SYS.FAUCET_START, to: cashId(woman), amount: 100_000_000, reason: 'test', ref: 'tw', userId: woman, idemKey: 'fundw' + woman });
+  assert.equal((await ok(s, 'GET', '/api/me', { uid: woman })).user.gender, 'female');
+  const womanShop = await ok(s, 'GET', '/api/skins', { uid: woman });
+  assert.ok(!womanShop.items.some(i => i.id === 'av_casual_man' || i.id === 'av_hd_body'), 'Man body skins are not listed for Woman players');
+  assert.ok(womanShop.items.some(i => i.id === 'av_casual_woman'));
+  assert.equal((await P(s, woman, '/api/skins/buy', { skin: 'av_casual_man' })).json.error, 'WRONG_GENDER');
+  assert.equal((await P(s, woman, '/api/skins/buy', { skin: 'av_hd_body' })).json.error, 'WRONG_GENDER');
+  const cw = await ok(s, 'POST', '/api/skins/buy', { uid: woman, body: { skin: 'av_casual_woman', idem: 'cw' } });
+  assert.equal(cw.charged, 50_000_000);
+  assert.equal(checkInvariants(s.db).ok, true);
+});
+
 test('account data: skins and pass rows are in the download and are erased with the account; the ledger stays whole', async () => {
   const s = makeServer(); setNow(s, IN); assert.ok(registeredNames().includes('skinsAndBattlePass'));
-  const u = await auth.signup(s.app, { username: 'skin_ada', password: 'secret-pass-1', age18: true }, 'ip'); s.db.prepare('UPDATE users SET created_at=? WHERE id=?').run(s.app.clock.now() - 3 * HOUR, u); move(s.app, { from: SYS.FAUCET_START, to: cashId(u), amount: 400000, reason: 'test', ref: 't', userId: u, idemKey: 'fund' + u });
+  const u = await auth.signup(s.app, { username: 'skin_ada', password: 'secret-pass-1', age18: true, email: 'skin_ada@example.com' }, 'ip'); s.db.prepare('UPDATE users SET created_at=? WHERE id=?').run(s.app.clock.now() - 3 * HOUR, u); move(s.app, { from: SYS.FAUCET_START, to: cashId(u), amount: 400000, reason: 'test', ref: 't', userId: u, idemKey: 'fund' + u });
   await ok(s, 'POST', '/api/skins/buy', { uid: u, body: { skin: 'car_pearl_white' } }); await ok(s, 'POST', '/api/skins/equip', { uid: u, body: { skin: 'car_pearl_white' } }); await ok(s, 'POST', '/api/pass/login', { uid: u }); addXp(s, u, PASS.tierXp * 2); await ok(s, 'POST', '/api/pass/claim', { uid: u, body: { tier: 1, track: 'free' } });
   const dl = await ok(s, 'GET', '/api/account/export', { uid: u }); const d = dl.skinsAndBattlePass; assert.equal(d.skinsOwned.length, 1); assert.equal(d.skinsWorn.length, 1); assert.equal(d.battlePass.length, 1); assert.equal(d.battlePassClaims.length, 1); assert.ok(d.battlePassXpLog.length >= 1);
   const r = await ok(s, 'POST', '/api/account/delete', { uid: u, body: { confirm: 'delete', password: 'secret-pass-1' } }); assert.ok(r.ok !== false);

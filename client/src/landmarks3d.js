@@ -77,13 +77,21 @@ export function drawExtraBuilding(b, ctx) {
   const { plain, walls, glassB, addSign, frontPos } = ctx; const hw = b.w / 2, hd = b.d / 2, [fx, fz] = b.face; const alongX = Math.abs(fz) > 0; // true when the front faces +-z
   const at = (u, v, h, y, w, d, c, o) => { const px = b.x + (alongX ? u : v), pz = b.z + (alongX ? v : u); plain.box(alongX ? w : d, h, alongX ? d : w, px, y, pz, c, o || { noAO: true }); }; // u: sideways, v: along the facing direction (positive = out the front)
   const fs = alongX ? fz : fx; const V = (v) => v * fs; // v>0 toward the front
-  if (b.kind === 'hotel') {
+  if (b.kind === 'school') {
+    walls.box(b.w, b.h, b.d, b.x, 0, b.z, b.color || '#f4efe4');
+    plain.box(b.w + 0.8, 0.5, b.d + 0.8, b.x, b.h, b.z, 0x1f7a4d);
+    at(0, V(hd + 1.4), 0.4, 0.15, b.w * 0.46, 3.4, 0xe8e0d0);
+    for (const s of [-1, 1]) at(s * b.w * 0.18, V(hd + 2.6), b.h * 0.62, 0, 0.42, 0.42, 0xf7f3ea);
+    const [sx, sz] = frontPos(b, 0.16); addSign(String(b.label || 'School'), '#0b3d2e', sx, Math.max(4.2, b.h * 0.62), sz, Math.min(b.w - 3, 22), 2.2, b.face);
+    plain.box(0.16, b.h + 5, 0.16, b.x + (alongX ? -hw + 1.2 : fx * (hw - 1.2)), 0, b.z + (alongX ? fz * (hd - 1.2) : -hd + 1.2), 0xeeeeee, { noAO: true });
+  } else if (b.kind === 'hotel') {
     walls.box(b.w, b.h, b.d, b.x, 0, b.z, b.color); plain.box(b.w + 1, 0.8, b.d + 1, b.x, b.h, b.z, 0x7d8185);
-    at(0, V(hd * 0.0 + hd + 2.2), 4.2, 0, b.w * 0.5, 5, 0xe6dfd0); at(0, V(hd + 2.2), 0.45, 4.2, b.w * 0.55, 5.6, 0x555b61); // podium and canopy
-    for (const s of [-1, 1]) at(s * b.w * 0.24, V(hd + 4.5), 4.2, 0, 0.7, 0.7, 0xfaf7ef); // canopy columns
+    // keep the canopy short so it stays on the sidewalk, not out over the carriageway
+    at(0, V(hd + 1.1), 4.2, 0, b.w * 0.5, 2.8, 0xe6dfd0); at(0, V(hd + 1.1), 0.45, 4.2, b.w * 0.55, 3.2, 0x555b61);
+    for (const s of [-1, 1]) at(s * b.w * 0.24, V(hd + 2.2), 4.2, 0, 0.7, 0.7, 0xfaf7ef);
     at(0, V(0), 5, b.h, b.w * 0.34, b.d * 0.5, 0x9aa1a8); // rooftop plant
-    const [sx, sz] = frontPos(b, 0.12); addSign(b.label.toUpperCase(), '#1d2b3a', sx, b.h - 2.6, sz, Math.min(b.w - 4, 26), 3, b.face);
-    const [dx, dz] = frontPos(b, 5.1); glassB.box(alongX ? 6 : 0.2, 3.4, alongX ? 0.2 : 6, dx, 0.2, dz, 0x9cc7d9, { noAO: true, jit: 0 });
+    const [sx, sz] = frontPos(b, 0.12); addSign(b.label.toUpperCase(), b.sign || '#1d2b3a', sx, b.h - 2.6, sz, Math.min(b.w - 4, 26), 3, b.face);
+    const [dx, dz] = frontPos(b, 1.4); glassB.box(alongX ? 6 : 0.2, 3.4, alongX ? 0.2 : 6, dx, 0.2, dz, 0x9cc7d9, { noAO: true, jit: 0 });
   } else if (b.model === 'mosque') { // central dome on a drum, two minarets, arched porch, green trim
     const base = 7; walls.box(b.w, base, b.d, b.x, 0, b.z, b.color); plain.box(b.w + 0.8, 0.5, b.d + 0.8, b.x, base, b.z, 0xbfb7a2);
     plain.box(b.w * 0.55, 4, b.d * 0.6, b.x, base + 0.5, b.z, 0xf3eee0); plain.cyl(6.2, 6.6, 3, 20, b.x, base + 4.5, b.z, 0xf3eee0); plain.sphere(6.4, b.x, base + 7.4, b.z, 0x2f8f5a, { noAO: true, sy: 0.9 }); plain.cyl(0.08, 0.35, 3.2, 8, b.x, base + 13, b.z, 0xd4af37); plain.sphere(0.55, b.x, base + 16.4, b.z, 0xd4af37);

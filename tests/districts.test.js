@@ -22,7 +22,26 @@ test('approved places exist as venues with the real names (hotels, clubs, arts, 
   assert.ok(s.app.cities['lagos-mainland'].buildings.some(b => b.model === 'theatre'), 'National Theatre is on the mainland');
 });
 test('sacred places keep a clear 60 m: no billboards, venues or shops near the mosque and cathedral', () => {
-  const s = makeServer(); const c = s.app.cities['lagos-island']; for (const sc of c.buildings.filter(b => b.sacred)) { for (const b of c.billboards) assert.ok(Math.hypot(b.x - sc.x, b.z - sc.z) >= 60, `${b.id} near ${sc.label}`); for (const v of [...c.venues, ...c.shops]) assert.ok(Math.hypot(v.x - sc.x, v.z - sc.z) >= 60, `${v.id} near ${sc.label}`); }
+  const s = makeServer(); const c = s.app.cities['lagos-island']; for (const sc of c.buildings.filter(b => b.sacred)) {
+    for (const b of c.billboards) assert.ok(Math.hypot(b.x - sc.x, b.z - sc.z) >= 60, `${b.id} near ${sc.label}`);
+    for (const v of [...c.venues, ...c.shops]) {
+      if (v.kind === 'mosque' || v.kind === 'church' || v.buildingId === sc.id) continue; // the house of worship itself may sit on its own grounds
+      assert.ok(Math.hypot(v.x - sc.x, v.z - sc.z) >= 60, `${v.id} near ${sc.label}`);
+    }
+  }
+});
+test('every mosque building has an enterable prayer-hall venue with mihrab and mats', () => {
+  const s = makeServer();
+  for (const c of Object.values(s.app.cities)) {
+    const mosques = c.buildings.filter(b => b.model === 'mosque');
+    for (const b of mosques) {
+      const v = c.venues.find(x => x.kind === 'mosque' && (x.buildingId === b.id || Math.hypot(x.x - b.x, x.z - b.z) < Math.max(b.w, b.d)));
+      assert.ok(v, `${c.id} mosque ${b.id} needs a venue`);
+      assert.ok(v.stations.some(st => st.type === 'pray' && st.style === 'mihrab'), v.id);
+      assert.ok(v.stations.some(st => st.type === 'rest' && st.style === 'mats'), v.id);
+      assert.ok(v.room?.decor?.some(d => d.k === 'mihrab'), v.id);
+    }
+  }
 });
 test('ids are unique across all five districts (merge would throw otherwise) and every venue and home has a real building', () => {
   const s = makeServer(); for (const c of Object.values(s.app.cities)) { for (const v of c.venues) assert.ok(!v.buildingId || c.buildingById[v.buildingId], v.id); for (const p of c.properties) assert.ok(c.buildingById[p.buildingId], p.id); }

@@ -13,17 +13,26 @@ export class RadioClient {
     this.ctl = new RadioController({ cfg: game.cfg, saveData: lowDataHint(typeof navigator !== 'undefined' ? navigator : null), streamer: this.streamer, synth: this.audio, now: () => performance.now() }); this.state = this.ctl.state; this.t = 0; this.wasCar = false;
     const b = (id, txt, fn, title) => h('button', { id, class: 'park-btn', title, onclick: (e) => { e.stopPropagation(); fn(); } }, txt);
     this.chip = h('div', { id: 'radioChip', class: 'pill hidden' }, b('radioPrev', '◀', () => this.tune(-1), 'Previous station (B)'), h('span', { id: 'radioLabel', class: 'radio-label' }, ''), b('radioNext', '▶', () => this.tune(1), 'Next station (N)'), b('radioPower', '📻', () => this.power(), 'Radio on/off (R)'), b('radioMute', '🔊', () => this.mute(), 'Mute'),
-      h('input', { id: 'radioVol', type: 'range', min: 0, max: 100, value: 60, title: 'Volume', oninput: (e) => { this.ctl.volume(e.target.value / 100); this.render(); } }));
+      h('input', { id: 'radioVol', type: 'range', min: 0, max: 100, value: 30, title: 'Volume', oninput: (e) => { this.ctl.volume(e.target.value / 100); this.render(); } }));
     document.body.append(this.chip);
     const gesture = () => { this.ctl.gesture(() => this.audio.unlock()); this.render(); }; addEventListener('pointerdown', gesture, { capture: true, passive: true }); addEventListener('keydown', (e) => { if (e.key !== 'Escape') gesture(); }, { capture: true, passive: true });
     addEventListener('keydown', (e) => { if (e.target.closest?.('input,textarea') || e.ctrlKey || e.metaKey || e.altKey) return; const k = e.key.toLowerCase(); if (!game.playing || game.ui?.sheetOpen) return; if (k === 'r') this.power(); else if (k === 'n') this.tune(1); else if (k === 'b') this.tune(-1); });
   }
-  power() { if (!this.state.inCar) return; this.ctl.gesture(() => this.audio.unlock()); this.ctl.power(); this.render(); this.g.ui?.toast?.(this.state.wantOn ? `📻 ${this.state.current.name}` : '📻 Radio off'); }
-  tune(d) { if (!this.state.inCar) return; this.ctl.gesture(() => this.audio.unlock()); this.ctl.tune(d); this.render(); }
+  power() { if (!this.state.inCar || this.passenger()) return; this.ctl.gesture(() => this.audio.unlock()); this.ctl.power(); this.render(); this.g.ui?.toast?.(this.state.wantOn ? `📻 ${this.state.current.name}` : '📻 Radio off'); }
+  tune(d) { if (!this.state.inCar || this.passenger()) return; this.ctl.gesture(() => this.audio.unlock()); this.ctl.tune(d); this.render(); }
   mute() { if (!this.state.inCar) return; this.ctl.gesture(() => this.audio.unlock()); this.ctl.mute(); this.render(); }
+  /** passenger follows the driver's station; both hear the same synth track via server time */
+  passenger() { return !!this.g.carpool?.riding; }
+  forceStation(id) {
+    if (!id || !this.state.inCar) return;
+    const i = this.state.stations.findIndex((s) => s.id === id);
+    if (i < 0 || i === this.state.station) return;
+    this.state.station = i; this.state.wantOn = true; this.state.userOff = false; this.state.switchedAt = performance.now();
+    this.ctl.sync(); this.render();
+  }
   /** called every frame with dt in ms */
   tick(dt) {
-    const car = this.g.ctrl?.mode === 'drive' && !this.g.air?.flying && !this.g.boats?.aboard;
+    const car = (this.g.ctrl?.mode === 'drive' || this.passenger()) && !this.g.air?.flying && !this.g.boats?.aboard;
     if (car !== this.wasCar) { this.wasCar = car; if (car) this.ctl.enterCar(); else { this.ctl.leaveCar(); this.audio.stop(); } this.render(); }
     this.t += dt; if (this.t < 100) return; this.t = 0;
     if (car) { const np = this.ctl.tick(this.g.serverNow(), performance.now()); this.label(np); }
@@ -33,5 +42,11 @@ export class RadioClient {
     if (txt === null) { np ||= nowPlaying(st, this.g.serverNow()); txt = this.state.staticLeft(performance.now()) > 0 ? `${st.name} …` : labelOf(st, np); }
     if (st.unconfirmed && txt && !/Tap to play/.test(txt)) txt += ' (unverified)'; if (el.textContent !== txt) el.textContent = txt; el.title = st.unconfirmed || (st.kind === 'real' ? 'Live from the station' : 'Generated in your browser');
   }
-  render() { const s = this.state; this.chip.classList.toggle('hidden', !s.inCar); this.chip.style.setProperty('--rc', s.current.color); $('#radioMute').textContent = s.muted || s.volume === 0 ? '🔇' : '🔊'; $('#radioPower').classList.toggle('on', s.wantOn); this.label(); }
+  render() {
+    const s = this.state, pass = this.passenger();
+    this.chip.classList.toggle('hidden', !s.inCar); this.chip.style.setProperty('--rc', s.current.color);
+    $('#radioMute').textContent = s.muted || s.volume === 0 ? '🔇' : '🔊'; $('#radioPower').classList.toggle('on', s.wantOn);
+    $('#radioPrev').disabled = pass; $('#radioNext').disabled = pass; $('#radioPower').disabled = pass;
+    this.label();
+  }
 }

@@ -13,7 +13,8 @@ let schemaN = 0; const tag = Math.random().toString(36).slice(2, 8);
 export function makeServer(opts = {}) {
   const balance = structuredClone(BALANCE); balance.shops.enforceHours = false; balance.weather = { ...WEATHER, forced: 'clear' }; // tests never depend on the real clock's weather (weather tests set their own)
   const pg = PG_URL && !opts.dbPath && opts.databaseUrl === undefined ? { databaseUrl: PG_URL, databaseSchema: `t_${tag}_${++schemaN}` } : {};
-  return buildServer({ dbPath: ':memory:', quiet: true, adminPassword: 'test-admin', dev: true, balance, ...pg, ...opts });
+  // mail off by default so tests never call a real MailDESK key from the shell env
+  return buildServer({ dbPath: ':memory:', quiet: true, adminPassword: 'test-admin', dev: true, balance, mailConfig: { enabled: false, apiKey: '', from: '' }, ...pg, ...opts });
 }
 export async function call(s, method, path, { uid, body, query, raw, headers = {}, admin, ua, ip = '10.0.0.1' } = {}) {
   const [p, qs] = path.split('?'); const q = { ...(qs ? Object.fromEntries(new URLSearchParams(qs)) : {}), ...(query || {}) };

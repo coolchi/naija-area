@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT NOT NULL UNIQUE COLLATE NOCASE,
   pass_hash TEXT,
+  email TEXT,
   is_guest INTEGER NOT NULL DEFAULT 0,
   is_bot INTEGER NOT NULL DEFAULT 0,
   age_confirmed_at INTEGER,
@@ -75,6 +76,7 @@ CREATE TABLE IF NOT EXISTS property_owner (
   user_id INTEGER NOT NULL REFERENCES users(id),
   mode TEXT NOT NULL,                  -- 'rent' | 'own'
   custom_name TEXT,
+  facade TEXT,
   next_rent_due INTEGER,
   missed INTEGER NOT NULL DEFAULT 0,
   since INTEGER NOT NULL,
@@ -237,14 +239,21 @@ export function migrate(db, { later = true } = {}) {
   db.exec(`CREATE TABLE IF NOT EXISTS flights (user_id INTEGER PRIMARY KEY, from_city TEXT NOT NULL, to_city TEXT NOT NULL, state TEXT NOT NULL, fare INTEGER NOT NULL, departs_at INTEGER NOT NULL, arrive_at INTEGER NOT NULL, created_at INTEGER NOT NULL)`);
   add('player_state', 'last_flight_at', 'INTEGER NOT NULL DEFAULT 0'); add('player_state', 'last_boat_at', 'INTEGER NOT NULL DEFAULT 0');
   add('users', 'chat_muted_until', 'INTEGER NOT NULL DEFAULT 0');
-  add('property_owner', 'name_hidden', 'INTEGER NOT NULL DEFAULT 0'); add('property_owner', 'wall_color', "TEXT NOT NULL DEFAULT 'cream'"); add('property_owner', 'floor_color', "TEXT NOT NULL DEFAULT 'oak'");
+  add('users', 'email', 'TEXT');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS ux_users_email ON users(email) WHERE email IS NOT NULL AND email != \'\'');
+  add('property_owner', 'name_hidden', 'INTEGER NOT NULL DEFAULT 0'); add('property_owner', 'wall_color', "TEXT NOT NULL DEFAULT 'cream'"); add('property_owner', 'floor_color', "TEXT NOT NULL DEFAULT 'oak'"); add('property_owner', 'facade', 'TEXT');
+  add('property_owner', 'power_dark_until', 'INTEGER'); add('property_owner', 'power_check_bucket', 'INTEGER');
   add('player_state', 'mood', 'REAL NOT NULL DEFAULT 60'); add('player_state', 'hair', 'TEXT'); add('player_state', 'hair_at', 'INTEGER NOT NULL DEFAULT 0'); add('player_state', 'gender', "TEXT NOT NULL DEFAULT 'male'");
   db.exec(PHONE_SQL);
   db.exec(PAYMENTS_SQL);
   db.exec(AGE_SQL);
   add('player_cars', 'serviced_at', 'INTEGER'); add('player_cars', 'serviced_until', 'INTEGER');
   add('player_cars', 'damage', 'INTEGER NOT NULL DEFAULT 0');
+  add('player_cars', 'wrecked', 'INTEGER NOT NULL DEFAULT 0');
+  add('player_cars', 'wreck_x', 'REAL'); add('player_cars', 'wreck_z', 'REAL'); add('player_cars', 'wreck_ry', 'REAL');
   add('player_state', 'health', 'REAL NOT NULL DEFAULT 100'); add('player_state', 'health_at', 'INTEGER NOT NULL DEFAULT 0'); add('player_state', 'crash_cd_until', 'INTEGER NOT NULL DEFAULT 0'); add('player_state', 'crash_roll_at', 'INTEGER NOT NULL DEFAULT 0');
+  add('player_state', 'fainted', 'INTEGER NOT NULL DEFAULT 0');
+  add('player_state', 'strength', 'REAL NOT NULL DEFAULT 10'); add('player_state', 'strength_at', 'INTEGER NOT NULL DEFAULT 0');
   db.exec(`CREATE TABLE IF NOT EXISTS car_parking (
     user_id INTEGER PRIMARY KEY, car_id INTEGER NOT NULL, lot_id TEXT NOT NULL, bay INTEGER NOT NULL, x REAL NOT NULL, z REAL NOT NULL, ry REAL NOT NULL, parked_at INTEGER NOT NULL, fee INTEGER NOT NULL DEFAULT 0
   ); CREATE UNIQUE INDEX IF NOT EXISTS ux_parking_bay ON car_parking(lot_id, bay);`);
@@ -253,4 +262,14 @@ export function migrate(db, { later = true } = {}) {
     reason TEXT, roll REAL, vtype TEXT, mode TEXT, x REAL, z REAL, damage REAL, car_id INTEGER, car_damage INTEGER, fee INTEGER, expires_at INTEGER
   ); CREATE INDEX IF NOT EXISTS ix_crash_user ON crash_events(user_id, id);`);
   if (later) { add('ad_campaigns', 'placement', "TEXT NOT NULL DEFAULT 'shared'"); applyLater(db); db.exec(AD_PLACEMENT_BACKFILL); } // placement (exclusive vs shared) is NOT in the frozen Postgres baseline: Postgres gets it from 0016_ad_placement.sql. Tables added after the frozen Postgres baseline (see later-schema.js)
+  if (later) add('bodyguards', 'with_car', 'INTEGER NOT NULL DEFAULT 0'); // optional HD hire add-on: Black G-Wagon escort (+carFee). Postgres: 0025_bodyguard_car.sql
+  // One-time: every existing account becomes Man. Woman is only for new signups that pick Woman. Postgres: 0026_gender_male_backfill.sql
+  if (later) {
+    db.exec(`CREATE TABLE IF NOT EXISTS app_meta (k TEXT PRIMARY KEY, v TEXT NOT NULL)`);
+    if (!db.prepare("SELECT 1 FROM app_meta WHERE k='gender_all_male_v1'").get()) {
+      db.exec(`UPDATE player_state SET gender='male'`);
+      db.exec(`DELETE FROM skins_equipped WHERE skin_id='av_casual_woman'`);
+      db.prepare("INSERT INTO app_meta(k,v) VALUES ('gender_all_male_v1','1')").run();
+    }
+  }
 }

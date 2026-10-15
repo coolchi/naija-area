@@ -114,8 +114,18 @@ addLifeSection({ id: 'skins', label: '🎨 Skins', async draw(ui, redraw) {
   const call = (path, body) => async (e) => { if (e?.target) e.target.disabled = true; const r = await ui.guard(() => post('/api/skins/' + path, body)); if (r) { ui.toast(r.text || 'Done', r.charged ? 'money' : undefined); ui.g.refreshMe?.(); ui.g.syncSkins?.(); ui.g.net?.nudge(); ui.g.refreshProps?.(); } redraw(); };
   const bar = h('div', { class: 'row' }, d.kinds.map(k => h('button', { class: 'btn small ' + (K === k.id ? '' : 'ghost'), 'data-skin-kind': k.id, onclick: () => { ui.lifeSkinKind = k.id; redraw(); } }, `${KIND_ICON[k.id]} ${k.label}`)));
   const swatch = (i) => h('span', { style: `display:inline-block;width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px;border:2px solid ${i.glow || '#0003'};background:${i.color || i.accent}` });
-  const rows = d.items.filter(i => i.kind === K).map(i => h('div', { class: 'row sp', 'data-skin': i.id }, h('span', {}, swatch(i), h('b', {}, i.name), h('small', { class: 'mut' }, ` ${i.rarity}${i.glow ? ' · glow' : ''}${i.sell === 'pass' ? ' · battle pass' : ''}`)),
-    i.owned ? (i.worn ? h('button', { class: 'btn small ghost', 'data-unequip': i.id, onclick: call('unequip', { kind: i.kind }) }, 'Take off') : h('button', { class: 'btn small', 'data-equip': i.id, disabled: i.kind === 'home' && !d.hasHome, onclick: call('equip', { skin: i.id }) }, 'Wear'))
-      : i.sell === 'pass' ? h('span', { class: 'tag' }, 'Pass reward') : h('button', { class: 'btn small alt', 'data-buy-skin': i.id, disabled: !i.canAfford, onclick: call('buy', { skin: i.id }) }, fmtN(i.price))));
-  return [h('p', { class: 'mut' }, `Cash ${fmtN(d.cash)}. ${d.note}`), bar, h('div', { class: 'list' }, rows), ...(K === 'home' && !d.hasHome ? [h('p', { class: 'mut' }, 'Get a home first to use a home skin.')] : []), h('small', { class: 'mut' }, d.realMoney.note)];
+  const bodyNote = (i) => i.body === 'casual' ? ' · Casual Man model' : i.body === 'casual_f' ? ' · Casual Woman model' : i.body === 'hd' ? ' · Soldier Man model' : '';
+  // Hide body skins that do not match this profile (e.g. Casual Woman is never listed for Man players).
+  const rows = d.items.filter(i => i.kind === K && i.genderOk !== false).map(i => {
+    const action = i.owned
+      ? (i.worn ? h('button', { class: 'btn small ghost', 'data-unequip': i.id, onclick: call('unequip', { kind: i.kind }) }, 'Take off')
+        : h('button', { class: 'btn small', 'data-equip': i.id, disabled: (i.kind === 'home' && !d.hasHome), onclick: call('equip', { skin: i.id }) }, 'Wear'))
+      : i.sell === 'pass' ? h('span', { class: 'tag' }, 'Pass reward')
+        : h('button', { class: 'btn small alt', 'data-buy-skin': i.id, disabled: !i.canAfford, onclick: call('buy', { skin: i.id }) }, fmtN(i.price));
+    return h('div', { class: 'row sp', 'data-skin': i.id }, h('span', {}, swatch(i), h('b', {}, i.name), h('small', { class: 'mut' }, ` ${i.rarity}${bodyNote(i)}${i.glow ? ' · glow' : ''}${i.sell === 'pass' ? ' · battle pass' : ''}`)), action);
+  });
+  const avatarNote = d.gender === 'female'
+    ? 'Casual Woman ₦50M is for Woman profiles (set at signup). Body gender cannot be switched later.'
+    : 'Soldier Man ₦10B and Casual Man ₦100M are for Man profiles (set at signup). Body gender cannot be switched later.';
+  return [h('p', { class: 'mut' }, `Cash ${fmtN(d.cash)}. ${d.note}`), bar, h('div', { class: 'list' }, rows), ...(K === 'avatar' ? [h('p', { class: 'mut' }, avatarNote)] : []), ...(K === 'home' && !d.hasHome ? [h('p', { class: 'mut' }, 'Get a home first to use a home skin.')] : []), h('small', { class: 'mut' }, d.realMoney.note)];
 } });

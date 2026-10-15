@@ -21,14 +21,21 @@ export class ParkingClient {
     const hour = g.worldTime?.hour; if (hour !== undefined && Math.floor(hour / 2) !== Math.floor(this.hourSeen / 2) && this.view) { this.hourSeen = hour; this.cp.setHour(hour); }
     this.poll += dt; if (this.poll > 45000) { this.poll = 0; this.load(); }
     if (this.t < 150) return; this.t = 0;
-    const st = { mode: c.mode, x: c.x, z: c.z, lots: g.city.carParks || [], mine: this.mine, ownedCar: !!this.view?.ownsCar, takeRange: this.view?.takeRangeM ?? 9 };
+    const st = { mode: c.mode, x: c.x, z: c.z, lots: g.city.carParks || [], mine: this.mine, ownedCar: !!this.view?.ownsCar, takeRange: this.view?.takeRangeM ?? 9, carBody: g.carBody || g.user?.car };
     if (c.mode === 'drive' && st.lots.some(l => Math.abs(c.x - l.x) < l.w / 2 + 1 && Math.abs(c.z - l.z) < l.d / 2 + 1) && performance.now() - (this.lastLoad || 0) > 8000) this.load();
     const chip = g.commute || g.busy || g.interior?.open || g.venue?.open || g.garage?.open ? null : parkingChip(st); this.cur = chip; this.chip.classList.toggle('hidden', !chip); if (chip) $('#parkBtn').textContent = chip.label;
   }
   async act() {
     const c = this.cur; if (!c || this.busy) return; this.busy = true; const g = this.g;
     try {
-      if (c.kind === 'hint') { g.ui.toast('Buy your own car at Motoka AutoMart Showroom to park it here.'); return; }
+      if (c.kind === 'hint') { g.ui.toast(c.lot?.kind === 'service' ? 'Your car no get crash damage. Drive careful.' : 'Buy your own car at Motoka AutoMart Showroom to park it here.'); return; }
+      if (c.kind === 'fix') {
+        const r = await post('/api/mechanic/repair', { idemKey: Math.random().toString(36).slice(2) });
+        g.carBody = { damage: 0, health: 100, smoke: false, wrecked: false, repairFee: 0 };
+        if (g.user?.car) Object.assign(g.user.car, g.carBody, { wreck: null });
+        g.syncDriveSmoke?.(); g.ui.toast(r.text || 'Body work done'); g.ui.sfx('ok'); g.net.nudge?.(); g.refreshMe?.();
+        return;
+      }
       if (c.kind === 'park') { const r = await post('/api/parking/park', { idemKey: Math.random().toString(36).slice(2) }); g.ctrl.mode = 'walk'; g.ctrl.applyMode(); g.ctrl.teleport(r.out.x, r.out.z); g.ui.toast(r.text); g.ui.sfx('ok'); g.net.nudge?.(); g.refresh?.(); }
       else { const r = await post('/api/parking/take', {}); g.ctrl.teleport(r.at.x, r.at.z); g.ctrl.ry = r.at.ry; g.ctrl.mode = 'drive'; g.ctrl.applyMode(); g.ctrl.camYaw = r.at.ry; g.ui.toast(r.text); g.ui.sfx('horn'); g.net.nudge?.(); }
       await this.load();

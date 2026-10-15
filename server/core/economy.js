@@ -6,10 +6,14 @@ import { bad, clamp, cleanText } from './util.js';
 import { dayKey, dayStart } from './rewards.js';
 import { screen } from './filter.js';
 import { typeOf, maxGuestsOf, layoutOf, reservedRects, plotStage } from './housing.js';
-import { decorOf, lovesOf } from './homes.js';
+import { decorOf, lovesOf, powerOf } from './homes.js';
+import { strengthView } from './gym.js';
 import { homeSkinOf } from './skins.js';
 import { healthView } from './crash.js';
 import { wearView } from './wearables.js';
+import { gunView } from './guns.js';
+import { view as bodyguardView } from './bodyguards.js';
+import { wreckedActive } from './meko.js';
 import { move, post, cashId, savId, balanceOf, SYS } from './ledger.js';
 
 export const dist = (ax, az, bx, bz) => Math.hypot(ax - bx, az - bz);
@@ -31,18 +35,36 @@ export function getState(app, uid) {
   if (live) { s.x = live.x; s.z = live.z; s.ry = live.ry; s.mode = live.mode; }
   return s;
 }
-/** lazily apply decay since needs_at; persist */
+/** lazily apply decay since needs_at; persist. Hunger at/below faintAt marks the player as fainted. */
 export function refreshNeeds(app, uid) {
   const s = getState(app, uid); const now = app.clock.now(); const n = app.balance.needs;
   const mins = Math.max(0, (now - s.needs_at) / 60000);
   const energy = clamp(s.energy - mins * n.energyDecayPerMin, n.min, n.max), hunger = clamp(s.hunger - mins * n.hungerDecayPerMin, n.min, n.max);
   const M = app.balance.mood; const mood = s.mood > M.baseline ? Math.max(M.baseline, s.mood - mins * M.decayPerMin) : Math.min(M.baseline, s.mood + mins * M.decayPerMin);
   if (mins > 0) app.db.prepare('UPDATE player_state SET energy=?, hunger=?, mood=?, needs_at=? WHERE user_id=?').run(energy, hunger, mood, now, uid);
-  return { ...s, energy, hunger, mood, needs_at: now };
+  const st = { ...s, energy, hunger, mood, needs_at: now };
+  const at = n.faintAt ?? 1; const should = hunger <= at; const was = !!s.fainted;
+  if (should && !was) {
+    app.db.prepare('UPDATE player_state SET fainted=1 WHERE user_id=?').run(uid);
+    const p = app.world?.players?.get(uid); if (p) { p.fainted = true; if (p.mode === 'drive') p.mode = 'walk'; }
+    notify(app, uid, 'needs', 'You fainted from hunger. Call a cab or a friend to take you to a canteen.');
+    try { app.pushUser?.(uid, { type: 'needs.fainted', hunger, energy }); } catch { /* ignore */ }
+    return { ...st, fainted: 1, justFainted: true };
+  }
+  if (!should && was) {
+    app.db.prepare('UPDATE player_state SET fainted=0 WHERE user_id=?').run(uid);
+    const p = app.world?.players?.get(uid); if (p) p.fainted = false;
+    return { ...st, fainted: 0 };
+  }
+  const p = app.world?.players?.get(uid); if (p) p.fainted = should;
+  return { ...st, fainted: should ? 1 : 0 };
 }
 export function addMood(app, uid, delta) { const st = refreshNeeds(app, uid); const m = clamp(st.mood + delta, 0, 100); app.db.prepare('UPDATE player_state SET mood=? WHERE user_id=?').run(m, uid); return m; }
-const setNeeds = (app, uid, energy, hunger) => app.db.prepare('UPDATE player_state SET energy=?, hunger=?, needs_at=? WHERE user_id=?')
-  .run(clamp(energy, 0, 100), clamp(hunger, 0, 100), app.clock.now(), uid);
+const setNeeds = (app, uid, energy, hunger) => {
+  app.db.prepare('UPDATE player_state SET energy=?, hunger=?, needs_at=? WHERE user_id=?')
+    .run(clamp(energy, 0, 100), clamp(hunger, 0, 100), app.clock.now(), uid);
+  return refreshNeeds(app, uid); // marks faint when food hits empty (e.g. after a job cost)
+};
 
 export function homeOf(app, uid) { return app.db.prepare('SELECT * FROM property_owner WHERE user_id=?').get(uid); }
 export function propDef(app, id) { return app.all.propertyById[id]; }
@@ -165,8 +187,8 @@ export function shopBuy(app, uid, shopId, itemId, qty = 1, idemKey = null, chann
     const total = price * qty + fee; const key = idemKey ? `shop:${uid}:${idemKey}` : null;
     const r = move(app, { from: cashId(uid), to: channel === 'delivery' ? SYS.SINK_DELIVERY : SYS.SINK_SHOPS, amount: total, reason: channel === 'delivery' ? 'shop_delivery' : 'shop_purchase', ref: `${shopId}:${itemId}x${qty}`, userId: uid, idemKey: key });
     if (!r.duplicate) setNeeds(app, uid, st.energy + item.energy * qty, st.hunger + item.hunger * qty);
-    const s2 = getState(app, uid);
-    return { spent: total, channel: ch, duplicate: r.duplicate, energy: s2.energy, hunger: s2.hunger, cash: balanceOf(app.db, cashId(uid)) };
+    const s2 = refreshNeeds(app, uid);
+    return { spent: total, channel: ch, duplicate: r.duplicate, energy: s2.energy, hunger: s2.hunger, fainted: !!s2.fainted, cash: balanceOf(app.db, cashId(uid)) };
   })();
 }
 
@@ -175,7 +197,7 @@ export function propertyView(app, p, uid) {
   const o = app.db.prepare('SELECT po.*, u.username, u.color FROM property_owner po JOIN users u ON u.id=po.user_id WHERE property_id=?').get(p.id);
   const items = o ? app.db.prepare('SELECT COUNT(*) n FROM property_items WHERE property_id=?').get(p.id).n : 0;
   return { loves: o ? lovesOf(app, p.id) : 0, ...(o ? decorOf(app, o) : {}), ...(o && homeSkinOf(app, o.user_id) ? { homeSkin: homeSkinOf(app, o.user_id).accent } : {}), id: p.id, name: (o && !o.name_hidden && o.custom_name) || p.name, nameHidden: !!o?.name_hidden, hasCustomName: !!o?.custom_name, baseName: p.name, tier: p.tier, tierLabel: p.tierLabel, rent: p.rent, price: p.price, rooms: p.rooms, door: p.door, buildingId: p.buildingId, area: p.area, items,
-    status: o ? (o.user_id === uid ? 'yours' : 'taken') : 'available', owner: o ? o.username : null, ownerColor: o ? o.color : null, mode: o ? o.mode : null,
+    status: o ? (o.user_id === uid ? 'yours' : 'taken') : 'available', owner: o ? o.username : null, ownerColor: o ? o.color : null, facade: o?.facade || null, mode: o ? o.mode : null,
     presence: o ? app.presenceOf?.(o.user_id, p.id) || 'away' : null, maxGuests: maxGuestsOf(app, p), type: typeOf(app, p).id, typeLabel: typeOf(app, p).label,
     nextRentDue: o && o.user_id === uid ? o.next_rent_due : undefined, missed: o && o.user_id === uid ? o.missed : undefined };
 }
@@ -191,8 +213,11 @@ export function acquireProperty(app, uid, propertyId, mode, idemKey) {
     if (dist(st.x, st.z, p.door.x, p.door.z) > app.balance.interact.houseRadius + 10) bad('TOO_FAR', 'Walk to the door first.');
     const amount = mode === 'own' ? p.price : p.rent; // renting: first period is paid upfront (acts as the deposit)
     move(app, { from: cashId(uid), to: mode === 'own' ? SYS.SINK_PROPERTY : SYS.SINK_RENT, amount, reason: mode === 'own' ? 'property_purchase' : 'rent_first_period', ref: propertyId, userId: uid, idemKey: idemKey ? `home:${uid}:${idemKey}` : null });
+    const who = app.db.prepare('SELECT username FROM users WHERE id=?').get(uid);
+    const plate = cleanText(who?.username || '', app.balance.housing.maxNameLen);
+    const named = plate.length >= app.balance.housing.minNameLen && screen(plate).ok ? plate : null;
     app.db.prepare('INSERT INTO property_owner(property_id,user_id,mode,custom_name,next_rent_due,missed,since,paid_price) VALUES (?,?,?,?,?,0,?,?)')
-      .run(propertyId, uid, mode, null, mode === 'rent' ? now + app.balance.housing.rentPeriodMs : null, now, mode === 'own' ? p.price : 0);
+      .run(propertyId, uid, mode, named, mode === 'rent' ? now + app.balance.housing.rentPeriodMs : null, now, mode === 'own' ? p.price : 0);
     notify(app, uid, 'home', mode === 'own' ? `You bought ${p.name}!` : `You moved into ${p.name}. Rent ₦${p.rent.toLocaleString('en-NG')} every ${fmtPeriod(app.balance.housing.rentPeriodMs)}.`);
     return { ok: true, cash: balanceOf(app.db, cashId(uid)) };
   })();
@@ -226,10 +251,10 @@ export function interior(app, uid, propertyId) {
   const visitor = o && o.user_id !== uid && app.hasVisitPermit?.(uid, propertyId);
   if (!o || (o.user_id !== uid && !visitor)) bad('FORBIDDEN', 'Only the person who lives here can go inside (or guests they let in).', 403);
   const placed = app.db.prepare('SELECT item_id id, x, z, rot FROM property_items WHERE property_id=?').all(propertyId);
-  const lay = layoutOf(app, p); const [rw, rd] = [lay.w, lay.d];
-  const base = { id: p.id, name: (!o.name_hidden && o.custom_name) || p.name, owner: o.username, area: p.area, tier: p.tier, tierLabel: p.tierLabel, rooms: p.rooms, room: lay, items: placed.map(i => i.id), placed, maxGuests: maxGuestsOf(app, p), guests: app.guestCount?.(propertyId) || 0 };
+  const lay = layoutOf(app, p);
+  const base = { id: p.id, name: (!o.name_hidden && o.custom_name) || p.name, owner: o.username, area: p.area, tier: p.tier, tierLabel: p.tierLabel, rooms: p.rooms, room: lay, items: placed.map(i => i.id), placed, maxGuests: maxGuestsOf(app, p), guests: app.guestCount?.(propertyId) || 0, catalog: app.balance.housing.furniture, power: powerOf(app, propertyId) };
   Object.assign(base, decorOf(app, o), { loves: lovesOf(app, propertyId) });
-  return visitor ? { ...base, visitor: true, readOnly: true } : { ...base, visitor: false, palette: app.palette?.(), catalog: app.balance.housing.furniture, sellFraction: app.balance.housing.furnitureSellFraction };
+  return visitor ? { ...base, visitor: true, readOnly: true } : { ...base, visitor: false, palette: app.palette?.(), sellFraction: app.balance.housing.furnitureSellFraction };
 }
 export { reservedRects };
 const footprint = (def, rot) => (rot % 2 ? { w: def.d, d: def.w } : { w: def.w, d: def.d });
@@ -391,14 +416,31 @@ export function leaderboard(app) {
 }
 const hairView = (app, st) => { if (!st.hair) return null; const S = app.balance.leisure.salon.styles.find(x => x.id === st.hair); return S ? { id: S.id, name: S.name, fresh: app.clock.now() - st.hair_at < app.balance.leisure.salon.freshMs } : null; };
 function ownedCar(app, uid) {
-  const row = app.db.prepare('SELECT model FROM player_cars WHERE user_id=? AND active=1').get(uid); const m = row && app.balance.cars.models[row.model];
-  return m ? { model: row.model, name: m.name, body: m.body, color: m.color, speed: m.speed, drive: m.drive || 0 } : null;
+  const row = app.db.prepare('SELECT * FROM player_cars WHERE user_id=? AND active=1').get(uid); const m = row && app.balance.cars.models[row.model];
+  if (!m) return null;
+  const dmg = row.damage || 0; const wreckAt = app.balance.crash?.wreckAt ?? 100; const smokeAt = app.balance.crash?.smokeAt ?? 55;
+  return { model: row.model, name: m.name, body: m.body, color: m.color, speed: m.speed, drive: m.drive || 0, exclusive: !!m.exclusive, damage: dmg, health: Math.max(0, 100 - dmg), smoke: dmg >= smokeAt, wrecked: !!(row.wrecked || dmg >= wreckAt), wreck: row.wrecked ? { x: row.wreck_x, z: row.wreck_z, ry: row.wreck_ry } : null };
 }
 export function profile(app, uid) {
   const st = refreshNeeds(app, uid); const nw = netWorth(app, uid); const h = homeOf(app, uid);
-  const sh = activeShift(app, uid); const u = app.db.prepare('SELECT username,is_guest,color,created_at FROM users WHERE id=?').get(uid);
-  return { id: uid, cityId: cityIdOf(app, uid), username: u.username, guest: !!u.is_guest, color: u.color, cash: nw.cash, savings: nw.savings, netWorth: nw.total,
-    pos: { x: st.x, z: st.z, ry: st.ry }, energy: Math.round(st.energy * 10) / 10, hunger: Math.round(st.hunger * 10) / 10, mood: Math.round(st.mood * 10) / 10, totalShifts: st.total_shifts, mode: st.mode, health: healthView(app, uid), hair: hairView(app, st), wear: wearView(app, uid), gender: st.gender === 'female' ? 'female' : 'male',
+  const sh = activeShift(app, uid); const u = app.db.prepare('SELECT username,email,is_guest,color,created_at FROM users WHERE id=?').get(uid);
+  // Prefer live presence so a reload mid-drive does not snap back to a stale walk spawn from the DB.
+  const live = app.world?.players?.get(uid);
+  const x = live && Number.isFinite(live.x) ? live.x : st.x;
+  const z = live && Number.isFinite(live.z) ? live.z : st.z;
+  const ry = live && Number.isFinite(live.ry) ? live.ry : st.ry;
+  let mode = live ? live.mode : st.mode;
+  if (st.fainted || wreckedActive(app, uid)) mode = 'walk';
+  else if (mode === 'drive') {
+    const parked = app.db.prepare('SELECT 1 FROM car_parking cp JOIN player_cars pc ON pc.id=cp.car_id WHERE cp.user_id=? AND pc.user_id=? AND pc.active=1').get(uid, uid);
+    if (parked) mode = 'walk';
+  }
+  const hold = (() => { try { return app.db.prepare("SELECT id, reason, until_at, charge FROM police_holds WHERE user_id=? AND status='held' AND until_at>?").get(uid, app.clock.now()); } catch { return null; } })();
+  const police = hold ? { detained: true, hold: { id: hold.id, reason: hold.reason, untilAt: hold.until_at, charge: hold.charge } } : { detained: false };
+  if (police.detained) mode = 'walk';
+  return { id: uid, cityId: cityIdOf(app, uid), username: u.username, email: u.email || null, guest: !!u.is_guest, color: u.color, cash: nw.cash, savings: nw.savings, netWorth: nw.total,
+    pos: { x, z, ry }, energy: Math.round(st.energy * 10) / 10, hunger: Math.round(st.hunger * 10) / 10, mood: Math.round(st.mood * 10) / 10, fainted: !!st.fainted, totalShifts: st.total_shifts, mode, health: healthView(app, uid), strength: strengthView(app, uid), hair: hairView(app, st), wear: wearView(app, uid), guns: gunView(app, uid), bodyguard: bodyguardView(app, uid), gender: st.gender === 'female' ? 'female' : 'male',
+    police,
     home: h ? propertyView(app, propDef(app, h.property_id), uid) : null,
     car: ownedCar(app, uid),
     shift: sh ? { id: sh.id, jobId: sh.job_id, endsAt: sh.ends_at, startedAt: sh.started_at, wage: sh.wage } : null };

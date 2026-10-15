@@ -19,12 +19,17 @@ test('districts are data: the server area() lookup comes from the city JSON and 
 test('map search: prefix beats substring, finds places/roads/districts, empty query lists the highlights', () => {
   assert.equal(search(model, 'mama')[0].id, 'venue_mamaput'); assert.ok(search(model, 'okada').some(i => i.type === 'road')); assert.ok(search(model, 'ikeja').some(i => i.type === 'district')); assert.ok(search(model, 'ikorodu').some(i => i.type === 'plot'));
   assert.equal(search(model, 'zzzzqq').length, 0); assert.ok(search(model, '').length > 3); assert.ok(search(model, 'a', 5).length <= 5); assert.ok(search(model, 'meco').some(i => i.id === 'venue_meco'));
+  // Mac/iOS curly apostrophe must still find Queen's College
+  assert.ok(search(model, "Queen\u2019s College").some(i => i.id === 'venue_queens'));
+  assert.ok(search(model, "queens college").some(i => i.id === 'venue_queens'));
 });
 test('map hit-test: markers beat buildings beat plots beat roads beat districts; layers switch things off; labels appear by zoom', () => {
   const mp = city.venues.find(v => v.id === 'venue_mamaput'); assert.equal(hitTest(model, mp.x, mp.z, 3).id, 'venue_mamaput'); assert.equal(hitTest(model, mp.x, mp.z, 3, { ...DEFAULT_LAYERS, venues: false })?.type === 'venue', false);
-  const house = city.buildings.find(b => b.propertyId); const hb = hitTest(model, house.x + house.w / 2 - 1, house.z + house.d / 2 - 1, 0.5); assert.equal(hb.type, 'building'); assert.ok(hb.placeId, 'a home building opens its property');
-  const p = city.plots[0]; assert.equal(hitTest(model, p.x + 3, p.z + 3, 1).type, 'plot'); const r = city.roads[0]; assert.equal(hitTest(model, r.x1, r.z1 + 3, 0.5, { ...DEFAULT_LAYERS, buildings: false }).type, 'road');
-  assert.equal(hitTest(model, -230, 130, 0.6, { ...DEFAULT_LAYERS, buildings: false, roads: false }).type, 'district'); assert.equal(hitTest(model, 0, 200, 1).type, 'water'); assert.equal(hitTest(model, 9999, 9999, 1), null);
+  // Zoomed-out hit radius is large — turn landmarks off so a nearby plaza/theatre does not steal the home building
+  const house = city.buildings.find(b => b.propertyId); const noLm = { ...DEFAULT_LAYERS, landmarks: false };
+  const hb = hitTest(model, house.x + house.w / 2 - 1, house.z + house.d / 2 - 1, 0.5, noLm); assert.equal(hb.type, 'building'); assert.ok(hb.placeId, 'a home building opens its property');
+  const p = city.plots[0]; assert.equal(hitTest(model, p.x + 3, p.z + 3, 1, { ...noLm, buildings: false }).type, 'plot'); const r = city.roads[0]; assert.equal(hitTest(model, r.x1, r.z1 + 3, 0.5, { ...DEFAULT_LAYERS, buildings: false }).type, 'road');
+  assert.equal(hitTest(model, -230, 130, 0.6, { ...DEFAULT_LAYERS, buildings: false, roads: false, landmarks: false, venues: false }).type, 'district'); assert.equal(hitTest(model, 0, 200, 1).type, 'water'); assert.equal(hitTest(model, 9999, 9999, 1), null);
   assert.equal(hitTest(model, 0, 0, 1, DEFAULT_LAYERS, [{ id: 7, name: 'bola', x: 0.5, z: 0.5 }]).type, 'player');
   const bb = city.billboards.find(b => b.surface !== 'lagoon_plot'); assert.notEqual(hitTest(model, bb.x, bb.z, 3)?.type, 'billboard'); assert.equal(hitTest(model, bb.x, bb.z, 3, { ...DEFAULT_LAYERS, billboards: true }).type, 'billboard');
   assert.ok(labelRules.district(0.8) && !labelRules.district(4)); assert.ok(!labelRules.building(1) && labelRules.building(5)); assert.ok(!labelRules.shop(1) && labelRules.shop(2.5));

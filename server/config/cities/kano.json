@@ -1098,21 +1098,21 @@
      "name": "Tuwo shinkafa + miyan taushe",
      "price": 1300,
      "hunger": 52,
-     "energy": 7
+     "energy": 32
     },
     {
      "id": "suya",
      "name": "Suya",
      "price": 1200,
      "hunger": 40,
-     "energy": 6
+     "energy": 18
     },
     {
      "id": "kunu",
      "name": "Kunu drink",
      "price": 300,
      "hunger": 6,
-     "energy": 6
+     "energy": 10
     },
     {
      "id": "masa",

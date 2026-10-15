@@ -26,7 +26,7 @@ export const labelOf = (st, np) => `${st.name} ${st.freq} · ${np.kind === 'iden
 /** the radio's state: what the driver asked for, and when sound is allowed. It never plays outside a car and never before a tap or key press. */
 export class RadioState {
   /** `stations` is the car's list (real stations first when switched on, then the synthesised ones: see radio-stations.js carStations) */
-  constructor({ saveData = false, stations = STATIONS } = {}) { this.stations = stations; this.station = 0; this.volume = 0.6; this.muted = false; this.inCar = false; this.wantOn = false; this.userOff = false; this.gesture = false; this.saveData = saveData; this.switchedAt = -1e9; this.failed = new Map(); this.blocked = false; this.log = []; }
+  constructor({ saveData = false, stations = STATIONS } = {}) { this.stations = stations; this.station = 0; this.volume = 0.3; this.muted = false; this.inCar = false; this.wantOn = false; this.userOff = false; this.gesture = false; this.saveData = saveData; this.switchedAt = -1e9; this.failed = new Map(); this.blocked = false; this.log = []; }
   /** a tap or key press happened: browsers now allow audio. If the radio was waiting for this (it starts on entering a car) it can play now. */
   userGesture() { this.gesture = true; this.blocked = false; }
   /** getting into a car starts the radio, unless the driver switched it off earlier or the connection is low-data / saveData (then it waits for the driver) */

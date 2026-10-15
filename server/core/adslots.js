@@ -10,7 +10,9 @@ export function storefrontBoards(c) {
   const F = AD_FORMATS.shopFront; const out = []; const seen = new Set(); const byId = Object.fromEntries((c.buildings || []).map(b => [b.id, b]));
   const doors = [...(c.shops || []).map(s => ({ kind: 'shop', id: s.id, name: s.name, x: s.x, z: s.z, buildingId: s.buildingId })), ...(c.venues || []).map(v => ({ kind: 'venue', id: v.id, name: v.name, x: v.x, z: v.z, buildingId: v.buildingId }))];
   for (const d of doors) {
-    if (out.length >= F.maxPerCity) break; const b = d.buildingId && byId[d.buildingId]; if (!b || seen.has(b.id)) continue; seen.add(b.id);
+    if (out.length >= F.maxPerCity) break; const b = d.buildingId && byId[d.buildingId]; if (!b || seen.has(b.id)) continue;
+    if (b.sacred || b.model === 'mosque' || b.model === 'cathedral' || b.model === 'church') continue; // no sponsor signs on houses of worship
+    seen.add(b.id);
     const hw = (b.w || 20) / 2, hd = (b.d || 20) / 2, dx = d.x - b.x, dz = d.z - b.z; const alongX = Math.abs(dx) / hw > Math.abs(dz) / hd; // the door is nearer an east/west face than a north/south one
     // the shop's own name sign hangs centred on the face (client/src/world.js: up to 16 m wide), so the sponsor sign goes beside it, never over it; a building too narrow for both gets no sponsor sign
     const half = alongX ? hd : hw, off = F.nameSignHalf + 0.6 + F.w / 2; if (off + F.w / 2 + 0.3 > half) continue; const side = (parseInt(String(b.id).replace(/\D/g, ''), 10) || 0) % 2 ? -1 : 1;

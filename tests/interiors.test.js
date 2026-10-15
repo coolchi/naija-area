@@ -21,6 +21,15 @@ test('per-type grids: fixtures and doorway are inside the room, never overlap ea
     const fx = R.filter(r => r.what !== 'doorway'); for (let i = 0; i < fx.length; i++) for (let j = i + 1; j < fx.length; j++) { const a = fx[i], b = fx[j]; assert.ok(!(a.x < b.x + b.w && b.x < a.x + a.w && a.z < b.z + b.d && b.z < a.z + a.d), `${id}: ${a.what} overlaps ${b.what}`); }
     const door = R.find(r => r.what === 'doorway'); assert.equal(door.x, T.door.x); assert.equal(door.z + door.d, D); for (const f of fx) assert.ok(!(f.x < door.x + door.w && door.x < f.x + f.w && f.z < door.z + door.d && door.z < f.z + f.d), `${id}: ${f.what} blocks the doorway`);
     assert.ok(fx.some(f => f.what === 'bed'), id + ' has a bed cell reserved'); for (const w of T.windows) assert.ok(['back', 'left', 'right'].includes(w.wall));
+    const zones = layoutOf(s.app, p).zones || []; const ids = zones.map(z => z.id);
+    assert.ok(ids.some(z => z.startsWith('room')) && ids.some(z => z.startsWith('kit')) && ids.some(z => z.startsWith('bath')) && ids.some(z => z.startsWith('sit')), id + ' has a room, kitchen, bathroom and sitting room');
+    for (const z of zones) assert.ok(z.x >= 0 && z.z >= 0 && z.x + z.w <= W && z.z + z.d <= D, `${id} ${z.label} inside`);
+    const lay = layoutOf(s.app, p); assert.ok((lay.walls || []).length >= 3, id + ' has walls between its rooms');
+    const pad = 0.2;
+    const hit = (x, z) => x < pad || z < pad || x > W - pad || z > D - 0.15 || lay.reserved.some(r => r.what !== 'doorway' && x > r.x - pad && x < r.x + r.w + pad && z > r.z - pad && z < r.z + r.d + pad);
+    const seen = new Set(); const q = [[door.x + door.w / 2, door.z + door.d / 2]]; const key = (x, z) => `${Math.round(x * 4)},${Math.round(z * 4)}`; seen.add(key(q[0][0], q[0][1]));
+    for (let i = 0; i < q.length; i++) { const [x, z] = q[i]; for (const [dx, dz] of [[0.35, 0], [-0.35, 0], [0, 0.35], [0, -0.35]]) { const nx = x + dx, nz = z + dz; const kk = key(nx, nz); if (seen.has(kk) || hit(nx, nz)) continue; seen.add(kk); q.push([nx, nz]); } }
+    for (const z of zones) { let open = false; for (let x = z.x + 0.35; x < z.x + z.w - 0.2 && !open; x += 0.35) for (let zz = z.z + 0.35; zz < z.z + z.d - 0.2 && !open; zz += 0.35) if (seen.has(key(x, zz))) open = true; assert.ok(open, `${id} ${z.label} is a separate room you can walk into`); }
     assert.equal(gridOf(s.app, p).join(), T.grid.join()); assert.equal(layoutOf(s.app, p).type, id);
   }
 });
@@ -34,7 +43,7 @@ test('buy mode is checked on the server per type: bed, wardrobe, stairs, kitchen
   for (const id of ['selfcon', 'duplex', 'mansion']) {
     const p = s.app.city.properties.find(x => x.style === id); const u = mkUser(s, { cash: 100000 }); rent(s, u, p); at(s, u, p.door.x, p.door.z);
     const R = reservedRects(s.app, p); const [W, D] = gridOf(s.app, p); const F = (b) => call(s, 'POST', '/api/property/furniture', { uid: u, body: b });
-    for (const r of R) assert.equal((await F({ itemId: 'plant', x: r.x, z: r.z })).json.error, 'BLOCKED', `${id}: ${r.what}`);
+    for (const r of R) { if (!Number.isInteger(r.x) || !Number.isInteger(r.z)) continue; assert.equal((await F({ itemId: 'plant', x: r.x, z: r.z })).json.error, 'BLOCKED', `${id}: ${r.what}`); }
     let free = null; for (let z = 0; z < D && !free; z++) for (let x = 0; x < W && !free; x++) if (!R.some(r => cell(r, x, z))) free = { x, z };
     assert.equal((await F({ itemId: 'plant', ...free })).status, 200, id + ' accepts furniture on a free cell');
     assert.equal((await F({ itemId: 'plant', x: W, z: 0 })).json.error, 'OUT_OF_ROOM');

@@ -4,6 +4,7 @@ import { Builder, mulberry32 } from '../sample/builder.js';
 import { wallTextures, roadTexture, groundTexture, waterTexture, tex2, houseAd } from './textures.js';
 import { planAdWalls } from './adwalls.js';
 import { roadPts, isCurved, offsetPoly, polyLen, roadAt } from './roadgeom.js';
+import { planRoadHazards, hazardAt as pickHazard } from './road-hazards.js';
 import { strut, subtractRects, creekVisual, creekColliders, drawExtraBuilding, drawLagosBlock, drawBeach, drawJetty, drawLink, drawBeamBridge, drawCableBridge, drawStadium, drawHill, drawWall, drawDyePits, drawMotorPark, drawFarm, drawPen, drawWell, drawPalmLine } from './landmarks3d.js';
 import { lampPositions, lampLevel, lampsOn, LAMP } from './lamps.js';
 import { nameTag } from './textures.js';
@@ -131,6 +132,26 @@ export function buildWorld(city) {
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); const m = new THREE.Mesh(g, mat); root.add(m); return m; };
   const kerbMat = new THREE.MeshLambertMaterial({ color: 0xb9b39a }); const curvedMats = [];
   for (const r of city.roads) { if (!isCurved(r)) continue; const t = rt.clone(); t.needsUpdate = true; t.repeat.set(1, 1); const mat = new THREE.MeshLambertMaterial({ map: t, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }); curvedMats.push(mat); ribbon(roadPts(r), r.width + 1.6, 0.085, kerbMat, 56); ribbon(roadPts(r), r.width, 0.09, mat, 56); }
+  // ---- potholes on some streets, speed bumps on others (see road-hazards.js)
+  const roadHazards = planRoadHazards(city);
+  for (const h of roadHazards) {
+    if (h.kind === 'pothole') {
+      plain.cyl(1.15, 0.95, 0.07, 8, h.x, -0.005, h.z, 0x1a1c1f, { noAO: true });
+      plain.cyl(0.72, 0.55, 0.05, 7, h.x + 0.12, -0.015, h.z - 0.08, 0x101214, { noAO: true });
+      for (let k = 0; k < 5; k++) {
+        const a = h.yaw + (k / 5) * Math.PI * 2;
+        plain.box(0.38, 0.045, 0.2, h.x + Math.cos(a) * 1.05, 0.045, h.z + Math.sin(a) * 1.05, 0x2c3036, { noAO: true, ry: a, jit: 0 });
+      }
+    } else {
+      // Painted speed marking only — no raised black bar across the carriageway
+      const span = Math.min(h.roadW * 0.7, h.roadW - 1.2);
+      for (const s of [-0.28, 0, 0.28]) {
+        const ox = Math.cos(h.yaw + Math.PI / 2) * s * span;
+        const oz = Math.sin(h.yaw + Math.PI / 2) * s * span;
+        plain.box(0.55, 0.03, 0.22, h.x + ox, 0.12, h.z + oz, 0xf2d23c, { noAO: true, ry: h.yaw + Math.PI / 2, jit: 0 });
+      }
+    }
+  }
   // roundabouts: asphalt ring, kerbed grass island with a palm, dashed lane circle
   const roundabouts = city.roundabouts || [];
   const asphalt = new THREE.MeshLambertMaterial({ color: 0x34373c, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
@@ -165,8 +186,15 @@ export function buildWorld(city) {
     const hgt = 7 * s; b.cyl(0.22 * s, 0.35 * s, hgt, 6, x, 0, z, 0x8a6a45, { noAO: true });
     for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2; b.box(0.5 * s, 0.1, 3.4 * s, x + Math.cos(a) * 1.6 * s, hgt + 0.1, z + Math.sin(a) * 1.6 * s, 0x2f8f3a, { ry: -a + Math.PI / 2, rx: 0.5, noAO: true }); }
   }
-  if (city.palmRowZ !== false) for (let x = (city.bounds?.minX ?? -230) + 10; x < (city.bounds?.maxX ?? 240) - 10; x += 24) { const zz = (city.palmRowZ ?? 148) + (rnd() * 6 - 3); if (roadAt(city, x, zz, 1.5)) continue; if ((city.buildings || []).some((b) => Math.abs(x - b.x) < b.w / 2 + 1 && Math.abs(zz - b.z) < b.d / 2 + 1)) continue; palm(plain, x, zz, 0.9 + rnd() * 0.5); }
-  for (let i = 0; i < 40; i++) { const z = city.zones[(rnd() * city.zones.length) | 0]; if (!z) continue; const x = z.x0 + 3 + rnd() * (z.x1 - z.x0 - 6), zz = z.z0 + (rnd() < 0.5 ? 3 : z.z1 - z.z0 - 3); if (zz < 140 && !roadAt(city, x, zz, 1.5)) palm(plain, x, zz, 0.7 + rnd() * 0.4); }
+  // Palms skip roads, buildings, and car parks (Motoka lot sits on the lagoon palm row and was growing through Cybertrucks).
+  const palmBlocked = (x, z) => {
+    if (roadAt(city, x, z, 1.5)) return true;
+    if ((city.buildings || []).some((b) => Math.abs(x - b.x) < b.w / 2 + 1 && Math.abs(z - b.z) < b.d / 2 + 1)) return true;
+    if ((city.carParks || []).some((l) => Math.abs(x - l.x) <= l.w / 2 + 2.5 && Math.abs(z - l.z) <= l.d / 2 + 2.5)) return true;
+    return false;
+  };
+  if (city.palmRowZ !== false) for (let x = (city.bounds?.minX ?? -230) + 10; x < (city.bounds?.maxX ?? 240) - 10; x += 24) { const zz = (city.palmRowZ ?? 148) + (rnd() * 6 - 3); if (palmBlocked(x, zz)) continue; palm(plain, x, zz, 0.9 + rnd() * 0.5); }
+  for (let i = 0; i < 40; i++) { const z = city.zones[(rnd() * city.zones.length) | 0]; if (!z) continue; const x = z.x0 + 3 + rnd() * (z.x1 - z.x0 - 6), zz = z.z0 + (rnd() < 0.5 ? 3 : z.z1 - z.z0 - 3); if (zz < 140 && !palmBlocked(x, zz)) palm(plain, x, zz, 0.7 + rnd() * 0.4); }
 
   // ---- buildings
   const signs = [];
@@ -228,8 +256,51 @@ export function buildWorld(city) {
       plain.cyl(0.1, 0.1, 2.8, 6, b.x, b.h, b.z, 0xd0d5da, { noAO: true });
       plain.box(0.9, 0.1, 0.9, b.x, b.h + 2.8, b.z, 0x00c2b8, { noAO: true, jit: 0 });
     } else if (b.kind === 'office' || b.kind === 'kiosk') {
-      walls.box(b.w, b.h, b.d, b.x, 0, b.z, b.color); plain.box(b.w + 0.6, 0.3, b.d + 0.6, b.x, b.h, b.z, b.tag === "motoka" ? 0x2389e3 : 0x6b6d70);
-      if (b.label && b.tag !== "motoka") { const [sx, sz] = frontPos(b, 0.12); addSign(b.label, '#0b6b3a', sx, b.h - 1.3, sz, Math.min(b.w - 1, 14), 2.2, b.face); }
+      if (b.tag === 'motoka') {
+        walls.box(b.w, b.h * 0.52, b.d, b.x, 0, b.z, b.color || '#f4f8fc');
+        walls.box(b.w * 0.98, b.h * 0.48, b.d * 0.98, b.x, b.h * 0.52, b.z, '#e8f2fb');
+        plain.box(b.w + 0.8, 0.4, b.d + 0.8, b.x, b.h, b.z, 0x2389e3, { noAO: true });
+        plain.box(b.w + 0.4, 0.18, b.d + 0.4, b.x, b.h * 0.52, b.z, 0x05243f, { noAO: true });
+        const [gx, gz] = frontPos(b, 0.05);
+        glassB.box(Math.abs(fz) ? b.w * 0.78 : 0.18, b.h * 0.36, Math.abs(fz) ? 0.18 : b.d * 0.78, gx, b.h * 0.1, gz, 0xb9ddf6, { noAO: true, jit: 0 });
+        glassB.box(Math.abs(fz) ? b.w * 0.72 : 0.18, b.h * 0.28, Math.abs(fz) ? 0.18 : b.d * 0.72, gx, b.h * 0.58, gz, 0xb9ddf6, { noAO: true, jit: 0 });
+        plain.box(Math.abs(fz) ? 2.6 : 0.2, 3.2, Math.abs(fz) ? 0.2 : 2.6, gx, 0, gz, 0x05243f, { noAO: true });
+      } else if (b.tag === 'motoka-meko') {
+        walls.box(b.w, b.h, b.d, b.x, 0, b.z, b.color || '#0d3b2e');
+        plain.box(b.w + 0.8, 0.35, b.d + 0.8, b.x, b.h, b.z, 0x2389e3, { noAO: true });
+        plain.box(b.w * 0.9, 0.2, b.d * 0.9, b.x, b.h * 0.55, b.z, 0xe07b00, { noAO: true });
+        const [gx, gz] = frontPos(b, 0.08);
+        // open garage mouth (drive-in bay)
+        plain.box(Math.abs(fz) ? b.w * 0.7 : 0.15, b.h * 0.55, Math.abs(fz) ? 0.15 : b.d * 0.7, gx, 0, gz, 0x1a1a1a, { noAO: true });
+        plain.box(Math.abs(fz) ? b.w * 0.72 : 0.2, 0.25, Math.abs(fz) ? 0.2 : b.d * 0.72, gx, b.h * 0.55, gz, 0xe07b00, { noAO: true });
+        const [sx, sz] = frontPos(b, 0.14); addSign(b.label || 'Motoka Meko', '#2389e3', sx, b.h - 1.1, sz, Math.min(b.w - 1, 14), 2.0, b.face);
+      } else if (b.tag === 'armoury') {
+        // Full Iron Gate Armoury block: dark shell, red fascia, barred gate, one facade sign (no floating shop spam).
+        const red = parseInt(String(b.sign || '#c0392b').replace('#', ''), 16);
+        walls.box(b.w, b.h, b.d, b.x, 0, b.z, b.color || '#1a1f28');
+        plain.box(b.w + 0.9, 0.45, b.d + 0.9, b.x, b.h, b.z, red, { noAO: true });
+        plain.box(b.w * 0.96, 0.22, b.d * 0.96, b.x, b.h * 0.62, b.z, 0x0d1016, { noAO: true });
+        const [gx, gz] = frontPos(b, 0.06);
+        const along = Math.abs(fz) > 0;
+        const gateW = Math.min((along ? b.w : b.d) * 0.55, 7.2), gateH = Math.min(b.h * 0.72, 4.4);
+        plain.box(along ? gateW : 0.18, gateH, along ? 0.18 : gateW, gx, 0, gz, 0x0a0c10, { noAO: true });
+        for (let i = 0; i < 5; i++) {
+          const t = (i - 2) / 2.2;
+          plain.box(along ? 0.14 : 0.2, gateH * 0.92, along ? 0.2 : 0.14, gx + (along ? t * (gateW * 0.38) : 0), 0.08, gz + (along ? 0 : t * (gateW * 0.38)), 0x6b7280, { noAO: true });
+        }
+        plain.box(along ? gateW + 0.4 : 0.28, 0.28, along ? 0.28 : gateW + 0.4, gx, gateH, gz, red, { noAO: true });
+        // side slit windows (lit at night via glass)
+        for (const side of [-1, 1]) {
+          const wx = b.x + (along ? side * b.w * 0.28 : fx * (hw + 0.04));
+          const wz = b.z + (along ? fz * (hd + 0.04) : side * b.d * 0.28);
+          glassB.box(along ? 1.6 : 0.14, 1.8, along ? 0.14 : 1.6, wx, b.h * 0.28, wz, 0xe8c96a, { noAO: true, jit: 0 });
+        }
+        const [sx, sz] = frontPos(b, 0.14);
+        addSign(b.label || 'Iron Gate Armoury', b.sign || '#c0392b', sx, b.h - 1.35, sz, Math.min(b.w - 1.2, 16), 2.35, b.face);
+      } else {
+        walls.box(b.w, b.h, b.d, b.x, 0, b.z, b.color); plain.box(b.w + 0.6, 0.3, b.d + 0.6, b.x, b.h, b.z, 0x6b6d70);
+      }
+      if (b.label && b.tag !== 'motoka' && b.tag !== 'motoka-meko' && b.tag !== 'armoury') { const [sx, sz] = frontPos(b, 0.12); addSign(b.label, b.sign || '#0b6b3a', sx, b.h - 1.3, sz, Math.min(b.w - 1, 14), 2.2, b.face); }
       if (b.tag === 'office') { // the Naija Area office: green-white awning over the door, a flagpole with the green-white-green flag, a front step
         const fx = b.face[0], fz = b.face[1]; const ax = b.x + fx * (b.w / 2 + 1.3), az = b.z + fz * (b.d / 2 + 1.3); const along = fz !== 0;
         for (let i = 0; i < 4; i++) plain.box(along ? 2 : 2.8, 0.26, along ? 2.8 : 2, ax + (along ? (i - 1.5) * 2 : 0), 3.3, az + (along ? 0 : (i - 1.5) * 2), i % 2 ? 0xf4f4f0 : 0x00a859, { noAO: true });
@@ -240,7 +311,7 @@ export function buildWorld(city) {
       drawLagosBlock(b, { plain, walls, glassB, addSign, frontPos });
     } else if (b.kind === 'stadium') {
       drawStadium(b, { plain, walls, addSign, frontPos, root, rnd: mulberry32(7) });
-    } else if (b.kind === 'hotel' || b.kind === 'landmark' || b.kind === 'hut') {
+    } else if (b.kind === 'hotel' || b.kind === 'school' || b.kind === 'landmark' || b.kind === 'hut') {
       drawExtraBuilding(b, { plain, walls, glassB, addSign, frontPos });
     } else if (b.kind === 'airport') {
       walls.box(b.w, b.h, b.d, b.x, 0, b.z, b.color); plain.box(b.w + 6, 0.8, b.d + 6, b.x, b.h, b.z, 0x8895a3); plain.box(b.w * 0.9, 2.2, 3, b.x, 3, b.z + b.d / 2 + 0.3, 0x4a6b86, { noAO: true });
@@ -349,13 +420,36 @@ export function buildWorld(city) {
     if (!a) { a = new THREE.Group(); a.add(new THREE.Mesh(poleGeo, new THREE.MeshLambertMaterial({ color: 0x3a3a3a }))); const lamp = new THREE.Mesh(lampGeo, new THREE.MeshBasicMaterial({ color: hex })); lamp.position.y = 4.6; lamp.name = 'lamp'; a.add(lamp); a.position.set(def.door.x + 1.6, 0, def.door.z + 0.4); root.add(a); accents[p.id] = a; }
     a.getObjectByName('lamp').material.color.copy(hex); a.userData.hex = p.homeSkin; };
   const markerColor = { available: 0x35c46b, taken: 0x8a8f98, yours: 0xffc20e };
+  const namePlates = {}, facades = {};
+  const dropMesh = (mesh) => { if (!mesh) return; root.remove(mesh); mesh.geometry?.dispose(); mesh.material?.map?.dispose(); mesh.material?.dispose(); };
+  const showHouse = (p) => {
+    const def = city.properties.find(x => x.id === p.id); if (!def) return;
+    const text = p.owner && p.name ? p.name : '';
+    let tag = namePlates[p.id];
+    if (!text) dropMesh(tag), delete namePlates[p.id];
+    else if (!tag || tag.userData.text !== text) {
+      dropMesh(tag);
+      tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: nameTag(text, '#ffe08a'), transparent: true, depthTest: true }));
+      tag.scale.set(8.4, 2.1, 1); tag.position.set(def.door.x, 7.6, def.door.z); tag.userData.text = text;
+      root.add(tag); namePlates[p.id] = tag;
+    }
+    const bld = city.buildings.find(b => b.id === def.buildingId);
+    let slab = facades[p.id];
+    if (!p.facade || !bld) { dropMesh(slab); delete facades[p.id]; return; }
+    if (!slab) { slab = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: p.facade })); root.add(slab); facades[p.id] = slab; }
+    const [fx, fz] = bld.face || [0, 1];
+    slab.material.color.set(p.facade);
+    slab.scale.set(Math.abs(fz) ? bld.w * 0.98 : 0.28, bld.h * 0.92, Math.abs(fx) ? bld.d * 0.98 : 0.28);
+    slab.position.set(bld.x + fx * (Math.abs(fx) ? bld.w / 2 + 0.2 : 0), bld.h * 0.46, bld.z + fz * (Math.abs(fz) ? bld.d / 2 + 0.2 : 0));
+  };
   const waterSpeed = { x: 0.004 };
   const fogC = new THREE.Color('#9fd3ee'); scene.fog = new THREE.Fog(fogC, 140, 520);
   let night = 0; applyLamps(0);
   const api = {
-    scene, colliders, palmSpots, boards, doorMarkers, labels, root, accents, treasures,
+    scene, colliders, palmSpots, boards, doorMarkers, labels, root, accents, treasures, roadHazards,
+    hazardAt(x, z) { return pickHazard(roadHazards, x, z); },
     hideTreasures(ids) { for (const id of ids || []) { const g = treasures[id]; if (g) { root.remove(g); delete treasures[id]; } } },
-    setMarkers(props) { for (const p of props) { const m = doorMarkers[p.id]; if (m) m.material.color.setHex(markerColor[p.status] || 0x35c46b); homeAccent(p); } },
+    setMarkers(props) { for (const p of props) { const m = doorMarkers[p.id]; if (m) m.material.color.setHex(markerColor[p.status] || 0x35c46b); homeAccent(p); showHouse(p); } },
     setTime(minutes) { // 0..1440
       const t = minutes / 1440; const a = (t - 0.25) * Math.PI * 2; const h = Math.sin(a); const day = Math.max(0, Math.min(1, h * 1.8 + 0.25));
       night = 1 - day; const dusk = Math.max(0, 1 - Math.abs(h) * 3.2);

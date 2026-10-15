@@ -3,7 +3,7 @@
 // Some vehicles have a dead headlamp (Lagos flavour). All numbers are placeholders (ESTIMATE).
 import * as THREE from 'three';
 
-export const HEAD = { brokenShare: 1 / 12, beamLen: { car: 13, danfo: 15, keke: 8, okada: 7 }, beamW: { car: 5.2, danfo: 6, keke: 3.2, okada: 2.4 }, front: { car: 2.15, danfo: 2.7, keke: 1.4, okada: 0.95 }, half: { car: 0.7, danfo: 0.85, keke: 0, okada: 0 }, spotIntensity: 2.2, spotDistance: 46 };
+export const HEAD = { brokenShare: 1 / 12, beamLen: { car: 13, police: 13, danfo: 15, keke: 8, okada: 7 }, beamW: { car: 5.2, police: 5.2, danfo: 6, keke: 3.2, okada: 2.4 }, front: { car: 2.15, police: 2.35, danfo: 2.7, keke: 1.4, okada: 0.95 }, half: { car: 0.7, police: 0.78, danfo: 0.85, keke: 0, okada: 0 }, spotIntensity: 2.2, spotDistance: 46 };
 const hash = (n) => { let x = Math.imul(n ^ 0x7f4a7c15, 0x85ebca6b); x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35); x ^= x >>> 16; return (x >>> 0) / 4294967296; };
 /** 0 = both lamps work, -1 = left lamp dead, 1 = right lamp dead (only two-lamp vehicles; keke and okada have one lamp and are never "broken") */
 export const brokenSide = (i, type) => { if ((HEAD.half[type] || 0) === 0) return 0; const r = hash(i * 131 + 7); return r < HEAD.brokenShare ? (r < HEAD.brokenShare / 2 ? -1 : 1) : 0; };
@@ -31,7 +31,7 @@ export class Headlamps {
   }
 }
 /** the player's own car: two glows, a beam on the road and one real spot light (kept in the scene at zero intensity by day so shaders never recompile) */
-const LAMP_AT = { hatch: { f: 2.05, y: 0.72, half: 0.7 }, sedan: { f: 2.2, y: 0.68, half: 0.72 }, suv: { f: 2.25, y: 0.88, half: 0.8 }, gwagon: { f: 2.32, y: 0.98, half: 0.74 }, cyber: { f: 2.62, y: 1.2, half: 0.72 } };
+const LAMP_AT = { hatch: { f: 2.05, y: 0.72, half: 0.7 }, sedan: { f: 2.2, y: 0.68, half: 0.72 }, suv: { f: 2.25, y: 0.88, half: 0.8 }, gwagon: { f: 2.32, y: 0.98, half: 0.74 }, g63: { f: 2.4, y: 0.95, half: 0.85 }, cyber: { f: 3.86, y: 1.77, half: 1.06 }, mclaren: { f: 2.84, y: 0.69, half: 1.03 }, micra: { f: 1.92, y: 0.58, half: 0.58 } };
 export function addPlayerHeadlamps(carGroup, kind = 'hatch') {
   const L = LAMP_AT[kind] || LAMP_AT.hatch;
   const parts = { beam: new THREE.Mesh(new THREE.PlaneGeometry(HEAD.beamLen.car * 1.25, HEAD.beamW.car * 1.2).rotateX(-Math.PI / 2).translate(HEAD.beamLen.car * 0.625, 0, 0), add(beamTexture())), glows: [] };

@@ -29,7 +29,10 @@ test('love: guests (not strangers, not the owner) can love a house once a day; c
 });
 test('guest social actions: greet/hype/sofa/tv need the right access and furniture, have cooldowns, show in the room feed; room chat is filtered; kick removes the guest', async () => {
   const { s, owner, guest, p } = await setup(); s.owner = owner; await letIn({ s, guest, p });
+  const oname = s.db.prepare('SELECT username FROM users WHERE id=?').get(owner).username;
   await ok(s, 'POST', '/api/visit/act', { uid: guest, body: { propertyId: p.id, action: 'greet' } }); assert.equal((await call(s, 'POST', '/api/visit/act', { uid: guest, body: { propertyId: p.id, action: 'greet' } })).json.error, 'COOLDOWN');
+  let room0 = await ok(s, 'GET', `/api/room?propertyId=${p.id}`, { uid: owner }); assert.ok(room0.events.some(e => e.kind === 'act' && e.t.includes('@' + oname) && e.t.includes('How far')), 'greet names people in the room');
+  assert.ok((await ok(s, 'GET', '/api/notifications', { uid: owner })).rows.some(n => /greets you/.test(n.text)));
   assert.equal((await call(s, 'POST', '/api/visit/act', { uid: guest, body: { propertyId: p.id, action: 'sofa' } })).json.error, 'NO_ITEM'); await ok(s, 'POST', '/api/property/furniture', { uid: owner, body: { propertyId: p.id, itemId: 'sofa', x: 2, z: 1, rot: 0 } });
   const m0 = profile(s.app, guest).mood; await ok(s, 'POST', '/api/visit/act', { uid: guest, body: { propertyId: p.id, action: 'sofa' } }); assert.ok(profile(s.app, guest).mood > m0); assert.equal((await call(s, 'POST', '/api/visit/act', { uid: guest, body: { propertyId: p.id, action: 'fly' } })).json.error, 'BAD_ACTION');
   assert.equal((await call(s, 'POST', '/api/room/say', { uid: guest, body: { propertyId: p.id, text: 'sh1t house' } })).json.error, 'CLEAN_IT_UP'); await ok(s, 'POST', '/api/room/say', { uid: guest, body: { propertyId: p.id, text: 'Nice place!' } });
@@ -37,4 +40,32 @@ test('guest social actions: greet/hype/sofa/tv need the right access and furnitu
   const gname = s.db.prepare('SELECT username FROM users WHERE id=?').get(guest).username; await ok(s, 'POST', '/api/social/mute', { uid: owner, body: { username: gname, kind: 'mute' } }); r = await ok(s, 'GET', `/api/room?propertyId=${p.id}`, { uid: owner }); assert.ok(!r.events.some(e => e.u === gname), 'muted guest hidden from owner'); await ok(s, 'POST', '/api/social/mute', { uid: owner, body: { username: gname, kind: null } });
   assert.equal((await call(s, 'POST', '/api/visit/kick', { uid: guest, body: { propertyId: p.id, username: gname } })).json.error, 'NOT_OWNER'); await ok(s, 'POST', '/api/visit/kick', { uid: owner, body: { propertyId: p.id, username: gname } });
   assert.equal((await call(s, 'GET', `/api/room?propertyId=${p.id}`, { uid: guest })).status, 403); assert.equal((await call(s, 'POST', '/api/room/say', { uid: guest, body: { propertyId: p.id, text: 'hello?' } })).status, 403);
+});
+test('NEPA blackout needs a generator or solar inverter to restore light; placed items are listed in room state', async () => {
+  const { s, owner, guest, p } = await setup(); s.owner = owner;
+  s.db.prepare('UPDATE property_owner SET power_dark_until=?, power_check_bucket=? WHERE property_id=?').run(s.app.clock.now() + 10 * 60000, 999999, p.id);
+  let room = await ok(s, 'GET', `/api/room?propertyId=${p.id}`, { uid: owner });
+  assert.equal(room.power.dark, true); assert.equal(room.power.canRestore, false);
+  assert.equal((await call(s, 'POST', '/api/property/power/restore', { uid: owner, body: { propertyId: p.id } })).json.error, 'NO_BACKUP');
+  await ok(s, 'POST', '/api/property/furniture', { uid: owner, body: { itemId: 'gen' } });
+  room = await ok(s, 'GET', `/api/room?propertyId=${p.id}`, { uid: owner });
+  assert.equal(room.power.canRestore, true); assert.ok(room.placed.some(i => i.id === 'gen'));
+  const restored = await ok(s, 'POST', '/api/property/power/restore', { uid: owner, body: { propertyId: p.id } });
+  assert.equal(restored.dark, false);
+  assert.equal((await call(s, 'POST', '/api/property/power/restore', { uid: guest, body: { propertyId: p.id } })).json.error, 'FORBIDDEN');
+  const inner = await ok(s, 'GET', `/api/property/${p.id}/interior`, { uid: owner });
+  assert.ok(inner.catalog.some(i => i.id === 'solar')); assert.ok(inner.placed.some(i => i.id === 'gen'));
+});
+test('buying a house writes the owner name on it, and outside paint is a colour other players can see', async () => {
+  const { s, owner, guest, p } = await setup(); const who = s.db.prepare('SELECT username FROM users WHERE id=?').get(owner).username;
+  const seen = (await ok(s, 'GET', '/api/properties', { uid: guest })).properties.find(x => x.id === p.id);
+  assert.equal(seen.name, who); assert.equal(seen.owner, who); assert.equal(seen.facade, null);
+  assert.equal((await call(s, 'POST', '/api/property/facade', { uid: guest, body: { propertyId: p.id, color: 'sky' } })).json.error, 'NOT_OWNER');
+  assert.equal((await call(s, 'POST', '/api/property/facade', { uid: owner, body: { propertyId: p.id, color: 'neon' } })).json.error, 'BAD_COLOUR');
+  const before = balanceOf(s.db, cashId(owner)); const price = s.app.balance.decor.price;
+  const r = await ok(s, 'POST', '/api/property/facade', { uid: owner, body: { propertyId: p.id, color: 'sky', idemKey: 'paint1' } });
+  assert.equal(r.facade, s.app.balance.decor.walls.sky[1]); assert.equal(r.charged, price); assert.equal(balanceOf(s.db, cashId(owner)), before - price);
+  const again = await ok(s, 'POST', '/api/property/facade', { uid: owner, body: { propertyId: p.id, color: 'sky', idemKey: 'paint2' } }); assert.equal(again.charged, 0);
+  const pub = (await ok(s, 'GET', '/api/properties', { uid: guest })).properties.find(x => x.id === p.id); assert.equal(pub.facade, r.facade);
+  assert.equal(checkInvariants(s.db).ok, true);
 });

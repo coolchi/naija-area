@@ -22,6 +22,9 @@ import { AirportClient } from './airport-client.js';
 import { LinkClient } from './link-client.js';
 import { BoatClient } from './boat-client.js';
 import { RadioClient } from './radio-client.js';
+import { CarpoolClient } from './carpool-client.js';
+import { TowClient } from './tow-client.js';
+import { CarSmoke } from './car-smoke.js';
 import { RadioSpots } from './radio-spot.js';
 import { lampsOn } from './lamps.js';
 import { Weather } from './weather.js';
@@ -34,7 +37,9 @@ import { PHYSX } from '../../server/config/physx.js';
 import { pushSpots } from '../../server/core/physx.js';
 import { setPlayerHeadlamps } from './headlamps.js';
 import { CrashClient } from './crash.js';
-import { Traffic, Walkers, Ghosts, makeNameSprite, makePlayerCar } from './entities.js';
+import { FaintSys } from './faint.js';
+import { Traffic, Walkers, Ghosts, makeNameSprite, makePlayerCar, blobShadow } from './entities.js';
+import { policeRig } from '../sample/police-rig.js';
 import { applyWear, indexCatalogue } from './wear-models.js';
 import { AdsClient } from './ads-client.js';
 import { UI, say } from './ui.js';
@@ -44,6 +49,7 @@ import { Venue } from './venue.js';
 import { GarageView } from './garage-view.js';
 import { roadAt } from './roadgeom.js';
 import { PhoneSys } from './phone-v2/phone2.js';
+import { BodyguardClient } from './bodyguard-client.js';
 import { glowTexture } from './textures.js';
 
 const TIPS = ['Tap any building or sign to see it on the map and travel there.', 'Take a shift at the Corner Mart: the quick task gives +25% if you stop the bar in the green.', 'Knock at a house when its owner is home. They can let you in.', 'Land plots grow in value, but omo-onile may come for a levy.', 'Delivery costs more but works from anywhere.', 'Walk up to your own car and tap it to get in. Press T to chat.'];
@@ -116,14 +122,17 @@ class Game {
       this.camera = new THREE.PerspectiveCamera(58, 1, 0.5, 900); this.camera.position.set(0, 14, 20);
       this.world = buildWorld(city); this.scene = this.world.scene; this.decorate(); this.weather = new Weather(this.scene, this.world);
       this.progress(60, 'Putting traffic on the road…'); await new Promise(r => setTimeout(r, 30));
-      this.traffic = new Traffic(this.scene, city.trafficLoops, city.busStops || [], city.roundabouts || []); this.traffic.onHorn = (c, car) => this.horn(c, car); this.walkers = new Walkers(this.scene, city.zones, q0.walkers); this.ghosts = new Ghosts(this.scene); this.ghosts.cat = this.wearCat; this.ghosts.skinLook = (sk, want) => this.skinLookOf(want === 'car' ? sk?.c : sk?.a);
+      this.traffic = new Traffic(this.scene, city.trafficLoops, city.busStops || [], city.roundabouts || []); this.traffic.onHorn = (c, car) => this.horn(c, car); this.walkers = new Walkers(this.scene, city.zones, q0.walkers); this.ghosts = new Ghosts(this.scene); this.ghosts.cat = this.wearCat; this.ghosts.skinLook = (sk, want) => this.skinLookOf(want === 'car' ? sk?.c : sk?.a); this.bodyguard = new BodyguardClient(this);
       this.audio = new GameAudio({ isLowEnd: () => this.qualityLevel === 'low', radioPlaying: () => !!this.radio?.state?.playing, night: () => lampsOn(this.world.night) > 0.5 }); const unlock = () => this.audio.unlock(); addEventListener('pointerdown', unlock, true); addEventListener('keydown', unlock, true); document.addEventListener('visibilitychange', () => this.audio.visibility(document.hidden)); document.addEventListener('click', (e) => { if (e.target.closest?.('button, .btn, .round')) this.audio.play('click'); }, true);
       this.ads = new AdsClient(this.world, city, () => this.serverNow()); this.ui = new UI(this); this.guardian = new GuardianWatch(this); window.addEventListener('na-break', (ev) => showBreak(this, ev.detail)); if (this.audio.set.on === false) { $('#muteBtn').textContent = '🔇'; this.ui.sfxOn = false; } this.net = new Net(this); this.interior = new Interior(this); this.venue = new Venue(this); this.garage = new GarageView(this);
-      this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root); this.setupPhysx(city); applyServerLimits(this.cfg.movement); this.ctrl.onStep = (k) => this.ui.sfx('step', PHYS.audio.footstepVol * (0.6 + 0.4 * k)); this.ctrl.onBump = (imp) => this.ui.sfx('thud', PHYS.audio.thudVol * Math.min(1.4, 0.4 + imp / 12)); this.ctrl.obstacles = (x, z, r) => this.traffic.obstaclesNear(x, z, r); this.nav = new Nav(this); this.parking = new ParkingClient(this); this.ownCar = new OwnCar(this); this.ctrl.ownSolid = () => this.ownCar.circles(); this.bus = new BusStops(this); this.rideSvc = new RideClient(this); this.links = new LinkClient(this); this.boats = new BoatClient(this); this.radio = new RadioClient(this); this.radioSpots = new RadioSpots(this); this.air = new AirportClient(this); this.crash = new CrashClient(this); this.traffic.crash = this.crash; this.emotes = new EmoteSystem(this); this.photo = new PhotoMode(this); this.ghosts.emotes = this.emotes.view; $('#emoteBtn').onclick = () => emoteSheet(this); $('#photoBtn').onclick = () => this.photo.open();
+      this.ctrl = new Controller($('#game'), city, this.world.colliders, '#00a859', 'You'); this.scene.add(this.ctrl.root); this.setupPhysx(city); applyServerLimits(this.cfg.movement); this.ctrl.hazardAt = (x, z) => this.world.hazardAt?.(x, z) || null; this.ctrl.onStep = (k) => this.ui.sfx('step', PHYS.audio.footstepVol * (0.6 + 0.4 * k)); this.ctrl.onBump = (imp) => { this.ui.sfx('thud', PHYS.audio.thudVol * Math.min(1.4, 0.4 + imp / 12)); this.reportCollide?.(imp); }; this.ctrl.obstacles = (x, z, r) => this.traffic.obstaclesNear(x, z, r); this.nav = new Nav(this); this.parking = new ParkingClient(this); this.ownCar = new OwnCar(this); this.ctrl.ownSolid = () => this.ownCar.circles(); this.bus = new BusStops(this); this.rideSvc = new RideClient(this); this.links = new LinkClient(this); this.boats = new BoatClient(this); this.radio = new RadioClient(this); this.carpool = new CarpoolClient(this); this.tow = new TowClient(this); this.radioSpots = new RadioSpots(this); this.air = new AirportClient(this); this.crash = new CrashClient(this); this.faint = new FaintSys(this); this.traffic.crash = this.crash; this.emotes = new EmoteSystem(this); this.photo = new PhotoMode(this); this.ghosts.emotes = this.emotes.view; $('#emoteBtn').onclick = () => emoteSheet(this); $('#photoBtn').onclick = () => this.photo.open();
       addEventListener('resize', () => this.resize()); this.resize(); Q.apply(this, Q.resolve(this.qualityChoice, Q.readEnv())); this.bindAuth(); this.progress(85, TIPS[Math.floor(Math.random() * TIPS.length)]);
-      const me = await get('/api/me').catch(() => null); this.progress(100, 'Ready!'); await new Promise(r => setTimeout(r, 250));
-      this.loop(performance.now()); $('#loading').classList.add('hidden');
+      const me = await get('/api/me').catch(() => null); this.progress(100, 'Ready!');
+      // Place the player (and restore drive mode) before the first frame so reload does not flash a walk spawn.
       if (me) await this.enter(me.user); else $('#auth').classList.remove('hidden');
+      $('#loading').classList.add('hidden'); this.loop(performance.now());
+      addEventListener('pagehide', () => this.flushPresence?.());
+      addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') this.flushPresence?.(); });
     } catch (e) { console.error(e); $('#loadTip').textContent = e instanceof ApiError ? e.message : 'Could not start the game. Is WebGL enabled? Refresh to retry.'; $('#loadBar').style.background = '#d6402f'; }
   }
   // ---- extra scene dressing: land plots + "for sale" flags + market stall
@@ -136,12 +145,52 @@ class Game {
       const flag = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.6), new THREE.MeshBasicMaterial({ color: 0x35c46b, side: THREE.DoubleSide })); flag.position.set(p.x + 1.3, 3.2, p.z + p.size / 2 - 1); g.add(flag); this.plotMeshes[p.id] = { sq, flag }; sc.add(g);
     }
     const m = this.city.shops.find(s => s.id === 'shop_market'); if (m) { const awn = new THREE.Mesh(new THREE.BoxGeometry(7, 0.25, 4), new THREE.MeshLambertMaterial({ color: 0xd64a2f })); awn.position.set(m.x, 3, m.z); const tb = new THREE.Mesh(new THREE.BoxGeometry(6, 1.1, 2), new THREE.MeshLambertMaterial({ color: 0x8b6b3d })); tb.position.set(m.x, 0.55, m.z + 0.5); const crates = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.3, 1.2), new THREE.MeshLambertMaterial({ color: 0xe7b84a })); crates.position.set(m.x, 1.25, m.z + 0.5); sc.add(awn, tb, crates); for (const dx of [-3.2, 3.2]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 3), new THREE.MeshLambertMaterial({ color: 0x555555 })); p.position.set(m.x + dx, 1.5, m.z - 1.5); sc.add(p); } }
-    for (const v of this.city.venues || []) { const sp = makeNameSprite(v.name, v.sign || '#333'); sp.scale.set(8, 2, 1); sp.position.set(v.x, 8.5, v.z); sc.add(sp); const mk = new THREE.Mesh(new THREE.RingGeometry(1.4, 1.9, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: v.id === "venue_motors" ? 0x2389e3 : 0xffc20e, side: THREE.DoubleSide })); mk.position.set(v.x, 0.15, v.z); sc.add(mk); }
+    for (const v of this.city.venues || []) {
+      // Facade-signed shops already show their name on the wall — skip the floating billboard so other venues do not poke through (e.g. Compound Yard over Iron Gate Armoury).
+      const bld = v.buildingId && (this.city.buildings || []).find(b => b.id === v.buildingId);
+      if (!bld?.label) {
+        const sp = makeNameSprite(v.name, v.sign || '#333', { depthTest: true }); sp.scale.set(8, 2, 1); sp.position.set(v.x, 8.5, v.z); sc.add(sp);
+      }
+      const mk = new THREE.Mesh(new THREE.RingGeometry(1.4, 1.9, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: v.id === 'venue_motors' ? 0x2389e3 : v.id === 'venue_armoury' ? 0xc0392b : 0xffc20e, side: THREE.DoubleSide })); mk.position.set(v.x, 0.15, v.z); sc.add(mk);
+    }
     this.showroomYard();
+    this.policePark();
     this.dest = new THREE.Mesh(new THREE.RingGeometry(1.2, 1.7, 28).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xb44cff, side: THREE.DoubleSide })); this.dest.visible = false; sc.add(this.dest);
   }
 
-  /** Motoka AutoMart. The board keeps the artwork's own shape. The roof sign stands on the front of the roof. Road signs sit by Lagoon Drive, held at the edges so the pole does not cut the design. */
+  /** Park NPF chargers on the open apron south of the Nigeria Police Station (clear of the building). */
+  policePark() {
+    const bld = (this.city.buildings || []).find(x => x.id === 'b_police');
+    if (!bld) return;
+    this.propCars = this.propCars || [];
+    // South of the front face, either side of the entrance marker — not through the west wall.
+    const apronZ = bld.z - bld.d / 2 - 4.2;
+    const spots = [
+      { x: bld.x - 10, z: apronZ },
+      { x: bld.x - 5.5, z: apronZ },
+      { x: bld.x + 5.5, z: apronZ },
+      { x: bld.x + 10, z: apronZ },
+    ];
+    for (const s of spots) {
+      const g = new THREE.Group();
+      const car = policeRig();
+      car.position.y = 0.12;
+      // Nose toward the station (north). Model front = +x → yaw −π/2.
+      car.rotation.y = -Math.PI / 2;
+      g.add(car);
+      g.add(blobShadow(6.2, 2.8));
+      const tag = makeNameSprite('NPF', '#006b36');
+      tag.scale.set(1.8, 0.45, 1);
+      tag.position.set(0, 2.35, 0);
+      g.add(tag);
+      g.position.set(s.x, 0, s.z);
+      g.userData.propCar = true;
+      this.scene.add(g);
+      this.propCars.push(g);
+    }
+  }
+
+  /** Motoka AutoMart. The board keeps the artwork's own shape. The roof sign stands on the front of the roof. Road signs sit by Lagoon Drive, held at the edges so the pole does not cut the design. Display cars come from /api/motoka/stock so every parked unit is buyable and supercars respect the daily pool. */
   showroomYard() {
     const v = (this.city.venues || []).find(x => x.id === 'venue_motors'); if (!v) return;
     const bld = (this.city.buildings || []).find(x => x.id === v.buildingId);
@@ -157,17 +206,16 @@ class Game {
       const frame = new THREE.Mesh(new THREE.BoxGeometry(w + 0.16, h + 0.16, 0.08), navy); frame.position.set(0, h / 2, -0.07); g.add(frame);
       return { g, h, w };
     };
-    const RW = Math.min(bw - 1.4, 7.4);
+    const RW = Math.min(bw - 1.4, 12);
     const roof = signGroup(RW);
     const roofTop = bh + 0.34;
     for (const s of [-1, 1]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.28, 0.14), navy); leg.position.set(s * (RW / 2 - 0.35), -0.08, -0.08); roof.g.add(leg); }
     roof.g.rotation.y = yaw;
     roof.g.position.set(bx + fx * (bd / 2 - 0.45), roofTop, bz + fz * (bd / 2 - 0.45));
     this.scene.add(roof.g);
-    const glass = new THREE.Mesh(new THREE.BoxGeometry(bw - 2.2, 2.15, 0.12), new THREE.MeshBasicMaterial({ color: 0xb9ddf6, transparent: true, opacity: 0.45 }));
-    glass.position.set(bx + fx * (bd / 2 + 0.08), 1.35, bz + fz * (bd / 2 + 0.08)); glass.rotation.y = yaw; this.scene.add(glass);
+    // Glass panes live on the Motoka building in world.js only — a second transparent layer here z-fought and blinked.
     const canopy = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.4, 0.12, 2.6), new THREE.MeshLambertMaterial({ color: 0x2389e3 }));
-    canopy.position.set(bx + fx * (bd / 2 + 1.2), bh - 0.05, bz + fz * (bd / 2 + 1.2)); canopy.rotation.y = yaw; this.scene.add(canopy);
+    canopy.position.set(bx + fx * (bd / 2 + 1.2), Math.min(bh - 0.05, 4.1), bz + fz * (bd / 2 + 1.2)); canopy.rotation.y = yaw; this.scene.add(canopy);
     const road = (this.city.roads || []).find(r => r.z1 === r.z2 && Math.abs((r.z1 ?? 999) - 120) < 1);
     const curb = road ? road.z1 + (road.width || 14) / 2 + 2.2 : bz + fz * 28;
     const roadside = (side) => {
@@ -182,65 +230,188 @@ class Game {
       g.position.set(bx + rx * side, 0, curb);
       this.scene.add(g);
     };
-    roadside(-7.2); roadside(7.2);
-    const spots = [{ model: 'gwagon', body: 'gwagon', color: '#19b4ee', name: 'G-WAGON', x: v.x - 12, z: v.z - 6 }, { model: 'cyber', body: 'cyber', color: '#d5d8de', name: 'CYBERTRUCK', x: v.x + 12, z: v.z - 6 }];
-    this.showCars = [];
+    roadside(-Math.min(bw / 2 + 2, 12)); roadside(Math.min(bw / 2 + 2, 12));
+    this.showCars = []; this.showCarRoots = [];
+    this.refreshMotokaStock();
+  }
+  clearMotokaCars() {
+    for (const g of this.showCarRoots || []) this.scene.remove(g);
+    this.showCars = []; this.showCarRoots = [];
+  }
+  async refreshMotokaStock() {
+    const d = await get('/api/motoka/stock').catch(() => null); if (!d?.cars) return;
+    this.clearMotokaCars();
     const padMat = new THREE.MeshBasicMaterial({ map: motokaPad(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
-    for (const s of spots) {
-      const g = new THREE.Group(); const car = makePlayerCar(s.color, s.body); car.rotation.y = Math.PI / 2; car.userData.buyModel = s.model; g.add(car);
-      const tag = makeNameSprite(s.name, '#2389E3'); tag.scale.set(2.2, 0.55, 1); tag.position.set(0, 2.55, 0); g.add(tag);
-      const pad = new THREE.Mesh(new THREE.CircleGeometry(3.15, 48).rotateX(-Math.PI / 2), padMat); pad.position.y = 0.04; pad.renderOrder = 0; g.add(pad);
-      g.position.set(s.x, 0, s.z); this.scene.add(g); this.showCars.push(car);
+    for (const s of d.cars) {
+      const g = new THREE.Group(); const car = makePlayerCar(s.color, s.body || 'hatch'); car.rotation.y = s.ry ?? Math.PI / 2; car.userData.buyModel = s.model; g.add(car);
+      const tagY = s.body === 'cyber' ? 2.95 : s.body === 'gwagon' || s.body === 'g63' ? 2.55 : s.body === 'mclaren' ? 2.45 : 2.15;
+      const tag = makeNameSprite(s.name, s.exclusive ? '#2389E3' : '#0b6b3a'); tag.scale.set(2.2, 0.55, 1); tag.position.set(0, tagY, 0); g.add(tag);
+      if (s.place === 'yard') {
+        const pad = new THREE.Mesh(new THREE.CircleGeometry(s.body === 'cyber' ? 4.3 : s.body === 'mclaren' ? 3.6 : 3.15, 48).rotateX(-Math.PI / 2), padMat); pad.position.y = 0.04; pad.renderOrder = 0; g.add(pad);
+      }
+      g.position.set(s.x, 0, s.z); this.scene.add(g); this.showCars.push(car); this.showCarRoots.push(g);
     }
+    this.motokaStock = { supercarsLeft: d.supercarsLeft, supercarsDaily: d.supercarsDaily };
   }
 
   resize() { const w = innerWidth, hh = innerHeight; this.renderer.setSize(w, hh, false); this.camera.aspect = w / hh; this.camera.updateProjectionMatrix(); this.size = { w, h: hh }; }
 
   // ---- auth
   bindAuth() {
-    let tab = 'signup'; const form = $('#authForm'); const set = (t) => { tab = t; $$('#authTabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t)); $('#authGo').textContent = { signup: 'Create account', login: 'Log in' }[t]; $('#authErr').textContent = ''; }; set('signup');
+    let tab = 'signup'; const form = $('#authForm');
+    const params = new URLSearchParams(location.search);
+    const fromUrl = params.get('ref') || params.get('referral') || '';
+    if (fromUrl) try { localStorage.setItem('na_ref', fromUrl); } catch { /* private mode */ }
+    const storedRef = () => { try { return localStorage.getItem('na_ref') || ''; } catch { return ''; } };
+    const showRef = async () => {
+      const el = $('#authRef'); if (!el) return;
+      const ref = storedRef();
+      if (!ref || tab !== 'signup') { el.classList.add('hidden'); el.textContent = ''; return; }
+      try {
+        const p = await get('/api/referrals/preview?ref=' + encodeURIComponent(ref));
+        if (p?.ok) { el.classList.remove('hidden'); el.textContent = `Invited by @${p.username} — they earn a bonus when you join.`; return; }
+      } catch { /* ignore */ }
+      el.classList.add('hidden');
+    };
+    const set = (t) => {
+      tab = t;
+      $$('#authTabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+      $('#authGo').textContent = { signup: 'Create account', login: 'Log in' }[t];
+      $('#authErr').textContent = '';
+      $('#fEmail')?.classList.toggle('hidden', t !== 'signup');
+      $('#fGender')?.classList.toggle('hidden', t !== 'signup');
+      $('#fAge')?.classList.toggle('hidden', t !== 'signup');
+      const pass = form.querySelector('input[name=password]');
+      if (pass) pass.autocomplete = t === 'login' ? 'current-password' : 'new-password';
+      showRef();
+    };
+    set('signup');
     $$('#authTabs button').forEach(b => b.onclick = () => set(b.dataset.t));
-    form.onsubmit = async (e) => { e.preventDefault(); const f = new FormData(form); const age18 = $('#age18').checked; $('#authErr').textContent = ''; if (tab !== 'login' && !age18) { $('#authErr').textContent = 'You must confirm you are 18 or older to play.'; return; }
+    form.onsubmit = async (e) => {
+      e.preventDefault(); const f = new FormData(form); const age18 = $('#age18').checked;
+      $('#authErr').textContent = '';
+      if (tab !== 'login' && !age18) { $('#authErr').textContent = 'You must confirm you are 18 or older to play.'; return; }
+      const gender = String(f.get('gender') || 'male');
+      const email = String(f.get('email') || '').trim();
+      if (tab === 'signup' && !email) { $('#authErr').textContent = 'Enter your email address.'; return; }
+      if (tab === 'signup' && gender !== 'male' && gender !== 'female') { $('#authErr').textContent = 'Choose Man or Woman.'; return; }
       const btn = $('#authGo'); btn.disabled = true;
-      try { const r = await post(`/api/auth/${tab}`, { username: f.get('username'), password: f.get('password'), age18 }); $('#auth').classList.add('hidden'); await this.enter(r.user); } catch (er) { $('#authErr').textContent = er.message; } finally { btn.disabled = false; } };
+      try {
+        const body = { username: f.get('username'), password: f.get('password'), age18 };
+        if (tab === 'signup') {
+          body.gender = gender; body.email = email;
+          const ref = storedRef(); if (ref) body.ref = ref;
+        }
+        const r = await post(`/api/auth/${tab}`, body);
+        if (tab === 'signup') try { localStorage.removeItem('na_ref'); } catch { /* ignore */ }
+        $('#auth').classList.add('hidden');
+        await this.enter(r.user);
+      } catch (er) { $('#authErr').textContent = er.message; } finally { btn.disabled = false; }
+    };
   }
   async enter(user) {
     if (!(await ageGate(this))) return; // age mode 'play': nobody enters the world before the server records a pass
     if (user.cityId && this.city?.id && user.cityId !== this.city.id) { this.progress?.(10, 'Loading your city…'); location.reload(); return; } // the world is built from the player's own city only
-    this.playing = true; this.user = user; setTimeout(() => this.ui.checkPayReturn?.(), 1500); $('#hud').classList.remove('hidden'); get('/api/weather').then(w => this.weather?.setZones(w.zones.map(q => ({ ...q })), w.speedByLevel)).catch(() => {}); this.cfg.jobs = (await get('/api/jobs').catch(() => ({ jobs: [] }))).jobs; this.ctrl.setLook(user.color, user.username); this.syncSkins();
-    const spawns = this.city.spawns; const s = spawns[user.id % spawns.length]; const p = user.pos && (user.pos.x || user.pos.z) ? user.pos : null; this.ctrl.teleport(p?.x ?? s.x, p?.z ?? s.z); this.ctrl.ry = s.ry || 0; this.ctrl.camYaw = this.ctrl.ry; this.camera.position.set(this.ctrl.x - 10, 12, this.ctrl.z + 12);
-    this.update(user); if (user.signup?.needed && (await setupFlow(this)) === 'moved') return; this.parking.load(); this.rideSvc.load(); this.tour ||= new Tour(this); this.tour.maybeStart(); this.tutorial ||= new TutorialCard(this); this.tutorial.start(); readyCount(this).then(n => { if (n > 0) this.ui.toast(`🎯 ${n} mission reward${n === 1 ? '' : 's'} waiting: phone > Missions`, 'money'); }); this.net.start(); this.phone2 = new PhoneSys(this); this.phone2.start(); this.refreshProps(); get('/api/plots').then(d => { this.plots = d.plots; this.refreshPlots(); }).catch(() => {});
+    this.playing = true; this.user = user; setTimeout(() => this.ui.checkPayReturn?.(), 1500); $('#hud').classList.remove('hidden'); get('/api/weather').then(w => this.weather?.setZones(w.zones.map(q => ({ ...q })), w.speedByLevel)).catch(() => {}); this.cfg.jobs = (await get('/api/jobs').catch(() => ({ jobs: [] }))).jobs;
+    const spawns = this.city.spawns; const s = spawns[(user.id || 0) % spawns.length] || spawns[0] || { x: 0, z: 0, ry: 0 };
+    const px = Number(user.pos?.x), pz = Number(user.pos?.z), pry = Number(user.pos?.ry);
+    const x = Number.isFinite(px) ? px : s.x, z = Number.isFinite(pz) ? pz : s.z, ry = Number.isFinite(pry) ? pry : (s.ry || 0);
+    this.ctrl.teleport(x, z); this.ctrl.ry = ry; this.ctrl.camYaw = ry;
+    // Restore drive mode when the server still has you in a car (and it is not wrecked / fainted).
+    const wantDrive = user.mode === 'drive' && !user.fainted && !user.car?.wrecked;
+    this.ctrl.mode = wantDrive ? 'drive' : 'walk';
+    this.ctrl.setLook(user.color, user.username); await this.syncSkins(); this.ctrl.setRide(user.car); this.ctrl.applyMode(); this.ownCar?.sync();
+    if (wantDrive) {
+      const back = 11; this.camera.position.set(x - Math.sin(ry) * back, 5.8, z - Math.cos(ry) * back); this.camera.lookAt(x, 1.2, z);
+    } else this.camera.position.set(x - 6, 7, z + 7);
+    this.ctrl.root.visible = true;
+    this.update(user); await this.syncSkins();
+    if (user.signup?.needed && (await setupFlow(this)) === 'moved') return;
+    await this.parking.load();
+    if (this.ctrl.mode === 'drive' && this.parking?.mine) { this.ctrl.mode = 'walk'; this.ctrl.applyMode(); this.ownCar?.sync(); }
+    this.rideSvc.load(); this.tour ||= new Tour(this); this.tour.maybeStart(); this.tutorial ||= new TutorialCard(this); this.tutorial.start(); readyCount(this).then(n => { if (n > 0) this.ui.toast(`🎯 ${n} mission reward${n === 1 ? '' : 's'} waiting: phone > Missions`, 'money'); }); this.net.start(); this.phone2 = new PhoneSys(this); this.phone2.start(); this.refreshProps(); get('/api/plots').then(d => { this.plots = d.plots; this.refreshPlots(); }).catch(() => {});
     this.ui.toast(`Welcome, ${user.username}!`); if (!localStorage.getItem('na_tip') && !matchMedia('(pointer: coarse)').matches) { localStorage.setItem('na_tip', '1'); setTimeout(() => { if (!this.ui.sheetOpen) this.ui.toast('Tip: tap a building or the ground near a sign to open its sheet.'); }, 1800); }
+  }
+  /** Flush mode + position on tab hide / reload so the next load restores the car. */
+  flushPresence() {
+    if (!this.playing || !this.ctrl || !this.city) return;
+    const c = this.ctrl;
+    if (!Number.isFinite(c.x) || !Number.isFinite(c.z)) return;
+    const body = JSON.stringify({ city: this.city.id, trail: [{ a: 0, x: c.x, z: c.z, ry: c.ry }], mode: c.mode });
+    try { fetch('/api/heartbeat', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body, keepalive: true }); } catch { /* unload */ }
   }
   async refreshProps() { const d = await get('/api/properties').catch(() => null); if (d) { this.props = d.properties; this.world.setMarkers(d.properties); } }
   refreshPlots() { for (const p of this.plots) { const m = this.plotMeshes[p.id]; if (m) m.flag.material.color.setHex(p.status === 'available' ? 0x35c46b : p.status === 'yours' ? 0xffc20e : 0x8a8f98); } }
   async refreshMe() { const r = await get('/api/me').catch(() => null); if (r?.user) this.update(r.user); }
-  update(u) { if (!u) return; this.user = u; this.ui.hud(u); this.ctrl?.setBody?.(u.gender); this.syncWear(u.wear); this.ctrl?.setRide(u.car); }
+  update(u) { if (!u) return; this.user = u; this.ui.hud(u); this.ctrl?.setBody?.(u.gender); this.syncWear(u.wear); this.ctrl?.setRide(u.car); this.faint?.sync(u); this.syncBodyguard(u.bodyguard); }
+  syncBodyguard(view) { this.bodyguard?.sync(view || this.user?.bodyguard); }
   /** dress your own avatar in what the server says you wear (jewelry store and cap store) */
   /** skins (item 9): the look catalogue is public; your own worn skins come from /api/skins */
   skinLookOf(id) { return id ? this.skinCat?.get(id) || null : null; }
-  async syncSkins() { try { if (!this.skinCat) { const c = await get('/api/skins/catalogue'); this.skinCat = new Map(c.skins.map(s => [s.id, s])); } const v = await get('/api/skins'); const worn = (k) => this.skinLookOf(v.items.find(i => i.kind === k && i.worn)?.id); const changed = this.ctrl.setSkins({ avatar: worn('avatar'), car: worn('car') }); if (changed) this.syncWear(this.user?.wear); } catch { /* skins are cosmetic: never block play */ } }
-  syncWear(w) { if (this.wearCat && this.ctrl?.avatar) applyWear(this.ctrl.avatar, (w?.worn || []).map(x => x.id), this.wearCat); }
+  async syncSkins() {
+    try {
+      const c = await get('/api/skins/catalogue'); this.skinCat = new Map(c.skins.map(s => [s.id, s]));
+      const v = await get('/api/skins');
+      // Prefer the shop row (includes body:'hd') so a stale catalogue cannot drop the HD mesh flag.
+      const worn = (k) => {
+        const it = v.items.find(i => i.kind === k && i.worn); if (!it) return null;
+        const cat = this.skinLookOf(it.id) || {};
+        return { ...cat, id: it.id, color: it.color || cat.color, glow: it.glow || cat.glow, body: it.body || cat.body || '' };
+      };
+      const changed = this.ctrl.setSkins({ avatar: worn('avatar'), car: worn('car') });
+      if (changed) this.syncWear(this.user?.wear);
+    } catch { /* skins are cosmetic: never block play */ }
+  }
+  syncWear(w) { if (this.wearCat && this.ctrl?.avatar && !this.ctrl.avatar.userData?.hd) applyWear(this.ctrl.avatar, (w?.worn || []).map(x => x.id), this.wearCat); }
   sessionLost() { if (!this.playing) return; this.playing = false; this.net.stop(); $('#hud').classList.add('hidden'); this.ui.closeSheet(); $('#auth').classList.remove('hidden'); $('#authErr').textContent = 'Your session ended. Please sign in again.'; }
   async logout() { await post('/api/auth/logout').catch(() => {}); this.playing = false; this.net.stop(); location.reload(); }
   setConn(ok) { $('#conn').classList.toggle('hidden', ok); }
   markRead() { this.ui.badge(0); this.unread = 0; }
   toggleCar(opts = {}) {
-    if (!this.playing || this.busy) return; if (this.ctrl.mode === 'walk' && this.parking?.blocksDriving()) return;
+    if (!this.playing || this.busy || this.carpool?.riding) return;
+    if (this.user?.car?.wrecked || this.carBody?.wrecked) { this.ui.toast('Car don wreck. Call a tow truck to Motoka Meko.'); return; }
+    if (this.ctrl.mode === 'walk' && this.parking?.blocksDriving()) return;
     const owned = !!this.user?.car;
     if (owned && this.ctrl.mode === 'walk' && !opts.summon && !this.ownCar?.nearEnough()) { this.ui.toast('Walk up to your car and press Enter to get in.'); return; }
     if (owned && this.ctrl.mode === 'drive') this.ownCar?.dropHere();
     const m = this.ctrl.toggleCar(); this.ui.sfx(m === 'drive' ? 'horn' : 'ok'); this.net.nudge(); this.ownCar?.sync();
   }
   enterOwnCar() { this.toggleCar(); }
+  async reportCollide(impact) {
+    if (!this.playing || this.ctrl?.mode !== 'drive' || !this.user?.car) return;
+    const min = this.cfg?.crash?.collideMin ?? 5; if (!(impact > min)) return;
+    const now = performance.now(); if (now - (this._collideAt || 0) < 450) return; this._collideAt = now;
+    try {
+      const r = await post('/api/crash/collide', { impact, pos: this.pos() });
+      if (r.damage > 0) {
+        this.carBody = { damage: 100 - (r.carHealth ?? r.health ?? 0), health: r.carHealth ?? r.health, smoke: r.smoke, wrecked: r.wrecked, repairFee: r.repairFee };
+        if (this.user?.car) Object.assign(this.user.car, this.carBody);
+        this.syncDriveSmoke();
+        if (r.text) this.ui.toast(r.text, r.justWrecked || r.wrecked ? 'bad' : undefined);
+        if (r.justWrecked || r.wrecked) { this.ctrl.mode = 'walk'; this.ctrl.applyMode(); this.ownCar?.dropHere?.(); this.net?.nudge?.(); this.refreshMe?.(); }
+      } else if (r.smoke) this.syncDriveSmoke();
+    } catch { /* soft: never block driving on a failed collide report */ }
+  }
+  syncDriveSmoke() {
+    const body = this.carBody || this.user?.car; const smoke = !!(body?.smoke || body?.wrecked);
+    if (smoke && this.ctrl?.carObj) {
+      if (!this.driveSmoke || this.driveSmoke.root.parent !== this.ctrl.carObj) {
+        this.driveSmoke?.dispose?.(); this.driveSmoke = new CarSmoke(this.ctrl.carObj);
+      }
+      this.driveSmoke.set(true, !!body?.wrecked);
+    } else if (this.driveSmoke) this.driveSmoke.set(false);
+    this.ownCar?.setSmoke?.(smoke, !!body?.wrecked);
+  }
   async offerBuy(modelId) {
     const gar = await this.ui.guard(() => get('/api/garage')); if (!gar) return;
     const m = (gar.catalogue || []).find(c => c.id === modelId); if (!m) { this.ui.toast('That car is not for sale.'); return; }
     const owned = gar.cars.some(c => c.model === m.id); const full = gar.cars.length >= gar.slots;
-    this.ui.openSheet(m.name, [h('p', {}, m.exclusive ? 'Exclusive model · set price, paid with your game money.' : 'Showroom price, paid with your game money.'),
+    const soldOut = !!m.exclusive && (gar.supercarsLeft ?? 0) <= 0;
+    this.ui.openSheet(m.name, [
+      h('p', {}, m.exclusive ? `Exclusive supercar · ${gar.supercarsLeft ?? 0} of ${gar.supercarsDaily ?? 20} left today.` : 'Showroom price, paid with your game money.'),
       h('p', {}, this.fmt(m.price)),
-      h('button', { class: 'btn big alt', disabled: full, onclick: async () => { const r = await this.ui.guard(() => post('/api/garage/buy', { model: m.id, idemKey: crypto.randomUUID?.() })); if (r) { this.ui.closeSheet(); this.ui.toast(`${m.name} is in your garage`, 'money'); this.refreshMe?.(); } } }, owned ? 'Buy another' : `Buy · ${this.fmt(m.price)}`),
-      full ? h('p', { class: 'mut' }, 'Garage full. Sell a car in Phone → Garage.') : '']);
+      h('button', { class: 'btn big alt', disabled: full || soldOut, onclick: async () => { const r = await this.ui.guard(() => post('/api/garage/buy', { model: m.id, idemKey: crypto.randomUUID?.() })); if (r) { this.ui.closeSheet(); this.ui.toast(`${m.name} is in your garage`, 'money'); this.refreshMe?.(); this.refreshMotokaStock(); } } }, soldOut ? 'Sold out today' : owned ? 'Buy another' : `Buy · ${this.fmt(m.price)}`),
+      soldOut ? h('p', { class: 'mut' }, 'Motoka only shows 20 supercars a day. Come back tomorrow.') : full ? h('p', { class: 'mut' }, 'Garage full. Sell a car in Phone → Garage.') : '']);
   }
 
   // ---- heartbeat results
@@ -248,13 +419,15 @@ class Game {
     this.guardian?.onBeat(r.gd);
     this.air?.setTicket(r.flight); this.air?.setPlanes(r.pl); this.boats?.setTrip(r.boat);
     if (r.city && this.city?.id && r.city !== this.city.id && !this.cityChanging) { this.cityChanging = true; this.ui.toast('Arriving in a new city…'); setTimeout(() => location.reload(), 700); return; }
-    this.update(r.me); this.worldTime = r.world; this.ui.clock(r.world); this.world.setTime(r.world.minutesOfDay); this.weather?.apply(r.wx); this.weather?.afterTime(); this.festBadge(r.fest); this.throws?.ingest(r.th); if (r.bonk) this.throws?.onBonk(r.bonk); this.ghosts.ingest(r.players, this.serverNow()); this.ads.setSnapshot(r.ads); this.noteTreasures(r.tr);
+    this.update(r.me); if (r.carBody) this.carBody = r.carBody; this.worldTime = r.world; this.ui.clock(r.world); this.world.setTime(r.world.minutesOfDay); this.weather?.apply(r.wx); this.weather?.afterTime(); this.festBadge(r.fest); this.throws?.ingest(r.th); if (r.bonk) this.throws?.onBonk(r.bonk); this.ghosts.ingest(r.players, this.serverNow()); this.carpool?.onHeartbeat(r.carpool); this.tow?.onHeartbeat(r.tow); this.ads.setSnapshot(r.ads); this.noteTreasures(r.tr);
+    if (r.me?.mode === 'walk' && this.ctrl?.mode === 'drive' && (r.carBody?.wrecked || r.me?.car?.wrecked)) { this.ctrl.mode = 'walk'; this.ctrl.applyMode(); this.ownCar?.dropHere?.(); this.ui.toast('💥 Car don wreck! Call a tow to Motoka Meko.'); }
+    this.syncDriveSmoke();
     for (const c of r.chat || []) this.showChat(c); for (const n of r.notifs || []) { if (!['knock', 'dm', 'knock_in', 'knock_no'].includes(n.kind) || true) { this.unread = (this.unread || 0) + 1; this.ui.toast(n.text, ['omo_onile'].includes(n.kind) ? 'bad' : n.kind === 'dm' ? '' : 'money'); if (n.kind === 'dm') this.audio?.play('notify'); if (n.kind === 'achievement') this.audio?.play('achieve'); } } this.ui.badge(this.unread || 0);
     this.lastKnocks = r.knocks; for (const k of r.knocks?.incoming || []) this.ui.hostKnock(k);
     if (r.teleport && !r.teleport.travelMs && !this.commute) { this.ctrl.teleport(r.teleport.x, r.teleport.z); }
     if (r.me.shift && r.me.shift.endsAt <= this.serverNow() && this.lastShiftDone !== r.me.shift.id) { this.lastShiftDone = r.me.shift.id; this.ui.toast('Shift done! Open the job sheet to collect your pay.', 'money'); }
   }
-  onPush(m) { if (m.kind === 'knock') this.ui.sfx('knock'); }
+  onPush(m) { if (m.kind === 'knock') this.ui.sfx('knock'); if (m.type?.startsWith?.('needs.') || m.kind === 'needs') this.faint?.onPush(m); }
   showChat(c) { this.seenChat ||= new Set(); if (c.id != null && this.seenChat.has(c.id)) return; if (c.id != null) { this.seenChat.add(c.id); if (this.seenChat.size > 200) this.seenChat.delete(this.seenChat.values().next().value); } this.ui.addChat(c.u, c.t, c.id, c.tt); }
 
   // ---- places, tapping, actions
@@ -308,8 +481,39 @@ class Game {
   /** Track G item 5: props and pedestrians as solids, pushable crates, ball throwing, jump buttons. Numbers: server/config/physx.js */
   setupPhysx(city) {
     const X = this.physx = { ...PHYSX, ...(this.cfg.physx || {}) }; this.propSolids = propIndex(this.world.lamps, this.world.palmSpots, X.solids); const props = [], peds = [], none = { props, peds };
-    this.ctrl.solids = (x, z, range, y) => { props.length = 0; peds.length = 0; this.propSolids.near(x, z, range, props, y); if (X.ped.enabled) this.walkers.circlesNear(x, z, range, peds); if (this.ctrl.mode !== 'drive') { this.ghosts?.circlesNear(x, z, range, peds); if (this.traffic) for (const o of this.traffic.obstaclesNear(x, z, range + 4)) peds.push(o); const blockCar = (m) => { if (!m || m.visible === false) return; const px = m.position.x, pz = m.position.z; if (Math.abs(px - x) > range + 4 || Math.abs(pz - z) > range + 4) return; const ry = m.rotation.y, off = 1.55, fx = Math.cos(ry) * off, fz = -Math.sin(ry) * off; peds.push({ x: px + fx, z: pz + fz, r: 1.05, h: 1.7 }, { x: px - fx, z: pz - fz, r: 1.05, h: 1.7 }, { x: px, z: pz, r: 1.2, h: 1.7 }); }; for (const c of this.showCars || []) blockCar(c); for (const c of this.parking?.cp?.cars || []) blockCar(c); } return none; };
-    this.pushables = new Pushables(this.scene, city.spawns, this.world.colliders, X); this.throws = new ThrowClient(this);
+    this.ctrl.solids = (x, z, range, y) => {
+      props.length = 0; peds.length = 0; this.propSolids.near(x, z, range, props, y);
+      if (Number.isFinite(x) && Number.isFinite(z)) {
+        if (X.ped.enabled) this.walkers.circlesNear(x, z, range, peds);
+        if (this.ctrl.mode !== 'drive') this.ghosts?.circlesNear(x, z, range, peds);
+        // Cars are solid on foot and while driving — do not drive through Motoka stock or parked cars
+        if (this.ctrl.mode !== 'drive' && this.traffic) for (const o of this.traffic.obstaclesNear(x, z, range + 4)) if (Number.isFinite(o.x) && Number.isFinite(o.z)) peds.push(o);
+      }
+      // Motoka: car mesh is a child of a placed group (local 0,0) — use the root world XZ + the car's yaw
+      const blockAt = (px, pz, ry, skip) => {
+        if (skip) return;
+        if (Math.abs(px - x) > range + 4 || Math.abs(pz - z) > range + 4) return;
+        const off = 1.7, fx = Math.cos(ry) * off, fz = -Math.sin(ry) * off;
+        // props (not peds): always collide, including Drive-me autopilot
+        props.push({ x: px + fx, z: pz + fz, r: 1.25, h: 1.7 }, { x: px - fx, z: pz - fz, r: 1.25, h: 1.7 }, { x: px, z: pz, r: 1.45, h: 1.7 });
+      };
+      for (const g of this.showCarRoots || []) {
+        if (!g || g.visible === false) continue;
+        const car = g.children?.find?.(c => c.userData?.buyModel) || g.children?.[0];
+        blockAt(g.position.x, g.position.z, car?.rotation?.y ?? g.rotation.y, false);
+      }
+      for (const g of this.propCars || []) {
+        if (!g || g.visible === false) continue;
+        const car = g.children?.[0];
+        blockAt(g.position.x, g.position.z, car?.rotation?.y ?? g.rotation.y, false);
+      }
+      for (const c of this.parking?.cp?.cars || []) {
+        if (!c || c.visible === false) continue;
+        blockAt(c.position.x, c.position.z, c.rotation.y, this.ctrl.mode === 'drive' && c.userData?.mine);
+      }
+      return none;
+    };
+    this.pushables = new Pushables(this.scene, city.spawns, this.world.colliders, X, city); this.throws = new ThrowClient(this);
     const jb = document.getElementById('jumpBtn'); if (jb) { jb.classList.toggle('hidden', !X.jump.enabled); jb.addEventListener('pointerdown', (e) => { this.ctrl.jumpBtn = true; e.preventDefault(); }); const off = () => { this.ctrl.jumpBtn = false; }; jb.addEventListener('pointerup', off); jb.addEventListener('pointercancel', off); jb.addEventListener('pointerleave', off); }
     document.getElementById('throwBtn')?.classList.toggle('hidden', !X.throw.enabled);
   }
@@ -319,7 +523,7 @@ class Game {
   // ---- commute: server already charged + moved us; we animate the trip
   runCommute(r, pl, q) {
     this.nav?.cancel('stopped', true);
-    this.busy = true; this.ctrl.frozen = true; let pts = null; if (r.mode === 'ride' && this.nav) { const rt = findRoute(this.nav.ensureGrid(), [r.from.x, r.from.z], [r.to.x, r.to.z], 'drive'); if (rt && rt.pts.length >= 2) pts = rt.pts; } this.commute = { t0: performance.now(), dur: r.seconds * 1000, from: r.from, to: r.to, mode: r.mode, pts }; $('#commute').classList.remove('hidden');
+    this.busy = true; this.ctrl.frozen = true; let pts = null; if (r.mode === 'ride' && this.nav) { const rt = findRoute(this.nav.ensureGrid(), [r.from.x, r.from.z], [r.to.x, r.to.z], 'drive'); if (rt && rt.pts.length >= 2) pts = rt.pts; } this.commute = { t0: performance.now(), dur: r.seconds * 1000, from: r.from, to: r.to, mode: r.mode, pts, faintRescue: !!r.faintRescue, place: pl }; $('#commute').classList.remove('hidden');
     $('#commuteTitle').textContent = `${{ keke: '🛺 Keke', danfo: '🚌 Danfo', car: '🚗 Your car', ride: '🚕 Oya Ride' }[r.mode]} to ${pl.name}`; $('#commuteSub').textContent = `${q.traffic}${r.fare ? ' · ' + this.fmt(r.fare) : ''}`; this.ui.sfx('horn'); this.ui.toast(say('travel', r.fare)); this.ctrl.mode = r.mode === 'car' ? 'drive' : 'walk'; this.ctrl.applyMode();
     const dx = r.to.x - r.from.x, dz = r.to.z - r.from.z; this.ctrl.ry = Math.atan2(-dz, dx); this.ctrl.camYaw = this.ctrl.ry; this.net.trail.length = 0;
   }
@@ -327,7 +531,11 @@ class Game {
   stepCommute(now) {
     const c = this.commute; if (!c) return false; const k = Math.min(1, (now - c.t0) / c.dur); const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; if (c.pts) { const p = poseOnRoute(c.pts, e); this.ctrl.x = p.x; this.ctrl.z = p.z; this.ctrl.ry = p.yaw; this.ctrl.camYaw = p.yaw; } else { this.ctrl.x = c.from.x + (c.to.x - c.from.x) * e; this.ctrl.z = c.from.z + (c.to.z - c.from.z) * e; } this.ctrl.v = 0;
     this.ctrl.root.position.set(this.ctrl.x, 0, this.ctrl.z); this.ctrl.root.rotation.y = this.ctrl.ry; $('#commuteBar').style.width = (k * 100) + '%';
-    if (k >= 1) { this.commute = null; this.busy = false; this.ctrl.frozen = false; this.ctrl.mode = 'walk'; this.ctrl.applyMode(); $('#commute').classList.add('hidden'); this.ctrl.teleport(c.to.x, c.to.z); this.ui.sfx('ok'); this.ui.toast('You have arrived.'); this.net.nudge(); this.waypoint = null; this.dest.visible = false; } return true;
+    if (k >= 1) {
+      const foodTrip = c.faintRescue; const place = c.place;
+      this.commute = null; this.busy = false; this.ctrl.frozen = false; this.ctrl.mode = 'walk'; this.ctrl.applyMode(); $('#commute').classList.add('hidden'); this.ctrl.teleport(c.to.x, c.to.z); this.ui.sfx('ok'); this.ui.toast(foodTrip ? 'You reached the canteen. Eat to regain strength.' : 'You have arrived.'); this.net.nudge(); this.waypoint = null; this.dest.visible = false;
+      if (foodTrip) this.faint?.afterArrive({ placeId: place?.id, shopId: place?.type === 'shop' ? place.id : place?.shopId });
+    } return true;
   }
 
   // ---- main loop
@@ -336,7 +544,7 @@ class Game {
       requestAnimationFrame(frame); const dt = Math.min(0.1, (now - last) / 1000); if (this.qualityChoice === 'auto' && this.playing && this.governor.feed(now - last)) { const lv = Q.resolve('auto', Q.readEnv(), this.governor.steps); if (lv !== this.qualityLevel) { Q.apply(this, lv); this.ui?.toast?.(`Switched to ${this.quality.label} graphics to keep it smooth. Change it in More > Graphics.`); } } last = now;
       if (!this.playing) { this.idleCam(now); this.renderer.render(this.scene, this.camera); return; }
       if (this.interior.open || this.venue.open || this.garage.open) return;
-      const sec = this.serverNow() / 1000; this.lightLevel = lampsOn(this.world.night); this.traffic.lightLevel = this.lightLevel; setPlayerHeadlamps(this.ctrl.carObj, this.lightLevel, this.ctrl.mode === 'drive'); for (const c of this.showCars || []) setPlayerHeadlamps(c, Math.max(this.lightLevel || 0, 0.95), true); this.traffic.update(sec, this.yieldTargets(), dt); this.walkers.update(sec, this.ctrl, this.ghosts); this.ghosts.update(this.serverNow() - 1100, this.ctrl); this.world.animate(dt * 1000);
+      const sec = this.serverNow() / 1000; this.lightLevel = lampsOn(this.world.night); this.traffic.lightLevel = this.lightLevel; setPlayerHeadlamps(this.ctrl.carObj, this.lightLevel, this.ctrl.mode === 'drive'); for (const c of this.showCars || []) setPlayerHeadlamps(c, Math.max(this.lightLevel || 0, 0.95), true); this.traffic.update(sec, this.yieldTargets(), dt); this.walkers.update(sec, this.ctrl, this.ghosts); this.ghosts.update(this.serverNow() - 1100, this.ctrl); this.bodyguard?.update(dt); this.world.animate(dt * 1000);
       this.boats?.step(now, dt);
       if (this.air?.flying) this.air.step(now, dt);
       else if (this.boats?.aboard) { /* the boat's chase camera is set in boats.step */ }
@@ -344,7 +552,7 @@ class Game {
       if (!this.commute && !this.air?.flying && !this.boats?.aboard) { this.ctrl.placeCamera(this.camera, dt); if (now - this.lastSample > 250) { this.lastSample = now; this.net.sample({ t: this.serverNow(), x: this.ctrl.x, z: this.ctrl.z, ry: this.ctrl.ry }); } }
       if (this.ctrl.lastTap && !this.ui.sheetOpen && !this.busy) { const tp = this.ctrl.lastTap; this.ctrl.lastTap = null; if (now - tp.t < 400) this.tapPlace(tp.x, tp.y); }
       this.ads.update(this.camera, this.size, this.ctrl, dt * 1000);
-      this.nav?.tick(dt); this.parking?.tick(dt * 1000); this.ownCar?.sync(); this.bus?.tick(dt * 1000, now); this.rideSvc?.tick(dt * 1000); this.air?.tick(dt * 1000); this.links?.tick(dt * 1000); this.boats?.tick(dt * 1000); this.radio?.tick(dt * 1000); this.radioSpots?.tick(dt * 1000); this.audio?.engine(this.ctrl.mode === 'drive' && !this.air?.flying ? this.ctrl.groundSpeed() : null); if (now - (this.lastAudioTick || 0) > 100) { this.lastAudioTick = now; this.audio?.tick(); }
+      this.nav?.tick(dt); this.parking?.tick(dt * 1000); this.ownCar?.sync(); this.bus?.tick(dt * 1000, now); this.rideSvc?.tick(dt * 1000); this.air?.tick(dt * 1000); this.links?.tick(dt * 1000); this.boats?.tick(dt * 1000); this.radio?.tick(dt * 1000); this.carpool?.tick(); this.tow?.tick(dt * 1000); this.radioSpots?.tick(dt * 1000); this.driveSmoke?.tick(dt); this.audio?.engine(this.ctrl.mode === 'drive' && !this.air?.flying ? this.ctrl.groundSpeed() : null); if (now - (this.lastAudioTick || 0) > 100) { this.lastAudioTick = now; this.audio?.tick(); }
       this.emotes?.frame(); this.hudStep(now); this.weather?.update(dt, this.camera); this.throws?.update(); this.pushables?.update(dt, this.ctrl); this.ctrl.envScale = this.weather?.speedAt(this.ctrl.x, this.ctrl.z); if (Q.shouldRender(now, this.lastDraw || 0, this.quality?.maxFps)) { this.lastDraw = now; this.renderer.render(this.scene, this.camera); }
     }; requestAnimationFrame(frame);
   }

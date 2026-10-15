@@ -20,7 +20,7 @@ const personal = tables.filter(t => info(t).some(c => c.name === 'user_id'));
 
 test('every later-schema table with a user_id is either erased with the account or on the kept list (so nothing new is forgotten)', async () => {
   assert.ok(personal.length >= 25, 'found the tables: ' + personal.length);
-  const s = makeServer(); const u = await auth.signup(s.app, { username: 'cover_ada', password: 'secret-pass-1', age18: true }, 'ip'); s.db.prepare('UPDATE users SET created_at=? WHERE id=?').run(s.app.clock.now() - 3 * HOUR, u);
+  const s = makeServer(); const u = await auth.signup(s.app, { username: 'cover_ada', password: 'secret-pass-1', age18: true, email: 'cover_ada@example.com' }, 'ip'); s.db.prepare('UPDATE users SET created_at=? WHERE id=?').run(s.app.clock.now() - 3 * HOUR, u);
   move(s.app, { from: SYS.FAUCET_START, to: cashId(u), amount: 1000, reason: 'test', ref: 't', userId: u, idemKey: 'cov' + u });
   const seeded = []; const val = (c, t) => /user_id|leader_id|seller_id/.test(c.name) ? u : /INT/i.test(c.type) ? 1 : /REAL/i.test(c.type) ? 0 : 'x';
   for (const t of personal) {
@@ -39,7 +39,7 @@ test('the kept list is short and every entry still exists; the data modules of b
 });
 
 test('the download also lists what each later table holds about the player (a marker written into every text column of every personal table must show up in the export)', async () => {
-  const s = makeServer(); const u = await auth.signup(s.app, { username: 'dl_ada', password: 'secret-pass-1', age18: true }, 'ip');
+  const s = makeServer(); const u = await auth.signup(s.app, { username: 'dl_ada', password: 'secret-pass-1', age18: true, email: 'dl_ada@example.com' }, 'ip');
   const marked = []; const val = (c, t) => /user_id|leader_id|seller_id/.test(c.name) ? u : /INT/i.test(c.type) ? 1 : /REAL/i.test(c.type) ? 0 : 'MK_' + t;
   s.db.prepare("INSERT INTO clubs(id, name, name_key, tag, color, leader_id, created_at) VALUES (1,'MK club','mkclub','MK','#fff',?,1)").run(u);   // the club listing joins to a real club
   const NOT_LISTED = { account_deletions: 'the closure record itself (kept, not personal content)', tutorial_state: 'only internal step ticks; the download lists whether it was done, skipped and the reward' };

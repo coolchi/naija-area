@@ -5,7 +5,7 @@ import * as auth from '../server/core/auth.js';
 import { START_CLOSED, WISHLIST_CITIES } from '../server/config/signup.js';
 import { startOptions, stats } from '../server/core/signup.js';
 
-const reg = async (s, name) => auth.signup(s.app, { username: name, password: 'secret-pass-1', age18: true }, 'ip');
+const reg = async (s, name) => auth.signup(s.app, { username: name, password: 'secret-pass-1', age18: true, email: `${name}@example.com` }, 'ip');
 const save = (s, u, body) => ok(s, 'POST', '/api/signup/profile', { uid: u, body: { interests: ['music'], ...body } });
 const state = (s, u) => s.app.db.prepare('SELECT city_id, x, z FROM player_state WHERE user_id=?').get(u);
 const OPEN = { lagos: 'lagos-mainland', kano: 'kano', shagamu: 'ogun-shagamu', abeokuta: 'ogun-abeokuta', 'ijebu-ode': 'ogun-ijebu', abule: 'ogun-abule' };

@@ -1,11 +1,11 @@
 // Pure (no DOM) model behind the full city map: everything is derived from the city JSON, so a new district or city file shows up with no code change.
 // Used by map.js (drawing + input) and by tests/map.test.js.
-export const KIND_COL = { house: '#8fb0c9', kiosk: '#9bc59d', market: '#e0a85c', office: '#9aa3b8', tower: '#6c7aa6', shop: '#f0c04a', airport: '#cfd8e3', hotel: '#d8b46a', landmark: '#c59be0', stadium: '#7fc08a', hut: '#c8a47a', block: '#d7c4a8', bank: '#6F2CDE', tta: '#00c2b8' };
-export const KIND_NAME = { house: 'House', kiosk: 'Kiosk', market: 'Market', office: 'Office block', tower: 'Tower block', shop: 'Shop', airport: 'Airport terminal', hotel: 'Hotel', landmark: 'Landmark', stadium: 'Stadium', hut: 'Hut', block: 'Lagos block', bank: 'Bank', tta: 'Tech Talent' };
+export const KIND_COL = { house: '#8fb0c9', kiosk: '#9bc59d', market: '#e0a85c', office: '#9aa3b8', tower: '#6c7aa6', shop: '#f0c04a', airport: '#cfd8e3', hotel: '#d8b46a', school: '#7d9a6a', landmark: '#c59be0', stadium: '#7fc08a', hut: '#c8a47a', block: '#d7c4a8', bank: '#6F2CDE', tta: '#00c2b8' };
+export const KIND_NAME = { house: 'House', kiosk: 'Kiosk', market: 'Market', office: 'Office block', tower: 'Tower block', shop: 'Shop', airport: 'Airport terminal', hotel: 'Hotel', school: 'School', landmark: 'Landmark', stadium: 'Stadium', hut: 'Hut', block: 'Lagos block', bank: 'Bank', tta: 'Tech Talent' };
 export const MODEL_ICON = { mosque: '🕌', cathedral: '⛪', theatre: '🎭', chapel: '⛪', rock: '🪨' };
-export const KIND_ICON = { hut: '🛖', stadium: '🏟️', hotel: '🏨', club: '🎵', salon: '✂️', arts: '🎭', tta: '💻' };
+export const KIND_ICON = { hut: '🛖', stadium: '🏟️', hotel: '🏨', school: '🏫', club: '🎵', salon: '✂️', arts: '🎭', tta: '💻', armoury: '🔫' };
 export const LM_ICON = { plaza: '⛲', clinic: '🏥', beach: '🏖️', jetty: '⛴️', hill: '⛰️', wall: '🧱', dyepits: '🎨', rock: '🪨', motorpark: '🚌', well: '🪣', farm: '🌾', pen: '🐐' };
-export const VENUE_ICON = { venue_mamaput: '🍲', venue_viewing: '📺', venue_joint: '🎲', venue_meco: '🔧', venue_motors: '🚗' };
+export const VENUE_ICON = { venue_mamaput: '🍲', venue_viewing: '📺', venue_joint: '🎲', venue_meco: '🔧', venue_meko: '🛠️', venue_motors: '🚗', venue_armoury: '🔫' };
 export const LAYERS = [['districts', 'Districts', '#d9c7a3'], ['roads', 'Roads and names', '#3d4046'], ['buildings', 'Buildings', '#8fb0c9'], ['venues', 'Venues and shops', '#ffc20e'], ['jobs', 'Jobs', '#4aa3ff'], ['homes', 'Homes for rent', '#e56b6f'],
   ['plots', 'Land plots', '#7fb069'], ['landmarks', 'Landmarks', '#b44cff'], ['billboards', 'Billboard spots', '#35c46b'], ['players', 'Players nearby', '#ffffff']];
 export const DEFAULT_LAYERS = { districts: true, roads: true, buildings: true, venues: true, jobs: true, homes: true, plots: true, landmarks: true, billboards: false, players: true };
@@ -43,7 +43,13 @@ export function buildModel(city) {
   return { city, items, roads, roundabouts, districts, buildings, catalogue, bounds: city.bounds, water: city.water || null, zones: city.zones || [] };
 }
 
-const fold = (s) => String(s || '').toLowerCase().replace(/[\u2010-\u2015\u2212]/g, '-').replace(/\s+/g, ' ').trim();
+/** Fold for search: case, dashes, curly quotes/apostrophes (Queen’s → queens). */
+const fold = (s) => String(s || '').toLowerCase()
+  .replace(/[\u2010-\u2015\u2212]/g, '-')
+  .replace(/[\u2018\u2019\u201A\u201B\u2032`]/g, "'")
+  .replace(/['']/g, '')
+  .replace(/[^\p{L}\p{N}+\-./\s]/gu, ' ')
+  .replace(/\s+/g, ' ').trim();
 /** simple ranked search over names (prefix > word start > substring). A typed dash matches a hyphen, so Lekki–Ikoyi finds Lekki-Ikoyi. */
 export function search(model, q, limit = 12) {
   const s = fold(q); if (!s) return model.catalogue.filter(i => ['venue', 'shop', 'landmark', 'district'].includes(i.type)).slice(0, limit);

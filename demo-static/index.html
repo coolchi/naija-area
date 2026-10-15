@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#008751">
 <title>Naija Area</title>
 <link rel="icon" href="./assets/favicon-192.png">
-<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./style.css?v=gun-guard1">
 </head>
 <body>
 <div id="demoRibbon" style="position:fixed;left:0;right:0;bottom:0;z-index:200;background:#ffc20e;color:#111;font:800 12px system-ui;text-align:center;padding:3px 8px;pointer-events:none">DEMO · the whole game runs inside this page · pretend money only · progress resets when you reload</div>
@@ -26,8 +26,18 @@
     <div class="tabs" id="authTabs"><button data-t="signup" class="on">Sign up</button><button data-t="login">Log in</button></div>
     <form id="authForm" autocomplete="on">
       <label class="field" id="fUser"><span>Username</span><input name="username" autocomplete="username" maxlength="20" placeholder="e.g. tunde_lagos"></label>
+      <label class="field" id="fEmail"><span>Email</span><input name="email" type="email" autocomplete="email" maxlength="120" placeholder="e.g. you@example.com" inputmode="email"></label>
       <label class="field" id="fPass"><span>Password</span><input name="password" type="password" autocomplete="current-password" maxlength="72" placeholder="8+ characters"></label>
-      <label class="check"><input type="checkbox" name="age18" id="age18"> <span>I confirm I am <b>18 or older</b>. <small>(Self-declaration for this test build; real age checks come later.)</small></span></label>
+      <div class="field" id="fGender">
+        <span>Body</span>
+        <div class="chips gender-pick" role="radiogroup" aria-label="Body">
+          <label class="chip"><input type="radio" name="gender" value="male" checked> Man</label>
+          <label class="chip"><input type="radio" name="gender" value="female"> Woman</label>
+        </div>
+        <small class="mut">Looks only — you can change this later in the clothes shop.</small>
+      </div>
+      <label class="check" id="fAge"><input type="checkbox" name="age18" id="age18"> <span>I confirm I am <b>18 or older</b>. <small>(Self-declaration for this test build; real age checks come later.)</small></span></label>
+      <p class="mut hidden" id="authRef" style="margin:8px 0 0"></p>
       <div class="err" id="authErr"></div>
       <button class="btn big" id="authGo" type="submit">Create account</button>
     </form>
@@ -39,7 +49,7 @@
   <div id="stats">
     <div class="pill cash" id="cash">₦0</div>
     <div class="pill sav" id="sav" title="Savings">🏦 ₦0</div>
-    <div class="bars"><div class="bar2" title="Energy"><span>⚡</span><i id="energyBar"></i></div><div class="bar2" title="Hunger"><span>🍲</span><i id="hungerBar"></i></div><div class="bar2" title="Health"><span>❤️</span><i id="healthBar"></i></div><div class="bar2" title="Mood"><span>😊</span><i id="moodBar"></i></div></div>
+    <div class="bars"><div class="bar2" title="Energy"><span>⚡</span><i id="energyBar"></i></div><div class="bar2" title="Hunger"><span>🍲</span><i id="hungerBar"></i></div><div class="bar2" title="Health"><span>❤️</span><i id="healthBar"></i></div></div>
   </div>
   <div id="clock" class="pill">🌞 6:00 AM · Day 1</div>
   <div id="right">
@@ -71,7 +81,6 @@
 <div id="toasts"></div>
 <noscript><p style="color:#fff;padding:2em">Naija Area needs JavaScript and WebGL.</p></noscript>
 
-<script src="demo.js"></script>
-<script src="game.js"></script>
+<script src="/game.js?v=plane-roof2"></script>
 </body>
 </html>

@@ -32,17 +32,25 @@ export const isDeleted = (app, uid) => !!app.db.prepare('SELECT 1 FROM account_d
 
 // ---- download
 export function exportData(app, uid) {
-  const u = one(app, 'SELECT id, username, is_guest, color, age_confirmed_at, created_at, last_seen FROM users WHERE id=?', uid); if (!u) bad('NO_PLAYER', 'Unknown player.', 404);
+  const u = one(app, 'SELECT id, username, email, is_guest, color, age_confirmed_at, created_at, last_seen FROM users WHERE id=?', uid); if (!u) bad('NO_PLAYER', 'Unknown player.', 404);
   const accts = all(app, 'SELECT id, kind, balance FROM accounts WHERE user_id=?', uid); const ids = accts.map(a => a.id);
   const ledger = ids.length ? all(app, `SELECT e.id, e.account_id, e.amount, e.balance_after, e.created_at, t.reason, t.ref FROM ledger_entries e JOIN ledger_tx t ON t.id=e.tx_id WHERE e.account_id IN (${ids.map(() => '?').join(',')}) ORDER BY e.id`, ...ids).map(r => ({ ...r, at: iso(r.created_at) })) : [];
   const out = {
     format: 'naija-area-data-export', version: 1, exportedAt: iso(app.clock.now()),
     about: 'Everything Naija Area holds about your account. Passwords are stored only as a one-way hash and your network address only as a one-way hash, so neither is included. In-game money is fictional; the wallet and ledger are listed so you can see every movement.',
-    account: { id: u.id, username: u.username, guest: !!u.is_guest, color: u.color, createdAt: iso(u.created_at), lastSeen: iso(u.last_seen), ageConfirmedAt: iso(u.age_confirmed_at) },
+    account: { id: u.id, username: u.username, email: u.email || null, guest: !!u.is_guest, color: u.color, createdAt: iso(u.created_at), lastSeen: iso(u.last_seen), ageConfirmedAt: iso(u.age_confirmed_at) },
     wallet: { accounts: accts, ledger },
     player: one(app, 'SELECT x,z,ry,mode,energy,hunger,mood,health,hair,total_shifts,city_id,updated_at FROM player_state WHERE user_id=?', uid),
     signupChoices: signup.exportMine(app, uid), tutorial: tutorial.exportMine(app, uid), missions: missions.exportMine(app, uid), achievements: achievements.exportMine(app, uid), office: office.exportMine(app, uid),
     wearables: { owned: all(app, 'SELECT item_id, price_paid, bought_at FROM wearables_owned WHERE user_id=?', uid), worn: all(app, 'SELECT slot, item_id FROM wearables_equipped WHERE user_id=?', uid) },
+    guns: { owned: all(app, 'SELECT item_id, price_paid, bought_at FROM guns_owned WHERE user_id=?', uid), equipped: one(app, 'SELECT item_id FROM guns_equipped WHERE user_id=?', uid) },
+    bodyguard: one(app, 'SELECT plan, paid, hired_at, until_at, name, with_car FROM bodyguards WHERE user_id=?', uid),
+    police: {
+      casesYouFiled: all(app, 'SELECT reason, detail, status, created_at FROM police_cases WHERE reporter_id=?', uid),
+      casesAgainstYou: all(app, 'SELECT reason, detail, status, created_at FROM police_cases WHERE accused_id=?', uid),
+      holds: all(app, 'SELECT reason, charge, status, held_at, until_at, release_how FROM police_holds WHERE user_id=?', uid),
+      evidenceAsAttacker: all(app, 'SELECT kind, amount, created_at FROM police_evidence WHERE attacker_id=?', uid)
+    },
     home: all(app, 'SELECT property_id, mode, custom_name, paid_price, since FROM property_owner WHERE user_id=?', uid), furniture: all(app, 'SELECT property_id, item_id, bought_at FROM property_items WHERE user_id=?', uid), land: all(app, 'SELECT plot_id, paid_price, bought_at FROM land_plots WHERE user_id=?', uid),
     cars: all(app, 'SELECT model, paid, bought_at, damage FROM player_cars WHERE user_id=?', uid),
     shifts: all(app, 'SELECT job_id, started_at, wage, status FROM shifts WHERE user_id=?', uid),
@@ -82,6 +90,10 @@ export async function deleteAccount(app, uid, { password, confirm } = {}) {
     app.db.prepare("UPDATE phone_messages SET body='', deleted_at=COALESCE(deleted_at, ?) WHERE sender_id=?").run(now, uid); del(app, 'DELETE FROM phone_settings WHERE user_id=?', uid); del(app, 'DELETE FROM phone_reads WHERE user_id=?', uid);
     del(app, 'DELETE FROM land_plots WHERE user_id=?', uid); del(app, 'DELETE FROM property_items WHERE user_id=?', uid); del(app, 'DELETE FROM car_parking WHERE user_id=?', uid); del(app, 'DELETE FROM player_cars WHERE user_id=?', uid); del(app, 'DELETE FROM crash_events WHERE user_id=?', uid);
     del(app, 'DELETE FROM wearables_owned WHERE user_id=?', uid); del(app, 'DELETE FROM wearables_equipped WHERE user_id=?', uid);
+    del(app, 'DELETE FROM guns_owned WHERE user_id=?', uid); del(app, 'DELETE FROM guns_equipped WHERE user_id=?', uid); del(app, 'DELETE FROM bodyguards WHERE user_id=?', uid);
+    del(app, 'DELETE FROM police_cases WHERE reporter_id=? OR accused_id=?', uid, uid);
+    del(app, 'DELETE FROM police_evidence WHERE attacker_id=? OR victim_id=?', uid, uid);
+    del(app, 'DELETE FROM police_holds WHERE user_id=?', uid);
     del(app, 'DELETE FROM shifts WHERE user_id=?', uid); del(app, 'DELETE FROM game_scores WHERE user_id=?', uid); del(app, 'DELETE FROM casual_runs WHERE user_id=?', uid); del(app, 'DELETE FROM casual_daily WHERE user_id=?', uid);
     del(app, 'DELETE FROM flights WHERE user_id=?', uid); del(app, 'DELETE FROM boat_trips WHERE user_id=?', uid); del(app, 'DELETE FROM stadium_tickets WHERE user_id=?', uid);
     del(app, 'DELETE FROM ad_impressions WHERE user_id=?', uid); del(app, 'DELETE FROM ad_taps WHERE user_id=?', uid); del(app, 'DELETE FROM age_sessions WHERE user_id=?', uid);
@@ -89,7 +101,7 @@ export async function deleteAccount(app, uid, { password, confirm } = {}) {
     app.db.prepare("UPDATE payment_intents SET email='' WHERE user_id=?").run(uid);
     let kept = KEPT; for (const r of REG) { r.eraseFn(app, uid); if (r.keep) kept += '; ' + r.keep; }
     if (stateRow) del(app, 'DELETE FROM player_state WHERE user_id=?', uid);
-    app.db.prepare("UPDATE users SET username=?, pass_hash=NULL, color='#9aa0a6', signup_ip_hash=NULL, last_seen=NULL WHERE id=?").run(`deleted_${uid}`, uid);
+    app.db.prepare("UPDATE users SET username=?, pass_hash=NULL, email=NULL, color='#9aa0a6', signup_ip_hash=NULL, last_seen=NULL WHERE id=?").run(`deleted_${uid}`, uid);
     app.db.prepare('INSERT INTO account_deletions(user_id, deleted_at, was_guest, forfeited, kept) VALUES (?,?,?,?,?)').run(uid, now, u.is_guest ? 1 : 0, forfeited, kept);
     app.db.prepare("INSERT INTO audit_log(actor, action, detail, created_at) VALUES (?,?,?,?)").run(`user:${uid}`, 'account_closed', JSON.stringify({ forfeited }), now);
     return { ok: true, forfeited, kept: kept.split('; ') };

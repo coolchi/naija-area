@@ -1003,21 +1003,21 @@
      "name": "Jollof rice + chicken",
      "price": 1500,
      "hunger": 55,
-     "energy": 8
+     "energy": 40
     },
     {
      "id": "amala",
      "name": "Amala + ewedu",
      "price": 1100,
      "hunger": 45,
-     "energy": 6
+     "energy": 32
     },
     {
      "id": "zobo",
      "name": "Zobo drink",
      "price": 300,
      "hunger": 5,
-     "energy": 6
+     "energy": 12
     }
    ],
    "channel": "supermarket"
@@ -1034,21 +1034,21 @@
      "name": "Jollof rice + chicken",
      "price": 1500,
      "hunger": 55,
-     "energy": 8
+     "energy": 40
     },
     {
      "id": "amala",
      "name": "Amala + ewedu",
      "price": 1100,
      "hunger": 45,
-     "energy": 6
+     "energy": 32
     },
     {
      "id": "zobo",
      "name": "Zobo drink",
      "price": 300,
      "hunger": 5,
-     "energy": 6
+     "energy": 12
     }
    ],
    "channel": "supermarket"
@@ -1065,21 +1065,21 @@
      "name": "Jollof rice + chicken",
      "price": 1500,
      "hunger": 55,
-     "energy": 8
+     "energy": 40
     },
     {
      "id": "amala",
      "name": "Amala + ewedu",
      "price": 1100,
      "hunger": 45,
-     "energy": 6
+     "energy": 32
     },
     {
      "id": "zobo",
      "name": "Zobo drink",
      "price": 300,
      "hunger": 5,
-     "energy": 6
+     "energy": 12
     }
    ],
    "channel": "supermarket"
@@ -1096,21 +1096,21 @@
      "name": "Jollof rice + chicken",
      "price": 1500,
      "hunger": 55,
-     "energy": 8
+     "energy": 40
     },
     {
      "id": "amala",
      "name": "Amala + ewedu",
      "price": 1100,
      "hunger": 45,
-     "energy": 6
+     "energy": 32
     },
     {
      "id": "zobo",
      "name": "Zobo drink",
      "price": 300,
      "hunger": 5,
-     "energy": 6
+     "energy": 12
     }
    ],
    "channel": "supermarket"
@@ -1127,21 +1127,21 @@
      "name": "Jollof rice + chicken",
      "price": 1500,
      "hunger": 55,
-     "energy": 8
+     "energy": 40
     },
     {
      "id": "amala",
      "name": "Amala + ewedu",
      "price": 1100,
      "hunger": 45,
-     "energy": 6
+     "energy": 32
     },
     {
      "id": "zobo",
      "name": "Zobo drink",
      "price": 300,
      "hunger": 5,
-     "energy": 6
+     "energy": 12
     }
    ],
    "channel": "supermarket"

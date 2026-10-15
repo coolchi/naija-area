@@ -6,8 +6,20 @@ export const SOUND = {
   buses: { master: 0.9, sfx: 0.55, music: 0.32 },
   maxVoices: 28,                                       // sound effect layers playing at once (older ones are left to finish, new ones are dropped)
   minGapMs: { step: 120, click: 45, thud: 90, coin: 60, notify: 250, bad: 150, ok: 60 }, // same sound twice within this many ms is skipped
-  engine: { baseHz: 52, perMs: 5.2, maxHz: 210, gain: 0.05, cutoff: 520, cutoffPerMs: 24, idleFloor: 0.04 }, // car hum follows speed (m/s)
-  music: { bpm: 98, aheadSec: 0.8, barsPerSong: 8, duckWhenRadio: true, rootHz: 220, nightGain: 0.8, quietOnLowEnd: true }
+  engine: { baseHz: 52, perMs: 5.2, maxHz: 210, gain: 0.025, cutoff: 520, cutoffPerMs: 24, idleFloor: 0.04 }, // car hum follows speed (m/s); half the old gain
+  music: { bpm: 98, aheadSec: 0.8, barsPerSong: 8, duckWhenRadio: true, rootHz: 220, nightGain: 0.8, quietOnLowEnd: true },
+  // Stylised placeholder call-to-prayer (synthesised; not a recording). Soft modal melody on the music bus while inside a mosque.
+  adhan: {
+    gain: 0.22, phraseGapSec: 2.8,
+    // approximate rising phrases (Hz), held with gentle vibrato — ESTIMATE
+    phrases: [
+      [220, 247, 262, 294, 330, 294, 262],
+      [262, 294, 330, 349, 392, 349, 330, 294],
+      [196, 220, 247, 262, 294, 330, 349, 330, 294, 262],
+      [247, 262, 294, 330, 294, 262, 247, 220],
+    ],
+    noteSec: 0.55, gapSec: 0.08,
+  },
 };
 // Effect recipes: layers of { w: wave | 'noise', f: Hz or [from, to] (for noise: filter Hz), at: start seconds, d: length seconds, g: peak gain, lp: low-pass cutoff (optional), a: attack seconds }.
 export const RECIPES = {

@@ -72,3 +72,29 @@ test('only the first player can take a treasure, and they are paid once', async 
   assert.equal(wrong.json.error, 'WRONG_CITY');
   assert.equal(checkInvariants(s.app.db).ok, true);
 });
+
+test('admin treasures lists collectors and remaining chests', async () => {
+  const s = makeServer();
+  const city = await ok(s, 'GET', '/api/city');
+  const t = city.treasures[0];
+  const uid = mkUser(s);
+  at(s, uid, t.x, t.z);
+  await ok(s, 'POST', '/api/treasures/claim', { uid, body: { id: t.id, pos: { x: t.x, z: t.z, ry: 0 } } });
+  assert.equal((await call(s, 'GET', '/api/admin/treasures', { uid })).status, 401);
+  const d = await ok(s, 'GET', '/api/admin/treasures', { admin: true });
+  assert.equal(d.summary.worldTotal, 100);
+  assert.equal(d.summary.collected, 1);
+  assert.equal(d.summary.remaining, 99);
+  const taken = d.collected.find((r) => r.id === t.id);
+  assert.ok(taken);
+  assert.equal(taken.collector.id, uid);
+  assert.ok(taken.claimedAt);
+  assert.ok(d.remaining.every((r) => !r.taken));
+  assert.ok(d.remaining.some((r) => r.cityId === t.city || r.id !== t.id));
+  const ov = await ok(s, 'GET', '/api/admin/overview', { admin: true });
+  assert.equal(ov.treasures.collected, 1);
+  assert.equal(ov.treasures.remaining, 99);
+  const filtered = await ok(s, 'GET', `/api/admin/treasures?city=${encodeURIComponent(city.id)}&q=${encodeURIComponent(taken.collector.username)}`, { admin: true });
+  assert.equal(filtered.summary.collected, 1);
+  assert.ok(filtered.collected.every((r) => r.id === t.id));
+});

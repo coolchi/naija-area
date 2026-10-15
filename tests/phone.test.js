@@ -108,3 +108,20 @@ test('calls: mic consent first, ICE servers come from env config (STUN default, 
   ice.turnUrls = ['turn:turn.example.test:3478']; ice.turnUser = 'u'; ice.turnCred = 'p'; s.app.clock.advance(30000); await online(s, a, b); const c2 = await ok(s, 'POST', '/api/phone/call/start', { uid: a, body: { to: bn } }); assert.equal(c2.iceServers.length, 2); assert.equal(c2.iceServers[1].username, 'u');
   s.app.balance.phone.enabled = false; assert.equal((await call(s, 'GET', '/api/phone/friends', { uid: a })).json.error, 'PHONE_OFF'); s.app.balance.phone.enabled = true;
 });
+test('chat pay: friends can send money from chat; posts a pay bubble; idempotent; non-friends blocked', async () => {
+  const { s, a, b, an, bn } = await mkPair(false);
+  s.app.clock.advance(s.app.balance.transfer.minAccountAgeMs + 1000);
+  const cash = async (uid) => (await ok(s, 'GET', '/api/me', { uid })).user.cash;
+  const beforeA = await cash(a); const beforeB = await cash(b);
+  const amount = 1500;
+  const r = await ok(s, 'POST', '/api/phone/pay', { uid: a, body: { to: bn, amount, idem: 'pay-test-1' } });
+  assert.equal(r.ok, true); assert.equal(r.amount, amount); assert.equal(r.message.kind, 'pay'); assert.equal(r.message.pay.amount, amount);
+  assert.equal(await cash(a), beforeA - amount);
+  assert.equal(await cash(b), beforeB + amount);
+  const th = await ok(s, 'GET', `/api/phone/thread?with=${an}`, { uid: b });
+  assert.ok(th.messages.some((m) => m.kind === 'pay' && m.pay.amount === amount && m.mine === false));
+  const dup = await ok(s, 'POST', '/api/phone/pay', { uid: a, body: { to: bn, amount, idem: 'pay-test-1' } });
+  assert.equal(dup.duplicate, true); assert.equal(await cash(a), beforeA - amount);
+  const stranger = mkUser(s); assert.equal((await call(s, 'POST', '/api/phone/pay', { uid: a, body: { to: uname(s, stranger), amount: 100 } })).json.error, 'NOT_FRIENDS');
+  assert.equal(checkInvariants(s.db).ok, true);
+});

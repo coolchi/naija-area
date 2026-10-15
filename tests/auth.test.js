@@ -10,17 +10,20 @@ test('auth: signup requires the 18+ checkbox', async () => {
 });
 test('auth: signup validates username/password; usernames unique case-insensitively; passwords stored hashed', async () => {
   const s = makeServer();
-  assert.equal((await call(s, 'POST', '/api/auth/signup', { body: { username: 'a', password: 'longenough1', age18: true } })).json.error, 'BAD_USERNAME');
-  assert.equal((await call(s, 'POST', '/api/auth/signup', { body: { username: 'ok_name', password: 'short', age18: true } })).json.error, 'BAD_PASSWORD');
-  assert.equal((await call(s, 'POST', '/api/auth/signup', { body: { username: '<script>', password: 'longenough1', age18: true } })).json.error, 'BAD_USERNAME');
-  const a = await call(s, 'POST', '/api/auth/signup', { body: { username: 'Tunde_O', password: 'longenough1', age18: true } });
-  assert.equal(a.status, 200); assert.ok(a.session);
-  assert.equal((await call(s, 'POST', '/api/auth/signup', { body: { username: 'tunde_o', password: 'longenough1', age18: true } })).status, 409);
-  const row = s.db.prepare('SELECT pass_hash, age_confirmed_at FROM users WHERE username=?').get('Tunde_O');
+  assert.equal((await call(s, 'POST', '/api/auth/signup', { body: { username: 'a', password: 'longenough1', age18: true, email: 'a@example.com' } })).json.error, 'BAD_USERNAME');
+  assert.equal((await call(s, 'POST', '/api/auth/signup', { body: { username: 'ok_name', password: 'short', age18: true, email: 'ok_name@example.com' } })).json.error, 'BAD_PASSWORD');
+  assert.equal((await call(s, 'POST', '/api/auth/signup', { body: { username: 'ok_name', password: 'longenough1', age18: true, email: 'not-an-email' } })).json.error, 'BAD_EMAIL');
+  assert.equal((await call(s, 'POST', '/api/auth/signup', { body: { username: '<script>', password: 'longenough1', age18: true, email: '<script>@example.com' } })).json.error, 'BAD_USERNAME');
+  const a = await call(s, 'POST', '/api/auth/signup', { body: { username: 'Tunde_O', password: 'longenough1', age18: true, email: 'Tunde_O@example.com' } });
+  assert.equal(a.status, 200); assert.ok(a.session); assert.equal(a.json.user.email, 'tunde_o@example.com');
+  assert.equal((await call(s, 'POST', '/api/auth/signup', { body: { username: 'tunde_o', password: 'longenough1', age18: true, email: 'other@example.com' } })).status, 409);
+  assert.equal((await call(s, 'POST', '/api/auth/signup', { body: { username: 'other_o', password: 'longenough1', age18: true, email: 'tunde_o@example.com' } })).json.error, 'EMAIL_TAKEN');
+  const row = s.db.prepare('SELECT pass_hash, age_confirmed_at, email FROM users WHERE username=?').get('Tunde_O');
   assert.match(row.pass_hash, /^\$2[aby]\$/); assert.ok(!row.pass_hash.includes('longenough1')); assert.ok(row.age_confirmed_at > 0);
+  assert.equal(row.email, 'tunde_o@example.com');
 });
 test('auth: login right/wrong password; unknown user same error', async () => {
-  const s = makeServer(); await ok(s, 'POST', '/api/auth/signup', { body: { username: 'ngozi', password: 'secret-pass-1', age18: true } });
+  const s = makeServer(); await ok(s, 'POST', '/api/auth/signup', { body: { username: 'ngozi', password: 'secret-pass-1', age18: true, email: 'ngozi@example.com' } });
   assert.equal((await call(s, 'POST', '/api/auth/login', { body: { username: 'ngozi', password: 'secret-pass-1' } })).status, 200);
   const w = await call(s, 'POST', '/api/auth/login', { body: { username: 'ngozi', password: 'nope' } }); assert.equal(w.status, 401);
   const u = await call(s, 'POST', '/api/auth/login', { body: { username: 'nobody', password: 'nope' } }); assert.equal(u.status, 401); assert.equal(u.json.message, w.json.message);
@@ -32,7 +35,7 @@ test('auth: guest play is turned off', async () => {
 });
 test('auth: a new account starts with ₦100,000', async () => {
   const s = makeServer();
-  const a = await ok(s, 'POST', '/api/auth/signup', { body: { username: 'ada_n', password: 'longenough1', age18: true } });
+  const a = await ok(s, 'POST', '/api/auth/signup', { body: { username: 'ada_n', password: 'longenough1', age18: true, email: 'ada_n@example.com' } });
   assert.equal(a.user.cash, 100000);
 });
 test('auth: protected routes need a session; admin routes need admin', async () => {
@@ -56,7 +59,7 @@ test('auth: login attempts are rate limited per IP', async () => {
 test('auth: HTTP signed-cookie session round trip + tampered cookie rejected + cross-origin POST blocked', async () => {
   const s = makeServer(); await new Promise(r => s.server.listen(0, '127.0.0.1', r)); const base = `http://127.0.0.1:${s.server.address().port}`;
   try {
-    const r = await fetch(base + '/api/auth/signup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'cookie_user', password: 'longenough1', age18: true }) });
+    const r = await fetch(base + '/api/auth/signup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'cookie_user', password: 'longenough1', age18: true, email: 'cookie_user@example.com' }) });
     const cookie = r.headers.get('set-cookie').split(';')[0]; assert.match(r.headers.get('set-cookie'), /HttpOnly/);
     assert.equal((await fetch(base + '/api/me', { headers: { cookie } })).status, 200);
     const bad = cookie.slice(0, -3) + 'xxx'; assert.equal((await fetch(base + '/api/me', { headers: { cookie: bad } })).status, 401);
@@ -64,6 +67,6 @@ test('auth: HTTP signed-cookie session round trip + tampered cookie rejected + c
   } finally { await s.close(); }
 });
 test('dev routes are 404 unless NA_DEV is on', async () => {
-  const s = makeServer({ dev: false }); const g = await ok(s, 'POST', '/api/auth/signup', { body: { username: 'dev_off', password: 'longenough1', age18: true } });
+  const s = makeServer({ dev: false }); const g = await ok(s, 'POST', '/api/auth/signup', { body: { username: 'dev_off', password: 'longenough1', age18: true, email: 'dev_off@example.com' } });
   assert.equal((await call(s, 'POST', '/api/dev/teleport', { uid: g.user.id, body: { x: 0, z: 0 } })).status, 404);
 });

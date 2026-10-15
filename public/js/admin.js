@@ -2,10 +2,19 @@ const $ = (s) => document.querySelector(s); const esc = (s) => String(s ?? '').r
 const j = async (p, o) => { const r = await fetch(p, o); const d = await r.json().catch(() => ({})); if (!r.ok) throw Object.assign(new Error(d.message || 'Error'), { status: r.status }); return d; };
 const naira = (n) => '₦' + Math.round(Number(n) || 0).toLocaleString('en-NG');
 const when = (ms) => ms ? new Date(ms).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+const toast = (msg, bad = false) => {
+  const host = $('#toasts'); if (!host || !msg) return;
+  const el = document.createElement('div');
+  el.className = 'toast' + (bad ? ' bad' : '');
+  el.textContent = String(msg);
+  host.appendChild(el);
+  setTimeout(() => el.remove(), 3800);
+};
+window.adminToast = toast;
 window.adminHooks = [];
-const PAGES = ['overview', 'ads', 'players', 'reports', 'moderation', 'audit', 'applications', 'ideas', 'signups', 'payments', 'economy', 'world'];
-const TITLES = { overview: 'Overview', ads: 'Adverts', players: 'Players', reports: 'Reports', moderation: 'Moderation', audit: 'Audit log', applications: 'Applications', ideas: 'Ideas', signups: 'Sign-up choices', payments: 'Payments', economy: 'Economy', world: 'World' };
-const SYS = { 'sys:faucet_start': 'Starting cash given out', 'sys:faucet_jobs': 'Job wages', 'sys:faucet_interest': 'Savings interest', 'sys:faucet_test_topup': 'Test top-ups', 'sys:faucet_casual': 'Casual game prizes', 'sys:faucet_land': 'Land income', 'sys:faucet_missions': 'Mission rewards', 'sys:faucet_business': 'Business income', 'sys:faucet_events': 'Event prizes', 'sys:faucet_pass': 'Pass rewards', 'sys:faucet_car_resale': 'Car resale', 'sys:sink_rent': 'Rent collected', 'sys:sink_shops': 'Shop sales', 'sys:sink_property': 'Property sales', 'sys:sink_furniture': 'Furniture sales', 'sys:sink_fees': 'Fees', 'sys:sink_transport': 'Transport fares', 'sys:sink_delivery': 'Delivery fees', 'sys:sink_cars': 'Car sales', 'sys:sink_decor': 'Decor sales', 'sys:sink_business': 'Business costs', 'sys:sink_market': 'Market fees', 'sys:sink_cosmetics': 'Cosmetic sales', 'sys:sink_clubs': 'Club fees', 'sys:sink_ads_extra': 'Ad extras', 'sys:ads_revenue_test': 'Test ad revenue', 'sys:escrow_games': 'Game escrow' };
+const PAGES = ['overview', 'ads', 'players', 'reports', 'moderation', 'audit', 'applications', 'ideas', 'signups', 'payments', 'economy', 'treasures', 'world'];
+const TITLES = { overview: 'Overview', ads: 'Adverts', players: 'Players', reports: 'Reports', moderation: 'Moderation', audit: 'Audit log', applications: 'Applications', ideas: 'Ideas', signups: 'Sign-up choices', payments: 'Payments', economy: 'Economy', treasures: 'Treasures', world: 'World' };
+const SYS = { 'sys:faucet_start': 'Starting cash given out', 'sys:faucet_jobs': 'Job wages', 'sys:faucet_interest': 'Savings interest', 'sys:faucet_test_topup': 'Test top-ups', 'sys:faucet_casual': 'Casual game prizes', 'sys:faucet_land': 'Land income', 'sys:faucet_missions': 'Mission rewards', 'sys:faucet_business': 'Business income', 'sys:faucet_events': 'Event prizes', 'sys:faucet_pass': 'Pass rewards', 'sys:faucet_car_resale': 'Car resale', 'sys:faucet_treasure': 'Treasure finds', 'sys:faucet_referral': 'Referral bonuses', 'sys:sink_rent': 'Rent collected', 'sys:sink_shops': 'Shop sales', 'sys:sink_property': 'Property sales', 'sys:sink_furniture': 'Furniture sales', 'sys:sink_fees': 'Fees', 'sys:sink_transport': 'Transport fares', 'sys:sink_delivery': 'Delivery fees', 'sys:sink_cars': 'Car sales', 'sys:sink_decor': 'Decor sales', 'sys:sink_business': 'Business costs', 'sys:sink_market': 'Market fees', 'sys:sink_cosmetics': 'Cosmetic sales', 'sys:sink_clubs': 'Club fees', 'sys:sink_ads_extra': 'Ad extras', 'sys:ads_revenue_test': 'Test ad revenue', 'sys:escrow_games': 'Game escrow' };
 let overviewCache = null;
 
 function go(p) {
@@ -14,7 +23,7 @@ function go(p) {
   document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('on', a.dataset.page === name));
   $('#crumb').textContent = 'Admin · ' + TITLES[name];
   if (location.hash.slice(1) !== name) history.replaceState(null, '', '#' + name);
-  const load = { ads: queue, players: players, reports: reports, payments: payments, economy: economy, world: world }[name];
+  const load = { ads: queue, players: players, reports: reports, payments: payments, economy: economy, treasures: treasures, world: world }[name];
   if (load) load().catch(e => console.error(e));
   window.adminHooks.forEach(fn => { try { fn(name); } catch (e) { console.error(e); } });
 }
@@ -29,10 +38,12 @@ async function show() {
 }
 function renderOverview(ov) {
   const camps = (ov.campaignsByStatus || []).map(c => `<span class="tag">${esc(c.status)}: <b>${c.n}</b></span>`).join(' ') || '<span class="mut">none</span>';
-  $('#ov').innerHTML = `<div class="tiles"><div class="tile"><span class="mut">Players</span><b>${ov.users}</b></div><div class="tile"><span class="mut">Online now</span><b>${ov.online}</b></div><div class="tile"><span class="mut">Money supply</span><b>${naira(ov.moneySupply)}</b></div><div class="tile"><span class="mut">Heartbeat</span><b>${ov.interval} ms</b></div></div>
+  const tr = ov.treasures || {};
+  $('#ov').innerHTML = `<div class="tiles"><div class="tile"><span class="mut">Players</span><b>${ov.users}</b></div><div class="tile"><span class="mut">Online now</span><b>${ov.online}</b></div><div class="tile wide"><span class="mut">Money supply</span><b>${naira(ov.moneySupply)}</b></div><div class="tile"><span class="mut">Heartbeat</span><b>${ov.interval} ms</b></div>
+<div class="tile"><span class="mut">Treasures left</span><b>${tr.remaining ?? '—'}</b></div><div class="tile"><span class="mut">Treasures taken</span><b>${tr.collected ?? '—'}</b></div></div>
 <p>${ov.ledger.ok ? '<span class="ok">Ledger is balanced</span>' : '<span class="err">Ledger is broken: ' + esc(JSON.stringify(ov.ledger)) + '</span>'}</p>
 <p class="mut">Campaigns</p><div class="row">${camps}</div>
-<p class="mut" style="margin-top:12px">Open a page above for adverts, who is online, reports, the audit log, office ideas, and the test-mode books.</p>`;
+<p class="mut" style="margin-top:12px">Open a page above for adverts, who is online, treasures, reports, the audit log, office ideas, and the test-mode books.</p>`;
 }
 
 const KIND = { house_name: 'House name', chat: 'Chat message', ad_creative: 'Ad creative', voice_note: 'Voice note', phone_message: 'Phone message' };
@@ -143,12 +154,48 @@ async function reconcile() {
 function economy() {
   const ov = overviewCache; if (!ov) return Promise.resolve();
   const rows = (ov.systemAccounts || []).map(a => `<tr><td>${esc(SYS[a.id] || a.id)}</td><td><code>${esc(a.id)}</code></td><td>${naira(a.balance)}</td></tr>`).join('');
-  $('#eco').innerHTML = `<div class="tiles"><div class="tile"><span class="mut">Money in player hands</span><b>${naira(ov.moneySupply)}</b></div><div class="tile"><span class="mut">Ledger</span><b>${ov.ledger.ok ? 'OK' : 'Broken'}</b></div></div><div class="scroll"><table><tr><th>Account</th><th>Id</th><th>Balance</th></tr>${rows}</table></div>`;
+  $('#eco').innerHTML = `<div class="tiles"><div class="tile wide"><span class="mut">Money in player hands</span><b>${naira(ov.moneySupply)}</b></div><div class="tile"><span class="mut">Ledger</span><b>${ov.ledger.ok ? 'OK' : 'Broken'}</b></div></div><div class="scroll"><table><tr><th>Account</th><th>Id</th><th>Balance</th></tr>${rows}</table></div>`;
   return Promise.resolve();
 }
 
+async function treasures() {
+  const city = $('#trCity').value; const view = $('#trView').value; const q = $('#trQ').value.trim();
+  const d = await j('/api/admin/treasures?city=' + encodeURIComponent(city) + '&q=' + encodeURIComponent(q));
+  const s = d.summary || {};
+  const citySel = $('#trCity'); const cur = citySel.value;
+  if (citySel.options.length <= 1) {
+    for (const c of d.cities || []) {
+      const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; citySel.appendChild(o);
+    }
+  }
+  citySel.value = cur || city;
+  $('#trTiles').innerHTML = [['Total', s.total], ['Remaining', s.remaining], ['Collected', s.collected], ['Paid out', naira(s.paidOut)]].map(([k, v]) => `<div class="tile"><span class="mut">${k}</span><b>${v}</b></div>`).join('');
+  let rows = d.rows || [];
+  if (view === 'remaining') rows = d.remaining || rows.filter((r) => !r.taken);
+  else if (view === 'collected') rows = d.collected || rows.filter((r) => r.taken);
+  $('#trRows').innerHTML = rows.length ? `<table><tr><th>Status</th><th>Treasure</th><th>City</th><th>Where</th><th>Worth</th><th>Collected by</th><th>When</th></tr>${rows.map((r) => `<tr>
+<td>${r.taken ? '<span class="tag">collected</span>' : '<span class="tag live">remaining</span>'}</td>
+<td><code>${esc(r.id)}</code></td>
+<td>${esc(r.city)}</td>
+<td><span class="mut">${Number(r.x).toFixed(1)}, ${Number(r.z).toFixed(1)}</span></td>
+<td><b>${naira(r.worth)}</b></td>
+<td>${r.collector ? `<b>@${esc(r.collector.username)}</b> <span class="mut">#${r.collector.id}</span> <button class="ghost" data-lookup="${esc(r.collector.username)}">Open</button>` : '<span class="mut">—</span>'}</td>
+<td>${when(r.claimedAt)}</td>
+</tr>`).join('')}</table>` : '<p class="mut">No treasures match.</p>';
+}
+
+const fmtWorld = (w) => {
+  if (!w) return '—';
+  const h12 = ((w.hour + 11) % 12) + 1;
+  return `${h12}:${String(w.minute).padStart(2, '0')} ${w.hour >= 12 ? 'PM' : 'AM'} · Day ${w.day}`;
+};
 async function world() {
   const radio = await j('/api/admin/radio');
+  try {
+    const t = await j('/api/admin/time');
+    $('#timeNow').textContent = 'Now: ' + fmtWorld(t.world);
+    if (t.world) { $('#timeH').value = t.world.hour; $('#timeM').value = t.world.minute; }
+  } catch { $('#timeNow').textContent = '—'; }
   $('#radioOn').textContent = radio.realRadio ? 'Radio is on — click to turn off' : 'Radio is off — click to turn on';
   $('#radioOn').dataset.on = radio.realRadio ? '1' : '0';
 }
@@ -159,7 +206,15 @@ $('#nav').onclick = (e) => { const a = e.target.closest('a[data-page]'); if (!a)
 $('#st').onchange = queue; $('#reload').onclick = queue; $('#rst').onchange = reports; $('#rreload').onclick = reports;
 $('#plScope').onchange = players; $('#plGo').onclick = players; $('#plQ').addEventListener('keydown', (e) => { if (e.key === 'Enter') players(); });
 $('#paySt').onchange = payments; $('#payGo').onclick = payments; $('#recGo').onclick = () => reconcile().catch(e => alert(e.message));
-$('#radioOn').onclick = async () => { try { const on = $('#radioOn').dataset.on !== '1'; const r = await j('/api/admin/radio', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled: on }) }); $('#worldMsg').textContent = r.realRadio ? 'Radio is on.' : 'Radio is off.'; await world(); } catch (e) { $('#worldMsg').textContent = e.message; } };
-$('#wxGo').onclick = async () => { try { const r = await j('/api/admin/weather', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ state: $('#wx').value }) }); $('#worldMsg').textContent = r.forced ? 'Weather forced to ' + r.forced + '.' : 'Weather is automatic again.'; } catch (e) { $('#worldMsg').textContent = e.message; } };
-$('#tickGo').onclick = async () => { try { const r = await j('/api/admin/tick', { method: 'POST' }); $('#worldMsg').textContent = 'Ran jobs. Ads ' + JSON.stringify(r.ads) + '.'; } catch (e) { $('#worldMsg').textContent = e.message; } };
+$('#trCity').onchange = treasures; $('#trView').onchange = treasures; $('#trGo').onclick = treasures; $('#trQ').addEventListener('keydown', (e) => { if (e.key === 'Enter') treasures(); });
+$('#radioOn').onclick = async () => { try { const on = $('#radioOn').dataset.on !== '1'; const r = await j('/api/admin/radio', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled: on }) }); toast(r.realRadio ? 'Radio is on.' : 'Radio is off.'); await world(); } catch (e) { toast(e.message, true); } };
+$('#wxGo').onclick = async () => { try { const r = await j('/api/admin/weather', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ state: $('#wx').value }) }); toast(r.forced ? 'Weather set to ' + r.forced + '.' : 'Weather is automatic again.'); } catch (e) { toast(e.message, true); } };
+const setGameTime = async (hour, minute) => {
+  const r = await j('/api/admin/time', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ hour, minute }) });
+  $('#timeNow').textContent = 'Now: ' + fmtWorld(r.world);
+  toast('Game time set to ' + fmtWorld(r.world) + '.');
+};
+$('#timeGo').onclick = async () => { try { await setGameTime(Number($('#timeH').value), Number($('#timeM').value)); } catch (e) { toast(e.message, true); } };
+$('#timeNoon').onclick = async () => { try { $('#timeH').value = 12; $('#timeM').value = 0; await setGameTime(12, 0); } catch (e) { toast(e.message, true); } };
+$('#tickGo').onclick = async () => { try { await j('/api/admin/tick', { method: 'POST' }); toast('Ran rent, interest, land and ads.'); } catch (e) { toast(e.message, true); } };
 window.adminStart = show;

@@ -10,10 +10,18 @@ import { Builder, mulberry32 } from '../sample/builder.js';
 import { danfoGeo, kekeGeo, okadaGeo, carGeo } from '../sample/vehicles.js';
 import { gwagonRig } from '../sample/gwagon-rig.js';
 import { cyberRig } from '../sample/cyber-rig.js';
+import { mclarenRig } from '../sample/mclaren-rig.js';
+import { g63Rig } from '../sample/g63-rig.js';
+import { micraRig } from '../sample/micra-rig.js';
+import { micra12Rig } from '../sample/micra12-rig.js';
+import { policeRig } from '../sample/police-rig.js';
 import { spinWheels } from '../sample/wheels.js';
 import { nameTag, glowTexture } from './textures.js';
 import { applyWear, wearLod } from './wear-models.js';
 import { avatarLook } from './avatar-look.js';
+import { avatarHdRig, poseAvatarHd } from '../sample/avatar-hd-rig.js';
+import { avatarCasualRig, poseAvatarCasual } from '../sample/avatar-casual-rig.js';
+import { avatarCasualWomanRig, poseAvatarCasualWoman } from '../sample/avatar-casual-woman-rig.js';
 import { PHYSX } from '../../server/config/physx.js';
 
 const vcMat = new THREE.MeshLambertMaterial({ vertexColors: true });
@@ -39,7 +47,23 @@ function pivotAt(x, y, z) {
   g.position.set(x, y, z)
   return g
 }
-export function makeAvatar(colorHex, gender = 'male') {
+export function makeAvatar(colorHex, gender = 'male', opts = {}) {
+  // Paid body upgrades (Phone → Life → Skins): high-res mesh instead of the blocky avatar.
+  if (opts.body === 'hd') {
+    const g = avatarHdRig();
+    g.add(blobShadow(1.6, 1.6));
+    return g;
+  }
+  if (opts.body === 'casual') {
+    const g = avatarCasualRig();
+    g.add(blobShadow(1.6, 1.6));
+    return g;
+  }
+  if (opts.body === 'casual_f') {
+    const g = avatarCasualWomanRig();
+    g.add(blobShadow(1.6, 1.6));
+    return g;
+  }
   const hex = new THREE.Color(colorHex).getHex()
   const female = gender === 'female'
   const L = avatarLook(hex)
@@ -147,7 +171,11 @@ export function makeAvatar(colorHex, gender = 'male') {
   g.add(blobShadow(1.6, 1.6))
   return g
 }
-export function poseAvatar(avatar, phase, speed) {
+export function poseAvatar(avatar, phase, speed, dt = 1 / 60) {
+  const kind = avatar?.userData?.bodyKind || avatar?.userData?.body?.userData?.bodyKind;
+  if (kind === 'casual') { poseAvatarCasual(avatar, phase, speed, dt); return; }
+  if (kind === 'casual_f') { poseAvatarCasualWoman(avatar, phase, speed, dt); return; }
+  if (avatar?.userData?.hd) { poseAvatarHd(avatar, phase, speed, dt); return; }
   const L = avatar?.userData?.limbs
   if (!L) return
   const moving = (speed || 0) > 0.12
@@ -168,17 +196,22 @@ export function poseAvatar(avatar, phase, speed) {
 const carCache = new Map();
 export function makePlayerCar(colorHex, kind = 'hatch') {
   if (kind === 'gwagon') { const g = new THREE.Group(); const car = gwagonRig(colorHex); car.position.y = 0.12; g.add(car); g.add(blobShadow(5.2, 3.1)); addPlayerHeadlamps(g, kind); return g; }
-  if (kind === 'cyber') { const g = new THREE.Group(); const car = cyberRig(colorHex); car.position.y = 0.12; g.add(car); g.add(blobShadow(5.8, 2.9)); addPlayerHeadlamps(g, kind); return g; }
+  if (kind === 'g63') { const g = new THREE.Group(); const car = g63Rig(colorHex); car.position.y = 0.12; g.add(car); g.add(blobShadow(5.4, 3.0)); addPlayerHeadlamps(g, kind); return g; }
+  if (kind === 'cyber') { const g = new THREE.Group(); const car = cyberRig(colorHex); car.position.y = 0.12; g.add(car); g.add(blobShadow(8.6, 4.2)); addPlayerHeadlamps(g, kind); return g; }
+  if (kind === 'mclaren') { const g = new THREE.Group(); const car = mclarenRig(colorHex); car.position.y = 0.12; g.add(car); g.add(blobShadow(6.3, 3.15)); addPlayerHeadlamps(g, kind); return g; }
+  if (kind === 'micra') { const g = new THREE.Group(); const car = micraRig(colorHex); car.position.y = 0.12; g.add(car); g.add(blobShadow(4.4, 2.5)); addPlayerHeadlamps(g, kind); return g; }
+  if (kind === 'micra12') { const g = new THREE.Group(); const car = micra12Rig(colorHex); car.position.y = 0.12; g.add(car); g.add(blobShadow(4.4, 2.5)); addPlayerHeadlamps(g, 'micra'); return g; }
   const color = new THREE.Color(colorHex).getHex(); const key = kind + ':' + color; if (!carCache.has(key)) carCache.set(key, carGeo(kind, color));
-  const g = new THREE.Group(); const m = new THREE.Mesh(carCache.get(key), vcMat); m.position.y = 0.12; g.add(m); g.add(blobShadow(kind === 'cyber' ? 5.8 : 5.2, kind === 'gwagon' ? 3.1 : 2.8)); addPlayerHeadlamps(g, kind); return g;
+  const g = new THREE.Group(); const m = new THREE.Mesh(carCache.get(key), vcMat); m.position.y = 0.12; g.add(m); g.add(blobShadow(kind === 'cyber' ? 4.6 : 5.2, kind === 'gwagon' || kind === 'g63' ? 3.1 : kind === 'mclaren' ? 3.15 : 2.8)); addPlayerHeadlamps(g, kind); return g;
 }
 /** a skin's glow (item 9): a flat coloured ring on the ground under an avatar or car (null removes it) */
 export function addSkinGlow(obj, hex, r) {
   if (obj.userData.skinGlow) { obj.remove(obj.userData.skinGlow); obj.userData.skinGlow = null; } if (!hex) return;
   const m = new THREE.Mesh(new THREE.RingGeometry(r * 0.78, r, 28).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide })); m.position.y = 0.14; m.renderOrder = 2; obj.add(m); obj.userData.skinGlow = m;
 }
-export function makeNameSprite(text, color) {
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: nameTag(text, color), depthTest: false, transparent: true })); s.scale.set(1.84, 0.46, 1); s.renderOrder = 10; return s;
+/** depthTest defaults true so shop labels do not poke through other buildings; pass false for HUD-like tags (your name). */
+export function makeNameSprite(text, color, { depthTest = true } = {}) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: nameTag(text, color), depthTest, transparent: true })); s.scale.set(1.84, 0.46, 1); s.renderOrder = depthTest ? 2 : 10; return s;
 }
 
 // ---- NPC traffic: deterministic from server time, so every client sees roughly the same cars without any sync traffic
@@ -199,6 +232,20 @@ export class Traffic {
     // one extra danfo kept hidden until a player calls for it at a bus stop (see dispatch)
     { const sg = new THREE.Group(); const sm = new THREE.Mesh(danfoGeo(mulberry32(99)), vcMat); sm.position.y = 0.12; sg.add(sm); sg.add(blobShadow(5.5, 2.8)); sg.visible = false; scene.add(sg); const first = this.loops.values().next().value;
       this.cars.push({ g: sg, P: first?.P, speed: 8, off: 0, type: 'danfo', stopsS: [], serve: true, stop: newStop(), special: true, idle: true }); this.special = this.cars[this.cars.length - 1]; }
+    // Nigeria Police Force cruisers on the main city loop (and a second busy loop when present)
+    {
+      const loops = [...this.loops.entries()];
+      const picks = [loops.find(([id]) => id === 'big') || loops[0], loops.find(([id]) => id === 'ne' || id === 'nw') || loops[1]].filter(Boolean);
+      const seen = new Set();
+      picks.forEach(([id, L], li) => {
+        if (!L?.P || seen.has(id)) return; seen.add(id);
+        const n = id === 'big' ? 3 : 1;
+        for (let i = 0; i < n; i++) {
+          const g = new THREE.Group(); const car = policeRig(); car.position.y = 0.12; g.add(car); g.add(blobShadow(5.2, 2.9)); scene.add(g);
+          this.cars.push({ g, P: L.P, speed: 8.2 + i * 0.25 + li * 0.15, off: (L.P.length * (i + 0.35)) / n + li * 11, type: 'police', stopsS: [], serve: false, stop: newStop() });
+        }
+      });
+    }
     this.tmp = {}; this.heads = new Headlamps(scene, this.cars.length); this.lightLevel = 0;
   }
   /** a danfo must not stand on the ring: walk the stop forward until it is clear of every roundabout */
@@ -260,22 +307,35 @@ export class Walkers { // instanced pedestrians on block sidewalks, human shaped
   update(serverSec, viewer = null, ghosts = null) {
     for (const it of this.items) { atPath(it.P, it.dir * it.v * serverSec + it.off, this.tmp); it.x = this.tmp.x; it.z = this.tmp.z; it.yaw = this.tmp.yaw; }
     const gap = 0.92
-    const avoid = (a, x, z, min) => { const dx = a.x - x, dz = a.z - z, d = Math.hypot(dx, dz); if (d >= min || d < 1e-3) return; const k = (min - d) / d; a.x += dx * k; a.z += dz * k; }
+    const avoid = (a, x, z, min) => {
+      if (!Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(a.x) || !Number.isFinite(a.z)) return;
+      const dx = a.x - x, dz = a.z - z, d = Math.hypot(dx, dz); if (d >= min || d < 1e-3) return; const k = (min - d) / d; a.x += dx * k; a.z += dz * k;
+    }
     for (let i = 0; i < this.items.length; i++) {
       const a = this.items[i]
       for (let j = i + 1; j < this.items.length; j++) {
-        const b = this.items[j]; const dx = a.x - b.x, dz = a.z - b.z, d = Math.hypot(dx, dz); if (d >= gap || d < 1e-3) continue
+        const b = this.items[j]; const dx = a.x - b.x, dz = a.z - b.z, d = Math.hypot(dx, dz); if (!Number.isFinite(d) || d >= gap || d < 1e-3) continue
         const k = (gap - d) / d * 0.5; a.x += dx * k; a.z += dz * k; b.x -= dx * k; b.z -= dz * k
       }
       if (viewer) avoid(a, viewer.x, viewer.z, 1.05)
       if (ghosts) for (const g of ghosts.map.values()) if (g.root && g.kind && g.kind.startsWith('walk')) avoid(a, g.root.position.x, g.root.position.z, 0.95)
     }
-    this.items.forEach((it, i) => { const far = viewer ? Math.hypot(it.x - viewer.x, it.z - viewer.z) > 60 : false
-      this.crowd.pose(i, it.x, 0.2, it.z, it.yaw + (it.dir < 0 ? Math.PI : 0), serverSec * it.v * 3.4 + it.ph, 1, far) })
+    this.items.forEach((it, i) => {
+      if (!Number.isFinite(it.x) || !Number.isFinite(it.z)) return;
+      const far = viewer && Number.isFinite(viewer.x) ? Math.hypot(it.x - viewer.x, it.z - viewer.z) > 60 : false
+      this.crowd.pose(i, it.x, 0.2, it.z, it.yaw + (it.dir < 0 ? Math.PI : 0), serverSec * it.v * 3.4 + it.ph, 1, far)
+    })
     this.crowd.commit()
   }
   /** walkers within `range` of (x, z) as solid circles for the player's collisions (Track G item 5); the walkers themselves do not react */
-  circlesNear(x, z, range, out, r = PHYSX.solids.ped.r) { for (const it of this.items) { if (it.x === undefined || Math.abs(it.x - x) > range || Math.abs(it.z - z) > range) continue; let o = it.circ; if (!o) o = it.circ = { x: 0, z: 0, r, h: PHYSX.solids.ped.h, ped: true }; o.x = it.x; o.z = it.z; out.push(o); } return out; }
+  circlesNear(x, z, range, out, r = PHYSX.solids.ped.r) {
+    if (!Number.isFinite(x) || !Number.isFinite(z)) return out;
+    for (const it of this.items) {
+      if (!Number.isFinite(it.x) || !Number.isFinite(it.z) || Math.abs(it.x - x) > range || Math.abs(it.z - z) > range) continue;
+      let o = it.circ; if (!o) o = it.circ = { x: 0, z: 0, r, h: PHYSX.solids.ped.h, ped: true }; o.x = it.x; o.z = it.z; out.push(o);
+    }
+    return out;
+  }
 }
 
 // ---- ghosts: other real players, interpolated from heartbeat trail samples (rendered slightly in the past)
@@ -286,7 +346,7 @@ export class Ghosts {
     for (const p of list) {
       seen.add(p.id); let g = this.map.get(p.id);
       if (!g) { g = { id: p.id, name: p.ct ? `[${p.ct}] ${p.n}` : p.n, color: p.c, mode: -1, samples: [], obj: null, tag: null, act: '', sex: '' }; this.map.set(p.id, g); }
-      g.mode = p.m; g.act = p.act || ''; g.e = p.e || ''; g.wear = p.w || []; const sex = p.sx === 'f' ? 'f' : ''; if (g.sex !== sex) { g.sex = sex; g.kind = null; } if (p.bd && p.bd !== g.body) { g.body = p.bd; g.kind = null; } if ((p.t || '') !== (g.title || '')) { g.title = p.t || ''; if (g.root) this.retag(g); }
+      g.mode = p.m; g.act = p.act || ''; g.e = p.e || ''; g.ride = p.ride || null; g.wear = p.w || []; const sex = p.sx === 'f' ? 'f' : ''; if (g.sex !== sex) { g.sex = sex; g.kind = null; } if (p.bd && p.bd !== g.body) { g.body = p.bd; g.kind = null; } if ((p.t || '') !== (g.title || '')) { g.title = p.t || ''; if (g.root) this.retag(g); }
       const skKey = p.sk ? `${p.sk.a || ''}|${p.sk.c || ''}` : ''; if (g.skKey !== skKey) { g.skKey = skKey; g.sk = p.sk || null; if (g.root) { this.scene.remove(g.root); g.root = null; g.kind = null; } } // a new skin: rebuild the body in its colours
       for (const [off, x, z, ry] of p.s) { const t = serverNow + off; if (!g.samples.length || t > g.samples[g.samples.length - 1].t + 50) g.samples.push({ t, x, z, ry }); }
       if (g.samples.length > 60) g.samples.splice(0, g.samples.length - 60);
@@ -307,10 +367,12 @@ export class Ghosts {
   /** the name tag shows the name and, when the player has one, their title (achievements.js on the server) */
   retag(g) { const y = g.tag?.position.y ?? 3.6; if (g.tag) { g.root.remove(g.tag); g.tag.material.map?.dispose?.(); g.tag.material.dispose?.(); } g.tag = makeNameSprite(g.title ? `${g.name} · ${g.title}` : g.name, '#ffffff'); g.tag.position.set(0, y, 0); g.root.add(g.tag); }
   build(g) {
+    // Passengers ride inside someone else's car — hide their street mesh so you do not see a second body.
+    if (g.ride) { if (g.root) { this.scene.remove(g.root); g.root = null; g.kind = null; } return; }
     const body = g.body || 'hatch'; const want = g.mode === 1 ? 'car:' + body : (g.sex === 'f' ? 'walk:f' : 'walk'); if (g.kind === want && g.root) return;
     if (g.root) this.scene.remove(g.root);
-    const sl = this.skinLook?.(g.sk, g.mode === 1 ? 'car' : 'walk') || null; g.root = new THREE.Group(); g.obj = g.mode === 1 ? makePlayerCar(sl?.color || g.color, body) : makeAvatar(sl?.color || g.color, g.sex === 'f' ? 'female' : 'male'); if (sl?.glow) addSkinGlow(g.obj, sl.glow, g.mode === 1 ? 3.4 : 1.1); g.root.add(g.obj);
-    const tagY = g.mode === 1 ? (body === 'gwagon' ? 2.55 : body === 'cyber' ? 2.35 : 2.15) : 2.45;
+    const sl = this.skinLook?.(g.sk, g.mode === 1 ? 'car' : 'walk') || null; g.root = new THREE.Group(); g.obj = g.mode === 1 ? makePlayerCar(sl?.color || g.color, body) : makeAvatar(sl?.color || g.color, g.sex === 'f' ? 'female' : 'male', { body: sl?.body || '' }); if (sl?.glow) addSkinGlow(g.obj, sl.glow, g.mode === 1 ? 3.4 : 1.1); g.root.add(g.obj);
+    const tagY = g.mode === 1 ? (body === 'gwagon' || body === 'g63' ? 2.55 : body === 'cyber' ? 2.95 : body === 'mclaren' ? 2.45 : 2.15) : 2.45;
     g.tag = makeNameSprite(g.title ? `${g.name} · ${g.title}` : g.name, '#ffffff'); g.tag.position.set(0, tagY, 0); g.root.add(g.tag); g.kind = want; this.scene.add(g.root); g.first = true;
   }
   update(renderT, viewer) {
@@ -324,16 +386,23 @@ export class Ghosts {
       const walking = !!(g.kind && g.kind.startsWith('walk'));
       const dist = Math.hypot(x - (g._fx ?? x), z - (g._fz ?? z)); const dt = g._ft ? Math.min(0.1, Math.max(0.001, (renderT - g._ft) / 1000)) : 0.016
       g._fx = x; g._fz = z; g._ft = renderT; const spd = dist / dt; const moving = spd > 0.15
-      if (walking) { g.phase = (g.phase || 0) + dist / 1.45; applyWear(g.obj, g.wear, this.cat); if (viewer) wearLod(g.obj, Math.hypot(x - viewer.x, z - viewer.z) < 45); poseAvatar(g.obj, g.phase, moving ? spd : 0); const body = g.obj.userData.body; if (body) body.position.y = moving ? Math.abs(Math.sin(Math.PI * g.phase)) * 0.04 : 0; }
-      if (this.emotes) this.emotes.step(g, g.e || '', moving, walking ? { y: g.obj.userData.body.position.y, rx: 0, rz: 0 } : undefined, walking ? 3.6 : 4.2);
+      if (walking) {
+        g.phase = (g.phase || 0) + dist / 1.45;
+        if (!g.obj.userData?.hd) { applyWear(g.obj, g.wear, this.cat); if (viewer) wearLod(g.obj, Math.hypot(x - viewer.x, z - viewer.z) < 45); }
+        poseAvatar(g.obj, g.phase, moving ? spd : 0, dt);
+        const body = g.obj.userData.body;
+        if (body && !g.obj.userData?.hd) body.position.y = moving ? Math.abs(Math.sin(Math.PI * g.phase)) * 0.04 : 0;
+      }
+      if (this.emotes) this.emotes.step(g, g.e || '', moving, walking ? { y: g.obj.userData.body?.position.y || 0, rx: 0, rz: 0 } : undefined, walking ? 3.6 : 4.2);
     }
   }
   /** people and their cars, as circles a walker cannot pass through */
   circlesNear(x, z, range, out) {
+    if (!Number.isFinite(x) || !Number.isFinite(z)) return out;
     for (const g of this.map.values()) {
       if (!g.root || !g.kind) continue
       const gx = g.root.position.x, gz = g.root.position.z
-      if (Math.abs(gx - x) > range + 4 || Math.abs(gz - z) > range + 4) continue
+      if (!Number.isFinite(gx) || !Number.isFinite(gz) || Math.abs(gx - x) > range + 4 || Math.abs(gz - z) > range + 4) continue
       if (g.kind.startsWith('walk')) {
         let o = g.circ; if (!o) o = g.circ = { x: 0, z: 0, r: 0.46, h: 1.8, ped: true }
         o.x = gx; o.z = gz; out.push(o)

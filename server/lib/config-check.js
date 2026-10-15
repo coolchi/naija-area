@@ -68,6 +68,14 @@ export function checkConfig(env = process.env, { production = env.NODE_ENV === '
   const sp = env.NA_SCORES_PROVIDER || 'mock'; if (sp === 'api-football' && !has(env.APIFOOTBALL_KEY)) E('NA_SCORES_PROVIDER=api-football needs APIFOOTBALL_KEY.'); if (!['mock', 'api-football'].includes(sp)) W(`NA_SCORES_PROVIDER "${sp}" is not known; the stadium falls back to the fictional league.`);
   if ((has(env.NA_TURN_URLS) || has(env.NA_TURN_USERNAME) || has(env.NA_TURN_CREDENTIAL)) && !(has(env.NA_TURN_URLS) && has(env.NA_TURN_USERNAME) && has(env.NA_TURN_CREDENTIAL))) E('NA_TURN_URLS, NA_TURN_USERNAME and NA_TURN_CREDENTIAL must be set together (voice calls through a TURN relay).');
   if (!has(env.NA_TURN_URLS)) I('No TURN relay set: phone voice calls may fail for players behind strict networks (STUN only).');
+  // ---- MailDESK (https://maildesk.ng/docs/send)
+  { const k = String(env.MAILDESK_API_KEY || '').trim(); const from = String(env.MAILDESK_FROM || '').trim();
+    if (has(k) || has(from)) {
+      if (!k.startsWith('md_')) E('MAILDESK_API_KEY must start with md_ (server-side only; never put it in the client).');
+      else if (!has(from)) E('MAILDESK_FROM is not set: use a verified domain address, e.g. Naija Area <hello@yourdomain.com>.');
+      else I('MailDESK is configured for outbound email (referral invites).');
+    } else I('MailDESK is off: referral invites fall back to mailto / copy link (set MAILDESK_API_KEY + MAILDESK_FROM).');
+  }
   const cost = has(env.NA_BCRYPT_COST) ? int(env.NA_BCRYPT_COST) : 10; if (!(cost >= 4 && cost <= 15)) E('NA_BCRYPT_COST must be a whole number from 4 to 15.'); else if (production && cost < 10) W('NA_BCRYPT_COST below 10 is too weak for production.');
   if (env.NA_REAL_RADIO === '0') I('Real radio stations are switched off (NA_REAL_RADIO=0).');
   return { ok: errors.length === 0, errors, warnings, info, production };

@@ -34,6 +34,51 @@ export function takenInCity(app, cityId) {
 }
 
 const naira = (n) => '₦' + Math.round(n).toLocaleString('en-NG');
+const cityLabel = (app, cityId) => {
+  const c = app.cities?.[cityId]; if (!c) return cityId;
+  return c.cityName && c.cityName !== c.name ? `${c.cityName} · ${c.name}` : (c.cityName || c.name || cityId);
+};
+
+/** Admin directory: every treasure, who collected it (if any), and where remaining chests still sit. */
+export function adminTreasures(app, { city = '', q = '' } = {}) {
+  const claims = app.db.prepare(`SELECT tc.treasure_id, tc.user_id, tc.amount, tc.claimed_at, u.username
+    FROM treasure_claims tc JOIN users u ON u.id = tc.user_id`).all();
+  const byTreasure = new Map(claims.map((r) => [r.treasure_id, r]));
+  const cityFilter = String(city || '').trim();
+  const query = String(q || '').trim().toLowerCase().replace(/^@/, '');
+  const rows = [];
+  let collected = 0, remaining = 0, paidOut = 0;
+  for (const t of TREASURES) {
+    if (cityFilter && t.city !== cityFilter) continue;
+    const cl = byTreasure.get(t.id);
+    const worth = cl?.amount ?? treasureWorth(t.id);
+    const row = {
+      id: t.id, cityId: t.city, city: cityLabel(app, t.city), x: t.x, z: t.z, worth,
+      taken: !!cl,
+      collector: cl ? { id: cl.user_id, username: cl.username } : null,
+      claimedAt: cl?.claimed_at || null,
+    };
+    if (query) {
+      const hay = `${row.id} ${row.city} ${row.collector?.username || ''}`.toLowerCase();
+      if (!hay.includes(query)) continue;
+    }
+    if (row.taken) { collected++; paidOut += worth; } else remaining++;
+    rows.push(row);
+  }
+  rows.sort((a, b) => {
+    if (a.taken !== b.taken) return a.taken ? 1 : -1; // remaining first
+    if (a.cityId !== b.cityId) return a.cityId < b.cityId ? -1 : 1;
+    return a.id < b.id ? -1 : 1;
+  });
+  const cities = [...new Set(TREASURES.map((t) => t.city))].sort().map((id) => ({ id, name: cityLabel(app, id) }));
+  return {
+    summary: { total: collected + remaining, collected, remaining, paidOut, shown: rows.length, worldTotal: TREASURES.length },
+    cities,
+    collected: rows.filter((r) => r.taken),
+    remaining: rows.filter((r) => !r.taken),
+    rows,
+  };
+}
 
 /** Pay the standing player. One row per treasure, so a second player loses the race. */
 export function claimTreasure(app, uid, id) {

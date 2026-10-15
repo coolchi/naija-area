@@ -10,11 +10,15 @@ import { hiddenFrom, chatMuted } from './safety.js';
 import { dist, getState, refreshNeeds, notify, gameTime, profile, activeShift, jobsFor } from './economy.js';
 import { processEvidence, adsSnapshot } from './ads.js';
 import { knockState } from './social.js';
+import { expireCarpool, syncPassenger, rideView, noteRadio } from './carpool.js';
+import { wreckedActive, carStateOf, towStatus } from './meko.js';
 import { myMatchView } from './games.js';
 import { venueTick } from './venues.js';
+import { policeTick } from './police.js';
 import { parkedActive } from './parking.js';
 import { wearIds } from './wearables.js';
 import { wornIds as skinsOf } from './skins.js';
+import { skinById } from '../config/skins.js';
 import { clubTagOf } from './clubs.js';
 import { mini as weatherMini } from './weather.js';
 import { throwsNear, takeBonk } from './throws.js';
@@ -40,16 +44,23 @@ function inBounds(city, x, z) { const b = city.bounds; return x >= b.minX && x <
 export function ensurePresence(app, uid) {
   let p = app.world.players.get(uid);
   if (!p) { const u = app.db.prepare('SELECT username,color,is_bot,is_guest FROM users WHERE id=?').get(uid); const st = getState(app, uid);
-    p = { id: uid, city: app.cities[st.city_id] ? st.city_id : app.defaultCityId, name: u.username, color: u.color, isBot: !!u.is_bot, isGuest: !!u.is_guest, gender: st.gender === 'female' ? 'female' : 'male', x: st.x, z: st.z, ry: st.ry, mode: st.mode, trail: [], lastSeen: app.clock.now(), lastPersist: 0, headless: false, chatSince: app.world.chatSeq }; app.world.players.set(uid, p); }
+    p = { id: uid, city: app.cities[st.city_id] ? st.city_id : app.defaultCityId, name: u.username, color: u.color, isBot: !!u.is_bot, isGuest: !!u.is_guest, gender: st.gender === 'female' ? 'female' : 'male', x: st.x, z: st.z, ry: st.ry, mode: st.mode, fainted: !!st.fainted, trail: [], lastSeen: app.clock.now(), lastPersist: 0, headless: false, chatSince: app.world.chatSeq }; app.world.players.set(uid, p); }
   return p;
 }
-/** male or female body. Clothes and jewelry stay; the client rebuilds the rig. */
+/** Gender is chosen at signup. Woman is only for accounts that signed up as Woman; everyone else stays Man. */
 export function setGender(app, uid, gender) {
   const g = gender === 'female' || gender === 'male' ? gender : '';
   if (!g) bad('BAD_GENDER', 'Choose male or female.');
-  getState(app, uid);
+  const st = getState(app, uid);
+  const cur = st.gender === 'female' ? 'female' : 'male';
+  if (g === cur) return { gender: g, text: g === 'female' ? 'Female body.' : 'Male body.' };
+  if (g === 'female') bad('GENDER_LOCKED', 'Woman is only available when you sign up as Woman.', 409);
+  // Switching Woman → Man is allowed (rare); Man → Woman is not.
   app.db.prepare('UPDATE player_state SET gender=? WHERE user_id=?').run(g, uid);
-  const p = app.world?.players?.get(uid); if (p) p.gender = g;
+  const worn = app.db.prepare("SELECT skin_id FROM skins_equipped WHERE user_id=? AND slot='avatar'").get(uid);
+  const d = worn && skinById[worn.skin_id];
+  if (d?.gender && d.gender !== g) app.db.prepare("DELETE FROM skins_equipped WHERE user_id=? AND slot='avatar'").run(uid);
+  const p = app.world?.players?.get(uid); if (p) { p.gender = g; p.skins = undefined; }
   return { gender: g, text: g === 'female' ? 'Female body.' : 'Male body.' };
 }
 /** actions carry the client's current position; it goes through the same speed clamp as the trail */
@@ -84,10 +95,14 @@ function applyTrail(app, p, trail, now) {
 export function livePos(app, uid, body) {
   const p = app.world.players.get(uid); if (!p || !body) return false;
   const now = app.clock.now(); if (now - (p.liveAt || 0) < 100) return false;
-  const x = Number(body.x), z = Number(body.z); if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
   if (isFlying(app, uid) || isAboard(app, uid)) return false;
+  if (p.carpoolDriver) { syncPassenger(app, p); p.liveAt = now; p.liveSeq = (p.liveSeq || 0) + 1; p.lastSeen = now; return true; }
+  // hunger faint: stay put until a cab/friend gets you to a canteen
+  if (p.fainted) { p.mode = 'walk'; p.liveAt = now; p.liveSeq = (p.liveSeq || 0) + 1; p.lastSeen = now; return true; }
+  const x = Number(body.x), z = Number(body.z); if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
   if (body.m === 0 || body.m === 1) { const mode = body.m === 1 ? 'drive' : 'walk'; if (!(mode === 'drive' && p.mode !== 'drive' && parkedActive(app, uid))) p.mode = mode; }
   applyTrail(app, p, [{ a: 0, x, z, ry: Number.isFinite(Number(body.ry)) ? Number(body.ry) : p.ry }], now);
+  if (p.carpoolPassenger) { const pass = app.world.players.get(p.carpoolPassenger); if (pass) syncPassenger(app, pass); }
   p.liveAt = now; p.liveSeq = (p.liveSeq || 0) + 1; p.lastSeen = now; return true;
 }
 
@@ -118,13 +133,29 @@ export function heartbeat(app, uid, body, meta = {}) {
   if (!userRow) bad('NO_PLAYER', 'Unknown player', 401);
   const p = ensurePresence(app, uid);
   p.lastSeen = now; p.headless = !!meta.headless; guardian.tickPlay(app, uid);
-  if (body.mode === 'walk' || body.mode === 'drive') { if (body.mode === 'drive' && p.mode !== 'drive' && parkedActive(app, uid)) { /* your car is parked: it cannot be driven from elsewhere */ } else p.mode = body.mode; }
+  refreshNeeds(app, uid); // decay hunger; may mark fainted before we accept movement
+  const modeBefore = p.mode;
+  if (body.mode === 'walk' || body.mode === 'drive') {
+    if (body.mode === 'drive' && wreckedActive(app, uid)) { /* wrecked: only a tow truck moves the car */ }
+    else if (body.mode === 'drive' && p.mode !== 'drive' && parkedActive(app, uid)) { /* your car is parked: it cannot be driven from elsewhere */ }
+    else if (!p.carpoolDriver) p.mode = body.mode;
+  }
   if (p.mode === 'drive') p.driveAt = now; // when the player was last in a car (the ad checks for radio spots, item 8)
   if (typeof body.activity === 'string') p.activity = cleanText(body.activity, 24);
+  if (p.mode === 'drive') noteRadio(app, uid, body.radio);
+  expireCarpool(app);
   const fl = flightTick(app, uid); const bt = boatTick(app, uid); const flying = fl?.state === 'flying' || bt?.state === 'crossing';
   const stale = typeof body.city === 'string' && body.city !== p.city; // the client is still in the old city (it reloads on this response): its trail and evidence do not count here
-  if (!stale && !flying) applyTrail(app, p, body.trail, now); venueTick(app, p);
-  if (now - p.lastPersist > 30000) { app.db.prepare('UPDATE player_state SET x=?,z=?,ry=?,mode=?,updated_at=? WHERE user_id=?').run(p.x, p.z, p.ry, p.mode, now, uid); app.db.prepare('UPDATE users SET last_seen=? WHERE id=?').run(now, uid); p.lastPersist = now; }
+  if (!stale && !flying && !p.carpoolDriver && !p.fainted) applyTrail(app, p, body.trail, now);
+  if (p.fainted) p.mode = 'walk';
+  if (p.carpoolDriver) syncPassenger(app, p);
+  venueTick(app, p);
+  policeTick(app, p);
+  // Persist as soon as mode changes so a reload keeps you in the car; otherwise every 30s as before.
+  if (p.mode !== modeBefore || now - p.lastPersist > 30000) {
+    app.db.prepare('UPDATE player_state SET x=?,z=?,ry=?,mode=?,updated_at=? WHERE user_id=?').run(p.x, p.z, p.ry, p.mode, now, uid);
+    app.db.prepare('UPDATE users SET last_seen=? WHERE id=?').run(now, uid); p.lastPersist = now;
+  }
   // ad evidence (validated server-side; client sends evidence, never counts)
   let adResult = null;
   if (!stale && !flying && Array.isArray(body.evidence) && body.evidence.length) adResult = processEvidence(app, p, body.evidence.slice(0, 40), now);
@@ -136,7 +167,7 @@ export function heartbeat(app, uid, body, meta = {}) {
   cand.sort((a, b) => a[0] - b[0]);
   const players = cand.slice(0, hb.maxNearby).map(([, o]) => {
     const s = [[0, o.x, o.z, o.ry]]; // current spot only: walking is the live websocket, this poll is chat, ads and money
-    const w = wearIds(app, o); const ct = clubTagOf(app, o); const sk = skinsOf(app, o); const tt = o.isBot ? '' : titleOf(app, o.id); const em = emoteOf(o, now); const bd = o.mode === 'drive' ? carBody(app, o, now) : ''; return { id: o.id, n: o.name, c: o.color, m: o.mode === 'drive' ? 1 : 0, act: o.activity || '', ...(w.length ? { w } : {}), ...(sk ? { sk } : {}), ...(ct ? { ct } : {}), ...(tt ? { t: tt } : {}), ...(em ? { e: em } : {}), ...(bd ? { bd } : {}), ...(o.gender === 'female' ? { sx: 'f' } : {}), s };
+    const w = wearIds(app, o); const ct = clubTagOf(app, o); const sk = skinsOf(app, o); const tt = o.isBot ? '' : titleOf(app, o.id); const em = emoteOf(o, now); const bd = o.mode === 'drive' ? carBody(app, o, now) : ''; const ride = o.carpoolDriver || null; return { id: o.id, n: o.name, c: o.color, m: o.mode === 'drive' ? 1 : 0, act: o.activity || '', ...(w.length ? { w } : {}), ...(sk ? { sk } : {}), ...(ct ? { ct } : {}), ...(tt ? { t: tt } : {}), ...(em ? { e: em } : {}), ...(bd ? { bd } : {}), ...(ride ? { ride } : {}), ...(o.gender === 'female' ? { sx: 'f' } : {}), s };
   });
   const ccu = ccuNow(app); const interval = recommendedInterval(app, ccu);
   // notifications since last id
@@ -150,7 +181,9 @@ export function heartbeat(app, uid, body, meta = {}) {
   const chatMax = app.db.prepare('SELECT COALESCE(MAX(id),0) m FROM chat_messages').get().m;
   const me = profile(app, uid);
   const resp = { now, interval, ccu, city: p.city, flight: flightMini(app, uid), boat: boatMini(app, uid), shed: interval >= 20000, world: gameTime(app, now), wx: weatherMini(app, p.city, now), fest: activeFestivals(app, now), pl: planesNear(app, p.city, p.x, p.z, now), th: throwsNear(app, p.city, p.x, p.z, hidden), bonk: takeBonk(app, uid), me, players, notifs, chat, chatCursor: chatMax,
-    knocks: knockState(app, uid), game: myMatchView(app, uid), venue: p.venue || null, gd: guardian.heartbeatInfo(app, uid), teleport: p.force || undefined, adsVersion: app.adsVersion, ads: body.adsVersion === app.adsVersion ? undefined : adsSnapshot(app, now, p.city), adResult, tr: takenInCity(app, p.city) };
+    knocks: knockState(app, uid), carpool: rideView(app, p), tow: towStatus(app, uid).tow, game: myMatchView(app, uid), venue: p.venue || null, gd: guardian.heartbeatInfo(app, uid), teleport: p.force || undefined, adsVersion: app.adsVersion, ads: body.adsVersion === app.adsVersion ? undefined : adsSnapshot(app, now, p.city), adResult, tr: takenInCity(app, p.city) };
+  const ac = app.db.prepare('SELECT * FROM player_cars WHERE user_id=? AND active=1').get(uid);
+  if (ac) resp.carBody = carStateOf(app, ac);
   p.force = undefined;
   return resp;
 }

@@ -1,13 +1,14 @@
 // Tesla Cybertruck model by Lexyc16 (https://sketchfab.com/Lexyc16), CC BY 4.0.
 // Source: https://sketchfab.com/3d-models/tesla-cybertruck-f12e67159f75486bb21213e573520612
-// Front is +x, wheels sit on y = 0. The mesh is the downloaded model, fitted to the other cars.
+// Front is +x, wheels sit on y = 0. The mesh is the downloaded model, scaled larger than the other cars.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { tagWheel } from './wheels.js';
 
 export const CYBER_CREDIT = 'Tesla Cybertruck by Lexyc16, CC BY 4.0';
 const URL = '/models/cybertruck.glb';
-const LENGTH = 5.15;
+// A player is about 2.1m to the top of the head. Roof sits a bit above that (20% under the first oversized fit).
+const HEIGHT = 2.52;
 
 let template = null;
 const waiting = [];
@@ -39,7 +40,7 @@ function fit(scene) {
   scene.rotation.y = Math.PI / 2;
   scene.updateMatrixWorld(true);
   const size = new THREE.Box3().setFromObject(scene).getSize(new THREE.Vector3());
-  scene.scale.setScalar(LENGTH / Math.max(0.001, size.x));
+  scene.scale.setScalar(HEIGHT / Math.max(0.001, size.y));
   scene.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(scene);
   const center = box.getCenter(new THREE.Vector3());

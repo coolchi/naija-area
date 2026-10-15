@@ -3,7 +3,7 @@ import { soundBlock } from './audio-ui.js';
 import { missionsBody } from './missions-ui.js';
 import { meBody } from './me-ui.js';
 import { safetyBody } from './guardian-ui.js';
-import { roadPts } from './roadgeom.js';
+import { roadPts, nearestOnPoly } from './roadgeom.js';
 import { PhoneShell } from './phone-v2/apps.js';
 import { get, post, fmtN, h, $, $$, ApiError } from './api.js';
 import { healthNow } from './crash.js';
@@ -27,7 +27,7 @@ const LINES = {
   hit: (p) => `Nailed it! +${p}% bonus on this shift.`, miss: () => 'Ah ah, you miss am! No bonus this time.',
   sold: (n) => `Sold. ${fmtN(n)} back in your pocket.`, blocked: () => 'Something is in the way.',
 };
-const ERR = { INSUFFICIENT_FUNDS: () => pick(['Your pocket dry o. Money no reach.', 'No cash for that one. Go hustle first!']), TOO_FAR: () => pick(['You dey far o. Move closer.', 'Walk go there first, oga.']), TOO_TIRED: () => 'You don tire. Eat or rest first!', TOO_HUNGRY: () => 'Hunger dey vex you. Buy food first.', BLOCKED: () => 'Something is in the way.', COOLDOWN: null, LOGIN_REQUIRED: () => 'Session don end. Please log in again.', JOB_FULL: () => 'Monipay Bank don full for today. Come back tomorrow.', HOURS_DONE: () => 'You don do your 10 hours. Come back tomorrow.' };
+const ERR = { INSUFFICIENT_FUNDS: () => pick(['Your pocket dry o. Money no reach.', 'No cash for that one. Go hustle first!']), TOO_FAR: () => pick(['You dey far o. Move closer.', 'Walk go there first, oga.']), TOO_TIRED: () => 'You don tire. Eat or rest first!', TOO_HUNGRY: () => 'Hunger dey vex you. Buy food first.', BLOCKED: () => 'Something is in the way.', COOLDOWN: null, LOGIN_REQUIRED: () => 'Session don end. Please log in again.', JOB_FULL: () => 'Monipay Bank don full for today. Come back tomorrow.', HOURS_DONE: () => 'You don do your 10 hours. Come back tomorrow.', SUPER_SOLD_OUT: () => 'Supercars for today don finish. Come back tomorrow.' };
 const durLabel = (sec) => (sec >= 3600 && sec % 3600 === 0 ? `${sec / 3600}h` : sec >= 60 && sec % 60 === 0 ? `${sec / 60}m` : `${sec}s`);
 const leftLabel = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); if (s < 60) return `${s}s left`; if (s < 3600) return `${Math.ceil(s / 60)}m left`; const h = Math.floor(s / 3600); let m = Math.ceil((s % 3600) / 60); if (m >= 60) return `${h + 1}h left`; return m ? `${h}h ${m}m left` : `${h}h left`; };
 export const say = (k, ...a) => LINES[k](...a);
@@ -78,8 +78,10 @@ export class UI {
   /** health bar (server value plus natural recovery since it arrived), also called a few times a second */
   healthBar(u) { const el = $('#healthBar'); if (!el || !u?.health) return; const hv = u.health; if (!hv.at) hv.at = Date.now(); const v = healthNow(hv, this.g.cfg?.crash?.regenPerMin ?? 3, Date.now()); el.style.width = Math.round(v / hv.max * 100) + '%'; el.style.background = v < 30 ? '#d6402f' : v < 60 ? '#f29a2e' : '#e0405a'; el.parentElement.title = `Health ${Math.round(v)}/${hv.max}`; }
   hud(u) { this.healthBar(u);
-    $('#cash').textContent = fmtN(u.cash); $('#sav').textContent = '🏦 ' + fmtN(u.savings); $('#energyBar').style.width = u.energy + '%'; $('#hungerBar').style.width = u.hunger + '%'; $('#moodBar').style.width = (u.mood ?? 60) + '%'; $('#moodBar').style.background = (u.mood ?? 60) >= this.g.cfg.moodHappyAt ? '#f7c948' : '#e58fb3';
-    $('#energyBar').style.background = u.energy < 20 ? '#d6402f' : '#35c46b'; $('#hungerBar').style.background = u.hunger < 20 ? '#d6402f' : '#f29a2e';
+    $('#cash').textContent = fmtN(u.cash); $('#sav').textContent = '🏦 ' + fmtN(u.savings);
+    $('#energyBar').style.width = u.energy + '%'; $('#hungerBar').style.width = u.hunger + '%';
+    $('#energyBar').style.background = u.energy < 20 ? '#d6402f' : '#35c46b'; $('#hungerBar').style.background = u.hunger < 20 || u.fainted ? '#d6402f' : '#f29a2e';
+    if (u.fainted) $('#hungerBar').parentElement.title = 'Fainted from hunger — call a cab or friend to eat';
     const sb = $('#shiftbar'); if (u.shift) { const j = this.g.cfg.jobs?.find(x => x.id === u.shift.jobId); const left = Math.max(0, u.shift.endsAt - this.g.serverNow()); sb.classList.remove('hidden'); sb.textContent = left > 0 ? `💼 ${j?.name || 'Shift'} · ${leftLabel(left)}` : `💼 ${j?.name || 'Shift'} done: collect your pay!`; } else sb.classList.add('hidden');
   }
   clock(w) { const h12 = ((w.hour + 11) % 12) + 1; const night = w.hour < 6 || w.hour >= 19; $('#clock').textContent = `${night ? '🌙' : '🌞'} ${h12}:${String(w.minute).padStart(2, '0')} ${w.hour >= 12 ? 'PM' : 'AM'} · Day ${w.day}`; }
@@ -87,21 +89,89 @@ export class UI {
   loc(text) { $('#loc').textContent = text; }
   waypoint(wp, d) { const el = $('#waypoint'); if (!wp) return el.classList.add('hidden'); el.classList.remove('hidden'); el.textContent = `📍 ${wp.label} · ${Math.round(d)} m`; }
   action(label) { const b = $('#actionBtn'); if (!label) return b.classList.add('hidden'); b.classList.remove('hidden'); b.textContent = label; }
-  minimap(ctrl, city, ghosts, wp, plotsOwned) {
-    const c = this.mm, W = 300; const B = city.bounds; const S = (city.id === 'lagos-mainland' || !city.id ? 1 / 520 * W : (W - 16) / Math.max(B.maxX - B.minX, B.maxZ - B.minZ)); const X = (x) => (x - B.minX) * S + 8, Z = (z) => (z - B.minZ) * S + 8; c.clearRect(0, 0, W, W); c.fillStyle = '#c9c3ad'; c.fillRect(0, 0, W, W);
-    if (city.water) { c.fillStyle = '#2b6f8a'; c.fillRect(0, Z(B.maxZ), W, W); } c.fillStyle = '#2b6f8a'; for (const k of city.creeks || []) c.fillRect(X(Math.max(B.minX, k.x0)), Z(Math.max(B.minZ, k.z0)), (Math.min(B.maxX, k.x1) - Math.max(B.minX, k.x0)) * S, (Math.min(B.maxZ, k.z1) - Math.max(B.minZ, k.z0)) * S); c.fillStyle = '#e9d9a0'; for (const l of city.landmarks || []) if (l.kind === 'beach' && !l.island) c.fillRect(X(l.cx - l.w / 2), Z(l.cz - l.d / 2), l.w * S, l.d * S); c.strokeStyle = '#3d4046'; c.lineJoin = 'round'; for (const r of city.roads) { c.lineWidth = r.width * S; c.beginPath(); roadPts(r).forEach((p, i) => i ? c.lineTo(X(p[0]), Z(p[1])) : c.moveTo(X(p[0]), Z(p[1]))); c.stroke(); } c.fillStyle = '#3d4046'; for (const o of city.roundabouts || []) { c.beginPath(); c.arc(X(o.x), Z(o.z), o.outerR * S, 0, 7); c.fill(); c.fillStyle = '#6a9a55'; c.beginPath(); c.arc(X(o.x), Z(o.z), o.islandR * S, 0, 7); c.fill(); c.fillStyle = '#3d4046'; }
-    c.fillStyle = '#8f8a79'; for (const b of city.buildings) c.fillRect(X(b.x - b.w / 2), Z(b.z - b.d / 2), b.w * S, b.d * S);
-    c.fillStyle = '#ffc20e'; for (const s of city.shops) c.fillRect(X(s.x) - 3, Z(s.z) - 3, 6, 6); c.fillStyle = '#4aa3ff'; for (const j of city.jobs) c.fillRect(X(j.x) - 3, Z(j.z) - 3, 6, 6);
-    c.fillStyle = '#35c46b'; for (const b of city.billboards) if (b.surface !== 'lagoon_plot') c.fillRect(X(b.x) - 2, Z(b.z) - 2, 4, 4);
-    if (wp) { c.fillStyle = '#b44cff'; c.beginPath(); c.arc(X(wp.x), Z(wp.z), 7, 0, 7); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 2; c.stroke(); }
-    c.fillStyle = '#fff'; for (const g of ghosts.map.values()) if (g.root) { c.beginPath(); c.arc(X(g.root.position.x), Z(g.root.position.z), 3.5, 0, 7); c.fill(); }
-    c.save(); c.translate(X(ctrl.x), Z(ctrl.z)); c.rotate(-ctrl.ry + Math.PI / 2); c.fillStyle = '#ff3b30'; c.beginPath(); c.moveTo(0, -8); c.lineTo(6, 7); c.lineTo(-6, 7); c.closePath(); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 2; c.stroke(); c.restore();
+  /** HUD radar: pans with the player so they stay centred and never walk off the visible map. */
+  minimap(ctrl, city, ghosts, wp) {
+    const c = this.mm, W = 300, mid = W / 2;
+    const B = city.bounds;
+    // ~160 m across the radar; larger districts stay readable while the view follows the player
+    const span = Math.min(180, Math.max(90, Math.max(B.maxX - B.minX, B.maxZ - B.minZ) * 0.22));
+    const S = (W - 20) / span;
+    const cx = ctrl.x, cz = ctrl.z;
+    const X = (x) => (x - cx) * S + mid, Z = (z) => (z - cz) * S + mid;
+    const near = (x, z, pad = 40) => Math.abs(x - cx) * S < mid + pad && Math.abs(z - cz) * S < mid + pad;
+    c.clearRect(0, 0, W, W);
+    // water beyond the district edge, land inside bounds
+    c.fillStyle = '#2b6f8a'; c.fillRect(0, 0, W, W);
+    c.fillStyle = '#c9c3ad';
+    const lx = X(B.minX), lz = Z(B.minZ), lw = (B.maxX - B.minX) * S, ld = (B.maxZ - B.minZ) * S;
+    c.fillRect(lx, lz, lw, ld);
+    if (city.water) { c.fillStyle = '#2b6f8a'; c.fillRect(X(city.water.minX ?? B.minX), Z(Math.max(B.maxZ, city.water.minZ ?? B.maxZ)), W, W); }
+    c.fillStyle = '#2b6f8a';
+    for (const k of city.creeks || []) {
+      if (!near((k.x0 + k.x1) / 2, (k.z0 + k.z1) / 2, 80)) continue;
+      c.fillRect(X(Math.max(B.minX, k.x0)), Z(Math.max(B.minZ, k.z0)), (Math.min(B.maxX, k.x1) - Math.max(B.minX, k.x0)) * S, (Math.min(B.maxZ, k.z1) - Math.max(B.minZ, k.z0)) * S);
+    }
+    c.fillStyle = '#e9d9a0';
+    for (const l of city.landmarks || []) if (l.kind === 'beach' && !l.island && near(l.cx, l.cz, 80)) c.fillRect(X(l.cx - l.w / 2), Z(l.cz - l.d / 2), l.w * S, l.d * S);
+    c.fillStyle = '#8f8a79';
+    for (const b of city.buildings) { if (!near(b.x, b.z, 24)) continue; c.fillRect(X(b.x - b.w / 2), Z(b.z - b.d / 2), b.w * S, b.d * S); }
+    // Roads after buildings so streets stay visible. Include any segment that crosses the radar
+    // (not only roads whose endpoints sit near you — long roads like Danfo Drive were vanishing mid-block).
+    const viewR = span / 2 + 20;
+    const roadStroke = (pts, color, width) => {
+      c.strokeStyle = color; c.lineWidth = width; c.lineJoin = 'round'; c.lineCap = 'butt';
+      c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(X(p[0]), Z(p[1])) : c.moveTo(X(p[0]), Z(p[1]))); c.stroke();
+    };
+    for (const r of city.roads || []) {
+      const pts = roadPts(r); if (nearestOnPoly(pts, cx, cz).d > viewR + (r.width || 10)) continue;
+      const w = Math.max(2, (r.width || 10) * S);
+      roadStroke(pts, '#b9b39a', w + 2.5);
+      roadStroke(pts, '#3d4046', w);
+    }
+    c.fillStyle = '#3d4046';
+    for (const o of city.roundabouts || []) {
+      if (!near(o.x, o.z, 40)) continue;
+      c.beginPath(); c.arc(X(o.x), Z(o.z), o.outerR * S, 0, 7); c.fill();
+      c.fillStyle = '#6a9a55'; c.beginPath(); c.arc(X(o.x), Z(o.z), o.islandR * S, 0, 7); c.fill(); c.fillStyle = '#3d4046';
+    }
+    c.fillStyle = '#ffc20e'; for (const s of city.shops) { if (near(s.x, s.z)) c.fillRect(X(s.x) - 3, Z(s.z) - 3, 6, 6); }
+    c.fillStyle = '#4aa3ff'; for (const j of city.jobs) { if (near(j.x, j.z)) c.fillRect(X(j.x) - 3, Z(j.z) - 3, 6, 6); }
+    c.fillStyle = '#35c46b'; for (const b of city.billboards) if (b.surface !== 'lagoon_plot' && near(b.x, b.z)) c.fillRect(X(b.x) - 2, Z(b.z) - 2, 4, 4);
+    if (wp && near(wp.x, wp.z, 60)) { c.fillStyle = '#b44cff'; c.beginPath(); c.arc(X(wp.x), Z(wp.z), 7, 0, 7); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 2; c.stroke(); }
+    c.fillStyle = '#fff';
+    for (const g of ghosts.map.values()) if (g.root && near(g.root.position.x, g.root.position.z)) { c.beginPath(); c.arc(X(g.root.position.x), Z(g.root.position.z), 3.5, 0, 7); c.fill(); }
+    // district edge so you can see when you are near the map border
+    c.strokeStyle = '#b3261e99'; c.lineWidth = 2; c.strokeRect(lx, lz, lw, ld);
+    c.save(); c.translate(mid, mid); c.rotate(-ctrl.ry + Math.PI / 2); c.fillStyle = '#ff3b30'; c.beginPath(); c.moveTo(0, -8); c.lineTo(6, 7); c.lineTo(-6, 7); c.closePath(); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 2; c.stroke(); c.restore();
   }
 
   // ---------- sheets ----------
-  openSheet(title, body, onClose) { this.onClose = onClose || null; $('#sheetTitle').textContent = title; const b = $('#sheetBody'); b.replaceChildren(...[].concat(body)); $('#sheetWrap').classList.remove('hidden'); this.sheetOpen = true; this.g.ctrl.frozen = true; }
+  openSheet(title, body, onClose) {
+    const wrap = $('#sheetWrap');
+    // Leaving the iPhone chrome (e.g. Land → View plot) must restore the cream sheet.
+    // Otherwise #sheet stays transparent and dark ink disappears over the night world.
+    if (wrap.classList.contains('phone-mode')) {
+      wrap.classList.remove('phone-mode');
+      const prev = this.onClose; this.onClose = null; try { prev?.(); } catch { /* ignore */ }
+    }
+    this.onClose = onClose || null;
+    $('#sheetTitle').textContent = title;
+    $('#sheetBody').replaceChildren(...[].concat(body));
+    wrap.classList.remove('hidden');
+    this.sheetOpen = true;
+    this.g.ctrl.frozen = true;
+  }
   setSheetBody(body) { $('#sheetBody').replaceChildren(...[].concat(body)); }
-  closeSheet() { if (!this.sheetOpen) return; $('#sheetWrap').classList.add('hidden'); this.sheetOpen = false; this.g.ctrl.frozen = this.g.busy; clearInterval(this.tick); const f = this.onClose; this.onClose = null; f?.(); $('#game').focus(); }
+  closeSheet() {
+    if (!this.sheetOpen) return;
+    $('#sheetWrap').classList.remove('phone-mode');
+    $('#sheetWrap').classList.add('hidden');
+    this.sheetOpen = false;
+    this.g.ctrl.frozen = this.g.busy;
+    clearInterval(this.tick);
+    const f = this.onClose; this.onClose = null; f?.();
+    $('#game').focus();
+  }
   async guard(fn) { try { return await fn(); } catch (e) { this.error(e); return null; } }
 
   /** universal tap-a-place sheet: info block by type + travel chips + Go */
@@ -116,7 +186,7 @@ export class UI {
         const sel = q.modes.find(m => m.id === mode); const go = h('button', { class: 'btn big alt', disabled: here || !sel, onclick: () => this.go(pl, sel, q) }, here ? "You're here" : mode === 'walk' ? 'Set waypoint & walk' : `Go · ${fmtN(sel.fare)}`);
         goWrap.replaceChildren(h('div', { class: 'row sp' }, h('span', { class: 'mut' }, `${Math.round(q.distance)} m away`), h('span', { class: `tag ${q.rush ? 'amber' : 'green'}` }, (q.rush ? '⏰ ' : '') + q.traffic)), here ? '' : chips, go);
       }; rebuild();
-      body.replaceChildren(h('div', { class: 'mut' }, `${pl.area} · ${typeLabel(pl.type)}`), info, goWrap); this.fillPlaceInfo(info, pl, q);
+      body.replaceChildren(h('div', { class: 'mut' }, `${pl.area} · ${placeKindLabel(pl)}`), info, goWrap); this.fillPlaceInfo(info, pl, q);
     }; render();
   }
   async go(pl, mode, q) {
@@ -136,7 +206,13 @@ export class UI {
   }
   venueBlock(el, pl) {
     const near = dist2(this.g.pos(), pl) < 16 + 4; const hrs = pl.hours ? `Open ${pl.hours[0]}:00 to ${pl.hours[1]}:00` : '';
-    el.replaceChildren(h('p', { class: 'mut' }, hrs), h('p', {}, pl.id === 'venue_motors' ? 'Look at the cars, compare running costs and buy one. Placeholder prices are ESTIMATES.' : pl.id === 'venue_meco' ? 'Meco fixes cars. Check your car, or pay a placeholder (ESTIMATE) fee for a quick service.' : 'Step inside to eat, chat, and play Whot or Ayo against other players. 🎲 Game money only.'),
+    const desc = pl.blurb
+      || (pl.id === 'venue_motors' ? 'Look at the cars, compare running costs and buy one. Placeholder prices are ESTIMATES.'
+        : pl.id === 'venue_meco' ? 'Meco fixes cars. Check your car, or pay a placeholder (ESTIMATE) fee for a quick service.'
+          : pl.id === 'venue_armoury' || pl.kind === 'armoury' ? 'Buy a gun and keep it, or hire an HD bodyguard (optional Black G-Wagon escort). Placeholder prices (ESTIMATE). Game money only.'
+            : pl.id === 'venue_police' || pl.kind === 'police' ? 'Report a case or bail someone from holding. Filing and bail fees are game money only (ESTIMATE).'
+              : 'Step inside to eat, chat, and play Whot or Ayo against other players. 🎲 Game money only.');
+    el.replaceChildren(h('p', { class: 'mut' }, hrs), h('p', {}, desc),
       h('button', { class: 'btn big alt', disabled: !near, id: 'venueEnter', onclick: () => { this.closeSheet(); this.g.venue.show(pl.id); } }, near ? 'Go inside' : 'Walk to the door first'));
   }
   // ----- shops with price channels
@@ -192,6 +268,11 @@ export class UI {
       h('div', {}, h('b', { style: 'font-size:18px' }, title), h('div', { class: 'mut' }, `${p.tierLabel} · ${p.area}`))));
     if (p.owner) kids.push(h('div', { class: 'row sp' }, h('span', {}, h('span', { class: `dot ${p.presence}` }), dotLabel), h('span', { class: 'tag' }, `${p.items} items`)));
     kids.push(nameRow);
+    if (mine) kids.push(h('p', { class: 'mut' }, 'Your name is on the house. Other players can read it from the street.'));
+    if (mine && (g.cfg.facades || []).length) {
+      kids.push(h('div', { class: 'mut' }, 'Paint the outside'));
+      kids.push(h('div', { class: 'swatches' }, g.cfg.facades.map(c => h('button', { class: `sw ${p.facade === c.hex ? 'on' : ''}`, title: c.name, style: `background:${c.hex}`, onclick: async () => { const r = await this.guard(() => post('/api/property/facade', { propertyId: p.id, color: c.id, idemKey: crypto.randomUUID?.() })); if (r) { g.update(r.user); this.toast(r.charged ? `Outside painted. −${fmtN(r.charged)}` : 'Already that colour.', 'money'); g.refreshProps(); this.houseBlock(el, propertyId); } } }))));
+    }
     if (mine) {
       kids.push(h('div', { class: 'row' }, h('span', { class: 'tag green' }, p.mode === 'own' ? 'You own this' : `Rent ${fmtN(p.rent)}/day`), p.nextRentDue ? h('span', { class: 'mut' }, `next rent ${new Date(p.nextRentDue).toLocaleString('en-NG', { weekday: 'short', hour: 'numeric', minute: '2-digit' })}`) : ''));
       kids.push(h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => { this.closeSheet(); g.enterHome(); } }, '🚪 Go inside'), h('button', { class: 'btn ghost', onclick: () => this.confirm(p.mode === 'own' ? `Sell for about 70% of what you paid?` : 'Move out? (no refund)', async () => { const r = await this.guard(() => post('/api/property/release')); if (r) { g.update(r.user); this.toast(r.refund ? say('sold', r.refund) : 'You moved out.'); this.houseBlock(el, propertyId); } }) }, p.mode === 'own' ? 'Sell house' : 'Move out')));
@@ -206,7 +287,14 @@ export class UI {
     el.replaceChildren(...kids);
   }
   review(p, mode, done) { const cost = mode === 'own' ? p.price : p.rent; const body = h('div', {}, h('h3', {}, 'Review'), h('p', {}, `${p.baseName} · ${p.tierLabel} · ${p.area}`), h('p', {}, mode === 'own' ? `Price ${fmtN(cost)} (one-off). You can sell back later for about 70%.` : `Rent ${fmtN(cost)} per day. Day 1 is paid now. Miss ${this.g.cfg.evictAfter || 2} rent days and you are evicted.`), h('div', { class: 'row' }, h('button', { class: 'btn alt', onclick: async () => { const r = await this.guard(() => post('/api/property/acquire', { propertyId: p.id, mode, idem: crypto.randomUUID?.() || String(Math.random()), pos: this.g.pos() })); if (r) { this.g.update(r.user); this.toast(say('home'), 'money'); this.sfx('ok'); done(); this.g.refreshProps(); } } }, `Pay ${fmtN(cost)}`), h('button', { class: 'btn ghost', onclick: done }, 'Back'))); this.setSheetBody(body); }
-  confirm(text, yes) { this.setSheetBody(h('div', {}, h('p', {}, text), h('div', { class: 'row' }, h('button', { class: 'btn red', onclick: yes }, 'Yes'), h('button', { class: 'btn ghost', onclick: () => this.closeSheet() }, 'Cancel')))); }
+  // Always open the sheet — chips (tow, etc.) call this while the sheet is closed; setSheetBody alone would write into a hidden panel.
+  confirm(text, yes) {
+    this.openSheet('Confirm', h('div', {},
+      h('p', {}, text),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn red', onclick: () => yes?.() }, 'Yes'),
+        h('button', { class: 'btn ghost', onclick: () => this.closeSheet() }, 'Cancel'))));
+  }
   rename(p, done) { const T = this.g.cfg.maxNameLen; const inp = h('input', { class: 'sheet-input', maxlength: T, value: p.name }); this.setSheetBody(h('div', {}, h('h3', {}, 'Name your house'), inp, h('p', { class: 'mut' }, `3-${T} characters. Rude names get refused.`), h('div', { class: 'row' }, h('button', { class: 'btn', onclick: async () => { const r = await this.guard(() => post('/api/property/name', { name: inp.value })); if (r) { this.g.update(r.user); this.toast(`Your house is now "${r.name}"`, 'money'); this.g.refreshProps(); done(); } } }, 'Save'), h('button', { class: 'btn ghost', onclick: done }, 'Cancel')))); inp.focus(); inp.select(); }
   message(to) { const inp = h('input', { class: 'sheet-input', maxlength: 140, placeholder: `Message @${to}…` }); this.setSheetBody(h('div', {}, h('h3', {}, `Message @${to}`), inp, h('div', { class: 'row' }, h('button', { class: 'btn', onclick: async () => { const r = await this.guard(() => post('/api/dm', { to, text: inp.value })); if (r) { this.toast('Message sent.'); this.closeSheet(); } } }, 'Send'), h('button', { class: 'btn ghost', onclick: () => this.closeSheet() }, 'Cancel')))); inp.focus(); }
   async knock(p) {
@@ -239,13 +327,18 @@ export class UI {
   }
 
   // ---------- phone ----------
-  phone(tab) { this.g.tutorial?.ack('phone');
-    if (this.g.cfg.phone && this.g.phone2) { this.shell ||= new PhoneShell(this); return this.shell.open(tab || 'home'); }
+  phone(tab) {
+    this.g.tutorial?.ack('phone');
+    // Prefer iPhone chrome whenever PhoneSys exists (cfg.phone gates APIs, not the shell).
+    if (this.g.phone2) { this.shell ||= new PhoneShell(this); return this.shell.open(tab || 'home'); }
     return this.phoneLegacy(tab || 'wallet');
   }
   phoneLegacy(tab = 'wallet') {
-    const g = this.g; const tabs = [['wallet', '💰 Wallet'], ['jobs', '💼 Jobs'], ['home', '🏠 Home'], ['land', '🌍 Land'], ['ranks', '🏆 Ranks'], ['missions', '🎯 Missions'], ['me', '🏅 Me'], ['safe', '🛡 Safety'], ['garage', '🚗 Garage'], ['games', '🎮 Games'], ['map', '🗺 Map'], ['alerts', '🔔 Alerts'], ['more', '⚙️ More']]; const body = h('div', {}); let cur = tab;
-    const bar = h('div', { class: 'tabrow' }); const drawTabs = () => bar.replaceChildren(...tabs.map(([id, l]) => h('button', { class: id === cur ? 'on' : '', onclick: () => { cur = id; drawTabs(); render(); } }, l)));
+    // Fallback only: icon grid (no horizontal scroll chip row).
+    const tabs = [['wallet', '💰', 'Wallet'], ['jobs', '💼', 'Jobs'], ['home', '🏠', 'Home'], ['land', '🌍', 'Land'], ['ranks', '🏆', 'Ranks'], ['missions', '🎯', 'Missions'], ['me', '🏅', 'Me'], ['safe', '🛡', 'Safety'], ['garage', '🚗', 'Garage'], ['games', '🎮', 'Games'], ['map', '🗺', 'Map'], ['alerts', '🔔', 'Alerts'], ['more', '⚙️', 'More']];
+    const body = h('div', {}); let cur = tab;
+    const bar = h('div', { class: 'phone-grid' });
+    const drawTabs = () => bar.replaceChildren(...tabs.map(([id, ico, l]) => h('button', { class: 'pgrid-btn' + (id === cur ? ' on' : ''), onclick: () => { cur = id; drawTabs(); render(); } }, h('span', { class: 'pgrid-ico' }, ico), h('span', {}, l))));
     const render = async () => { body.replaceChildren(h('p', { class: 'mut' }, 'Loading…')); const fn = this['tab_' + cur]; const el = await fn.call(this); body.replaceChildren(...[].concat(el)); };
     drawTabs(); this.openSheet('Phone', [bar, body]); render();
   }
@@ -287,4 +380,12 @@ export class UI {
 }
 const dist2 = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const typeLabel = (t) => ({ venue: 'Place to hang out', shop: 'Shop', job: 'Work', house: 'House', plot: 'Land plot', landmark: 'Landmark' }[t] || t);
+const placeKindLabel = (pl) => {
+  if (pl.kind === 'armoury' || pl.id === 'venue_armoury') return 'Armoury';
+  if (pl.kind === 'mosque' || (pl.id && String(pl.id).startsWith('venue_mosque'))) return 'Mosque';
+  if (pl.kind === 'church' || pl.id === 'venue_church') return 'Church';
+  if (pl.id === 'venue_motors') return 'Car showroom';
+  if (pl.id === 'venue_meco' || pl.id === 'venue_meko') return 'Garage';
+  return typeLabel(pl.type);
+};
 Object.assign(UI.prototype, lifeUi); // Track G: City life app (businesses, market, clubs, events, pass)

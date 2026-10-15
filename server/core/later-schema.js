@@ -70,6 +70,28 @@ CREATE INDEX IF NOT EXISTS ix_acc_creative ON ad_campaign_creatives(creative_id)
   ,{ n: 18, name: 'treasures', sql: `
 CREATE TABLE IF NOT EXISTS treasure_claims (treasure_id TEXT PRIMARY KEY, user_id INTEGER NOT NULL, amount INTEGER NOT NULL, claimed_at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS ix_treasure_claims_user ON treasure_claims(user_id);` }
+  ,{ n: 20, name: 'referrals', sql: `
+CREATE TABLE IF NOT EXISTS referral_codes (user_id INTEGER PRIMARY KEY, code TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS referral_edges (user_id INTEGER PRIMARY KEY, parent_id INTEGER NOT NULL, created_at INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS ix_referral_edges_parent ON referral_edges(parent_id);
+CREATE TABLE IF NOT EXISTS referral_payouts (id INTEGER PRIMARY KEY AUTOINCREMENT, beneficiary_id INTEGER NOT NULL, source_user_id INTEGER NOT NULL, level INTEGER NOT NULL, amount INTEGER NOT NULL, created_at INTEGER NOT NULL, UNIQUE (beneficiary_id, source_user_id, level));
+CREATE INDEX IF NOT EXISTS ix_referral_payouts_ben ON referral_payouts(beneficiary_id);
+CREATE TABLE IF NOT EXISTS referral_invites (id INTEGER PRIMARY KEY AUTOINCREMENT, inviter_id INTEGER NOT NULL, email TEXT NOT NULL, token TEXT NOT NULL UNIQUE, status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL, accepted_at INTEGER, accepted_user_id INTEGER);
+CREATE INDEX IF NOT EXISTS ix_referral_invites_inviter ON referral_invites(inviter_id, id);` }
+  ,{ n: 24, name: 'guns_bodyguards', sql: `
+CREATE TABLE IF NOT EXISTS guns_owned (user_id INTEGER NOT NULL, item_id TEXT NOT NULL, price_paid INTEGER NOT NULL, bought_at INTEGER NOT NULL, PRIMARY KEY (user_id, item_id));
+CREATE TABLE IF NOT EXISTS guns_equipped (user_id INTEGER PRIMARY KEY, item_id TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS ix_guns_item ON guns_owned(item_id);
+CREATE TABLE IF NOT EXISTS bodyguards (user_id INTEGER PRIMARY KEY, plan TEXT NOT NULL, paid INTEGER NOT NULL, hired_at INTEGER NOT NULL, until_at INTEGER NOT NULL, name TEXT NOT NULL);` }
+  ,{ n: 27, name: 'police', sql: `
+CREATE TABLE IF NOT EXISTS police_evidence (id INTEGER PRIMARY KEY AUTOINCREMENT, attacker_id INTEGER NOT NULL, victim_id INTEGER NOT NULL, kind TEXT NOT NULL, amount INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS ix_police_evidence_pair ON police_evidence(attacker_id, victim_id, expires_at);
+CREATE TABLE IF NOT EXISTS police_cases (id INTEGER PRIMARY KEY AUTOINCREMENT, reporter_id INTEGER NOT NULL, accused_id INTEGER NOT NULL, reason TEXT NOT NULL, detail TEXT NOT NULL DEFAULT '', evidence_id INTEGER, created_at INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'logged');
+CREATE INDEX IF NOT EXISTS ix_police_cases_reporter ON police_cases(reporter_id, id);
+CREATE INDEX IF NOT EXISTS ix_police_cases_accused ON police_cases(accused_id, id);
+CREATE TABLE IF NOT EXISTS police_holds (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, reason TEXT NOT NULL, charge INTEGER NOT NULL DEFAULT 0, reporter_id INTEGER, status TEXT NOT NULL DEFAULT 'held', held_at INTEGER NOT NULL, until_at INTEGER NOT NULL, auto INTEGER NOT NULL DEFAULT 0, released_at INTEGER, released_by INTEGER, release_how TEXT);
+CREATE INDEX IF NOT EXISTS ix_police_holds_user ON police_holds(user_id, status, until_at);
+CREATE INDEX IF NOT EXISTS ix_police_holds_active ON police_holds(status, until_at);` }
 ];
 // 16 (ad placement, 11 Oct 2026) also adds the column ad_campaigns.placement ('shared' | 'exclusive'): SQLite: migrate() in schema.js; Postgres: ALTER in 0016_ad_placement.sql.
 // Campaigns that existed before get one design row each from migrate() (SQLite) / the same INSERT in 0016 (Postgres).

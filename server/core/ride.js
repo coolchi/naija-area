@@ -22,18 +22,23 @@ export function quote(app, uid, placeId) {
   return { place: { id: pl.id, name: pl.name, area: pl.area }, distance: Math.round(d), fare, seconds, rush, etaMs, driverDist, estimate: true, service: R.name, cash: balanceOf(app.db, cashId(uid)) };
 }
 function refresh(app, uid) { const r = rides(app).get(uid); if (!r) return null; const now = app.clock.now(); if (now > r.expiresAt) { rides(app).delete(uid); return null; } r.state = now >= r.arriveAt ? 'arrived' : 'arriving'; return r; }
-const view = (app, r) => r && ({ id: r.id, state: r.state, placeId: r.placeId, placeName: cityOf(app, r.uid).placeById[r.placeId]?.name, sponsor: r.sponsor || null, fare: r.fare, from: r.from, requestedAt: r.requestedAt, arriveAt: r.arriveAt, expiresAt: r.expiresAt, driver: r.driver, driverDist: r.driverDist, estimate: true });
+const view = (app, r) => r && ({ id: r.id, state: r.state, placeId: r.placeId, placeName: cityOf(app, r.uid).placeById[r.placeId]?.name, sponsor: r.sponsor || null, fare: r.fare, from: r.from, requestedAt: r.requestedAt, arriveAt: r.arriveAt, expiresAt: r.expiresAt, driver: r.driver, driverDist: r.driverDist, faintRescue: !!r.faintRescue, estimate: true });
 export const status = (app, uid) => ({ ride: view(app, refresh(app, uid)), service: app.balance.ride.name });
-export function request(app, uid, placeId) {
+export function request(app, uid, placeId, opts = {}) {
   assertNotFlying(app, uid);
-  const R = app.balance.ride; if (!R.enabled) bad('OFF', 'Oya Ride is switched off.', 409); const p = ensurePresence(app, uid); if (p.mode === 'drive') bad('DRIVING', 'Park your car first.', 409); if (p.venue) bad('INSIDE', 'Step outside first.', 409);
-  if (refresh(app, uid)) bad('ACTIVE', 'You already have a ride on the way.', 409); const q = quote(app, uid, placeId); if (q.distance < R.minDistanceM) bad('TOO_CLOSE', 'That is very near. Just walk.', 409);
+  const R = app.balance.ride; if (!R.enabled) bad('OFF', 'Oya Ride is switched off.', 409); const p = ensurePresence(app, uid);
+  const faint = !!opts.faintRescue || !!p.fainted;
+  if (p.mode === 'drive' && !faint) bad('DRIVING', 'Park your car first.', 409);
+  if (p.mode === 'drive' && faint) { p.mode = 'walk'; app.db.prepare("UPDATE player_state SET mode='walk' WHERE user_id=?").run(uid); }
+  if (p.venue) bad('INSIDE', 'Step outside first.', 409);
+  if (refresh(app, uid)) bad('ACTIVE', 'You already have a ride on the way.', 409); const q = quote(app, uid, placeId);
+  if (!faint && q.distance < R.minDistanceM) bad('TOO_CLOSE', 'That is very near. Just walk.', 409);
   if (!app.limiter.hit(`ride:${uid}`, R.requestsPerMin, 60000, app.clock.now())) bad('RATE_LIMIT', 'Easy, one ride at a time.', 429);
   if (q.cash < q.fare) bad('NO_FUNDS', `This ride costs about ₦${q.fare}.`, 402, { fare: q.fare }); const now = app.clock.now(); const id = (app.world.rideSeq = (app.world.rideSeq || 0) + 1);
   const dn = DRIVERS[Math.floor(hash(id * 3) * DRIVERS.length)], cr = CARS[Math.floor(hash(id * 5) * CARS.length)]; const plate = `NA ${100 + Math.floor(hash(id * 7) * 899)} ${String.fromCharCode(65 + Math.floor(hash(id * 11) * 26))}${String.fromCharCode(65 + Math.floor(hash(id * 13) * 26))}`;
-  const r = { id, uid, placeId, from: { x: p.x, z: p.z }, fare: q.fare, seconds: q.seconds, state: 'arriving', requestedAt: now, arriveAt: now + q.etaMs, expiresAt: now + q.etaMs + R.waitMs, driver: { name: dn, car: cr[0], color: cr[1], plate }, driverDist: q.driverDist, cityId: cityOf(app, uid).id };
+  const r = { id, uid, placeId, from: { x: p.x, z: p.z }, fare: q.fare, seconds: q.seconds, state: 'arriving', requestedAt: now, arriveAt: now + q.etaMs, expiresAt: now + q.etaMs + R.waitMs, driver: { name: dn, car: cr[0], color: cr[1], plate }, driverDist: q.driverDist, cityId: cityOf(app, uid).id, faintRescue: faint };
   r.sponsor = rideSponsor(app, r.cityId, id, now); rideSponsorShown(app, r.sponsor, now); // the car wears the sponsor's livery (if one is booked); counted when you board
-  rides(app).set(uid, r); return { ok: true, ride: view(app, r), text: `${dn} dey come in a ${cr[0].toLowerCase()}.` };
+  rides(app).set(uid, r); return { ok: true, ride: view(app, r), text: faint ? `${dn} dey come to take you to eat.` : `${dn} dey come in a ${cr[0].toLowerCase()}.` };
 }
 export function cancel(app, uid) {
   const R = app.balance.ride; const r = refresh(app, uid); if (!r) return { ok: true, fee: 0 }; let fee = 0;
@@ -42,8 +47,11 @@ export function cancel(app, uid) {
 }
 export function start(app, uid, idemKey) {
   const R = app.balance.ride; const r = refresh(app, uid); if (!r) bad('NO_RIDE', 'No ride on the way.', 409); if (r.state !== 'arrived') bad('NOT_YET', 'Your driver never reach yet.', 409, { waitMs: r.arriveAt - app.clock.now() });
-  const p = ensurePresence(app, uid); if (Math.hypot(p.x - r.from.x, p.z - r.from.z) > R.boardRangeM) bad('TOO_FAR', 'Walk back to where you called the ride.', 409, { x: r.from.x, z: r.from.z });
+  const p = ensurePresence(app, uid);
+  const boardRange = r.faintRescue || p.fainted ? Math.max(R.boardRangeM, 40) : R.boardRangeM;
+  if (Math.hypot(p.x - r.from.x, p.z - r.from.z) > boardRange) bad('TOO_FAR', 'Walk back to where you called the ride.', 409, { x: r.from.x, z: r.from.z });
   const res = travel(app, uid, r.placeId, 'ride', idemKey ? `ride:${r.id}:${idemKey}` : `ride:${r.id}`, { id: 'ride', label: R.name, fare: r.fare, seconds: r.seconds });
-  rideSponsorBoarded(app, uid, r.id, r.sponsor, r.cityId, app.clock.now()); rides(app).delete(uid); return { ...res, driver: r.driver, service: R.name, sponsor: r.sponsor || null };
+  rideSponsorBoarded(app, uid, r.id, r.sponsor, r.cityId, app.clock.now()); const faintRescue = !!r.faintRescue; rides(app).delete(uid);
+  return { ...res, driver: r.driver, service: R.name, sponsor: r.sponsor || null, faintRescue };
 }
 void gameTime;

@@ -40,7 +40,7 @@ export class RideClient {
   async cancel() { if (this.busy) return; this.busy = true; try { const r = await post('/api/ride/cancel', {}); this.g.ui.toast(r.text); this.set(null); } catch (e) { this.g.ui.error(e); } finally { this.busy = false; } }
   async act() {
     const g = this.g, r = this.ride; if (!r || this.busy || r.state !== 'arrived') return; this.busy = true;
-    try { const pl = g.city.places.find(p => p.id === r.placeId); const res = await post('/api/ride/start', { pos: g.pos(), idem: Math.random().toString(36).slice(2) }); g.update(res.user); this.riding = this.car; this.car = null; this.ride = null; this.path = null; g.runCommute({ ...res, mode: 'ride' }, pl, { traffic: `${res.service} · ${res.driver.name}, ${res.driver.plate}` }); }
+    try { const pl = g.city.places.find(p => p.id === r.placeId); const res = await post('/api/ride/start', { pos: g.pos(), idem: Math.random().toString(36).slice(2) }); g.update(res.user); this.riding = this.car; this.car = null; this.ride = null; this.path = null; g.runCommute({ ...res, mode: 'ride', faintRescue: !!(res.faintRescue || r.faintRescue) }, pl, { traffic: `${res.service} · ${res.driver.name}, ${res.driver.plate}` }); }
     catch (e) { g.ui.error(e); } finally { this.busy = false; }
   }
   tick(dt) {
@@ -51,7 +51,11 @@ export class RideClient {
     this.t += dt; this.poll += dt; if (this.poll > 20000) { this.poll = 0; this.load(); }
     const r = this.ride; if (r && this.car) { const now = g.serverNow(); const p = driverProgress(now, r.requestedAt, r.arriveAt); this.place(this.len * p); if (now >= r.arriveAt && r.state === 'arriving') { r.state = 'arrived'; g.ui.sfx('horn'); g.ui.toast(`${r.driver.name} don reach! Look for the ${r.driver.car.toLowerCase()}.`); } if (now > r.expiresAt) { this.set(null); } }
     if (this.t < 200) return; this.t = 0; let label = null;
-    if (this.ride) { const r2 = this.ride; if (r2.state === 'arriving') label = `🚕 ${r2.driver.name} is coming · ${Math.max(0, Math.ceil((r2.arriveAt - g.serverNow()) / 1000))} s${r2.sponsor ? ' · ' + r2.sponsor.b : ''}`; else { const near = Math.hypot(g.ctrl.x - r2.from.x, g.ctrl.z - r2.from.z) <= 14; label = near ? `🚕 Get in · ₦${r2.fare.toLocaleString('en-NG')} to ${r2.placeName}` : `🚕 Your driver is waiting at the pickup spot`; } }
-    if (g.commute || g.busy) label = null; this.chip.classList.toggle('hidden', !label); if (label) $('#rideBtn').textContent = label; $('#rideBtn').disabled = !!this.ride && this.ride.state !== 'arrived';
+    if (this.ride) { const r2 = this.ride; if (r2.state === 'arriving') label = `🚕 ${r2.driver.name} is coming · ${Math.max(0, Math.ceil((r2.arriveAt - g.serverNow()) / 1000))} s${r2.sponsor ? ' · ' + r2.sponsor.b : ''}`; else {
+      const near = Math.hypot(g.ctrl.x - r2.from.x, g.ctrl.z - r2.from.z) <= 14;
+      // Hunger rescue: player cannot walk — always offer Get in once the cab has arrived
+      label = (near || r2.faintRescue) ? `🚕 Get in · ₦${r2.fare.toLocaleString('en-NG')} to ${r2.placeName}` : `🚕 Your driver is waiting at the pickup spot`;
+    } }
+    if (g.commute || (g.busy && !this.ride?.faintRescue)) label = null; this.chip.classList.toggle('hidden', !label); if (label) $('#rideBtn').textContent = label; $('#rideBtn').disabled = !!this.ride && this.ride.state !== 'arrived';
   }
 }

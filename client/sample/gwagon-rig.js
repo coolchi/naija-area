@@ -55,12 +55,8 @@ function wheelTemplate() {
   const g = new THREE.Group();
   const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.3, 64), rubber);
   tire.rotation.x = Math.PI / 2; g.add(tire);
-  const shoulder = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.045, 10, 48), rubber);
-  shoulder.rotation.x = Math.PI / 2; g.add(shoulder);
   const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.2, 48), metal);
   rim.rotation.x = Math.PI / 2; g.add(rim);
-  const lip = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.016, 8, 48), metal);
-  lip.rotation.x = Math.PI / 2; lip.position.z = 0.09; g.add(lip);
   const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.14, 24), black);
   barrel.rotation.x = Math.PI / 2; g.add(barrel);
   for (let i = 0; i < 12; i++) {

@@ -5,7 +5,7 @@ import { checkInvariants, balanceOf, cashId, move, SYS } from '../server/core/le
 import { registerPlayerData, registeredNames } from '../server/core/account.js';
 import * as auth from '../server/core/auth.js';
 
-const mkReg = async (s, name = 'ada_test', password = 'secret-pass-1') => { const uid = await auth.signup(s.app, { username: name, password, age18: true }, 'ip'); return uid; };
+const mkReg = async (s, name = 'ada_test', password = 'secret-pass-1') => { const uid = await auth.signup(s.app, { username: name, password, age18: true, email: `${name}@example.com` }, 'ip'); return uid; };
 const fill = async (s, u) => {
   await ok(s, 'POST', '/api/signup/profile', { uid: u, body: { interestCity: 'kano', interests: ['music'] } });
   await ok(s, 'POST', '/api/office/idea', { uid: u, body: { category: 'gameplay', title: 'Okada race idea', description: 'A short okada race through the old lanes with a prize.', priority: 3 } });
@@ -39,7 +39,7 @@ test('closing erases personal content, anonymises the user, forfeits the wallet,
   assert.equal(db.prepare('SELECT COUNT(*) n FROM office_ideas WHERE user_id=?').get(other).n, 1, 'other players untouched'); assert.equal(balanceOf(db, cashId(u)), 0); assert.equal(checkInvariants(db).ok, true, 'money book still balances');
   assert.ok(db.prepare('SELECT 1 FROM ledger_entries e JOIN accounts a ON a.id=e.account_id WHERE a.user_id=?').get(u), 'ledger history kept'); assert.equal(db.prepare('SELECT forfeited FROM account_deletions WHERE user_id=?').get(u).forfeited, cash); assert.ok(db.prepare("SELECT 1 FROM audit_log WHERE action='account_closed'").get());
   assert.equal((await call(s, 'GET', '/api/me', { uid: u })).status, 401, 'old session is dead'); assert.equal((await call(s, 'POST', '/api/auth/login', { body: { username: 'ada_test', password: 'secret-pass-1' } })).json.error, 'BAD_LOGIN'); assert.equal((await call(s, 'POST', '/api/auth/login', { body: { username: `deleted_${u}`, password: 'secret-pass-1' } })).json.error, 'BAD_LOGIN');
-  assert.equal(s.app.world.players.has(u), false, 'gone from the world'); assert.equal((await call(s, 'POST', '/api/auth/signup', { body: { username: 'ada_test', password: 'secret-pass-2', age18: true } })).status, 200, 'the old name is free again');
+  assert.equal(s.app.world.players.has(u), false, 'gone from the world'); assert.equal((await call(s, 'POST', '/api/auth/signup', { body: { username: 'ada_test', password: 'secret-pass-2', age18: true, email: 'ada_test@example.com' } })).status, 200, 'the old name is free again');
 });
 test('closing releases a bought home (sell-back rules apply), forfeits the wallet, keeps the book balanced; the session is dead afterwards', async () => {
   const s = makeServer(); const u = await mkReg(s); const p = s.app.city.properties.find(x => x.price > 0); move(s.app, { from: SYS.FAUCET_TESTTOPUP, to: cashId(u), amount: 900000000, reason: 'test_topup', userId: u }); at(s, u, p.door.x, p.door.z);

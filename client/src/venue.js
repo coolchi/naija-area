@@ -10,13 +10,15 @@ import { boards2 } from './boards2.js';
 import { installSports } from './sports-ui.js';
 import { SportsStage, sportsModel } from './sports3d.js';
 import { wearSheet } from './wear-ui.js';
+import { gunSheet, bodyguardSheet } from './gun-ui.js';
+import { reportSheet, bailSheet, holdingSheet } from './police-ui.js';
 import { officeSheet } from './office-ui.js';
 import { applyWear } from './wear-models.js';
 import { stateLabel, scoreText, kickoffText, sourceLine, groupByLeague } from './scores-view.js';
 
 const SHAPE = { circle: ['●', '#d6402f'], triangle: ['▲', '#2e7dd1'], cross: ['✚', '#2e9b5e'], square: ['■', '#8a5ad1'], star: ['★', '#e0a020'], whot: ['W', '#222'] };
 const hash = (s) => { let x = 7; for (const c of String(s)) x = (x * 31 + c.charCodeAt(0)) >>> 0; return x; };
-const ICON = { wear: '💎', dance: '💃', dj: '🎧', bar: '🥤', songs: '🎵', vip: '👑', style: '✂️', basin: '🚿', eat: '🍲', game: '🎲', board: '🏆', poster: '📜', tv: '📺', ticket: '🎟️', scores: '📊', seat: '🪑', car: '🚗', check: '🔍', service: '🔧' };
+const ICON = { wear: '💎', gun: '🔫', bodyguard: '🛡️', dance: '💃', dj: '🎧', bar: '🥤', songs: '🎵', vip: '👑', style: '✂️', basin: '🚿', eat: '🍲', game: '🎲', board: '🏆', poster: '📜', tv: '📺', ticket: '🎟️', scores: '📊', seat: '🪑', car: '🚗', check: '🔍', service: '🔧', bench: '🏋️', bags: '🥊', treadmill: '🏃', squat: '🦵', weights: '💪', gym: '🏋️', train: '💪', pray: '🙏', cinema: '🎬', rest: '🪑', report: '📋', bail: '🔓', holding: '🏢' };
 
 const GAME_NAME = { whot: 'Whot', ludo: 'Ludo', dominoes: 'Dominoes', draughts: 'Draughts', ayo: 'Ayo', football: 'Table football', chess: 'Chess', wordduel: 'Word duel', landlord: 'Landlord Lagos', suwe: 'Suwe', pingpong: 'Ping pong', tennis: 'Tennis' };
 export class Venue {
@@ -24,7 +26,9 @@ export class Venue {
   async show(venueId) {
     const g = this.g; const data = await g.ui.guard(() => post('/api/venue/enter', { venueId, pos: g.pos() })); if (!data) return false;
     this.g.audio?.play('door'); this.data = data; this.id = venueId; this.open = true; g.busy = true; g.ctrl.frozen = true; this.matchId = null; this.match = null; this.dismissed = this.dismissed || new Set();
-    this.el.classList.remove('hidden'); this.el.replaceChildren(); this.build(); this.chrome(); this.loop(); this.poll(); return true;
+    this.el.classList.remove('hidden'); this.el.replaceChildren(); this.build(); this.chrome(); this.loop(); this.poll();
+    if (data.kind === 'mosque') this.g.audio?.startAdhan?.(); else this.g.audio?.stopAdhan?.();
+    return true;
   }
   build() {
     const d = this.data; const R = d.room; this.canvas = h('canvas'); this.el.append(this.canvas);
@@ -49,19 +53,53 @@ export class Venue {
     else if (st.type === 'tv') { const u = PR.tvUnit(3.0); grp.add(u); const t = PR.tv(2.7, { wall: true }); t.position.set(0, 1.0, -0.3); grp.add(t); }
     else if (st.type === 'check') { const c = makePlayerCar(st.color || '#3a7ca5'); c.scale.setScalar(0.34); c.position.y = 0.55; grp.add(c); box(2.0, 0.5, 1.1, 0x555a60, 0.25); box(0.2, 0.4, 0.2, 0xe0a020, 0.7).position.x = 1.15; }
     else if (st.type === 'service') { grp.add(PR.workbench(2.0)); const tc = PR.toolCart(); tc.position.set(1.4, 0, 0.1); grp.add(tc); for (let i = 0; i < 3; i++) box(0.25, 0.25, 0.25, [0xd6402f, 0x2e7dd1, 0xe0a020][i], 1.1).position.x = -0.6 + i * 0.6; }
-    else if (st.type === 'car') { const exclusive = st.body === 'gwagon' || st.body === 'cyber'; const c = makePlayerCar(st.color || '#888', st.body || 'hatch'); c.scale.setScalar(exclusive ? 0.62 : 0.38); c.rotation.y = Math.PI / 6; grp.add(c); box(exclusive ? 2.2 : 1.8, 0.06, exclusive ? 1.15 : 1.0, 0xdddddd, 0.03); }
+    else if (st.type === 'car') { const exclusive = st.body === 'gwagon' || st.body === 'g63' || st.body === 'cyber' || st.body === 'mclaren'; const isMicra = st.body === 'micra' || st.body === 'micra12'; const c = makePlayerCar(st.color || '#888', st.body || 'hatch'); c.scale.setScalar(st.body === 'cyber' ? 0.5 : exclusive ? 0.55 : isMicra ? 0.48 : 0.38); c.rotation.y = Math.PI / 6; grp.add(c); box(exclusive ? 2.2 : 1.8, 0.06, exclusive ? 1.15 : 1.0, 0xdddddd, 0.03); }
     const sp = makeNameSprite(`${ICON[st.type] || ''} ${shortLabel(st.label)}`, '#fff3c4'); sp.scale.set(2.8, 0.7, 1); grp.userData.label = sp; sp.position.y = st.type === 'dj' ? 2.3 : st.type === 'songs' ? 3.3 : st.type === 'dance' ? 1.2 : st.type === 'style' ? 2.5 : st.type === 'car' ? 1.8 : st.type === 'tv' ? 3.0 : st.type === 'board' ? 2.8 : 2.1; grp.add(sp);
     grp.position.set(st.x, 0, st.z); if (st.type === 'poster') grp.rotation.y = 0; grp.traverse(o => { o.userData.stationId = st.id; }); this.stations.add(grp); this.meshes[st.id] = grp;
   }
   people_refresh() {
-    this.people.clear(); const d = this.data; const names = new Set(); const put = (u, color, x, z, wear, gender) => { if (names.has(u)) return; names.add(u); const a = makeAvatar(color || '#2e9b5e', gender); a.scale.setScalar(0.55); applyWear(a, wear || [], this.g.wearCat); a.position.set(x, 0, z); const t = makeNameSprite('@' + u, '#ffffff'); t.scale.set(1.6, 0.4, 1); t.position.y = 2.2; a.add(t); this.people.add(a); };
+    this.people.clear(); const d = this.data; const names = new Set(); const put = (u, color, x, z, wear, gender, meta = {}) => {
+      if (names.has(u)) return; names.add(u); const a = makeAvatar(color || '#2e9b5e', gender); a.scale.setScalar(0.55); applyWear(a, wear || [], this.g.wearCat); a.position.set(x, 0, z);
+      const label = (meta.friend ? '💚 ' : meta.npc ? '' : '') + '@' + u; const t = makeNameSprite(label, meta.friend ? '#9ef0b0' : '#ffffff'); t.scale.set(1.7, 0.42, 1); t.position.y = 2.2; a.add(t);
+      a.userData.person = { username: u, npc: !!meta.npc, friend: !!meta.friend, strength: meta.strength }; this.people.add(a);
+    };
     this.sportsStage?.sync(d.stations); for (const st of d.stations) if (st.type === 'game' && st.match && !st.sport) { const m = st.match; m.players.forEach((u, k) => put(u, null, st.x + [-1.25, 1.25, -0.5, 0.5][k], st.z + (k < 2 ? 0.5 : 1.5))); }
-    for (const o of d.occupants) { const hx = hash(o.username); put(o.username, o.color, -3 + (hx % 7) * 1.0, d.room.d / 2 - 1.1 - ((hx >> 4) % 2) * 0.8, o.w, o.sx === 'f' ? 'female' : 'male'); }
+    const list = d.people?.length ? d.people : d.occupants || [];
+    for (const o of list) { const hx = hash(o.username); put(o.username, o.color, -3.5 + (hx % 8) * 0.95, d.room.d / 2 - 1.0 - ((hx >> 4) % 3) * 0.7, o.w, o.sx === 'f' ? 'female' : 'male', o); }
+    this.drawPresence?.();
+  }
+  drawPresence() {
+    if (!this.presence) return; const d = this.data; const friends = d.friendsHere || []; const n = d.inside ?? d.occupants?.length ?? 0;
+    const str = d.you?.strength != null ? ` · 💪 ${Number(d.you.strength).toFixed(1)}` : '';
+    this.presence.replaceChildren(
+      h('span', {}, `👥 ${n} here`),
+      friends.length ? h('span', {}, `Friends: ${friends.map(f => '@' + f).join(', ')}`) : h('span', { class: 'mut' }, 'No friends here — showing people around'),
+      h('span', {}, str)
+    );
   }
   chrome() {
-    const d = this.data; this.strip = h('div', { class: 'vstrip' }); this.panel = h('div', { class: 'vpanel hidden' });
-    const head = h('div', { class: 'ihead' }, h('div', {}, h('h3', {}, d.name), h('div', { style: 'font-size:13px' }, `${d.blurb} · open ${d.hours[0]}:00 to ${d.hours[1]}:00`), h('div', { class: 'tag amber', style: 'display:inline-block;margin-top:4px' }, '🎲 Game money only · 18+')), h('div', { class: 'row' }, h('button', { class: 'btn small red', id: 'venueLeave', onclick: () => this.leave() }, 'Leave')));
-    this.el.append(head, this.strip, this.panel); this.drawStrip(); this.people_refresh();
+    const d = this.data; this.strip = h('div', { class: 'vstrip' }); this.panel = h('div', { class: 'vpanel hidden' }); this.presence = h('div', { class: 'vpresence' }); this.roster = h('div', { class: 'vroster' });
+    const when = Array.isArray(d.hours) ? `open ${d.hours[0]}:00 to ${d.hours[1]}:00` : 'open all day';
+    const head = h('div', { class: 'ihead' }, h('div', {}, h('h3', {}, d.name), h('div', { style: 'font-size:13px' }, `${d.blurb} · ${when}`), this.presence, h('div', { class: 'tag amber', style: 'display:inline-block;margin-top:4px' }, '🎲 Game money only · 18+')), h('div', { class: 'row' }, h('button', { class: 'btn small red', id: 'venueLeave', onclick: () => this.leave() }, 'Leave')));
+    this.el.append(head, this.roster, this.strip, this.panel); this.drawStrip(); this.drawRoster(); this.people_refresh();
+  }
+  drawRoster() {
+    const d = this.data; const me = this.g.user?.username; const real = (d.occupants || []).filter(o => o.username !== me);
+    if (!real.length) { this.roster.replaceChildren(h('span', { class: 'mut' }, 'Nobody else (real) is here yet')); return; }
+    this.roster.replaceChildren(h('b', {}, 'People'), ...real.map(o => h('button', { class: 'vperson', onclick: () => this.personMenu(o) }, `${o.friend || (d.friendsHere || []).includes(o.username) ? '💚 ' : ''}@${o.username}`, h('small', {}, `💪 ${(o.strength ?? 10).toFixed?.(1) || o.strength || '—'}`))));
+  }
+  personMenu(o) {
+    const ui = this.g.ui; const mine = this.data.you?.strength ?? this.g.user?.strength?.strength ?? 10;
+    ui.openSheet('@' + o.username, [
+      h('p', {}, `Their strength: ${(o.strength ?? 10).toFixed?.(1) || o.strength} · Yours: ${Number(mine).toFixed(1)}`),
+      h('p', { class: 'mut' }, 'A punch costs them 1% health. If you are stronger, you can take about 1% of their worth (from cash). Game money only.'),
+      h('button', { class: 'btn big red', onclick: () => this.fight(o.username) }, '👊 Fight'),
+      h('button', { class: 'btn ghost', onclick: () => { ui.closeSheet(); ui.playerMenu?.(o.username); } }, 'More…')
+    ]);
+  }
+  async fight(username) {
+    const ui = this.g.ui; const r = await ui.guard(() => post('/api/fight/punch', { username, pos: this.g.pos(), idem: crypto.randomUUID?.() || String(Date.now()) })); if (!r) return;
+    ui.closeSheet(); ui.toast(r.text, r.won ? 'money' : 'bad'); if (r.user) this.g.update(r.user); this.g.refreshMe?.(); this.refreshVenue();
   }
   drawStrip() {
     const d = this.data; this.strip.replaceChildren(...d.stations.map(st => { const m = st.match; const sub = st.type === 'game' ? (m ? (m.status === 'waiting' ? `waiting ${m.players.length}/${m.max}: @${m.host}${m.stake ? ' · ₦' + m.stake : ''}` : m.players.join(' v ')) : 'free table') : st.type === 'car' ? fmtN(st.price || 0) + ' (est.)' : '';
@@ -79,8 +117,14 @@ export class Venue {
     else if (st.type === 'check' || st.type === 'service') this.mechanicSheet(st);
     else if (st.type === 'casual') ui.playCasual(st.game);
     else if (['dance', 'dj', 'bar', 'songs', 'vip', 'basin'].includes(st.type)) this.leisureAct(st);
+    else if (['bench', 'bags', 'treadmill', 'squat', 'weights', 'gym', 'train', 'pray', 'cinema', 'rest'].includes(st.type)) this.gymAct(st);
     else if (st.type === 'style') this.salonSheet(st);
     else if (st.type === 'wear') wearSheet(this.g, this.id, st);
+    else if (st.type === 'gun') gunSheet(this.g, this.id);
+    else if (st.type === 'bodyguard') bodyguardSheet(this.g, this.id);
+    else if (st.type === 'report') reportSheet(this.g, this.id);
+    else if (st.type === 'bail') bailSheet(this.g, this.id);
+    else if (st.type === 'holding') holdingSheet(this.g);
     else if (st.type === 'office') officeSheet(this.g, st.focus);
     else if (st.type === 'club') { ui.lifeTab = 'clubs'; ui.closeSheet?.(); ui.phone('life'); }
     else if (['ticket', 'seat'].includes(st.type)) { const r = await ui.guard(() => post('/api/venue/act', { venueId: this.id, stationId: st.id, idem: crypto.randomUUID?.() })); if (r) { ui.toast(r.text, r.charged ? 'money' : undefined); this.g.refreshMe?.(); this.g.net.nudge(); } }
@@ -103,6 +147,12 @@ export class Venue {
     if (st.type === 'songs') { ui.openSheet('Song slot board', [h('p', {}, '🎵 Tonight’s lineup'), h('div', { class: 'list', id: 'songSlots' }, r.slots.map(sl => h('div', {}, h('span', {}, `Slot ${sl.slot}`), h('span', { class: 'mut' }, sl.title)))), h('p', { class: 'mut' }, r.note)]); return; }
     ui.toast(r.text); if (r.mood != null) this.g.refreshMe?.(); this.g.net.nudge();
   }
+  async gymAct(st) {
+    const ui = this.g.ui; const r = await ui.guard(() => post('/api/venue/act', { venueId: this.id, stationId: st.id, idem: `${st.id}${Date.now()}` })); if (!r) return;
+    ui.toast(r.text); if (r.user) this.g.update(r.user); else this.g.refreshMe?.();
+    if (r.strength != null && this.data.you) this.data.you.strength = r.strength;
+    this.drawPresence(); this.g.net.nudge(); this.refreshVenue();
+  }
   async salonSheet(st) {
     const ui = this.g.ui; const m = await ui.guard(() => get(`/api/salon?venueId=${this.id}`)); if (!m) return;
     const rows = m.styles.map(s => h('button', { class: 'btn alt', 'data-style': s.id, onclick: async () => { const r = await ui.guard(() => post('/api/salon/style', { venueId: this.id, stationId: st.id, styleId: s.id, idem: `${s.id}${Date.now()}` })); if (r) { ui.toast(r.text); ui.closeSheet(); this.g.net.nudge(); } } }, `${s.name} · ${fmtN(s.fee)} · +${s.mood} mood`));
@@ -116,14 +166,18 @@ export class Venue {
     ui.openSheet('Service', [h('div', { class: 'tag amber' }, 'Placeholder fee · ESTIMATE'), act ? h('p', {}, `${act.name}: ${act.label} (${act.condition}%)`) : h('p', { class: 'mut' }, 'You need your own active car. Borrowed cars are not serviced here.'),
       h('p', { class: 'mut' }, `Service resets condition and gives about ${d.perk.minutes} minutes of cheaper fuel (${d.perk.farePctOff}% off) and +${d.perk.extraMood} mood on rides.`),
       h('button', { class: 'btn big alt', id: 'mecoService', disabled: !act || fresh, onclick: async () => { const r = await ui.guard(() => post('/api/mechanic/service', { idemKey: crypto.randomUUID?.() })); if (r) { ui.closeSheet(); ui.toast(r.text, 'money'); this.g.refreshMe?.(); } } }, fresh ? 'Already serviced' : `Service · ${fmtN(d.fee)}`),
-      act?.damage ? h('div', {}, h('p', { class: 'mut' }, `💥 Crash damage ${act.damage} (car health ${act.health}%). Body work costs ${fmtN(act.repairFee)} (${fmtN(d.repairPerPoint)} per point, ESTIMATE).`),
-        h('button', { class: 'btn big', id: 'mecoRepair', onclick: async () => { const r = await ui.guard(() => post('/api/mechanic/repair', { idemKey: crypto.randomUUID?.() })); if (r) { ui.closeSheet(); ui.toast(r.text, 'money'); this.g.refreshMe?.(); } } }, `Repair crash damage · ${fmtN(act.repairFee)}`)) : '']);
+      act?.damage ? h('div', {}, h('p', { class: 'mut' }, act.exclusive
+        ? `💥 Crash damage ${act.damage} (car health ${act.health}%). Supercar fix ≈ ${Math.round((d.supercarRepairOfPaid || 0.1) * 100)}% of what you paid × damage (ESTIMATE): ${fmtN(act.repairFee)}.`
+        : `💥 Crash damage ${act.damage} (car health ${act.health}%). Body work costs ${fmtN(act.repairFee)} (${fmtN(d.repairPerPoint)} per point, ESTIMATE).`),
+        h('button', { class: 'btn big', id: 'mecoRepair', onclick: async () => { const r = await ui.guard(() => post('/api/mechanic/repair', { idemKey: crypto.randomUUID?.() })); if (r) { ui.closeSheet(); ui.toast(r.text, 'money'); this.g.carBody = { damage: 0, health: 100, smoke: false, wrecked: false }; this.g.syncDriveSmoke?.(); this.g.refreshMe?.(); } } }, `Repair crash damage · ${fmtN(act.repairFee)}`)) : '']);
   }
   async carSheet(st) {
     const ui = this.g.ui; const gar = await ui.guard(() => get('/api/garage')); if (!gar) return; this.catalog = gar.catalogue; const m = gar.catalogue.find(c => c.id === st.model); const cur = gar.active; const owned = gar.cars.some(c => c.model === st.model);
+    if (!m) { ui.toast('That model is not in the showroom.'); return; }
     const row = (l, v) => h('div', { class: 'row sp' }, h('span', { class: 'mut' }, l), h('b', {}, v));
-    ui.openSheet(m.name, [h('div', { class: m.exclusive ? 'tag' : 'tag amber' }, m.exclusive ? 'Exclusive model · set price' : 'Placeholder model · price is an ESTIMATE'), row('Price', fmtN(m.price)), row('Fuel per 100 m', '₦' + (m.perM * 100).toFixed(0) + ` (borrowed: ₦${(gar.borrowed.perM * 100).toFixed(0)} + ₦${gar.borrowed.base} tip)`), row('Speed', `${m.speed} (borrowed ${gar.borrowed.speed})`), row('Mood on a nice ride', `+${m.mood}`), row('Resale', `about ${Math.round((1 - gar.resale.firstDriveOffFraction) * 100)}% right after purchase, then about ${Math.round(gar.resale.perDayDepreciation * 100)}% less per day (never below ${Math.round(gar.resale.floorFraction * 100)}%)`), row('Your car now', cur.label),
-      h('button', { class: 'btn big alt', disabled: gar.cars.length >= gar.slots, onclick: async () => { const r = await ui.guard(() => post('/api/garage/buy', { model: m.id, idemKey: crypto.randomUUID?.() })); if (r) { ui.closeSheet(); ui.toast(`Congrats! ${m.name} is in your garage 🚗`, 'money'); this.g.refreshMe?.(); } } }, owned ? 'Buy another' : `Buy · ${fmtN(m.price)}`), gar.cars.length >= gar.slots ? h('p', { class: 'mut' }, 'Garage full: sell a car in Phone → Garage.') : '']);
+    const soldOut = !!m.exclusive && (gar.supercarsLeft ?? 0) <= 0; const full = gar.cars.length >= gar.slots;
+    ui.openSheet(m.name, [h('div', { class: m.exclusive ? 'tag' : 'tag amber' }, m.exclusive ? `Exclusive supercar · ${gar.supercarsLeft ?? 0} of ${gar.supercarsDaily ?? 20} left today` : 'Placeholder model · price is an ESTIMATE'), row('Price', fmtN(m.price)), row('Fuel per 100 m', '₦' + (m.perM * 100).toFixed(0) + ` (borrowed: ₦${(gar.borrowed.perM * 100).toFixed(0)} + ₦${gar.borrowed.base} tip)`), row('Speed', `${m.speed} (borrowed ${gar.borrowed.speed})`), row('Mood on a nice ride', `+${m.mood}`), row('Resale', `about ${Math.round((1 - gar.resale.firstDriveOffFraction) * 100)}% right after purchase, then about ${Math.round(gar.resale.perDayDepreciation * 100)}% less per day (never below ${Math.round(gar.resale.floorFraction * 100)}%)`), row('Your car now', cur.label),
+      h('button', { class: 'btn big alt', disabled: full || soldOut, onclick: async () => { const r = await ui.guard(() => post('/api/garage/buy', { model: m.id, idemKey: crypto.randomUUID?.() })); if (r) { ui.closeSheet(); ui.toast(`Congrats! ${m.name} is in your garage 🚗`, 'money'); this.g.refreshMe?.(); this.g.refreshMotokaStock?.(); } } }, soldOut ? 'Sold out today' : owned ? 'Buy another' : `Buy · ${fmtN(m.price)}`), soldOut ? h('p', { class: 'mut' }, 'Motoka only shows 20 supercars a day. Come back tomorrow.') : full ? h('p', { class: 'mut' }, 'Garage full: sell a car in Phone → Garage.') : '']);
   }
   sitPanel(st) {
     const G = this.data.stakes; let stake = 0; const m = st.match; const info = this.g.cfg; void info;
@@ -218,7 +272,7 @@ export class Venue {
   async startMatch(v) { const r = await this.g.ui.guard(() => post('/api/game/start', { matchId: v.id })); if (r) this.renderMatch(r); else this.pollGame(); }
   async move(v, mv) { const r = await this.g.ui.guard(() => post('/api/game/move', { matchId: v.id, ...mv })); if (r) { this.renderMatch(r); this.g.ui.sfx('ok'); } else this.pollGame(); }
   async leaveMatch(v) { const r = await this.g.ui.guard(() => post('/api/game/leave', { matchId: v.id })); this.g.ui.closeSheet(); if (r) this.renderMatch(r); else this.pollGame(); this.refreshVenue(); }
-  async refreshVenue() { const d = await get(`/api/venue?id=${this.id}`).catch(() => null); if (d && this.open) { this.data = d; this.drawStrip(); this.people_refresh(); } }
+  async refreshVenue() { const d = await get(`/api/venue?id=${this.id}`).catch(() => null); if (d && this.open) { this.data = d; this.drawStrip(); this.drawRoster(); this.people_refresh(); } }
   poll() { clearInterval(this.pt); this.pt = setInterval(async () => { if (!this.open) return; await this.refreshVenue(); if (this.matchId) await this.pollGame(); else { const mine = this.data.stations.find(s => s.match?.you); if (mine && !this.dismissed.has(mine.match.id)) this.focusMatch(mine.match.id); } const t = $('#gtimer'); if (t && this.match?.status === 'active') t.textContent = `${Math.max(0, Math.ceil((this.match.deadlineAt - this.g.serverNow()) / 1000))}s`; }, 1500); }
   tap(ev) { const rc = this.canvas.getBoundingClientRect(); const v = new THREE.Vector2(((ev.clientX - rc.left) / rc.width) * 2 - 1, -((ev.clientY - rc.top) / rc.height) * 2 + 1); const ray = new THREE.Raycaster(); ray.setFromCamera(v, this.cam); const hit = ray.intersectObjects(this.stations.children, true)[0]; if (hit) { const id = hit.object.userData.stationId; this.pick(id); } }
   bind() {
@@ -230,7 +284,7 @@ export class Venue {
   resize() { const w = this.el.clientWidth, hh = this.el.clientHeight; this.r.setSize(w, hh, false); this.cam.aspect = w / hh; this.cam.updateProjectionMatrix(); }
   loop() { if (!this.open) return; const f = this.focus || { x: 0, y: 0.6, z: 0.3 }; /* focus: the Sports Hall stage moves it to your match */ this.cam.position.set(f.x + Math.sin(this.yaw) * Math.cos(this.pitch) * this.dist, f.y + Math.sin(this.pitch) * this.dist, f.z + Math.cos(this.yaw) * Math.cos(this.pitch) * this.dist); this.cam.lookAt(f.x, f.y, f.z); const tt = (performance.now() - this.t0) / 1000; for (const f of this.anim) f(tt); this.r.render(this.scene, this.cam); this.raf = requestAnimationFrame(() => this.loop()); }
   async leave() {
-    if (!this.open) return; const r = await this.g.ui.guard(() => post('/api/venue/leave')); if (!r) return; this.open = false; clearInterval(this.pt); cancelAnimationFrame(this.raf); removeEventListener('keydown', this.onKey); removeEventListener('resize', this.onResize);
+    if (!this.open) return; const r = await this.g.ui.guard(() => post('/api/venue/leave')); if (!r) return; this.open = false; this.g.audio?.stopAdhan?.(); clearInterval(this.pt); cancelAnimationFrame(this.raf); removeEventListener('keydown', this.onKey); removeEventListener('resize', this.onResize);
     this.sportsStage?.dispose(); this.sportsStage = null; this.r.dispose(); this.el.classList.add('hidden'); this.el.replaceChildren(); this.g.busy = false; this.g.ctrl.frozen = false; this.g.net.nudge(); $('#game').focus();
   }
 }

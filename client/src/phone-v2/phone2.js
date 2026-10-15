@@ -16,7 +16,7 @@ export class PhoneSys {
   async poll() { if (!this.usable) return; try { const r = await get('/api/phone/call'); if (r.call && (!this.call || this.call.callId !== r.call.callId)) this.adopt(r.call); else if (!r.call && this.call && this.call.state !== 'ended' && Date.now() - (this.call.startedAt || 0) > 4000) this.finish('ended'); } catch { /* ignore */ } this.refresh(); }
   adopt(c) { if (this.call && this.call.callId === c.callId) return; this.call = { ...c, startedAt: Date.now() }; this.iceServers = c.iceServers || this.iceServers; if (c.incoming && c.state === 'ringing') this.ringIn(); this.render(); }
   onPush(m) {
-    const t = m.type; if (t === 'phone.message') { this.badges.msgs++; this.drawBadge(); this.emit({ kind: 'message', m }); if (!document.querySelector('[data-chat-open="' + m.from + '"]')) this.g.ui.toast(`💬 @${m.from}: ${m.kind === 'voice' ? '🎤 voice note' : (m.text || '').slice(0, 60)}`); }
+    const t = m.type; if (t === 'phone.message') { this.badges.msgs++; this.drawBadge(); this.emit({ kind: 'message', m }); if (!document.querySelector('[data-chat-open="' + m.from + '"]')) { const preview = m.kind === 'voice' ? '🎤 voice note' : m.kind === 'pay' ? `💸 sent you ${m.text || 'money'}` : (m.text || '').slice(0, 60); this.g.ui.toast(`💬 @${m.from}: ${preview}`); } }
     else if (t === 'phone.message.read') this.emit({ kind: 'read', m });
     else if (t === 'phone.friend.request') { this.badges.reqs++; this.drawBadge(); this.g.ui.toast(`🤝 @${m.from} sent a friend request`); this.emit({ kind: 'friends' }); }
     else if (t === 'phone.friend.update') this.emit({ kind: 'friends' });
@@ -71,17 +71,27 @@ export class PhoneSys {
   async sendStats() { try { const st = await this.pc.getStats(); let path = null; st.forEach(r => { if (r.type === 'candidate-pair' && r.state === 'succeeded' && r.nominated) { const l = st.get(r.localCandidateId); path = l?.candidateType === 'relay' ? 'relay' : l?.candidateType === 'srflx' ? 'srflx' : 'host'; } }); if (path) { this.call.icePath = path; post('/api/phone/call/stats', { callId: this.call.callId, icePath: path }).catch(() => {}); } } catch { /* optional */ } }
   endLocal() { this.stopRing(); try { this.pc?.close(); } catch { /* ignore */ } this.pc = null; this.stream?.getTracks().forEach(t => t.stop()); this.stream = null; this.offer = null; this.pendingIce = []; this.muted = false; $('#callAudio')?.remove(); }
   finish(reason) { const c = this.call; this.endLocal(); if (!c) return; c.state = 'ended'; c.reason = reason; this.render(); this.emit({ kind: 'call-ended', c }); this.lastEnded = c; setTimeout(() => { if (this.call === c) { this.call = null; this.render(); } }, 2200); }
-  // ---------- overlay
+  // ---------- overlay (FaceTime-style)
   render() {
     let el = $('#callUi'); const c = this.call; if (!c) { el?.remove(); return; }
     if (!el) { el = h('div', { id: 'callUi' }); document.body.append(el); }
-    const inGame = !!(this.g.venue?.open && this.g.venue.match && this.g.venue.match.status === 'playing'); // never interrupt a staked game: show a small banner instead
-    const secs = c.connectedAt ? Math.floor((Date.now() - c.connectedAt) / 1000) : 0; const t = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
-    const title = c.state === 'ended' ? ({ completed: 'Call ended', declined: 'Call declined', missed: 'Missed call', cancelled: 'Missed call', busy: 'They are busy', dnd: 'Not available', failed: 'Call failed' }[c.reason] || 'Call ended') : c.incoming && c.state === 'ringing' ? 'Incoming call' : c.state === 'ringing' ? 'Calling…' : (c.rtc === 'connected' ? `In call · ${t}` : 'Connecting…');
-    const btn = (id, cls, label, fn) => h('button', { id, class: `cbtn ${cls}`, onclick: fn }, label);
-    const acts = c.state === 'ended' ? [] : c.incoming && c.state === 'ringing' ? [btn('callDecline', 'red', '✖ Decline', () => this.decline()), btn('callAnswer', 'green', '📞 Answer', () => this.answer())]
-      : [btn('callMute', this.muted ? 'on' : '', this.muted ? '🔇 Muted' : '🎙 Mute', () => this.toggleMute()), btn('callHang', 'red', c.state === 'ringing' ? '✖ Cancel' : '📵 Hang up', () => this.hangup())];
-    el.className = inGame ? 'banner' : ''; el.replaceChildren(h('div', { class: 'cinner' }, h('div', { class: 'cavatar' }, '📞'), h('div', { class: 'cname' }, `@${c.with}`), h('div', { class: 'cstate', id: 'callState' }, title), h('div', { class: 'crow' }, acts)));
+    const inGame = !!(this.g.venue?.open && this.g.venue.match && this.g.venue.match.status === 'playing');
+    const secs = c.connectedAt ? Math.floor((Date.now() - c.connectedAt) / 1000) : 0;
+    const t = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+    const title = c.state === 'ended' ? ({ completed: 'Call Ended', declined: 'Declined', missed: 'Missed Call', cancelled: 'Cancelled', busy: 'Busy', dnd: 'Unavailable', failed: 'Call Failed' }[c.reason] || 'Call Ended')
+      : c.incoming && c.state === 'ringing' ? 'Naija Area Audio' : c.state === 'ringing' ? 'Calling…' : (c.rtc === 'connected' ? t : 'Connecting…');
+    const act = (id, cls, icon, label, fn) => h('div', { class: 'cact' }, h('button', { id, class: `cbtn ${cls}`, onclick: fn, 'aria-label': label }, icon), h('small', {}, label));
+    const acts = c.state === 'ended' ? []
+      : c.incoming && c.state === 'ringing' ? [act('callDecline', 'red', '✖', 'Decline', () => this.decline()), act('callAnswer', 'green', '📞', 'Accept', () => this.answer())]
+      : [act('callMute', this.muted ? 'on' : '', this.muted ? '🔇' : '🎙', this.muted ? 'Unmute' : 'Mute', () => this.toggleMute()),
+        act('callHang', 'red', '📵', c.state === 'ringing' ? 'Cancel' : 'End', () => this.hangup())];
+    const letter = String(c.with || '?').slice(0, 1).toUpperCase();
+    el.className = `${inGame ? 'banner' : ''}${c.state === 'active' && c.rtc === 'connected' ? ' active' : ''}`.trim();
+    el.replaceChildren(h('div', { class: 'cinner' },
+      h('div', { class: 'cavatar' }, letter),
+      h('div', { class: 'cname' }, `@${c.with}`),
+      h('div', { class: 'cstate', id: 'callState' }, title),
+      h('div', { class: 'crow' }, acts)));
     clearInterval(this.uiTick); if (c.state === 'active') this.uiTick = setInterval(() => { if (this.call) this.render(); else clearInterval(this.uiTick); }, 1000);
   }
 }

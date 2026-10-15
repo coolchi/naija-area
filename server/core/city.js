@@ -1,7 +1,11 @@
 import { storefrontBoards, virtualSlots } from './adslots.js';
+import { injectMotokaMeko } from './meko.js';
+import { injectMosqueVenues } from './mosques.js';
 // City config loader/indexer. A "city" is a JSON file (roads, buildings, billboards, shops, jobs, spawns, traffic loops).
 export function indexCity(raw) {
   const c = JSON.parse(JSON.stringify(raw));
+  injectMotokaMeko(c);
+  injectMosqueVenues(c);
   c.billboards = [...c.billboards, ...storefrontBoards(c)]; c.adSlots = virtualSlots(c); c.adSlotById = Object.fromEntries(c.adSlots.map(s => [s.id, s])); // item 8: shop-front signs, radio and ride slots derived from the city's own data
   c.propertyById = Object.fromEntries(c.properties.map(p => [p.id, p]));
   c.shopById = Object.fromEntries(c.shops.map(s => [s.id, s]));
@@ -23,7 +27,7 @@ export function indexCity(raw) {
   const pl = (c.landmarks || []).find(l => l.id === 'plaza'); if (pl) c.places.push({ id: 'plaza', type: 'landmark', name: pl.name, x: pl.x, z: pl.z + 14, area: 'Yaba' });
   for (const b of c.busStops || []) c.places.push({ id: b.id, type: 'busstop', name: b.name, x: b.x, z: b.z, area: area(b.x, b.z) });
   const cl = (c.landmarks || []).find(l => l.kind === 'clinic'); if (cl) c.places.push({ id: 'clinic', type: 'landmark', name: cl.name, x: cl.door.x, z: cl.door.z, area: area(cl.x, cl.z) });
-  for (const v of c.venues || []) c.places.push({ id: v.id, type: 'venue', name: v.name, x: v.x, z: v.z, area: area(v.x, v.z), hours: v.hours });
+  for (const v of c.venues || []) c.places.push({ id: v.id, type: 'venue', name: v.name, x: v.x, z: v.z, area: area(v.x, v.z), hours: v.hours, shopId: v.shopId || null, kind: v.kind || null, blurb: v.blurb || null });
   for (const p of c.places) p.city = c.id; c.placeById = Object.fromEntries(c.places.map(p => [p.id, p]));
   return c;
 }

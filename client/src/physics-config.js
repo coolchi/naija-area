@@ -17,10 +17,10 @@ export const PHYS = {
   },
   // ---- driving (player car)
   car: {
-    maxSpeed: 20, reverseMax: 6,        // m/s (the old fixed limits). Server clamp is 26 x 1.6
+    maxSpeed: 40, reverseMax: 6,        // m/s (2× the old free-roam top). Server clamp is maxDriveSpeed × slack
     accel: 12,                          // m/s^2 at a standstill, fading to 0 at maxSpeed (a real engine curve instead of a flat push)
     throttleRise: 4.5, throttleFall: 9, // 1/s: how fast the pedal "ramps" to the key (no instant full power)
-    brakeDecel: 18,                     // m/s^2 on full brake: from 20 m/s stops in about 11 m
+    brakeDecel: 18,                     // m/s^2 on full brake
     reverseAccel: 5,
     rolling: 2.4, drag: 0.006,          // coasting: constant rolling resistance (m/s^2) + air drag (per m/s)
     handDecel: 9,                       // m/s^2 extra slowing from the handbrake (Space)
@@ -34,7 +34,7 @@ export const PHYS = {
     handGrip: 0.7,                      // grip multiplier with the handbrake
     scrub: 0.45,                        // fraction of sideways speed lost that also costs forward speed (tyre scrub: bends slow you)
     maxSub: 0.02,                       // s: largest integration step (stability)
-    zoneCap: 9, zoneDecel: 7, zoneMargin: 3 // roundabouts: above zoneCap m/s you are slowed (zoneDecel m/s^2) inside the ring + margin. 0 cap = off
+    zoneCap: 18, zoneDecel: 14, zoneMargin: 3 // roundabouts: above zoneCap m/s you are slowed (zoneDecel m/s^2) inside the ring + margin. 0 cap = off
   },
   // ---- body motion shown on the car (visual only)
   susp: {
@@ -43,6 +43,16 @@ export const PHYS = {
     k: 70, c: 9,                        // spring and damper of the body (underdamped: it wobbles a little)
     bumpKick: 1.2, bumpY: 0.12,         // an impact kicks the body: m/s of vertical speed per m/s of impact, and the largest rise
     sub: 0.015
+  },
+  // G63 AMG / G-Wagon: almost no visual bounce — lean stays tiny so tall wheels stay planted
+  suspHeavy: {
+    rollK: 0.0022, pitchK: 0.0028,
+    maxRoll: 0.018, maxPitch: 0.015,
+    k: 140, c: 32,                      // stiff + overdamped: settles immediately, no wobble
+    bumpKick: 0.15, bumpY: 0.01,
+    sub: 0.015,
+    hazardKick: 0.18,                   // scales pothole / speed-bump vertical impulse
+    plantWheels: true                   // cancel body bounce on tagged tires so they stay on the road
   },
   // ---- hitting things
   collide: {
@@ -56,9 +66,9 @@ export const PHYS = {
   },
   // ---- camera
   camera: {
-    followWalk: 7, followDrive: 5.5,    // 1/s: how tightly the camera follows (lower = lazier)
-    backoffPerMs: 0.18,                 // m the camera pulls back per m/s of speed (you feel the speed)
-    backoffMax: 5,
+    followWalk: 14, followDrive: 9,     // 1/s: how tightly the camera follows (higher = snappier zoom/orbit)
+    backoffPerMs: 0.14,                 // m the camera pulls back per m/s of speed (you feel the speed)
+    backoffMax: 3.5,
     lookAheadPerMs: 0.12, lookAheadMax: 2.4, // aim a little ahead of a fast car
     lookRate: 8,                        // 1/s: smoothing of the aim point
     shakePerMs: 0.028, shakeMax: 0.5,   // m of shake per m/s of impact, and its cap
@@ -92,4 +102,8 @@ export function applyServerLimits(movement, P = PHYS) {
   if (!movement) return P; const slack = movement.slack || 1; // the server accepts maxSpeed x slack; we stay at or under maxSpeed itself
   if (movement.maxWalkSpeed > 0) { P.walk.runSpeed = Math.min(P.walk.runSpeed, movement.maxWalkSpeed); P.walk.walkSpeed = Math.min(P.walk.walkSpeed, P.walk.runSpeed); }
   if (movement.maxDriveSpeed > 0) P.car.maxSpeed = Math.min(P.car.maxSpeed, movement.maxDriveSpeed); void slack; return P;
+}
+/** suspension feel for a body type: heavy SUVs (G63 / G-Wagon) stay flatter */
+export function suspFor(body, P = PHYS) {
+  return (body === 'g63' || body === 'gwagon') ? P.suspHeavy : P.susp;
 }

@@ -11,7 +11,22 @@ const defOf = (app, id) => cfgOf(app).skinById[id] || null;
 const ownedSet = (app, uid) => new Map(app.db.prepare('SELECT skin_id, how, price_paid FROM skins_owned WHERE user_id=?').all(uid).map(r => [r.skin_id, r]));
 export const equippedRows = (app, uid) => app.db.prepare('SELECT slot, skin_id FROM skins_equipped WHERE user_id=?').all(uid);
 const invalidate = (app, uid) => { const p = app.world.players.get(uid); if (p) p.skins = undefined; };
-const look = (s) => { const { id, kind, name, rarity, color, glow, accent, wall, floor } = s; return { id, kind, name, rarity, ...(color ? { color } : {}), ...(glow ? { glow } : {}), ...(accent ? { accent } : {}), ...(wall ? { wall } : {}), ...(floor ? { floor } : {}) }; };
+const look = (s) => { const { id, kind, name, rarity, color, glow, accent, wall, floor, body, gender } = s; return { id, kind, name, rarity, ...(color ? { color } : {}), ...(glow ? { glow } : {}), ...(accent ? { accent } : {}), ...(wall ? { wall } : {}), ...(floor ? { floor } : {}), ...(body ? { body } : {}), ...(gender ? { gender } : {}) }; };
+
+const genderOf = (app, uid) => {
+  const row = app.db.prepare('SELECT gender FROM player_state WHERE user_id=?').get(uid);
+  return row?.gender === 'female' ? 'female' : 'male';
+};
+
+/** Body upgrades that require a matching profile gender (set at signup). */
+const assertBodyGender = (app, uid, d) => {
+  if (!d?.gender) return;
+  const g = genderOf(app, uid);
+  if (d.gender !== g) {
+    const need = d.gender === 'female' ? 'Woman' : 'Man';
+    bad('WRONG_GENDER', `${d.name} is for ${need} profiles only.`, 409, { need: d.gender, gender: g });
+  }
+};
 
 /** the public look catalogue (the client needs it to draw what other players wear, drive and own) */
 export function catalogue(app) { const C = cfgOf(app); return { kinds: Object.entries(C.KINDS).map(([id, label]) => ({ id, label })), skins: C.SKINS.map(look) }; }
@@ -36,24 +51,47 @@ export function grant(app, uid, skinId, how, pricePaid = 0) {
 export function view(app, uid) {
   const C = cfgOf(app); const own = ownedSet(app, uid); const worn = new Map(equippedRows(app, uid).map(r => [r.slot, r.skin_id])); const cash = balanceOf(app.db, cashId(uid));
   const hasHome = !!app.db.prepare('SELECT 1 FROM property_owner WHERE user_id=?').get(uid);
-  const items = C.SKINS.map(s => { const o = own.get(s.id); return { ...look(s), sell: s.sell, price: s.sell === 'shop' ? s.price : null, owned: !!o, how: o?.how || null, worn: worn.get(s.kind) === s.id, canAfford: s.sell === 'shop' && cash >= s.price, howToGet: s.sell === 'pass' ? 'Battle pass reward' : null }; });
-  return { cash, kinds: Object.entries(C.KINDS).map(([id, label]) => ({ id, label })), items, hasHome, realMoney: C.RULES.realMoney, note: 'Skins are only for looks: they never change speed, health, prices or rewards. Prices are placeholders (ESTIMATE). Game money only; they cannot be traded.' };
+  const gender = genderOf(app, uid);
+  // Only list skins this profile can use (Casual Woman is omitted for Man players, and vice versa).
+  const items = C.SKINS.filter(s => !s.gender || s.gender === gender).map(s => {
+    const o = own.get(s.id);
+    return {
+      ...look(s), sell: s.sell, price: s.sell === 'shop' ? s.price : null, owned: !!o, how: o?.how || null,
+      worn: worn.get(s.kind) === s.id, canAfford: s.sell === 'shop' && cash >= s.price,
+      genderOk: true, howToGet: s.sell === 'pass' ? 'Battle pass reward' : null
+    };
+  });
+  const note = gender === 'female'
+    ? 'Skins are only for looks: they never change speed, health, prices or rewards. Casual Woman ₦50M (Woman profiles). Prices are placeholders (ESTIMATE). Game money only; they cannot be traded.'
+    : 'Skins are only for looks: they never change speed, health, prices or rewards. Soldier Man ₦10B and Casual Man ₦100M (Man profiles). Prices are placeholders (ESTIMATE). Game money only; they cannot be traded.';
+  return {
+    cash, gender, kinds: Object.entries(C.KINDS).map(([id, label]) => ({ id, label })), items, hasHome, realMoney: C.RULES.realMoney, note
+  };
 }
 export function buy(app, uid, skinId, idem) {
   const d = defOf(app, skinId); if (!d) bad('NO_SKIN', 'We do not sell that.', 404); if (d.sell !== 'shop') bad('NOT_FOR_SALE', `${d.name} cannot be bought. It is a battle pass reward.`, 409);
   const u = app.db.prepare('SELECT is_bot FROM users WHERE id=?').get(uid); if (!u || u.is_bot) bad('NO_PLAYER', 'Unknown player.', 404);
+  assertBodyGender(app, uid, d);
   return app.db.transaction(() => {
     if (app.db.prepare('SELECT 1 FROM skins_owned WHERE user_id=? AND skin_id=?').get(uid, d.id)) bad('ALREADY_OWNED', `You already own ${d.name}.`, 409);
     if (balanceOf(app.db, cashId(uid)) < d.price) bad('NO_FUNDS', `${d.name} costs ${money(d.price)}. You do not have enough cash.`, 402, { need: d.price });
     move(app, { from: cashId(uid), to: SYS.SINK_COSMETICS, amount: d.price, reason: 'skin_buy', ref: d.id, userId: uid, idemKey: idem ? `skin:${uid}:${d.id}:${idem}` : null });
     grant(app, uid, d.id, 'shop', d.price);
-    return { ok: true, charged: d.price, skin: look(d), cash: balanceOf(app.db, cashId(uid)), text: `${d.name} is yours (${money(d.price)}). Wear am!` };
+    // Put it on straight away (body upgrades especially must replace the blocky mesh without a second tap).
+    let on = false;
+    if (d.kind !== 'home' || app.db.prepare('SELECT 1 FROM property_owner WHERE user_id=?').get(uid)) {
+      app.db.prepare('DELETE FROM skins_equipped WHERE user_id=? AND slot=?').run(uid, d.kind);
+      app.db.prepare('INSERT INTO skins_equipped(user_id,slot,skin_id) VALUES (?,?,?)').run(uid, d.kind, d.id);
+      invalidate(app, uid); on = true;
+    }
+    return { ok: true, charged: d.price, skin: look(d), cash: balanceOf(app.db, cashId(uid)), text: on ? `${d.name} is on (${money(d.price)}).` : `${d.name} is yours (${money(d.price)}). Wear am when you have a home.` };
   })();
 }
 export function equip(app, uid, skinId) {
   const d = defOf(app, skinId); if (!d) bad('NO_SKIN', 'Unknown skin.', 404);
   if (!app.db.prepare('SELECT 1 FROM skins_owned WHERE user_id=? AND skin_id=?').get(uid, d.id)) bad('NOT_OWNED', 'You do not own that skin.', 409);
   if (d.kind === 'home' && !app.db.prepare('SELECT 1 FROM property_owner WHERE user_id=?').get(uid)) bad('NO_HOME', 'You need a home to use a home skin.', 409);
+  assertBodyGender(app, uid, d);
   app.db.transaction(() => { app.db.prepare('DELETE FROM skins_equipped WHERE user_id=? AND slot=?').run(uid, d.kind); app.db.prepare('INSERT INTO skins_equipped(user_id,slot,skin_id) VALUES (?,?,?)').run(uid, d.kind, d.id); })();
   invalidate(app, uid); return { ok: true, text: `${d.name} is on.`, ...view(app, uid) };
 }

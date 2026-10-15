@@ -23,6 +23,7 @@ import { GameError } from './core/util.js';
 import { voiceAudio as phoneVoice, tickVoice, tickCalls } from './core/phone/phone.js';
 import { BALANCE } from './config/balance.js';
 import { PAYMENTS } from './config/payments.js';
+import { sendEmail, mailConfig } from './lib/maildesk.js';
 import { AGE } from './config/age.js';
 import { createAge, tickAge } from './core/age/index.js';
 import { staticCompress, sendJson } from './lib/compress.js';
@@ -70,6 +71,15 @@ export function buildServer(opts = {}) {
     if (prod && aprov.id === 'mock' && acfg.mode !== 'off') throw new Error('The mock age provider cannot be the age gate in production. Choose a vendor first.');
     if (prod && app.payments?.provider.id === 'mock') throw new Error('The mock payments provider cannot run in production.');
     if (opts.age !== false) createAge(app, { provider: aprov, cfg: acfg }); }
+  // outbound email (MailDESK): key + verified from domain in env. Tests may inject app.mail.send.
+  { const mcfg = opts.mailConfig || mailConfig(env);
+    app.mail = {
+      cfg: mcfg,
+      send: opts.mailSend || (mcfg.enabled
+        ? (msg) => sendEmail({ apiKey: mcfg.apiKey, from: mcfg.from, replyTo: mcfg.replyTo, ...msg })
+        : null),
+    };
+  }
   app.devRoutes = opts.dev ?? env.NA_DEV === '1';
   // admin password: env var; a fixed default exists ONLY outside production, with a loud warning
   app.adminPassword = opts.adminPassword ?? env.ADMIN_PASSWORD ?? (prod ? null : 'admin-dev-only');

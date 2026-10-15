@@ -1,5 +1,6 @@
 import test from 'node:test'; import assert from 'node:assert/strict'; import fs from 'node:fs';
 import { roadPts, isCurved, roadAt, nearestOnPoly, offsetPoly, circulate, polyLen, radiusAt, bendFactor, maxTurnPerMetre, BEND } from '../client/src/roadgeom.js';
+import { planRoadHazards, roadTreatment, hazardAt } from '../client/src/road-hazards.js';
 import { makePath, atPath } from '../client/src/path.js';
 import { applyCurves } from '../tools/add-curves.mjs';
 import { buildModel, hitTest, search, DEFAULT_LAYERS } from '../client/src/map-model.js';
@@ -26,6 +27,33 @@ test('curved roads and roundabouts do not run through any building', () => {
   for (const o of city.roundabouts) { for (const b of city.buildings) assert.ok(rectDist(b, o.x, o.z) >= o.outerR, `${o.name} hits ${b.id}`); assert.ok(city.roads.some(r => !isCurved(r) && r.x1 === r.x2 && r.x1 === o.x) && city.roads.some(r => !isCurved(r) && r.z1 === r.z2 && r.z1 === o.z), 'sits on a junction'); assert.ok(o.islandR < o.outerR - 6, 'lane wide enough'); }
 });
 
+test('no building footprint sits in a road carriageway (straight or curved)', () => {
+  const sample = (b) => {
+    const pts = [];
+    for (let i = 0; i <= 4; i++) for (let j = 0; j <= 4; j++) pts.push([b.x - b.w / 2 + (b.w * i) / 4, b.z - b.d / 2 + (b.d * j) / 4]);
+    return pts;
+  };
+  for (const b of city.buildings) {
+    for (const r of city.roads) {
+      const hw = (r.width || 10) / 2;
+      let minD = Infinity;
+      for (const p of sample(b)) minD = Math.min(minD, nearestOnPoly(roadPts(r), p[0], p[1]).d);
+      assert.ok(minD >= hw - 0.35, `${b.label || b.id} sits on ${r.name || r.id} (clearance ${minD.toFixed(2)} m, need ${(hw - 0.35).toFixed(2)})`);
+    }
+  }
+});
+
+test('ambient traffic loops stay outside buildings (cars must not drive through them)', () => {
+  const tmp = {};
+  for (const l of city.trafficLoops) {
+    const P = makePath(l.pts, 7, { dense: !!l.dense, slow: true });
+    for (let s = 0; s < P.length; s += 1.2) {
+      atPath(P, s, tmp);
+      for (const b of city.buildings) assert.ok(rectDist(b, tmp.x, tmp.z) >= 1.6, `${l.id} enters ${b.id || b.label} at ${tmp.x.toFixed(1)},${tmp.z.toFixed(1)}`);
+    }
+  }
+});
+
 test('traffic loops follow the road geometry: every point is on a road, bends are smooth, roundabouts circulate counter-clockwise, bends are slower', () => {
   assert.ok(city.trafficLoops.every(l => l.dense)); assert.ok(city.trafficLoops.some(l => l.id.startsWith('cv')), 'a loop on each curved road');
   for (const l of city.trafficLoops) {
@@ -42,6 +70,20 @@ test('the map reads curves and roundabouts from the same data (draw model, searc
   const m = buildModel(city); assert.equal(m.roundabouts.length, city.roundabouts.length); assert.ok(m.roads.some(r => r.curved));
   assert.equal(search(m, 'Yaba Crescent')[0].type, 'road'); assert.equal(search(m, 'Danfo Roundabout')[0].type, 'roundabout');
   const ra = city.roundabouts[0]; assert.equal(hitTest(m, ra.x + 11, ra.z, 2, DEFAULT_LAYERS).type, 'roundabout');
-  const cv = city.roads.find(isCurved); const mid = cv.pts[Math.floor(cv.pts.length / 2)]; assert.equal(hitTest(m, mid[0], mid[1], 0.5, DEFAULT_LAYERS).name, cv.name);
+  // Zoom in (high k → small hit radius) and ignore markers so a nearby school door cannot steal the road
+  const cv = city.roads.find(isCurved); const mid = cv.pts[Math.floor(cv.pts.length / 2)]; assert.equal(hitTest(m, mid[0], mid[1], 4, { ...DEFAULT_LAYERS, venues: false, landmarks: false }).name, cv.name);
   assert.ok(roadPts(city.roads[0]).length === 2);
+});
+
+test('road hazards: some streets get potholes, others get bumps; both sit on the road and can be queried', () => {
+  const H = planRoadHazards(city);
+  assert.ok(H.some(h => h.kind === 'pothole') && H.some(h => h.kind === 'bump'), 'both treatments appear');
+  const treated = new Set(H.map(h => h.roadId));
+  assert.ok(treated.size >= 2, 'more than one street is worn');
+  assert.ok(city.roads.some(r => roadTreatment(r) === null), 'some streets stay smooth');
+  for (const h of H) {
+    assert.ok(roadAt(city, h.x, h.z, 1.2), `${h.id} left the asphalt`);
+    assert.ok(!(city.roundabouts || []).some(o => Math.hypot(h.x - o.x, h.z - o.z) < o.outerR), `${h.id} sits in a roundabout`);
+  }
+  const sample = H[0]; assert.equal(hazardAt(H, sample.x, sample.z)?.id, sample.id); assert.equal(hazardAt(H, 9999, 9999), null);
 });

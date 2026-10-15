@@ -45,7 +45,8 @@ Each station has 4 or 5 invented track names (150 to 220 s) and a short **statio
 ## NOT done / NOT verified
 - **How it sounds to a human.** The smoke proves sound is produced (a level above silence) and that the right notes are scheduled; whether it sounds good, is in tune with a musician's ear, or is loud enough on a phone speaker needs a person to listen. These are simple synthesised patterns, not produced songs. Producing real royalty-free or original tracks is the main cost the plan mentioned.
 - No DJ voice or spoken words (only the jingle). No traffic, weather or news segments, no sponsor spots between tracks (the ad portal tie-in comes later), no artist slots, no listener counts on the server.
-- No radio in shops, homes, venues, the phone or as a passenger in Oya Ride or a bus (car driving only, as the plan's first piece said).
+- No radio in shops, homes, venues, the phone or as a passenger in Oya Ride or a bus. **Player carpool:** a passenger in another player's owned car hears the **driver's** station (driver tunes; synth tracks stay in sync via the server clock). Real streams are the same URL for both (approximate sync).
+- Still no radio as an Oya Ride / danfo passenger.
 - No "battery saver" detection beyond Save-Data and 2g (browsers rarely expose battery saver).
 - Only the four stations above are streamed; no other real station and no licensed music (rights in 14_radio_tv_plan.md and 20_radio_streaming_research.md). The streams' behaviour on Nigerian mobile networks (data cost, drop-outs) was not measured.
 - Phone battery and CPU use of the synthesis was not measured.

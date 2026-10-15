@@ -6,19 +6,29 @@ import * as THREE from 'three';
 import { h, $, get, post } from './api.js';
 import { makePlane, makeAirfield } from './plane.js';
 import { planFlight, flightPose, chaseCam, departPose, landingPose } from './flightpath.js';
+import { makeRoofMap, clearAir } from './roof-map.js';
 
 const mmss = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+const CLEAR = 22; // metres above the local roof
 export class AirportClient {
   constructor(game) {
     this.g = game; this.ap = game.city.airport || null; this.ticket = null; this.t = 0; this.flying = false; this.busy = false; if (!this.ap) return;
+    this.roofs = makeRoofMap(game.city.buildings || []);
     this.plan = planFlight(this.ap, [0, -60]); this.field = makeAirfield(this.ap); game.scene.add(this.field);
     this.parked = makePlane(); this.parked.position.set(this.ap.apron.x, 0, this.ap.apron.z); this.parked.rotation.y = -this.plan.taxiHeading; game.scene.add(this.parked);
     this.plane = makePlane(); this.plane.visible = false; game.scene.add(this.plane);
     const Bb = game.city.bounds; const cx = (Bb.minX + Bb.maxX) / 2, cz = (Bb.minZ + Bb.maxZ) / 2; const reach = Math.min(380, (Bb.maxX - Bb.minX) * 0.32);
-    this.sky = []; for (let i = 0; i < 4; i++) { const m = makePlane(); m.name = 'sky-plane'; game.scene.add(m); this.sky.push({ m, ang: i * 1.57 + 0.4, alt: 86 + i * 32, w: 0.11 + i * 0.025, rx: reach * (0.62 + i * 0.14), rz: reach * (0.48 + i * 0.1), cx, cz, bank: i % 2 ? -0.18 : 0.14 }); }
+    // Base cruise is above typical towers; roof-map still lifts over the tallest blocks.
+    this.sky = []; for (let i = 0; i < 4; i++) { const m = makePlane(); m.name = 'sky-plane'; game.scene.add(m); this.sky.push({ m, ang: i * 1.57 + 0.4, alt: 160 + i * 36, w: 0.11 + i * 0.025, rx: reach * (0.62 + i * 0.14), rz: reach * (0.48 + i * 0.1), cx, cz, bank: i % 2 ? -0.18 : 0.14, yClear: 160 + i * 36 }); }
     this.others = new Map(); this.pl = []; this.hideParked = false; // planes other players are on (heartbeat field pl), drawn from the same pure path
     this.chip = h('div', { id: 'airChip', class: 'pill hidden' }, h('button', { id: 'airBtn', class: 'park-btn', onclick: () => this.openBoard() }, ''));
     this.banner = h('div', { id: 'airBanner', class: 'pill hidden' }); document.body.append(this.chip, this.banner);
+  }
+  /** Soft-lift an airborne pose over rooftops (taxi / roll stay on the ground). */
+  airY(x, y, z, prev) {
+    const want = clearAir(this.roofs, x, y, z, CLEAR);
+    if (prev == null) return want;
+    return prev + (want - prev) * 0.35;
   }
   /** heartbeat field `pl`: planes in this airport's sky [{ id, kind: 'dep' | 'arr', t0 | t1 }] */
   setPlanes(list) { if (!this.ap) return; this.pl = Array.isArray(list) ? list : []; }
@@ -29,7 +39,9 @@ export class AirportClient {
       if (this.flying && this.flight && p.kind === 'dep' && p.t0 === this.flight.departsAt) continue; // that one is mine
       const pose = p.kind === 'dep' ? departPose(this.plan, (serverNow - p.t0) / 1000) : landingPose(this.plan, (serverNow - (p.t1 - T * 1000)) / 1000); if (!pose) continue; seen.add(p.id);
       let m = this.others.get(p.id); if (!m) { m = makePlane(); m.userData.att = { roll: pose.roll, pitch: pose.pitch, yaw: pose.yaw }; g.scene.add(m); this.others.set(p.id, m); }
-      m.visible = true; m.position.set(pose.x, pose.y, pose.z); const A = PHYS.plane, att = m.userData.att; att.roll = smoothAngle(att.roll, pose.roll, A.attitudeRate, dt); att.pitch = smoothAngle(att.pitch, pose.pitch, A.attitudeRate, dt); att.yaw = smoothAngle(att.yaw, pose.yaw, A.attitudeRate, dt); m.rotation.set(att.roll, att.yaw, att.pitch, 'YZX');
+      const y = this.airY(pose.x, pose.y, pose.z, m.userData.yClear);
+      m.userData.yClear = y;
+      m.visible = true; m.position.set(pose.x, y, pose.z); const A = PHYS.plane, att = m.userData.att; att.roll = smoothAngle(att.roll, pose.roll, A.attitudeRate, dt); att.pitch = smoothAngle(att.pitch, pose.pitch, A.attitudeRate, dt); att.yaw = smoothAngle(att.yaw, pose.yaw, A.attitudeRate, dt); m.rotation.set(att.roll, att.yaw, att.pitch, 'YZX');
       if (p.kind === 'arr' || (serverNow - p.t0) / 1000 < this.plan.F.taxiS + this.plan.F.rollS) park = true;
     }
     for (const [id, m] of this.others) if (!seen.has(id)) { g.scene.remove(m); this.others.delete(id); } this.hideParked = park;
@@ -53,24 +65,31 @@ export class AirportClient {
   }
   startFlight(t) {
     const g = this.g; this.flying = true; this.flight = t; g.nav?.cancel('flight', true); g.ui.closeSheet?.(); g.busy = true; g.ctrl.frozen = true; g.ctrl.avatar.visible = false; this.parked.visible = false; this.plane.visible = true; this.banner.classList.remove('hidden'); this.chip.classList.add('hidden'); g.ui.sfx('horn');
-    this.cam = null; this.nudged = false;
+    this.cam = null; this.nudged = false; this.flyY = null;
   }
-  endFlight() { const g = this.g; this.flying = false; this.plane.visible = false; this.parked.visible = true; g.busy = false; g.ctrl.frozen = false; g.ctrl.avatar.visible = true; this.banner.classList.add('hidden'); }
+  endFlight() { const g = this.g; this.flying = false; this.plane.visible = false; this.parked.visible = true; g.busy = false; g.ctrl.frozen = false; g.ctrl.avatar.visible = true; this.banner.classList.add('hidden'); this.flyY = null; }
   /** per frame while flying: move the plane and put the camera behind it */
   step(now, dt) {
     const g = this.g, f = this.flight, tSec = (g.serverNow() - f.departsAt) / 1000; const p = flightPose(this.plan, tSec);
-    this.plane.position.set(p.x, p.y, p.z);
+    const y = this.airY(p.x, p.y, p.z, this.flyY); this.flyY = y;
+    this.plane.position.set(p.x, y, p.z);
     // what you SEE is a smoothed version of the pose (no snapping at phase changes) plus a faint shiver in cruise; the path itself (flightPose) is untouched
     const A = PHYS.plane, att = this.att || (this.att = { roll: p.roll, pitch: p.pitch, yaw: p.yaw }); const tb = p.phase === 'cruise' ? A.turbulence : 0; const tn = now / 1000;
     att.roll = smoothAngle(att.roll, p.roll + tb * Math.sin(tn * 1.7), A.attitudeRate, dt); att.pitch = smoothAngle(att.pitch, p.pitch + tb * Math.sin(tn * 1.1 + 1), A.attitudeRate, dt); att.yaw = smoothAngle(att.yaw, p.yaw, A.attitudeRate, dt); this.plane.rotation.set(att.roll, att.yaw, att.pitch, 'YZX');
-    const c = chaseCam(p, 34, 10, 14); if (!this.cam) { this.cam = new THREE.Vector3(...c.pos); this.look = new THREE.Vector3(...c.look); } const k = Math.min(1, dt * 3.2); this.cam.lerp(new THREE.Vector3(...c.pos), k); this.look.lerp(new THREE.Vector3(...c.look), k * 1.4);
+    const poseCam = { ...p, y }; const c = chaseCam(poseCam, 34, 10, 14); if (!this.cam) { this.cam = new THREE.Vector3(...c.pos); this.look = new THREE.Vector3(...c.look); } const k = Math.min(1, dt * 3.2); this.cam.lerp(new THREE.Vector3(...c.pos), k); this.look.lerp(new THREE.Vector3(...c.look), k * 1.4);
     g.camera.position.copy(this.cam); g.camera.lookAt(this.look); g.camera.updateMatrixWorld();
     const left = f.arriveAt - g.serverNow(); this.banner.textContent = left > 0 ? `✈ Flying to ${f.toName} · ${mmss(left)}` : `✈ Landing in ${f.toName}…`; if (left <= 300 && !this.nudged) { this.nudged = true; setTimeout(() => g.net.nudge?.(), 600); }
   }
   tick(dt) {
     if (!this.ap) return;
     const sec = Math.min(0.05, dt / 1000);
-    for (const s of this.sky) { s.ang += s.w * sec; const x = s.cx + Math.cos(s.ang) * s.rx, z = s.cz + Math.sin(s.ang) * s.rz; const heading = Math.atan2(Math.cos(s.ang) * s.rz, -Math.sin(s.ang) * s.rx); s.m.position.set(x, s.alt, z); s.m.rotation.set(0.05, -heading, s.bank, 'YZX'); }
+    for (const s of this.sky) {
+      s.ang += s.w * sec;
+      const x = s.cx + Math.cos(s.ang) * s.rx, z = s.cz + Math.sin(s.ang) * s.rz;
+      const heading = Math.atan2(Math.cos(s.ang) * s.rz, -Math.sin(s.ang) * s.rx);
+      s.yClear = this.airY(x, s.alt, z, s.yClear);
+      s.m.position.set(x, s.yClear, z); s.m.rotation.set(0.05, -heading, s.bank, 'YZX');
+    }
     this.drawOthers(performance.now(), Math.min(0.1, dt / 1000)); if (this.flying) return; const g = this.g; this.t += dt; if (this.t < 400) return; this.t = 0; const tk = this.ticket;
     let label = null; if (tk && tk.state === 'ticketed') label = `🎫 ${tk.toName} · leaves in ${mmss(tk.departsAt - g.serverNow())}`; else if (!tk && this.near()) label = '✈ Departures';
     if (g.commute || g.busy || g.interior?.open || g.venue?.open || g.garage?.open || g.ui.sheetOpen) label = null; this.chip.classList.toggle('hidden', !label); if (label) $('#airBtn').textContent = label;

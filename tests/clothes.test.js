@@ -4,6 +4,14 @@ import assert from 'node:assert/strict';
 import { makeServer, mkUser, ok, call, at } from './helpers.js';
 import { balanceOf, cashId, checkInvariants } from '../server/core/ledger.js';
 
+test('sign-up can pick female body', async () => {
+  const s = makeServer();
+  const auth = await import('../server/core/auth.js');
+  const uid = await auth.signup(s.app, { username: 'signup_f1', password: 'secret-pass-1', age18: true, email: 'signup_f1@example.com', gender: 'female' }, 'ip');
+  assert.equal((await ok(s, 'GET', '/api/me', { uid })).user.gender, 'female');
+  assert.equal((await call(s, 'POST', '/api/auth/signup', { body: { username: 'signup_bad', password: 'secret-pass-1', age18: true, email: 'signup_bad@example.com', gender: 'other' } })).json.error, 'BAD_GENDER');
+});
+
 test('cloth market sells clothes and the body can be male or female', async () => {
   const s = makeServer();
   const v = s.app.all.venueById.venue_cloth;

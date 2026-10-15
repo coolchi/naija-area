@@ -4,7 +4,7 @@ import { bad, cleanText } from '../util.js';
 import { screen } from '../filter.js';
 import { isBlocked, chatMuted } from '../safety.js';
 import * as guardian from '../guardian.js';
-import { notify } from '../economy.js';
+import { notify, transfer } from '../economy.js';
 import { S2C } from './events.js';
 
 const pair = (a, b) => (a < b ? [a, b] : [b, a]);
@@ -80,7 +80,9 @@ function unreadByThread(app, uid) {
 }
 function msgView(app, m, viewer) {
   const v = { id: m.id, threadId: m.thread_id, from: nameOf(app, m.sender_id), mine: m.sender_id === viewer, kind: m.kind, at: m.created_at };
-  if (m.kind === 'voice') { const vn = app.db.prepare('SELECT id,duration_ms,waveform,status,bytes FROM voice_notes WHERE id=?').get(m.voice_id); v.voice = vn && vn.status === 'ready' ? { id: vn.id, durationMs: vn.duration_ms, waveform: vn.waveform ? JSON.parse(vn.waveform) : null } : { id: m.voice_id, gone: true, durationMs: vn?.duration_ms || 0 }; } else v.text = m.body; return v;
+  if (m.kind === 'voice') { const vn = app.db.prepare('SELECT id,duration_ms,waveform,status,bytes FROM voice_notes WHERE id=?').get(m.voice_id); v.voice = vn && vn.status === 'ready' ? { id: vn.id, durationMs: vn.duration_ms, waveform: vn.waveform ? JSON.parse(vn.waveform) : null } : { id: m.voice_id, gone: true, durationMs: vn?.duration_ms || 0 }; }
+  else if (m.kind === 'pay') { const amount = Math.max(0, Number(m.body) || 0); v.pay = { amount }; v.text = `💸 ₦${amount.toLocaleString('en-NG')}`; }
+  else v.text = m.body; return v;
 }
 function addMessage(app, t, from, to, kind, body, voiceId = null, silent = false) {
   const now = app.clock.now(); const r = app.db.prepare('INSERT INTO phone_messages(thread_id,sender_id,kind,body,voice_id,created_at) VALUES (?,?,?,?,?,?)').run(t.id, from, kind, body, voiceId, now);
@@ -96,6 +98,17 @@ export function sendText(app, uid, toName, text) {
   gate(app, uid); const to = userByName(app, toName); chatChecks(app, uid, to); const t = cleanText(text, P(app).textMax); if (!t) bad('EMPTY', 'Type a message.'); const sc = screen(t); if (!sc.ok) bad(sc.code, sc.message);
   const now = app.clock.now(); const S = app.balance.safety; if (!app.limiter.hit(`pm:${uid}`, P(app).msgPerMin, 60000, now)) bad('RATE_LIMIT', 'Too many messages, slow down.', 429); if (!app.limiter.hit(`pm:${uid}:${to.id}`, P(app).msgPerRecipientPerMin, 60000, now)) bad('RATE_LIMIT', 'Easy now: let them reply first.', 429); void S;
   const th = threadFor(app, uid, to.id); const m = addMessage(app, th, uid, to.id, 'text', t); return { ok: true, message: msgView(app, m, uid) };
+}
+
+/** Send game money to a friend from chat (reuses /api/transfer rules) and posts a pay bubble in the thread. */
+export function sendPay(app, uid, toName, amount, idemKey) {
+  gate(app, uid); const to = userByName(app, toName); chatChecks(app, uid, to);
+  const n = Math.floor(Number(amount)); if (!Number.isFinite(n)) bad('BAD_AMOUNT', 'Enter an amount.');
+  const r = transfer(app, uid, to.username, n, idemKey ? `chatpay:${idemKey}` : null);
+  if (r.duplicate) return { ok: true, cash: r.cash, amount: n, duplicate: true, text: `Sent ₦${n.toLocaleString('en-NG')} to @${to.username}.` };
+  const th = threadFor(app, uid, to.id);
+  const m = addMessage(app, th, uid, to.id, 'pay', String(n));
+  return { ok: true, cash: r.cash, amount: n, duplicate: false, message: msgView(app, m, uid), text: `Sent ₦${n.toLocaleString('en-NG')} to @${to.username}.` };
 }
 export function threadsView(app, uid) {
   gate(app, uid); const un = unreadByThread(app, uid); const ts = app.db.prepare('SELECT * FROM phone_threads WHERE (user_a=? OR user_b=?) AND last_message_id IS NOT NULL ORDER BY last_message_at DESC LIMIT 50').all(uid, uid);

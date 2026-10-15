@@ -1,5 +1,5 @@
 // Physics and kinetics feel pass (10 Oct 2026): the PURE movement functions. They decide how acceleration, stopping, sliding, bouncing and knock-back behave on the client,
-// and must never outrun what the server accepts (maxWalkSpeed 7, maxDriveSpeed 26, both x slack 1.6). Feel itself (is it fun?) needs a human on a phone: not tested here.
+// and must never outrun what the server accepts (maxWalkSpeed 7, maxDriveSpeed from balance, both x slack 1.6). Feel itself (is it fun?) needs a human on a phone: not tested here.
 import test from 'node:test'; import assert from 'node:assert/strict';
 import { PHYS, applyServerLimits } from '../client/src/physics-config.js';
 import * as K from '../client/src/kinematics.js';
@@ -44,7 +44,7 @@ test('walking: deterministic (same inputs, same numbers)', () => { const a = K.n
 
 test('car: the throttle ramps (not instant), the engine fades toward top speed, and top speed is never exceeded', () => {
   const c = K.newCar(), C = PHYS.car; K.carStep(c, { pedal: 1, steer: 0 }, 0.05); assert.ok(c.v < 0.5 * C.accel * 0.05, 'ramp: slower than a flat push in the first 50 ms: ' + c.v);
-  let a0 = 0, a15 = 0; const d = K.newCar(); run(20, () => K.carStep(d, { pedal: 1, steer: 0 }, DT)); a0 = d.ax; d.v = 15; d.th = 1; K.carStep(d, { pedal: 1, steer: 0 }, DT); a15 = d.ax; assert.ok(a0 > a15 * 2 && a15 > 0, `acceleration falls with speed: ${a0} > ${a15}`);
+  let a0 = 0, aHi = 0; const d = K.newCar(); run(20, () => K.carStep(d, { pedal: 1, steer: 0 }, DT)); a0 = d.ax; d.v = C.maxSpeed * 0.75; d.th = 1; K.carStep(d, { pedal: 1, steer: 0 }, DT); aHi = d.ax; assert.ok(a0 > aHi * 2 && aHi > 0, `acceleration falls with speed: ${a0} > ${aHi}`);
   const e = K.newCar(); let max = 0; run(60 * 20, () => { K.carStep(e, { pedal: 1, steer: 0 }, DT); max = Math.max(max, e.v); }); assert.ok(max <= C.maxSpeed + 1e-9 && max > C.maxSpeed - 0.5, 'tops out at ' + max);
   const big = K.newCar(); K.carStep(big, { pedal: 1, steer: 0 }, 0.1); run(5, () => K.carStep(big, { pedal: 1, steer: 0 }, 0.1)); assert.ok(big.v < C.accel * 0.6 + 1e-9, 'a long frame does not blow up');
   const r = K.newCar(); run(60 * 5, () => K.carStep(r, { pedal: -1, steer: 0 }, DT)); near(r.v, -C.reverseMax, 0.3, 'reverse tops out'); assert.ok(r.v >= -C.reverseMax - 1e-9);
@@ -66,14 +66,15 @@ test('car: steering gets heavier with speed, the turn rate is capped by grip (un
   const still = K.newCar(); run(60, () => K.carStep(still, { pedal: 0, steer: 1 }, DT)); assert.equal(still.ry, 0, 'no turning on the spot');
 });
 test('car: the handbrake lets the back slide (sideways speed that lingers), normal grip kills it, and nothing exceeds the top speed', () => {
-  const slide = (hand) => { const c = K.newCar(); c.v = 16; c.th = 1; run(30, () => { K.carStep(c, { pedal: 1, steer: 0.8, hand: false }, DT); }); let peak = 0; run(40, () => { K.carStep(c, { pedal: 0.4, steer: 0.8, hand }, DT); peak = Math.max(peak, Math.abs(c.lat)); assert.ok(K.carSpeed(c) <= PHYS.car.maxSpeed + 1e-9); }); const after = (() => { run(30, () => K.carStep(c, { pedal: 0.4, steer: 0, hand: false }, DT)); return Math.abs(c.lat); })(); return { peak, after, v: c.v }; };
+  const C = PHYS.car; const vSlide = C.maxSpeed * 0.8;
+  const slide = (hand) => { const c = K.newCar(); c.v = vSlide; c.th = 1; run(30, () => { K.carStep(c, { pedal: 1, steer: 0.8, hand: false }, DT); }); let peak = 0; run(40, () => { K.carStep(c, { pedal: 0.4, steer: 0.8, hand }, DT); peak = Math.max(peak, Math.abs(c.lat)); assert.ok(K.carSpeed(c) <= C.maxSpeed + 1e-9); }); const after = (() => { run(30, () => K.carStep(c, { pedal: 0.4, steer: 0, hand: false }, DT)); return Math.abs(c.lat); })(); return { peak, after, v: c.v }; };
   const grip = slide(false), drift = slide(true); assert.ok(drift.peak > grip.peak * 2 && drift.peak > 1.5, `drift ${drift.peak.toFixed(2)} vs grip ${grip.peak.toFixed(2)}`); assert.ok(drift.after < drift.peak, 'it straightens out when the handbrake is released');
-  const bend = K.newCar(); bend.v = 18; bend.th = 1; const v0 = 18; run(60, () => K.carStep(bend, { pedal: 0.7, steer: 1 }, DT)); assert.ok(bend.v < v0 + 1, 'hard bends cost speed (tyre scrub); not a free speed gain');
+  const bend = K.newCar(); const v0 = C.maxSpeed * 0.9; bend.v = v0; bend.th = 1; run(60, () => K.carStep(bend, { pedal: 0.7, steer: 1 }, DT)); assert.ok(bend.v < v0 + 1, 'hard bends cost speed (tyre scrub); not a free speed gain');
 });
 test('car: slow zone at a roundabout caps speed only inside the ring and margin, and only softly', () => {
-  const ra = [{ x: 0, z: 0, outerR: 15 }]; const C = PHYS.car; assert.equal(K.zoneSpeedCap(30, 0, ra), Infinity); assert.equal(K.zoneSpeedCap(17, 0, ra), C.zoneCap); assert.equal(K.zoneSpeedCap(0, 0, null), Infinity); assert.equal(K.zoneSpeedCap(0, 0, ra, { ...C, zoneCap: 0 }), Infinity);
-  const c = K.newCar(); c.v = 18; c.th = 1; let t = 0; const env = { cap: C.zoneCap }; let prev = c.v; run(30, () => { K.carStep(c, { pedal: 1, steer: 0 }, DT, C, env); assert.ok(prev - c.v <= (C.zoneDecel + C.brakeDecel) * DT + 1e-6); prev = c.v; t += DT; }); assert.ok(c.v < 18 - 1.5, 'slowing in the circle: ' + c.v); run(240, () => K.carStep(c, { pedal: 0, steer: 0 }, DT, C, env)); assert.ok(c.v <= C.zoneCap + 0.2);
-  const free = K.newCar(); free.v = 18; run(60, () => K.carStep(free, { pedal: 1, steer: 0 }, DT, C, {})); assert.ok(free.v >= 17.9, 'no slowing outside');
+  const ra = [{ x: 0, z: 0, outerR: 15 }]; const C = PHYS.car; const vIn = C.zoneCap * 2; assert.equal(K.zoneSpeedCap(30, 0, ra), Infinity); assert.equal(K.zoneSpeedCap(17, 0, ra), C.zoneCap); assert.equal(K.zoneSpeedCap(0, 0, null), Infinity); assert.equal(K.zoneSpeedCap(0, 0, ra, { ...C, zoneCap: 0 }), Infinity);
+  const c = K.newCar(); c.v = vIn; c.th = 1; let t = 0; const env = { cap: C.zoneCap }; let prev = c.v; run(30, () => { K.carStep(c, { pedal: 1, steer: 0 }, DT, C, env); assert.ok(prev - c.v <= (C.zoneDecel + C.brakeDecel) * DT + 1e-6); prev = c.v; t += DT; }); assert.ok(c.v < vIn - 1.5, 'slowing in the circle: ' + c.v); run(240, () => K.carStep(c, { pedal: 0, steer: 0 }, DT, C, env)); assert.ok(c.v <= C.zoneCap + 0.2);
+  const free = K.newCar(); free.v = vIn; run(60, () => K.carStep(free, { pedal: 1, steer: 0 }, DT, C, {})); assert.ok(free.v >= vIn - 0.1, 'no slowing outside');
 });
 test('car: deterministic, and stable at any frame length (a 100 ms frame ends close to six 16 ms frames)', () => {
   const sim = (dt, n) => { const c = K.newCar(); run(n, (i) => K.carStep(c, { pedal: 1, steer: i * dt > 1 ? 0.5 : 0 }, dt)); return c; }; assert.equal(JSON.stringify(sim(DT, 300)), JSON.stringify(sim(DT, 300)));
@@ -105,6 +106,7 @@ test('body motion: the car rolls out of a bend and dips its nose under braking, 
   const k = K.newSusp(); K.suspStep(k, 0, 0, 1.5, DT); let peak = 0; run(200, () => { K.suspStep(k, 0, 0, 0, DT); peak = Math.max(peak, k.y); }); assert.ok(peak > 0.005 && peak <= S.bumpY + 1e-9, 'bounce rises then falls: ' + peak); assert.ok(Math.abs(k.y) < 0.01 && Math.abs(k.yV) < 0.1, 'settled');
   const big = K.newSusp(); K.suspStep(big, 0, 0, 50, 0.1); assert.ok(Number.isFinite(big.y) && big.y <= S.bumpY + 1e-9);
   const one = K.newSusp(), two = K.newSusp(); run(30, () => { K.suspStep(one, -9, 5, 0, DT); K.suspStep(two, -9, 5, 0, DT); }); assert.equal(JSON.stringify(one), JSON.stringify(two));
+  const H = PHYS.suspHeavy; const hk = K.newSusp(); K.suspStep(hk, 0, 0, 1.5, DT, H); let hPeak = 0; run(200, () => { K.suspStep(hk, 0, 0, 0, DT, H); hPeak = Math.max(hPeak, hk.y); }); assert.ok(hPeak <= H.bumpY + 1e-9 && H.bumpY < S.bumpY, 'heavy SUV bounce stays flatter');
 });
 test('camera shake: grows with impact up to a cap, is deterministic, and the offset never exceeds the amplitude', () => {
   const C = PHYS.camera; assert.equal(K.shakeFromImpact(0), 0); assert.ok(K.shakeFromImpact(8) > K.shakeFromImpact(4)); assert.equal(K.shakeFromImpact(1000), C.shakeMax); for (let t = 0; t < 2; t += 0.013) { const [x, y] = K.shakeOffset(0.4, t); assert.ok(Math.abs(x) <= 0.4 && Math.abs(y) <= 0.28 + 1e-9); } assert.deepEqual(K.shakeOffset(0.3, 1.234), K.shakeOffset(0.3, 1.234)); assert.ok(K.shakeOffset(0, 5).every(v => v === 0));
