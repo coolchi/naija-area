@@ -53,6 +53,21 @@ import { BodyguardClient } from './bodyguard-client.js';
 import { glowTexture } from './textures.js';
 
 const TIPS = ['Tap any building or sign to see it on the map and travel there.', 'Take a shift at the Corner Mart: the quick task gives +25% if you stop the bar in the green.', 'Knock at a house when its owner is home. They can let you in.', 'Land plots grow in value, but omo-onile may come for a levy.', 'Delivery costs more but works from anywhere.', 'Walk up to your own car and tap it to get in. Press T to chat.'];
+/** Firefox on some Macs rejects powerPreference:"high-performance"; fall back so boot does not die with the generic WebGL tip. */
+function makeGameRenderer(canvas, antialias) {
+  const tries = [
+    { antialias, powerPreference: 'high-performance' },
+    { antialias, powerPreference: 'default' },
+    { antialias: false, powerPreference: 'default' },
+    { antialias: false },
+  ];
+  let last;
+  for (const attrs of tries) {
+    try { return new THREE.WebGLRenderer({ canvas, ...attrs }); }
+    catch (e) { last = e; }
+  }
+  throw last || new Error('Could not create a WebGL context.');
+}
 const MOTOKA_W = 1440, MOTOKA_H = 400, MOTOKA_ASPECT = MOTOKA_W / MOTOKA_H;
 const MOTOKA_MARK = "M13.8111 30.5819C21.4388 30.5819 27.6222 24.4721 27.6222 16.9352C27.6222 9.39835 21.4388 3.28851 13.8111 3.28851C6.18345 3.28851 0 9.39835 0 16.9352C0 24.4721 6.18345 30.5819 13.8111 30.5819ZM8.65245 6.87979C11.8428 5.18238 15.6827 5.18238 18.873 6.87979C21.4256 8.23788 23.4013 10.4546 24.442 13.1283L24.6178 13.5799C25.2951 15.32 23.6179 17.0543 21.8279 16.4647L16.8503 14.8253C14.8461 14.1652 12.6793 14.1652 10.6752 14.8253L5.6976 16.4647C3.90755 17.0543 2.23036 15.32 2.90771 13.5799L3.0835 13.1283C4.12421 10.4546 6.09989 8.23788 8.65245 6.87979ZM6.40542 20.6317H8.04084C9.96929 20.6317 11.6073 22.0263 11.8923 23.9109L12.1152 25.385C12.3235 26.7621 10.8961 27.8139 9.61966 27.224C7.80262 26.3842 6.20197 25.0972 4.98958 23.5181C4.08861 22.3446 4.91468 20.6317 6.40542 20.6317ZM20.2224 20.6317H21.5088C23.0286 20.6317 23.8922 22.3501 22.9736 23.5465L22.8445 23.7147C21.7183 25.1815 20.2611 26.3683 18.5888 27.1805C17.3512 27.7815 15.9397 26.7622 16.1435 25.4146L16.3709 23.9109C16.6559 22.0263 18.2939 20.6317 20.2224 20.6317Z";
 function motokaMark(g, x, y, size) {
@@ -118,7 +133,9 @@ class Game {
     try {
       this.progress(8, 'Reaching the server…'); const [cfg, city] = await Promise.all([get('/api/config'), get('/api/city')]); this.cfg = cfg; this.city = city; get('/api/wearables/catalogue').then(c => { this.wearCat = indexCatalogue(c); if (this.ghosts) this.ghosts.cat = this.wearCat; this.syncWear(this.user?.wear); }).catch(() => {}); const legacy = (x, z) => (z > 125 ? 'Lagoon Front' : x < 0 && z < 0 ? 'Yaba' : x >= 0 && z < 0 ? 'Ikeja' : x < 0 ? 'Surulere' : 'Lekki Phase 1'); city.area = (x, z) => city.districts?.find(d => x >= d.x0 && x < d.x1 && z >= d.z0 && z < d.z1)?.name || (city.id === 'lagos-mainland' ? legacy(x, z) : city.cityName); $('#tagline').textContent = cfg.tagline || ''; document.title = cfg.name;
       this.progress(30, 'Building the district…'); await new Promise(r => setTimeout(r, 30));
-      this.qualityChoice = Q.readChoice(localStorage); this.governor = new Q.Governor(); const q0 = Q.profileFor(Q.resolve(this.qualityChoice, Q.readEnv())); this.renderer = new THREE.WebGLRenderer({ canvas: $('#game'), antialias: q0.antialias && devicePixelRatio < 2, powerPreference: 'high-performance' }); this.renderer.setPixelRatio(Math.min(devicePixelRatio, q0.pixelRatio));
+      this.qualityChoice = Q.readChoice(localStorage); this.governor = new Q.Governor(); const q0 = Q.profileFor(Q.resolve(this.qualityChoice, Q.readEnv()));
+      const canvas = $('#game'); if (canvas && (!canvas.width || !canvas.height)) { canvas.width = Math.max(1, innerWidth|0); canvas.height = Math.max(1, innerHeight|0); }
+      this.renderer = makeGameRenderer(canvas, !!(q0.antialias && devicePixelRatio < 2)); this.renderer.setPixelRatio(Math.min(devicePixelRatio, q0.pixelRatio));
       this.camera = new THREE.PerspectiveCamera(58, 1, 0.5, 900); this.camera.position.set(0, 14, 20);
       this.world = buildWorld(city); this.scene = this.world.scene; this.decorate(); this.weather = new Weather(this.scene, this.world);
       this.progress(60, 'Putting traffic on the road…'); await new Promise(r => setTimeout(r, 30));
@@ -133,7 +150,14 @@ class Game {
       $('#loading').classList.add('hidden'); this.loop(performance.now());
       addEventListener('pagehide', () => this.flushPresence?.());
       addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') this.flushPresence?.(); });
-    } catch (e) { console.error(e); $('#loadTip').textContent = e instanceof ApiError ? e.message : 'Could not start the game. Is WebGL enabled? Refresh to retry.'; $('#loadBar').style.background = '#d6402f'; }
+    } catch (e) {
+      console.error(e);
+      const tip = e instanceof ApiError ? e.message
+        : (e && e.message) ? String(e.message).slice(0, 180)
+        : 'Could not start the game. Is WebGL enabled? Refresh to retry.';
+      $('#loadTip').textContent = tip;
+      $('#loadBar').style.background = '#d6402f';
+    }
   }
   // ---- extra scene dressing: land plots + "for sale" flags + market stall
   decorate() {

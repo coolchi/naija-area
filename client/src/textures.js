@@ -1,4 +1,20 @@
 import * as THREE from 'three';
+// Firefox (and a few older engines) used to miss CanvasRenderingContext2D.roundRect.
+// Name tags and Motoka art call it during boot — polyfill before any of that runs.
+(() => {
+  const proto = typeof CanvasRenderingContext2D !== 'undefined' ? CanvasRenderingContext2D.prototype : null;
+  if (!proto || typeof proto.roundRect === 'function') return;
+  proto.roundRect = function roundRect(x, y, w, h, radii = 0) {
+    const r = Array.isArray(radii) ? radii : [radii, radii, radii, radii];
+    const [tl, tr, br, bl] = [r[0] || 0, (r[1] ?? r[0]) || 0, (r[2] ?? r[0]) || 0, (r[3] ?? r[1] ?? r[0]) || 0];
+    this.moveTo(x + tl, y);
+    this.lineTo(x + w - tr, y); this.quadraticCurveTo(x + w, y, x + w, y + tr);
+    this.lineTo(x + w, y + h - br); this.quadraticCurveTo(x + w, y + h, x + w - br, y + h);
+    this.lineTo(x + bl, y + h); this.quadraticCurveTo(x, y + h, x, y + h - bl);
+    this.lineTo(x, y + tl); this.quadraticCurveTo(x, y, x + tl, y);
+    this.closePath();
+  };
+})();
 const cv = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
 function rnd(seed) { let a = seed; return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const tex = (c, rep = false) => { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; if (rep) t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; };
