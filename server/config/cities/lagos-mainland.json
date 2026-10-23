@@ -2558,23 +2558,6 @@
   {
    "kind": "house",
    "x": -336,
-   "z": 24,
-   "w": 18,
-   "d": 12,
-   "h": 8,
-   "floors": 3,
-   "color": "#c5d4c0",
-   "face": [
-    0,
-    -1
-   ],
-   "id": "mxb044",
-   "tier": 2,
-   "roof": "#4a5560"
-  },
-  {
-   "kind": "house",
-   "x": -336,
    "z": 44,
    "w": 14,
    "d": 14,
@@ -2586,23 +2569,6 @@
     1
    ],
    "id": "mxb045",
-   "tier": 2,
-   "roof": "#6b4a3a"
-  },
-  {
-   "kind": "house",
-   "x": -336,
-   "z": 70,
-   "w": 16,
-   "d": 12,
-   "h": 6,
-   "floors": 2,
-   "color": "#e6d3b1",
-   "face": [
-    1,
-    0
-   ],
-   "id": "mxb046",
    "tier": 2,
    "roof": "#6b4a3a"
   },
@@ -2620,36 +2586,6 @@
     0
    ],
    "id": "mxb047"
-  },
-  {
-   "kind": "office",
-   "x": -308,
-   "z": 24,
-   "w": 22,
-   "d": 16,
-   "h": 24,
-   "floors": 8,
-   "color": "#cfd6dc",
-   "face": [
-    0,
-    -1
-   ],
-   "id": "mxb048"
-  },
-  {
-   "kind": "kiosk",
-   "x": -308,
-   "z": 52,
-   "w": 8,
-   "d": 7,
-   "h": 4,
-   "floors": 1,
-   "color": "#b9c7d4",
-   "face": [
-    0,
-    1
-   ],
-   "id": "mxb049"
   },
   {
    "kind": "kiosk",
@@ -9197,134 +9133,6 @@
   },
   {
    "kind": "block",
-   "x": -287,
-   "z": 21.4,
-   "w": 16,
-   "d": 14,
-   "h": 13,
-   "floors": 4,
-   "color": "#d4c2b0",
-   "face": [
-    0,
-    -1
-   ],
-   "id": "mn_0282",
-   "trim": "#c9892d"
-  },
-  {
-   "kind": "block",
-   "x": -271.4,
-   "z": 21.4,
-   "w": 12,
-   "d": 14,
-   "h": 19,
-   "floors": 6,
-   "color": "#d5c8b4",
-   "face": [
-    0,
-    -1
-   ],
-   "id": "mn_0283",
-   "trim": "#c4472f"
-  },
-  {
-   "kind": "block",
-   "x": -258.4,
-   "z": 21.4,
-   "w": 10.8,
-   "d": 14,
-   "h": 16,
-   "floors": 5,
-   "color": "#c9d3c4",
-   "face": [
-    0,
-    -1
-   ],
-   "id": "mn_0284",
-   "trim": "#b23a48"
-  },
-  {
-   "kind": "block",
-   "x": -320.5,
-   "z": 98.6,
-   "w": 13,
-   "d": 14,
-   "h": 22,
-   "floors": 7,
-   "color": "#e8d2b0",
-   "face": [
-    0,
-    1
-   ],
-   "id": "mn_0285",
-   "trim": "#1d4e89"
-  },
-  {
-   "kind": "block",
-   "x": -306.4,
-   "z": 98.6,
-   "w": 12,
-   "d": 14,
-   "h": 20,
-   "floors": 6,
-   "color": "#e7d0c4",
-   "face": [
-    0,
-    1
-   ],
-   "id": "mn_0286",
-   "trim": "#a15c2a"
-  },
-  {
-   "kind": "block",
-   "x": -292.8,
-   "z": 98.6,
-   "w": 12,
-   "d": 14,
-   "h": 28,
-   "floors": 9,
-   "color": "#efe6d6",
-   "face": [
-    0,
-    1
-   ],
-   "id": "mn_0287",
-   "trim": "#6b3a6a"
-  },
-  {
-   "kind": "block",
-   "x": -279.2,
-   "z": 98.6,
-   "w": 12,
-   "d": 14,
-   "h": 14,
-   "floors": 4,
-   "color": "#dccfc2",
-   "face": [
-    0,
-    1
-   ],
-   "id": "mn_0288",
-   "trim": "#1f6b4a"
-  },
-  {
-   "kind": "block",
-   "x": -265.1,
-   "z": 98.6,
-   "w": 13,
-   "d": 14,
-   "h": 13,
-   "floors": 4,
-   "color": "#d9c4a8",
-   "face": [
-    0,
-    1
-   ],
-   "id": "mn_0289",
-   "trim": "#0e6b5c"
-  },
-  {
-   "kind": "block",
    "x": -187.5,
    "z": 21.4,
    "w": 11,
@@ -10790,6 +10598,24 @@
    ],
    "id": "b_police",
    "tag": "police"
+  },
+  {
+   "kind": "stadium",
+   "x": -281,
+   "z": 68,
+   "w": 90,
+   "d": 72,
+   "h": 20,
+   "floors": 5,
+   "color": "#d9d6cf",
+   "face": [
+    0,
+    -1
+   ],
+   "label": "National Stadium",
+   "model": "stadium",
+   "nocollideCheck": false,
+   "id": "ml_b_national_stadium"
   }
  ],
  "properties": [
@@ -11364,6 +11190,37 @@
      "energy": 0
     }
    ]
+  },
+  {
+   "id": "ml_shop_stadium",
+   "name": "National Stadium Snacks",
+   "desc": "Suya, puff-puff, chin chin and cold zobo on match day (game money, ESTIMATE prices).",
+   "x": -281,
+   "z": 29,
+   "items": [
+    {
+     "id": "suya",
+     "name": "Suya stick",
+     "price": 1200,
+     "hunger": 40,
+     "energy": 18
+    },
+    {
+     "id": "chinchin",
+     "name": "Chin chin",
+     "price": 500,
+     "hunger": 20,
+     "energy": 4
+    },
+    {
+     "id": "zobo",
+     "name": "Zobo drink",
+     "price": 300,
+     "hunger": 5,
+     "energy": 6
+    }
+   ],
+   "channel": "supermarket"
   }
  ],
  "jobs": [
@@ -11637,6 +11494,19 @@
    "h": 4,
    "y": 5,
    "lot": "cp_public"
+  },
+  {
+   "id": "cb_national_stadium",
+   "surface": "carpark_board",
+   "tier": "lot",
+   "x": -306,
+   "z": 10.2,
+   "nx": 0,
+   "nz": -1,
+   "w": 8,
+   "h": 4,
+   "y": 5,
+   "lot": "ml_cp_national_stadium"
   }
  ],
  "spawns": [
@@ -13164,7 +13034,7 @@
   {
    "id": "mxz06",
    "x0": -350,
-   "x1": -250,
+   "x1": -331,
    "z0": 10,
    "z1": 110
   },
@@ -17512,6 +17382,135 @@
     ],
     "detailV2": true
    }
+  },
+  {
+   "id": "ml_venue_national_stadium",
+   "name": "National Stadium, Surulere",
+   "blurb": "The big ground on the Mainland: buy a ticket, take a seat, watch the score board and grab snacks. Fictional club and league names.",
+   "buildingId": "ml_b_national_stadium",
+   "x": -281,
+   "z": 29,
+   "hours": [
+    8,
+    23
+   ],
+   "sign": "#1b6e3a",
+   "stations": [
+    {
+     "id": "ticket",
+     "type": "ticket",
+     "label": "Ticket booth",
+     "x": -8.6,
+     "z": 5.4,
+     "color": "#1b6e3a"
+    },
+    {
+     "id": "snack1",
+     "type": "eat",
+     "label": "Snack stall",
+     "x": -8.6,
+     "z": 1.6,
+     "color": "#c8553d",
+     "shopId": "ml_shop_stadium"
+    },
+    {
+     "id": "snack2",
+     "type": "eat",
+     "label": "Drinks stall",
+     "x": -8.6,
+     "z": -2,
+     "color": "#2a9d8f",
+     "shopId": "ml_shop_stadium"
+    },
+    {
+     "id": "scores",
+     "type": "scores",
+     "label": "Score board",
+     "x": -8.6,
+     "z": -5.6,
+     "color": "#10131a"
+    },
+    {
+     "id": "seat",
+     "type": "seat",
+     "label": "Take a seat (ticket)",
+     "x": 2.5,
+     "z": -3,
+     "color": "#d6402f"
+    },
+    {
+     "id": "brand",
+     "type": "poster",
+     "label": "Brand board spot",
+     "x": 6.5,
+     "z": 5.7,
+     "color": "#e0a020",
+     "text": "Brand board spot (placeholder). Ad slots around the ground are planned; the real ad system is on the Advertise page."
+    },
+    {
+     "id": "rules",
+     "type": "poster",
+     "label": "House rules",
+     "color": "#f0c419",
+     "text": "Game money only. 18+. No alcohol is simulated in this version. Be respectful: you can be reported, muted or blocked. Prices are ESTIMATE placeholders.",
+     "x": 9.6,
+     "z": 5.7
+    }
+   ],
+   "room": {
+    "w": 22,
+    "d": 16,
+    "wall": "#d7d9db",
+    "trim": "#1b6e3a",
+    "floor": {
+     "style": "checker",
+     "a": "#b9bcc0",
+     "b": "#aeb1b5"
+    },
+    "windows": [],
+    "mood": "warm",
+    "door": "Enter",
+    "decor": [
+     {
+      "k": "pitch",
+      "x": 2.5,
+      "z": 0.8,
+      "w": 14,
+      "d": 7.2
+     },
+     {
+      "k": "stands",
+      "x": 2.5,
+      "z": -5.7,
+      "w": 16,
+      "d": 4.6,
+      "tiers": 3
+     },
+     {
+      "k": "adboards",
+      "x": 2.5,
+      "z": 4.8,
+      "w": 14
+     },
+     {
+      "k": "crowd",
+      "x": -6.6,
+      "z": 3.4,
+      "n": 3,
+      "r": 1,
+      "seed": 5
+     },
+     {
+      "k": "plant",
+      "x": -10.2,
+      "z": 7,
+      "h": 1.5
+     }
+    ],
+    "detailV2": true
+   },
+   "kind": "stadium",
+   "shopId": "ml_shop_stadium"
   }
  ],
  "roundabouts": [
@@ -17613,6 +17612,19 @@
    "fee": 100,
    "kind": "public",
    "blurb": "Public lot, small fee (ESTIMATE)."
+  },
+  {
+   "id": "ml_cp_national_stadium",
+   "name": "National Stadium Car Park",
+   "x": -306,
+   "z": 18,
+   "w": 34,
+   "d": 18,
+   "gate": "e",
+   "fee": 0,
+   "kind": "venue",
+   "venueId": "ml_venue_national_stadium",
+   "blurb": "Free for match-goers (ESTIMATE rule: fee 0)."
   }
  ],
  "busStops": [
