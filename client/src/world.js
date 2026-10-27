@@ -73,11 +73,58 @@ const MONIPAY = { purple: '#6F2CDE', ink: '#16122A' };
 let ttaSign;
 function ttaSignTexture() {
   if (ttaSign) return ttaSign;
-  const w = 1024, h = 320; const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
-  g.fillStyle = '#10243a'; g.fillRect(0, 0, w, h); g.fillStyle = '#00c2b8'; g.fillRect(0, 0, 28, h);
-  g.fillStyle = '#ffffff'; g.font = '800 168px Nunito, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('TTA', w / 2 + 8, 128);
-  g.fillStyle = '#00c2b8'; g.font = '700 64px Nunito, system-ui, sans-serif'; g.fillText('TECH TALENT', w / 2 + 8, 248);
-  ttaSign = tex2(c); return ttaSign;
+  const w = 2048, h = 512; const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+  const bg = g.createLinearGradient(0, 0, w, h); bg.addColorStop(0, '#16344f'); bg.addColorStop(1, '#0b1c2e'); g.fillStyle = bg; g.fillRect(0, 0, w, h);
+  g.fillStyle = 'rgba(0,194,184,.14)'; for (let i = 0; i < 8; i++) g.fillRect(80 + i * 250, 36, 160, 440);
+  g.fillStyle = '#00c2b8'; g.fillRect(0, 0, 36, h); g.fillRect(0, h - 10, w, 10); g.fillRect(0, 0, w, 6);
+  g.fillStyle = '#ffffff'; g.font = '800 250px Nunito, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('TTA', w / 2 + 12, 190);
+  g.fillStyle = '#00c2b8'; g.fillRect(w / 2 - 280, 330, 560, 6);
+  g.font = '700 78px Nunito, system-ui, sans-serif'; g.fillText('TECH TALENT', w / 2 + 12, 400);
+  ttaSign = tex2(c); ttaSign.anisotropy = 16; return ttaSign;
+}
+/** Two-storey Tech Talent block: floor band, window bays, entrance, roof kit. */
+function drawTtaBuilding(b, { walls, glassB, plain, root, signs, frontPos }) {
+  const [fx, fz] = b.face; const along = Math.abs(fz) > 0.5; const hw = b.w / 2, hd = b.d / 2; const H = b.h;
+  const teal = 0x00c2b8, frame = 0x07141f, glass = 0xd4f3fb, mid = H * 0.46;
+  walls.box(b.w, mid, b.d, b.x, 0, b.z, b.color || '#10243a');
+  walls.box(b.w * 0.99, H - mid, b.d * 0.99, b.x, mid, b.z, '#1a4564');
+  plain.box(b.w + 0.45, 0.22, b.d + 0.45, b.x, mid - 0.02, b.z, teal, { noAO: true });
+  plain.box(b.w + 0.25, 0.5, b.d + 0.25, b.x, H, b.z, 0x0c1c2c, { noAO: true });
+  plain.box(b.w + 0.7, 0.22, b.d + 0.7, b.x, H + 0.5, b.z, teal, { noAO: true });
+  for (const s of [-1, 1]) {
+    plain.box(along ? 0.28 : 0.16, H, along ? 0.16 : 0.28, b.x + (along ? s * (hw - 0.2) : fx * (hw + 0.04)), 0, b.z + (along ? fz * (hd + 0.04) : s * (hd - 0.2)), teal, { noAO: true });
+  }
+  const span = along ? b.w : b.d;
+  const at = (t, out) => [b.x + fx * ((along ? hd : hw) + out) + (along ? t : 0), b.z + fz * ((along ? hd : hw) + out) + (along ? 0 : t)];
+  const win = (t, y, ww, wh) => {
+    const [x, z] = at(t, 0.07);
+    glassB.box(along ? ww : 0.08, wh, along ? 0.08 : ww, x, y, z, glass, { noAO: true, jit: 0 });
+    const [sx, sz] = at(t, 0.05);
+    plain.box(along ? 0.07 : 0.1, wh * 0.92, along ? 0.1 : 0.07, sx, y + wh * 0.04, sz, frame, { noAO: true });
+    plain.box(along ? ww : 0.1, 0.06, along ? 0.1 : ww, sx, y + wh * 0.48, sz, frame, { noAO: true });
+    plain.box(along ? ww + 0.16 : 0.12, 0.08, along ? 0.12 : ww + 0.16, sx, y + wh, sz, frame, { noAO: true });
+    plain.box(along ? ww + 0.16 : 0.12, 0.07, along ? 0.12 : ww + 0.16, sx, y - 0.02, sz, teal, { noAO: true });
+  };
+  const row = (n, width, y, wh, skip) => { const step = (span * width) / (n - 1); for (let i = 0; i < n; i++) { if (skip && i === skip) continue; win((i - (n - 1) / 2) * step, y, Math.min(1.45, step * 0.72), wh); } };
+  row(5, 0.72, 0.85, 1.9, 2);
+  row(7, 0.82, mid + 0.42, 1.55, null);
+  for (const s of [-1, 1]) for (const t of [-0.22, 0.22]) {
+    const x = b.x + (along ? s * (hw + 0.05) : t * b.w), z = b.z + (along ? t * b.d : s * (hd + 0.05));
+    for (const [y, wh] of [[0.95, 1.7], [mid + 0.55, 1.4]]) glassB.box(along ? 0.08 : 1.45, wh, along ? 1.45 : 0.08, x, y, z, 0xb7e6f4, { noAO: true, jit: 0 });
+  }
+  const [dx, dz] = frontPos(b, 0.08); const doorH = Math.min(2.95, mid - 0.55), doorW = 2.5;
+  plain.box(along ? doorW + 0.4 : 0.18, doorH + 0.12, along ? 0.18 : doorW + 0.4, dx, 0, dz, frame, { noAO: true });
+  for (const s of [-0.55, 0.55]) glassB.box(along ? 0.85 : 0.06, doorH - 0.2, along ? 0.06 : 0.85, dx + (along ? s : fx * 0.03), 0.06, dz + (along ? fz * 0.03 : s), glass, { noAO: true, jit: 0 });
+  const [cx, cz] = frontPos(b, 1.25);
+  plain.box(along ? 4.6 : 1.9, 0.1, along ? 1.9 : 4.6, cx, doorH, cz, teal, { noAO: true });
+  for (const s of [-1.7, 1.7]) plain.box(0.1, doorH, 0.1, cx + (along ? s : fx * 0.7), 0, cz + (along ? fz * 0.7 : s), frame, { noAO: true });
+  const [tx, tz] = frontPos(b, 0.55); plain.box(along ? 3.6 : 1.15, 0.16, along ? 1.15 : 3.6, tx, 0, tz, 0xcfc8b8, { noAO: true });
+  const sw = Math.min(span - 3.4, 16), sh = 1.35; const [sx, sz] = frontPos(b, 0.16); const signY = H - 0.42 - sh / 2;
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), new THREE.MeshBasicMaterial({ map: ttaSignTexture(), side: THREE.FrontSide }));
+  board.position.set(sx, signY, sz); board.rotation.y = Math.atan2(fx, fz); root.add(board); signs.push(board);
+  plain.box(2.6, 0.7, 1.8, b.x - b.w * 0.16, H + 0.5, b.z - b.d * 0.08, 0x16344a, { noAO: true });
+  plain.cyl(0.07, 0.07, 2.2, 8, b.x + b.w * 0.2, H + 0.5, b.z, 0xd5dae0, { noAO: true });
+  plain.box(0.7, 0.07, 0.45, b.x + b.w * 0.2, H + 2.7, b.z, teal, { noAO: true, jit: 0 });
 }
 function monipaySignTexture() {
   const w = 1024, h = 280; const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
@@ -246,15 +293,7 @@ export function buildWorld(city) {
       plain.box(Math.abs(fz) ? 2.4 : 0.22, 3.2, Math.abs(fz) ? 0.22 : 2.4, dx, 0, dz, purple, { noAO: true });
       for (const s of [-1, 1]) plain.cyl(0.38, 0.42, 4.05, 6, b.x + (along ? s * 3.4 : fx * (hw + 0.45)), 0, b.z + (along ? fz * (hd + 0.45) : s * 3.4), 0xf7f4ff, { noAO: true });
     } else if (b.kind === 'tta') {
-      walls.box(b.w, b.h * 0.72, b.d, b.x, 0, b.z, b.color || '#10243a');
-      walls.box(b.w * 0.92, b.h * 0.28, b.d * 0.92, b.x, b.h * 0.72, b.z, '#16344a');
-      plain.box(b.w + 0.5, 0.28, b.d + 0.5, b.x, b.h, b.z, 0x00c2b8, { noAO: true });
-      const [sx, sz] = frontPos(b, 0.18); const signY = b.h * 0.58; const sw = Math.min(b.w - 2, 14), sh = 3.1;
-      const board = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), new THREE.MeshBasicMaterial({ map: ttaSignTexture(), side: THREE.FrontSide }));
-      board.position.set(sx, signY, sz); board.rotation.y = Math.atan2(fx, fz); root.add(board); signs.push(board);
-      const [dx, dz] = frontPos(b, 0.06); glassB.box(Math.abs(fz) ? 5.4 : 0.2, 3.1, Math.abs(fz) ? 0.2 : 5.4, dx, 0.3, dz, 0x9ad7e8, { noAO: true, jit: 0 });
-      plain.cyl(0.1, 0.1, 2.8, 6, b.x, b.h, b.z, 0xd0d5da, { noAO: true });
-      plain.box(0.9, 0.1, 0.9, b.x, b.h + 2.8, b.z, 0x00c2b8, { noAO: true, jit: 0 });
+      drawTtaBuilding(b, { walls, glassB, plain, root, signs, frontPos });
     } else if (b.kind === 'office' || b.kind === 'kiosk') {
       if (b.tag === 'motoka') {
         walls.box(b.w, b.h * 0.52, b.d, b.x, 0, b.z, b.color || '#f4f8fc');

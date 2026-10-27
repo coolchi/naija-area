@@ -12,6 +12,12 @@ export const STATES = ['clear', 'cloudy', 'rain', 'storm'];
 const LABEL = { clear: 'Clear skies', cloudy: 'Cloudy', rain: 'Raining', storm: 'Thunderstorm' };
 const hashStr = (s) => { let x = 2166136261; for (const c of String(s)) x = Math.imul(x ^ c.charCodeAt(0), 16777619) >>> 0; return x >>> 0; };
 const forcedOf = (app) => { const rt = app.runtime || {}; const f = rt.weatherForce !== undefined ? rt.weatherForce : cfg(app).forced; return STATES.includes(f) ? f : null; };
+/** A fresh live observation, or null when the admin has pinned the weather or the reading has expired. */
+function liveNow(app, now) {
+  const C = cfg(app); if (!C.live || forcedOf(app)) return null;
+  const live = app.runtime?.liveWeather; if (!live || !STATES.includes(live.state) || !(live.until > now)) return null;
+  return live;
+}
 
 /** the weather state of one block of real time (deterministic) */
 export function stateOfBlock(app, block) {
@@ -21,18 +27,23 @@ export function stateOfBlock(app, block) {
 }
 const blockOf = (app, now) => Math.floor((now - app.balance.worldClock.startRealMs) / (cfg(app).blockMinutes * 60000));
 export function stateAt(app, now = app.clock.now()) {
-  const C = cfg(app); if (!C.enabled) return 'clear'; const f = forcedOf(app); if (f) return f; return stateOfBlock(app, blockOf(app, now));
+  const C = cfg(app); if (!C.enabled) return 'clear'; const f = forcedOf(app); if (f) return f;
+  const live = liveNow(app, now); if (live) return live.state;
+  return stateOfBlock(app, blockOf(app, now));
 }
 const rainy = (s) => s === 'rain' || s === 'storm';
 /** 0 dry, 1 street water (slow), 2 flooded (very slow). A storm floods at once; steady rain floods; water drains for a block after. */
 export function floodLevel(app, now = app.clock.now()) {
   const C = cfg(app); if (!C.enabled) return 0; const f = forcedOf(app); if (f) return f === 'storm' ? 2 : f === 'rain' ? 1 : 0;
+  const live = liveNow(app, now); if (live) return live.state === 'storm' ? 2 : live.state === 'rain' ? 1 : 0;
   const b = blockOf(app, now); const s0 = stateOfBlock(app, b), s1 = stateOfBlock(app, b - 1), s2 = stateOfBlock(app, b - 2);
   if (s0 === 'storm') return 2; if (s0 === 'rain' && rainy(s1)) return 1; if (!rainy(s0) && s1 === 'storm') return 1; if (!rainy(s0) && rainy(s1) && rainy(s2)) return 1; return 0;
 }
 /** when the current block ends, and what the next few blocks hold */
 export function forecast(app, now = app.clock.now(), n = 3) {
-  const C = cfg(app); const bm = C.blockMinutes * 60000; const b = blockOf(app, now); const out = []; const f = forcedOf(app);
+  const C = cfg(app); const f = forcedOf(app); const live = !f && liveNow(app, now);
+  if (live?.hours?.length) return live.hours.filter(h => h.at > now).slice(0, n).map(h => ({ inMs: h.at - now, state: h.state }));
+  const bm = C.blockMinutes * 60000; const b = blockOf(app, now); const out = [];
   for (let i = 1; i <= n; i++) out.push({ inMs: app.balance.worldClock.startRealMs + (b + i) * bm - now, state: f || (C.enabled ? stateOfBlock(app, b + i) : 'clear') });
   return out;
 }
@@ -48,8 +59,13 @@ export function floodAt(app, cityId, x, z, now = app.clock.now()) {
 export function fareMult(app, now = app.clock.now()) { const s = stateAt(app, now); return cfg(app).fareSurge[s] || 1; }
 export function view(app, uid) {
   const now = app.clock.now(); const C = cfg(app); const cityId = cityIdOf(app, uid); const s = stateAt(app, now); const lvl = floodLevel(app, now); const ph = phaseOf(app, now);
-  return { state: s, label: LABEL[s], flood: lvl, forced: forcedOf(app), phase: ph.phase, night: ph.night, hour: ph.hour, forecast: forecast(app, now).map(f => ({ ...f, label: LABEL[f.state] })), fareMult: fareMult(app, now), speedScale: C.speed[lvl], speedByLevel: C.speed,
-    zones: zonesOf(app, cityId).map(q => ({ ...q, active: lvl > 0 })), city: cityId, note: 'Weather odds and flood-prone streets are invented placeholders (ESTIMATE), not weather records.' };
+  const live = liveNow(app, now);
+  return { state: s, label: LABEL[s], flood: lvl, forced: forcedOf(app), live: !!live, phase: ph.phase, night: ph.night, hour: ph.hour, forecast: forecast(app, now).map(f => ({ ...f, label: LABEL[f.state] })), fareMult: fareMult(app, now), speedScale: C.speed[lvl], speedByLevel: C.speed,
+    zones: zonesOf(app, cityId).map(q => ({ ...q, active: lvl > 0 })), city: cityId, note: live ? `Live weather for ${live.place || 'Lagos'}.` : 'Weather odds and flood-prone streets are invented placeholders (ESTIMATE), not weather records.' };
+}
+export function adminStatus(app) {
+  const now = app.clock.now(); const live = app.runtime?.liveWeather || null;
+  return { forced: forcedOf(app), state: stateAt(app, now), label: LABEL[stateAt(app, now)], live: live && { state: live.state, label: LABEL[live.state] || live.state, code: live.code, at: live.at, place: live.place, error: live.error || null } };
 }
 /** the compact piece of the heartbeat: state index, flood level, and the id of every flooded zone of this city */
 export function mini(app, cityId, now = app.clock.now()) { const lvl = floodLevel(app, now); return { s: STATES.indexOf(stateAt(app, now)), f: lvl, z: lvl ? zonesOf(app, cityId).map(q => q.id) : [] }; }

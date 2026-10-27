@@ -42,9 +42,28 @@ export function openPostgres({ url, schema = null, ssl = null, singleInstance = 
     refreshIdentity() { const r = call({ t: 'identity' }); if (r.ok) Object.assign(ctx.identity, r.identity); },
     transaction(fn) {
       return (...args) => {
-        const name = `sp${depth}`; if (depth === 0) run('BEGIN', undefined, 'run'); else run(`SAVEPOINT ${name}`, undefined, 'run'); depth++;
-        try { const r = fn(...args); depth--; if (depth === 0) run('COMMIT', undefined, 'run'); else run(`RELEASE SAVEPOINT ${name}`, undefined, 'run'); return r; }
-        catch (e) { depth--; try { if (depth === 0) run('ROLLBACK', undefined, 'run'); else { run(`ROLLBACK TO SAVEPOINT ${name}`, undefined, 'run'); run(`RELEASE SAVEPOINT ${name}`, undefined, 'run'); } } catch { /* already rolled back */ } throw e; }
+        // A failed COMMIT used to decrement depth twice. The next transaction then issued `SAVEPOINT sp-1`, which Postgres rejects, and every later signup failed the same way.
+        if (depth < 0) depth = 0;
+        const top = depth === 0;
+        const name = `sp_${depth}`;
+        if (top) run('BEGIN', undefined, 'run'); else run(`SAVEPOINT ${name}`, undefined, 'run');
+        depth++;
+        try {
+          try {
+            const r = fn(...args);
+            if (top) run('COMMIT', undefined, 'run'); else run(`RELEASE SAVEPOINT ${name}`, undefined, 'run');
+            return r;
+          } catch (e) {
+            try {
+              if (top) run('ROLLBACK', undefined, 'run');
+              else { run(`ROLLBACK TO SAVEPOINT ${name}`, undefined, 'run'); run(`RELEASE SAVEPOINT ${name}`, undefined, 'run'); }
+            } catch { /* already rolled back */ }
+            throw e;
+          }
+        } finally {
+          depth--;
+          if (depth < 0) depth = 0;
+        }
       };
     },
     get inTransaction() { return depth > 0; },

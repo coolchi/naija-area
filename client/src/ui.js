@@ -28,7 +28,16 @@ const LINES = {
   sold: (n) => `Sold. ${fmtN(n)} back in your pocket.`, blocked: () => 'Something is in the way.',
 };
 const ERR = { INSUFFICIENT_FUNDS: () => pick(['Your pocket dry o. Money no reach.', 'No cash for that one. Go hustle first!']), TOO_FAR: () => pick(['You dey far o. Move closer.', 'Walk go there first, oga.']), TOO_TIRED: () => 'You don tire. Eat or rest first!', TOO_HUNGRY: () => 'Hunger dey vex you. Buy food first.', BLOCKED: () => 'Something is in the way.', COOLDOWN: null, LOGIN_REQUIRED: () => 'Session don end. Please log in again.', JOB_FULL: () => 'Monipay Bank don full for today. Come back tomorrow.', HOURS_DONE: () => 'You don do your 10 hours. Come back tomorrow.', SUPER_SOLD_OUT: () => 'Supercars for today don finish. Come back tomorrow.' };
-const durLabel = (sec) => (sec >= 3600 && sec % 3600 === 0 ? `${sec / 3600}h` : sec >= 60 && sec % 60 === 0 ? `${sec / 60}m` : `${sec}s`);
+const durLabel = (sec) => {
+  const s = Math.max(0, Math.round(sec)); if (s < 60) return `${s}s`;
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  if (h && m) return `${h}h ${m}m`; if (h) return `${h}h`; return `${m}m`;
+};
+const cdLabel = (ms) => {
+  const s = Math.max(0, Math.ceil(ms / 1000)); if (s < 60) return `${s}s`;
+  const h = Math.floor(s / 3600), m = Math.ceil((s % 3600) / 60);
+  if (h && m) return `${h}h ${m}m`; if (h) return `${h}h`; return `${m}m`;
+};
 const leftLabel = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); if (s < 60) return `${s}s left`; if (s < 3600) return `${Math.ceil(s / 60)}m left`; const h = Math.floor(s / 3600); let m = Math.ceil((s % 3600) / 60); if (m >= 60) return `${h + 1}h left`; return m ? `${h}h ${m}m left` : `${h}h left`; };
 export const say = (k, ...a) => LINES[k](...a);
 
@@ -84,7 +93,7 @@ export class UI {
     if (u.fainted) $('#hungerBar').parentElement.title = 'Fainted from hunger — call a cab or friend to eat';
     const sb = $('#shiftbar'); if (u.shift) { const j = this.g.cfg.jobs?.find(x => x.id === u.shift.jobId); const left = Math.max(0, u.shift.endsAt - this.g.serverNow()); sb.classList.remove('hidden'); sb.textContent = left > 0 ? `💼 ${j?.name || 'Shift'} · ${leftLabel(left)}` : `💼 ${j?.name || 'Shift'} done: collect your pay!`; } else sb.classList.add('hidden');
   }
-  clock(w) { const h12 = ((w.hour + 11) % 12) + 1; const night = w.hour < 6 || w.hour >= 19; $('#clock').textContent = `${night ? '🌙' : '🌞'} ${h12}:${String(w.minute).padStart(2, '0')} ${w.hour >= 12 ? 'PM' : 'AM'} · Day ${w.day}`; }
+  clock(w) { const h12 = ((w.hour + 11) % 12) + 1; const night = w.hour < 6 || w.hour >= 19; const tail = w.real && w.date ? w.date : `Day ${w.day}`; $('#clock').textContent = `${night ? '🌙' : '🌞'} ${h12}:${String(w.minute).padStart(2, '0')} ${w.hour >= 12 ? 'PM' : 'AM'} · ${tail}`; }
   badge(n) { const b = $('#phoneBadge'); b.textContent = n; b.classList.toggle('hidden', !n); }
   loc(text) { $('#loc').textContent = text; }
   waypoint(wp, d) { const el = $('#waypoint'); if (!wp) return el.classList.add('hidden'); el.classList.remove('hidden'); el.textContent = `📍 ${wp.label} · ${Math.round(d)} m`; }
@@ -239,9 +248,9 @@ export class UI {
       const shift = u.shift; const rows = mine.map(j => { const active = shift && shift.jobId === j.id; const left = active ? Math.max(0, shift.endsAt - g.serverNow()) : 0;
         const capped = j.dailySlots || j.maxHoursPerDay; const spotFull = j.dailySlots && j.slotsLeft === 0 && !j.onRoster; const hoursDone = j.maxHoursPerDay && j.hoursLeft === 0;
         const capLine = capped ? (spotFull ? 'Full for today. Come back tomorrow.' : hoursDone ? `Your ${j.maxHoursPerDay} hours are done. Come back tomorrow.` : `${j.onRoster ? 'You have a spot today' : `${j.slotsLeft} of ${j.slotsTotal} spots left`} · ${j.hoursLeft} hour${j.hoursLeft === 1 ? '' : 's'} left for you`) : '';
-        const startText = j.cooldownLeftMs > 0 ? `Break (${Math.ceil(j.cooldownLeftMs / 1000)}s)` : shift ? 'Finish your shift first' : hoursDone ? 'Hours done today' : spotFull ? 'Full today — come back tomorrow' : (j.maxHoursPerDay ? 'Start hour' : 'Start shift');
+        const startText = j.cooldownLeftMs > 0 ? `Break (${cdLabel(j.cooldownLeftMs)})` : shift ? 'Finish your shift first' : hoursDone ? 'Hours done today' : spotFull ? 'Full today — come back tomorrow' : (j.maxHoursPerDay ? 'Start hour' : 'Start shift');
         return h('div', { class: 'card', style: 'margin:8px 0;padding:12px;box-shadow:none;border:2px solid #e3dcc2' }, h('div', { class: 'row sp' }, h('b', {}, j.name), h('span', { class: 'tag amber' }, `${fmtN(j.wage)} / ${durLabel(j.durationSec)}`)), h('div', { class: 'mut' }, j.desc),
-          h('div', { class: 'mut' }, `⚡ -${j.energyCost}  🍲 -${j.hungerCost}${j.cooldownSec ? `  · cooldown ${j.cooldownSec}s` : ''}${j.locked ? ` · 🔒 ${j.shiftsNeeded} more shift(s) to unlock` : ''}`),
+          h('div', { class: 'mut' }, `⚡ -${j.energyCost}  🍲 -${j.hungerCost}${j.cooldownSec ? `  · ${durLabel(j.cooldownSec)} break after pay` : ''}${j.locked ? ` · 🔒 ${j.shiftsNeeded} more shift(s) to unlock` : ''}`),
           capLine ? h('div', { class: 'mut' }, capLine) : '',
           active ? h('div', {}, h('div', { class: 'progress' }, h('i', { style: `width:${Math.min(100, 100 - (left / (j.durationSec * 10)))}%` })), left > 0 ? h('div', { class: 'mut' }, leftLabel(left)) : '',
               h('div', { class: 'row' }, h('button', { class: 'btn alt', onclick: () => this.miniGame(draw) }, '🎯 Quick task (+25%)'), h('button', { class: 'btn', disabled: left > 0, onclick: async () => { const r = await this.guard(() => post('/api/jobs/claim')); if (r) { g.update(r.user); this.toast(say('wage', r.wage), 'money'); draw(); } } }, left > 0 ? 'Working…' : 'Collect pay')))

@@ -3,6 +3,10 @@
 export const WEATHER = {
   _note: 'ESTIMATE: nothing here is tuned or taken from weather records.',
   enabled: true,
+  live: true,                         // when nothing is forced, follow the live Lagos observation (Open-Meteo). Admin "automatic" uses this.
+  latitude: 6.5244,                   // Lagos
+  longitude: 3.3792,
+  liveMinutes: 10,                    // how long a live reading is trusted
   forced: null,                       // null, or 'clear' | 'cloudy' | 'rain' | 'storm' to pin the weather (tests, demos, the admin route)
   seed: 'naija-area-weather-1',
   blockMinutes: 12,                   // real minutes per weather block (= 3 game hours); one front lasts frontBlocks blocks

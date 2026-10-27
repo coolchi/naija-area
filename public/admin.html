@@ -109,8 +109,8 @@ button.adthumb img.prev { width: 88px; height: 58px; object-fit: cover; display:
 <section class="apage" data-page="world" hidden>
 <div class="card"><h2>World</h2>
 <label>Real radio stations</label><div class="row"><button id="radioOn" class="ghost">Loading…</button><span class="mut">Players hear the live stations when this is on.</span></div>
-<label>Weather</label><div class="row"><select id="wx" style="width:auto"><option value="auto">Automatic</option><option value="clear">Clear</option><option value="cloudy">Cloudy</option><option value="rain">Rain</option><option value="storm">Storm</option></select><button id="wxGo">Set weather</button></div>
-<label>Game time</label><div class="row"><span id="timeNow" class="mut">—</span><input id="timeH" type="number" min="0" max="23" value="12" style="width:4.5em" title="Hour 0–23"><span>:</span><input id="timeM" type="number" min="0" max="59" value="0" style="width:4.5em" title="Minute 0–59"><button id="timeGo">Set time</button><button class="ghost" id="timeNoon">12:00 noon</button></div>
+<label>Weather</label><p class="mut" id="wxNow">Live Lagos weather, unless you pin a state.</p><div class="row"><select id="wx" style="width:auto"><option value="auto">Live Lagos weather</option><option value="clear">Sunny / clear</option><option value="cloudy">Cloudy</option><option value="rain">Rain</option><option value="storm">Storm</option></select><button id="wxGo">Set weather</button></div>
+<label>Game time</label><div class="row"><span id="timeNow" class="mut">—</span><input id="timeH" type="number" min="0" max="23" value="12" style="width:4.5em" title="Hour 0–23"><span>:</span><input id="timeM" type="number" min="0" max="59" value="0" style="width:4.5em" title="Minute 0–59"><button id="timeGo">Set time</button><button class="ghost" id="timeReal">Use real time</button></div>
 <label>Scheduled jobs</label><div class="row"><button class="ghost" id="tickGo">Run rent, interest, land and ads now</button></div>
 </div>
 </section>

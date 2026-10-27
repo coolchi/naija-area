@@ -220,13 +220,13 @@ export class Traffic {
     this.cars = []; this.loops = new Map(); this.roundabouts = roundabouts || []; const rnd = mulberry32(2026); const tmp = {}; let nth = 0;
     const colors = [0xf5f5f5, 0xb0b5ba, 0x1f2328, 0xb71c1c, 0x1e4f8c, 0x2e6b3a, 0xd6c9a8, 0x7a5c3e];
     for (const L of loops) {
-      const P = makePath(L.pts, 7, { dense: !!L.dense, slow: true }); const stopsS = this.stopsClear(stopsOnLoop(P, busStops, L.id), P, tmp); this.loops.set(L.id, { P, stopsS }); const speed = 6.5 + rnd() * 3; const n = Math.max(3, Math.round(P.realLength / 85));
+      const P = makePath(L.pts, 7, { dense: !!L.dense, slow: true }); const stopsS = this.stopsClear(stopsOnLoop(P, busStops, L.id), P, tmp); this.loops.set(L.id, { P, stopsS }); const speed = 6.5 + rnd() * 3; const n = Math.max(3, Math.round(P.realLength / 100));
       for (let i = 0; i < n; i++) {
         const type = L.npcs[(rnd() * L.npcs.length) | 0]; let geo;
         if (type === 'danfo') geo = danfoGeo(rnd); else if (type === 'keke') geo = kekeGeo(rnd() > 0.2 ? 0xFFC20E : 0x2e7d32, 0x17181b); else if (type === 'okada') geo = okadaGeo(rnd);
         else geo = carGeo(['sedan', 'suv', 'hatch'][(rnd() * 3) | 0], colors[(rnd() * colors.length) | 0]);
         const g = new THREE.Group(); const m = new THREE.Mesh(geo, vcMat); m.position.y = 0.12; g.add(m); g.add(blobShadow(type === 'okada' ? 3 : 5.5, type === 'okada' ? 1.4 : 2.8)); scene.add(g);
-        this.cars.push({ g, P, speed: speed * (type === 'okada' ? 1.25 : type === 'danfo' ? 0.9 : 1), off: (P.length * i) / n + rnd() * 6, type, stopsS, serve: stopsS.length > 0 && serves(type, nth++), stop: newStop() });
+        this.cars.push({ g, P, speed: speed * (type === 'okada' ? 1.25 : type === 'danfo' ? 0.9 : 1), off: (P.length * i) / n + rnd() * 1.5, type, stopsS, serve: stopsS.length > 0 && serves(type, nth++), stop: newStop() });
       }
     }
     // one extra danfo kept hidden until a player calls for it at a bus stop (see dispatch)
@@ -240,9 +240,10 @@ export class Traffic {
       picks.forEach(([id, L], li) => {
         if (!L?.P || seen.has(id)) return; seen.add(id);
         const n = id === 'big' ? 3 : 1;
+        // Park police on underused path slots so they do not spawn on top of ambient traffic.
         for (let i = 0; i < n; i++) {
           const g = new THREE.Group(); const car = policeRig(); car.position.y = 0.12; g.add(car); g.add(blobShadow(5.2, 2.9)); scene.add(g);
-          this.cars.push({ g, P: L.P, speed: 8.2 + i * 0.25 + li * 0.15, off: (L.P.length * (i + 0.35)) / n + li * 11, type: 'police', stopsS: [], serve: false, stop: newStop() });
+          this.cars.push({ g, P: L.P, speed: 8.2 + i * 0.25 + li * 0.15, off: L.P.length * ((i + 0.5) / n) * 0.37 + 18 + li * 23, type: 'police', stopsS: [], serve: false, stop: newStop() });
         }
       });
     }
@@ -275,21 +276,45 @@ export class Traffic {
     if (!this.last) this.last = serverSec; const step = Math.min(0.1, Math.max(0, serverSec - this.last)) || dt; this.last = serverSec;
     if (!people) { for (const c of this.cars) { if (c.idle) continue; atPath(c.P, c.speed * serverSec + c.off, this.tmp); c.g.position.set(this.tmp.x, 0.02, this.tmp.z); c.g.rotation.y = this.tmp.yaw; } return; }
     const me = this.blockers || (this.blockers = []); me.length = 0; for (const p of people) me.push({ x: p.x, z: p.z, r: p.r ?? 0.5, person: true, local: !!p.local });
-    const carB = this.carB || (this.carB = this.cars.map(c => ({ x: 0, z: 0, r: 1.8, self: c, person: false }))); this.cars.forEach((c, i) => { carB[i].x = c.idle ? 1e9 : c.g.position.x; carB[i].z = c.idle ? 1e9 : c.g.position.z; carB[i].dwell = !!c.dwell; });
+    if (!this.carB || this.carB.length !== this.cars.length) this.carB = this.cars.map(c => ({ x: 0, z: 0, r: 2.5, self: c, person: false }));
+    const carB = this.carB; this.cars.forEach((c, i) => { carB[i].x = c.idle ? 1e9 : c.g.position.x; carB[i].z = c.idle ? 1e9 : c.g.position.z; carB[i].r = c.type === 'okada' ? 1.2 : c.type === 'danfo' ? 3.2 : 2.5; carB[i].dwell = !!c.dwell; carB[i].self = c; });
     this.stopped = 0;
     for (const [i, c] of this.cars.entries()) {
       if (c.idle) continue;
       if (c.s == null) { c.s = c.speed * serverSec + c.off; c.st = { v: c.speed, wait: 0, limit: YIELD_CFG.waitMin + Math.random() * (YIELD_CFG.waitMax - YIELD_CFG.waitMin) }; }
       atPath(c.P, c.s, this.tmp); const car = { x: this.tmp.x, z: this.tmp.z, yaw: this.tmp.yaw, self: c };
-      const near = []; for (const b of me) if (Math.abs(b.x - car.x) < 18 && Math.abs(b.z - car.z) < 18) near.push(b); for (let j = 0; j < carB.length; j++) if (j !== i && Math.abs(carB[j].x - car.x) < 18 && Math.abs(carB[j].z - car.z) < 18) near.push(carB[j]);
-      let raw = gapAhead(car, near); const ring = this.onRing(car.x, car.z); if (ring) { for (const b of near) { if (b.person || (b.self && b.self === c)) continue; const gap = Math.hypot(b.x - car.x, b.z - car.z) - (b.r || 1.6); if (gap < 7 && (raw == null || gap < raw.gap)) raw = { gap, person: false, local: !!b.local, dwell: !!b.dwell }; } } const allowed = !!(raw && raw.local && this.crash && this.crash.consult(c, raw.gap, c.st.v)); const d = decide(allowed ? gapAhead(car, near.filter(b => !b.local)) : raw, { speed: c.st.v, type: c.type, hitAllowed: false }); let hit = d.hit; if (ring && hit && !hit.person) { c.ringWait = (c.ringWait || 0) + step; if (hit.dwell || c.ringWait > 1.4) hit = null; } else c.ringWait = 0; if (c.crashTok && this.crash) this.crash.contact(c, car, me); let cap = Infinity; if (c.serve || c.special) { const r = stopStep(c.stop, c.s, c.st.v, c.P.length, c.stopsS, step, c.rndStop ??= Math.random()); cap = r.cap; c.dwell = r.dwell; if (r.phase === 'none') c.rndStop = undefined; if (c.stop.phase !== 'none') c.shift = c.speed * serverSec + c.off - c.s; if (c.special) { if (c.stop.phase === 'dwell') { c.holdT += step; if (c.holdT > 45) c.stop.hold = false; } if (c.stop.phase === 'none' && !c.stop.hold && c.st.v > 0.5 && c.leaving) { c.idle = true; c.g.visible = false; c.leaving = false; continue; } if (c.stop.phase === 'leave') c.leaving = true; } } const ideal = c.speed * serverSec + c.off - (c.shift || 0); const lag = c.special ? 0 : ideal - c.s;
+      const near = []; for (const b of me) if (Math.abs(b.x - car.x) < 22 && Math.abs(b.z - car.z) < 22) near.push(b); for (let j = 0; j < carB.length; j++) if (j !== i && Math.abs(carB[j].x - car.x) < 22 && Math.abs(carB[j].z - car.z) < 22) near.push(carB[j]);
+      let raw = gapAhead(car, near); const ring = this.onRing(car.x, car.z); if (ring) { for (const b of near) { if (b.person || (b.self && b.self === c)) continue; const gap = Math.hypot(b.x - car.x, b.z - car.z) - (b.r || 1.6); if (gap < 8 && (raw == null || gap < raw.gap)) raw = { gap, person: false, local: !!b.local, dwell: !!b.dwell }; } } const allowed = !!(raw && raw.local && this.crash && this.crash.consult(c, raw.gap, c.st.v)); const d = decide(allowed ? gapAhead(car, near.filter(b => !b.local)) : raw, { speed: c.st.v, type: c.type, hitAllowed: false }); let hit = d.hit; if (ring && hit && !hit.person) { c.ringWait = (c.ringWait || 0) + step; if ((hit.dwell || c.ringWait > 1.4) && hit.gap > YIELD_CFG.overlapFloor) hit = null; } else c.ringWait = 0; if (c.crashTok && this.crash) this.crash.contact(c, car, me); let cap = Infinity; if (c.serve || c.special) { const r = stopStep(c.stop, c.s, c.st.v, c.P.length, c.stopsS, step, c.rndStop ??= Math.random()); cap = r.cap; c.dwell = r.dwell; if (r.phase === 'none') c.rndStop = undefined; if (c.stop.phase !== 'none') c.shift = c.speed * serverSec + c.off - c.s; if (c.special) { if (c.stop.phase === 'dwell') { c.holdT += step; if (c.holdT > 45) c.stop.hold = false; } if (c.stop.phase === 'none' && !c.stop.hold && c.st.v > 0.5 && c.leaving) { c.idle = true; c.g.visible = false; c.leaving = false; continue; } if (c.stop.phase === 'leave') c.leaving = true; } } const ideal = c.speed * serverSec + c.off - (c.shift || 0); const lag = c.special ? 0 : ideal - c.s;
       const cruise = Math.min(cap, c.speed * (lag > 0.5 && !hit ? YIELD_CFG.catchUp : 1));
-      c.st = stepSpeed(c.st, cruise, hit, step); if (c.hold > 0) { c.hold -= step; c.st.v = 0; } c.s += c.st.v * step; if (lag < -2 && !c.special) c.s = ideal; // never get ahead of the shared timeline
+      c.st = stepSpeed(c.st, cruise, hit, step); if (c.hold > 0) { c.hold -= step; c.st.v = 0; } c.s += c.st.v * step;
+      // Never snap ahead of the shared timeline into another car.
+      if (lag < -2 && !c.special) {
+        atPath(c.P, ideal, this.tmp); let clear = true;
+        for (const b of near) { if (b.person) continue; if (Math.hypot(b.x - this.tmp.x, b.z - this.tmp.z) < 5.5) { clear = false; break; } }
+        if (clear) c.s = ideal;
+      }
       if (c.st.v < 0.2 && hit) this.stopped++; if (c.st.honk && this.onHorn) this.onHorn(c, car);
       atPath(c.P, c.s, this.tmp); c.g.position.set(this.tmp.x, 0.02, this.tmp.z); c.g.rotation.y = this.tmp.yaw;
+      carB[i].x = this.tmp.x; carB[i].z = this.tmp.z;
       // body lean in bends and nose-dip under braking (visual only, derived from the car's own motion; the shared timeline is untouched)
       const m = c.g.children[0]; if (m && c.pyaw !== undefined && step > 1e-4) { const l = ambientLean(c.pyaw, this.tmp.yaw, c.pv, c.st.v, step); const S = PHYS.susp, k = damp(6, step); c.lr = (c.lr || 0) + (kclamp(-l.ay * S.rollK, -S.maxRoll, S.maxRoll) - (c.lr || 0)) * k; c.lp = (c.lp || 0) + (kclamp(l.ax * S.pitchK, -S.maxPitch, S.maxPitch) - (c.lp || 0)) * k; m.rotation.x = c.lr; m.rotation.z = c.lp; }
       c.pyaw = this.tmp.yaw; c.pv = c.st.v;
+    }
+    // Same-path soft separation: if two ambient cars nest on a loop, push the rear one back.
+    const MIN_ARC = 6.2;
+    for (let i = 0; i < this.cars.length; i++) {
+      const a = this.cars[i]; if (a.idle || a.s == null || !a.P) continue;
+      for (let j = i + 1; j < this.cars.length; j++) {
+        const b = this.cars[j]; if (b.idle || b.s == null || a.P !== b.P) continue;
+        const L = a.P.length; let d = (a.s - b.s) % L; if (d < 0) d += L; const d2 = L - d;
+        if (d < MIN_ARC && d <= d2) { const need = (MIN_ARC - d) * 0.55; a.s += need * 0.35; b.s -= need * 0.65; b.st && (b.st.v = Math.min(b.st.v, a.st?.v ?? 0)); }
+        else if (d2 < MIN_ARC) { const need = (MIN_ARC - d2) * 0.55; b.s += need * 0.35; a.s -= need * 0.65; a.st && (a.st.v = Math.min(a.st.v, b.st?.v ?? 0)); }
+      }
+    }
+    for (const [i, c] of this.cars.entries()) {
+      if (c.idle || c.s == null) continue;
+      atPath(c.P, c.s, this.tmp); c.g.position.set(this.tmp.x, 0.02, this.tmp.z); c.g.rotation.y = this.tmp.yaw;
+      carB[i].x = this.tmp.x; carB[i].z = this.tmp.z;
     }
   }
 }

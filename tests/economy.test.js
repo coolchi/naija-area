@@ -135,9 +135,9 @@ test('topup: test mode only, fixed amounts, daily cap, labelled test in ledger',
   assert.equal((await call(s, 'POST', '/api/topup/test', { uid: u, body: { amount: 1000 } })).json.error, 'DAILY_LIMIT');
   assert.ok(s.db.prepare("SELECT 1 FROM ledger_tx WHERE reason='test_topup'").get());
 });
-test('Monipay Bank: ₦1,000,000 an hour, 10 hours each, 10 people a day, then come back tomorrow', async () => {
+test('Monipay Bank: ₦1,000,000 per 1h5m shift, 55m break, 10 shifts each, 10 people a day, then come back tomorrow', async () => {
   const s = makeServer(); const job = s.app.balance.jobs.find(j => j.id === 'monipay');
-  assert.equal(job.wage, 1000000); assert.equal(job.durationSec, 3600); assert.equal(job.maxHoursPerDay, 10); assert.equal(job.dailySlots, 10);
+  assert.equal(job.wage, 1000000); assert.equal(job.durationSec, 65 * 60); assert.equal(job.cooldownSec, 55 * 60); assert.equal(job.maxHoursPerDay, 10); assert.equal(job.dailySlots, 10);
   const island = s.app.cities['lagos-island']; const loc = island.jobLoc.job_monipay;
   assert.equal(loc.label, 'Monipay Bank'); assert.ok(island.buildings.some(b => b.id === 'isl_b44' && b.kind === 'bank' && b.label === 'Monipay Bank'));
   const dawn = s.app.clock.now(); s.app.clock.advance(dayStart(dayKey(dawn)) + HOUR - dawn); // 1am Lagos, so 10 hours of work stay in one day
@@ -152,6 +152,9 @@ test('Monipay Bank: ₦1,000,000 an hour, 10 hours each, 10 people a day, then c
   const paid = await ok(s, 'POST', '/api/jobs/claim', { uid: u }); assert.equal(paid.wage, 1000000);
   const after = (await ok(s, 'GET', '/api/jobs', { uid: u })).jobs.find(j => j.id === 'monipay');
   assert.equal(after.hoursLeft, 9); assert.equal(after.slotsLeft, 9); assert.equal(after.onRoster, true);
+  assert.ok(after.cooldownLeftMs > 0, '55 m break after collecting pay');
+  assert.equal((await call(s, 'POST', '/api/jobs/start', { uid: u, body: { jobId: 'monipay' } })).json.error, 'COOLDOWN');
+  s.app.clock.advance(job.cooldownSec * 1000);
   const fillers = [];
   for (let i = 0; i < 9; i++) { const p = mkUser(s); atBank(p); fillers.push(p); await ok(s, 'POST', '/api/jobs/start', { uid: p, body: { jobId: 'monipay' } }); }
   const late = mkUser(s); atBank(late);
@@ -159,7 +162,14 @@ test('Monipay Bank: ₦1,000,000 an hour, 10 hours each, 10 people a day, then c
   await ok(s, 'POST', '/api/jobs/abandon', { uid: fillers[0] });
   await ok(s, 'POST', '/api/jobs/start', { uid: late, body: { jobId: 'monipay' } });
   await ok(s, 'POST', '/api/jobs/abandon', { uid: late });
-  for (let h = 0; h < 9; h++) { await ok(s, 'POST', '/api/jobs/start', { uid: u, body: { jobId: 'monipay' } }); s.app.clock.advance(job.durationSec * 1000); await ok(s, 'POST', '/api/jobs/claim', { uid: u }); }
+  for (let h = 0; h < 9; h++) {
+    await ok(s, 'POST', '/api/jobs/start', { uid: u, body: { jobId: 'monipay' } });
+    s.app.clock.advance(job.durationSec * 1000);
+    await ok(s, 'POST', '/api/jobs/claim', { uid: u });
+    if (h < 8) s.app.clock.advance(job.cooldownSec * 1000);
+  }
+  assert.equal((await call(s, 'POST', '/api/jobs/start', { uid: u, body: { jobId: 'monipay' } })).json.error, 'COOLDOWN');
+  s.app.clock.advance(job.cooldownSec * 1000);
   assert.equal((await call(s, 'POST', '/api/jobs/start', { uid: u, body: { jobId: 'monipay' } })).json.error, 'HOURS_DONE');
   const now = s.app.clock.now(); s.app.clock.advance(dayStart(dayKey(now) + 1) - now + 1000);
   atBank(late); await ok(s, 'POST', '/api/jobs/start', { uid: late, body: { jobId: 'monipay' } });

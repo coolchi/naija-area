@@ -22,10 +22,30 @@ export const notify = (app, uid, kind, text) => {
   app.pushUser?.(uid, { type: 'notification', kind, text });
 };
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** True when the sun should follow the wall clock. A pinned or shifted startRealMs keeps the old fast clock (admin set-time, tests). */
+export function usesWallClock(app) {
+  const c = app.balance.worldClock || {};
+  if (!c.realTime || c.pinned) return false;
+  const epoch = c.epochMs ?? c.startRealMs;
+  return c.startRealMs === epoch;
+}
+/** Game minutes that pass in one real minute. 1 while the wall clock is on, so a night lasts a real night. */
+export function clockScale(app) {
+  return usesWallClock(app) ? 1 : (app.balance.worldClock?.gameMinutesPerRealMinute || 15);
+}
 export function gameTime(app, now = app.clock.now()) {
-  const c = app.balance.worldClock; const gm = ((now - c.startRealMs) / 60000) * c.gameMinutesPerRealMinute;
+  const c = app.balance.worldClock;
+  if (usesWallClock(app)) {
+    const t = new Date(now + (c.utcOffsetMinutes ?? 60) * 60000);
+    const hour = t.getUTCHours(), minute = t.getUTCMinutes();
+    const y = t.getUTCFullYear();
+    const day = Math.floor((Date.UTC(y, t.getUTCMonth(), t.getUTCDate()) - Date.UTC(y, 0, 1)) / 86400000) + 1;
+    return { day, hour, minute, minutesOfDay: hour * 60 + minute, real: true, date: `${t.getUTCDate()} ${MONTHS[t.getUTCMonth()]}` };
+  }
+  const gm = ((now - c.startRealMs) / 60000) * c.gameMinutesPerRealMinute;
   const mins = ((gm % 1440) + 1440) % 1440;
-  return { day: Math.floor(gm / 1440) + 1, hour: Math.floor(mins / 60), minute: Math.floor(mins % 60), minutesOfDay: mins };
+  return { day: Math.floor(gm / 1440) + 1, hour: Math.floor(mins / 60), minute: Math.floor(mins % 60), minutesOfDay: mins, real: false };
 }
 
 export function getState(app, uid) {

@@ -20,9 +20,24 @@ export function wrapSqlJs(SQL, data) {
     pragma(s) { try { raw.exec(`PRAGMA ${s}`); } catch { /* journal_mode etc. are irrelevant in memory */ } return []; },
     transaction(fn) {
       return (...args) => {
-        const name = `sp${depth}`; if (depth === 0) raw.exec('BEGIN'); else raw.exec(`SAVEPOINT ${name}`); depth++;
-        try { const r = fn(...args); depth--; if (depth === 0) raw.exec('COMMIT'); else raw.exec(`RELEASE ${name}`); return r; }
-        catch (e) { depth--; try { if (depth === 0) raw.exec('ROLLBACK'); else { raw.exec(`ROLLBACK TO ${name}`); raw.exec(`RELEASE ${name}`); } } catch { /* already rolled back */ } throw e; }
+        if (depth < 0) depth = 0;
+        const top = depth === 0;
+        const name = `sp_${depth}`;
+        if (top) raw.exec('BEGIN'); else raw.exec(`SAVEPOINT ${name}`);
+        depth++;
+        try {
+          try {
+            const r = fn(...args);
+            if (top) raw.exec('COMMIT'); else raw.exec(`RELEASE ${name}`);
+            return r;
+          } catch (e) {
+            try { if (top) raw.exec('ROLLBACK'); else { raw.exec(`ROLLBACK TO ${name}`); raw.exec(`RELEASE ${name}`); } } catch { /* already rolled back */ }
+            throw e;
+          }
+        } finally {
+          depth--;
+          if (depth < 0) depth = 0;
+        }
       };
     },
     export() { return raw.export(); }, close() { raw.close(); }

@@ -5,6 +5,8 @@ import { checkInvariants, balanceOf, cashId, SYS } from '../server/core/ledger.j
 import { WEATHER } from '../server/config/weather.js';
 import { EVENTS } from '../server/config/events.js';
 import * as wx from '../server/core/weather.js';
+import { codeToState, refreshLiveWeather } from '../server/core/live-weather.js';
+import { gameTime } from '../server/core/economy.js';
 import * as ev from '../server/core/events.js';
 import * as biz from '../server/core/business.js';
 import fs from 'node:fs';
@@ -35,6 +37,21 @@ test('flooding: a storm floods, steady rain floods, water drains for a block aft
   const live2 = live(makeServer()); live2.app.balance.worldClock.startRealMs = Date.UTC(2026, 5, 1); const blockMs = WEATHER.blockMinutes * 60000; const st = (b) => wx.stateOfBlock(live2.app, b); let seen = { storm: false, drain: false, rain: false };
   for (let b = 3; b < 2000 && !(seen.storm && seen.drain && seen.rain); b++) { const t = live2.app.balance.worldClock.startRealMs + b * blockMs + 1000; const lvl = wx.floodLevel(live2.app, t); if (st(b) === 'storm') { assert.equal(lvl, 2); seen.storm = true; } else if (st(b) === 'rain' && ['rain', 'storm'].includes(st(b - 1))) { assert.equal(lvl, 1); seen.rain = true; } else if (st(b - 1) === 'storm' && !['rain', 'storm'].includes(st(b))) { assert.equal(lvl, 1); seen.drain = true; } else if (!['rain', 'storm'].includes(st(b)) && !['rain', 'storm'].includes(st(b - 1))) assert.equal(lvl, 0); }
   assert.deepEqual(seen, { storm: true, drain: true, rain: true });
+});
+test('the world clock follows Lagos wall time, a real 24-hour day, until an admin pins it', () => {
+  const s = makeServer(); const lagos = Date.UTC(2026, 9, 16, 18, 24); // 19:24 in Lagos (UTC+1)
+  const g = gameTime(s.app, lagos); assert.equal(g.real, true); assert.equal(g.hour, 19); assert.equal(g.minute, 24); assert.equal(g.date, '16 Oct'); assert.equal(g.minutesOfDay, 19 * 60 + 24);
+  s.app.balance.worldClock.pinned = true; const pinned = gameTime(s.app, lagos); assert.equal(pinned.real, false);
+});
+test('a live Lagos reading drives the sky, and an admin pin beats it; weather codes map onto the four states', async () => {
+  assert.equal(codeToState(0), 'clear'); assert.equal(codeToState(1), 'clear'); assert.equal(codeToState(3), 'cloudy'); assert.equal(codeToState(61), 'rain'); assert.equal(codeToState(95), 'storm'); assert.equal(codeToState(null), null);
+  const s = live(makeServer()); const now = s.app.clock.now();
+  s.app.runtime = { liveWeather: { state: 'rain', until: now + 60000, place: 'Lagos', hours: [{ at: now + 3600000, state: 'storm' }] } };
+  assert.equal(wx.stateAt(s.app, now), 'rain'); assert.equal(wx.floodLevel(s.app, now), 1); assert.equal(wx.forecast(s.app, now, 1)[0].state, 'storm');
+  s.app.balance.weather = { ...s.app.balance.weather, forced: 'clear' }; assert.equal(wx.stateAt(s.app, now), 'clear', 'a pin wins over the live reading');
+  const fetched = live(makeServer());
+  await refreshLiveWeather(fetched.app, async () => ({ ok: true, json: async () => ({ current: { weather_code: 95 }, hourly: { time: [], weather_code: [] } }) }));
+  assert.equal(fetched.app.runtime.liveWeather.state, 'storm'); assert.equal(fetched.app.runtime.liveWeather.code, 95);
 });
 test('day and night phases follow the game clock', () => {
   const s = makeServer(); for (const [h, ph] of [[3, 'night'], [5, 'dawn'], [6, 'dawn'], [7, 'day'], [12, 'day'], [17, 'day'], [18, 'dusk'], [19, 'dusk'], [20, 'night'], [23, 'night']]) { atHour(s, h); const p = wx.phaseOf(s.app); assert.equal(p.phase, ph, `hour ${h}`); assert.equal(p.night, ph === 'night'); }

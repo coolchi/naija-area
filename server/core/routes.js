@@ -197,15 +197,21 @@ route('POST', '/api/clubs/hangout', { auth: 'user' }, (c) => clubs.hangout(c.app
 // weather, rain, flooding and the day/night phase (server/core/weather.js); events: night market, street owambe, festivals (server/core/events.js)
 route('POST', '/api/throw', { auth: 'user' }, (c) => { c.app.limiter.hit?.(`throw:${c.uid}`, 60, 60000, c.app.clock.now()); return throws.throwBall(c.app, c.uid, c.body); });
 route('GET', '/api/weather', { auth: 'user' }, (c) => weather.view(c.app, c.uid));
-route('POST', '/api/admin/weather', { auth: 'admin' }, (c) => weather.force(c.app, c.body.state));
+route('GET', '/api/admin/weather', { auth: 'admin' }, (c) => weather.adminStatus(c.app));
+route('POST', '/api/admin/weather', { auth: 'admin' }, (c) => ({ ...weather.force(c.app, c.body.state), ...weather.adminStatus(c.app) }));
 route('GET', '/api/admin/time', { auth: 'admin' }, (c) => ({ world: eco.gameTime(c.app) }));
 route('POST', '/api/admin/time', { auth: 'admin' }, (c) => {
+  const wc = c.app.balance.worldClock;
+  if (c.body.real === true || c.body.real === 'true') {
+    wc.pinned = false; wc.startRealMs = wc.epochMs ?? wc.startRealMs;
+    return { ok: true, world: eco.gameTime(c.app) };
+  }
   const hour = Number(c.body.hour), minute = Number(c.body.minute ?? 0);
   if (!Number.isFinite(hour) || hour < 0 || hour > 23 || !Number.isFinite(minute) || minute < 0 || minute > 59) bad('BAD_TIME', 'Use hour 0–23 and minute 0–59.', 400);
   const mins = Math.floor(hour) * 60 + Math.floor(minute);
   const gt = eco.gameTime(c.app);
-  const wc = c.app.balance.worldClock;
   const gameMins = (gt.day - 1) * 1440 + mins;
+  wc.pinned = true;
   wc.startRealMs = Date.now() - (gameMins / wc.gameMinutesPerRealMinute) * 60000;
   return { ok: true, world: eco.gameTime(c.app) };
 });

@@ -15,9 +15,20 @@ test('stepSpeed: brakes smoothly to a stop before the person, never moves into t
   assert.ok(stopped, 'car stopped'); const gapFinal = person - 0.5 - x; assert.ok(gapFinal >= C.minGap && gapFinal <= C.stopGap + 1.6, 'stops near the person: ' + gapFinal);
   let clear = { v: 0, wait: 0 }; for (let i = 0; i < 200; i++) clear = stepSpeed(clear, 8, null, 0.016); assert.ok(clear.v > 7.9, 'accelerates again once clear'); assert.ok(clear.v <= 8);
 });
-test('stepSpeed: after the 2 to 4 s wait it honks and creeps (people) but stays outside the minimum gap; other cars are ignored for a while so crossings do not deadlock', () => {
+test('stepSpeed: after the 2 to 4 s wait it honks and creeps (people) but stays outside the minimum gap; other cars creep past slowly so crossings do not deadlock or nest', () => {
   let st = { v: 0, wait: 0, limit: 3 }; let honked = false; for (let i = 0; i < 400; i++) { const nv = stepSpeed(st, 8, { gap: C.stopGap - 0.5, person: true }, 0.05); honked ||= nv.honk; st = { ...nv, limit: 3 }; } assert.ok(honked, 'horns after waiting'); assert.ok(st.v <= C.creepSpeed + 1e-9, 'only creeps');
-  let s2 = { v: 0, wait: 0, limit: 2 }; let went = false; for (let i = 0; i < 200; i++) { s2 = { ...stepSpeed(s2, 8, { gap: 2.5, person: false }, 0.05), limit: 2 }; if (s2.v > 3) went = true; } assert.ok(went, 'car-car deadlock resolves after the wait');
+  let s2 = { v: 0, wait: 0, limit: 2 }; let went = false; let nested = false;
+  for (let i = 0; i < 200; i++) {
+    const gap = Math.max(C.overlapFloor + 0.2, 4.5 - i * 0.01);
+    s2 = { ...stepSpeed(s2, 8, { gap, person: false }, 0.05), limit: 2 };
+    if (s2.v > 1.5) went = true;
+    if (s2.ignoreT > 0) assert.ok(s2.v <= C.creepPastSpeed + 1e-9, 'creep past, never full cruise through cars');
+  }
+  // Hard floor: a car already inside minGapCar must not keep rolling in.
+  let s3 = { v: 4, wait: 0, limit: 2 }; s3 = stepSpeed(s3, 8, { gap: C.minGapCar - 1.2, person: false }, 0.05);
+  if (s3.v > 0.05) nested = true;
+  assert.ok(went, 'car-car deadlock resolves after the wait');
+  assert.equal(nested, false, 'never drives deeper into another car');
   assert.ok(C.waitMin >= 2 && C.waitMax <= 4);
 });
 test('decide: the yield-or-hit hook always yields for now (hits are held, not built)', () => { assert.equal(decide({ gap: 1, person: true }, { speed: 9 }).action, 'yield'); assert.equal(decide(null, {}).action, 'clear'); });

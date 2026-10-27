@@ -187,7 +187,8 @@ async function treasures() {
 const fmtWorld = (w) => {
   if (!w) return '—';
   const h12 = ((w.hour + 11) % 12) + 1;
-  return `${h12}:${String(w.minute).padStart(2, '0')} ${w.hour >= 12 ? 'PM' : 'AM'} · Day ${w.day}`;
+  const tail = w.real && w.date ? w.date : `Day ${w.day}`;
+  return `${h12}:${String(w.minute).padStart(2, '0')} ${w.hour >= 12 ? 'PM' : 'AM'} · ${tail}${w.real ? ' (real time)' : ''}`;
 };
 async function world() {
   const radio = await j('/api/admin/radio');
@@ -196,6 +197,12 @@ async function world() {
     $('#timeNow').textContent = 'Now: ' + fmtWorld(t.world);
     if (t.world) { $('#timeH').value = t.world.hour; $('#timeM').value = t.world.minute; }
   } catch { $('#timeNow').textContent = '—'; }
+  try {
+    const w = await j('/api/admin/weather');
+    const live = w.live?.state ? `Live Lagos: ${w.live.label || w.live.state}` : (w.live?.error ? 'Live weather unavailable' : 'Live Lagos weather');
+    $('#wxNow').textContent = w.forced ? `${live}. Pinned to ${w.forced}.` : `${live}. In the game now: ${w.label || w.state}.`;
+    $('#wx').value = w.forced || 'auto';
+  } catch { /* older server */ }
   $('#radioOn').textContent = radio.realRadio ? 'Radio is on — click to turn off' : 'Radio is off — click to turn on';
   $('#radioOn').dataset.on = radio.realRadio ? '1' : '0';
 }
@@ -208,13 +215,13 @@ $('#plScope').onchange = players; $('#plGo').onclick = players; $('#plQ').addEve
 $('#paySt').onchange = payments; $('#payGo').onclick = payments; $('#recGo').onclick = () => reconcile().catch(e => alert(e.message));
 $('#trCity').onchange = treasures; $('#trView').onchange = treasures; $('#trGo').onclick = treasures; $('#trQ').addEventListener('keydown', (e) => { if (e.key === 'Enter') treasures(); });
 $('#radioOn').onclick = async () => { try { const on = $('#radioOn').dataset.on !== '1'; const r = await j('/api/admin/radio', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled: on }) }); toast(r.realRadio ? 'Radio is on.' : 'Radio is off.'); await world(); } catch (e) { toast(e.message, true); } };
-$('#wxGo').onclick = async () => { try { const r = await j('/api/admin/weather', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ state: $('#wx').value }) }); toast(r.forced ? 'Weather set to ' + r.forced + '.' : 'Weather is automatic again.'); } catch (e) { toast(e.message, true); } };
+$('#wxGo').onclick = async () => { try { const r = await j('/api/admin/weather', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ state: $('#wx').value }) }); toast(r.forced ? 'Weather pinned to ' + r.forced + '.' : 'Weather is following live Lagos again.'); await world(); } catch (e) { toast(e.message, true); } };
 const setGameTime = async (hour, minute) => {
   const r = await j('/api/admin/time', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ hour, minute }) });
   $('#timeNow').textContent = 'Now: ' + fmtWorld(r.world);
   toast('Game time set to ' + fmtWorld(r.world) + '.');
 };
 $('#timeGo').onclick = async () => { try { await setGameTime(Number($('#timeH').value), Number($('#timeM').value)); } catch (e) { toast(e.message, true); } };
-$('#timeNoon').onclick = async () => { try { $('#timeH').value = 12; $('#timeM').value = 0; await setGameTime(12, 0); } catch (e) { toast(e.message, true); } };
+$('#timeReal').onclick = async () => { try { const r = await j('/api/admin/time', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ real: true }) }); $('#timeNow').textContent = 'Now: ' + fmtWorld(r.world); toast('Clock is following real Lagos time.'); } catch (e) { toast(e.message, true); } };
 $('#tickGo').onclick = async () => { try { await j('/api/admin/tick', { method: 'POST' }); toast('Ran rent, interest, land and ads.'); } catch (e) { toast(e.message, true); } };
 window.adminStart = show;

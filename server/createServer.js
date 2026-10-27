@@ -15,6 +15,7 @@ import { dispatch } from './core/routes.js';
 import { getCreative, handleTap, tickAds } from './core/ads.js';
 import { tickScores } from './core/scores.js';
 import { tickRent, tickInterest } from './core/economy.js';
+import { refreshLiveWeather } from './core/live-weather.js';
 import { tickSeasons } from './core/seasons.js';
 import { pruneWorld, livePos, snapshotMoves } from './core/world.js';
 import { tickLand } from './core/social.js';
@@ -94,7 +95,7 @@ export function buildServer(opts = {}) {
   const ex = express(); ex.disable('x-powered-by'); ex.set('trust proxy', /^\d+$/.test(env.NA_TRUST_PROXY || '') ? Number(env.NA_TRUST_PROXY) : false); // NA_TRUST_PROXY=N: believe the last N proxies (1 = one proxy in front). A number, not `true`, so a player cannot fake their address with their own X-Forwarded-For header.
   ex.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'same-origin'); res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; font-src 'self'; media-src 'self' data: blob: https://*.streamguys1.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' blob: ws: wss:; font-src 'self'; media-src 'self' data: blob: https://*.streamguys1.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
     next();
   });
   // admin surfaces: optional IP allow-list (NA_ADMIN_ALLOW_IPS), never cached, never indexed. A blocked address gets a plain 404 so the page is not even confirmed to exist.
@@ -183,6 +184,8 @@ export function buildServer(opts = {}) {
   const timers = [];
   function startTimers() {
     tickScores(app).catch((e) => console.error('tickScores', e));
+    refreshLiveWeather(app).catch((e) => console.error('liveWeather', e));
+    timers.push(setInterval(() => { refreshLiveWeather(app).catch((e) => console.error('liveWeather', e)); }, 10 * 60000));
     timers.push(setInterval(() => { tickScores(app).catch((e) => console.error('tickScores', e)); }, 30000)); // one job for all viewers; it only calls the provider when due and under the daily cap
     timers.push(setInterval(() => { try { tickAge(app); } catch (e) { console.error('tickAge', e); } }, 60000));
     timers.push(setInterval(() => { tickPayments(app).catch((e) => console.error('tickPayments', e)); }, 15000)); // asks the provider about payments whose webhook never came; sends recorded refunds

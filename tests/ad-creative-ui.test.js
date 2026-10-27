@@ -36,7 +36,7 @@ test('the advertise page: drop zone markup, accessible controls, module script, 
   const js = fs.readFileSync('public/js/advertise.js', 'utf8'); assert.match(js, /from '\/js\/creative-check\.js'/); assert.match(js, /URL\.revokeObjectURL/); assert.match(js, /URL\.createObjectURL/); assert.ok(!/innerHTML = `[^`]*\$\{\$\('#headline'\)/.test(js), 'headline is never put in via innerHTML');
   assert.match(js, /'\/api\/ads\/upload'/, 'the upload call is unchanged');
   const s = makeServer(); await new Promise(r => s.server.listen(0, '127.0.0.1', r)); const base = `http://127.0.0.1:${s.server.address().port}`;
-  try { const pg = await fetch(base + '/advertise'); assert.equal(pg.status, 200); assert.match(pg.headers.get('content-security-policy'), /img-src[^;]*blob:/, 'blob: previews are allowed'); assert.doesNotMatch(pg.headers.get('content-security-policy'), /script-src[^;]*unsafe-inline/);
+  try { const pg = await fetch(base + '/advertise'); assert.equal(pg.status, 200); assert.match(pg.headers.get('content-security-policy'), /img-src[^;]*blob:/, 'blob: previews are allowed'); assert.match(pg.headers.get('content-security-policy'), /connect-src[^;]*blob:/, 'model textures fetched from blob: urls are allowed'); assert.doesNotMatch(pg.headers.get('content-security-policy'), /script-src[^;]*unsafe-inline/);
     for (const f of ['/js/creative-check.js', '/js/advertise.js']) { const r = await fetch(base + f); assert.equal(r.status, 200, f); assert.match(r.headers.get('content-type'), /javascript/, f); }
     const css = await (await fetch(base + '/pages.css')).text(); assert.match(css, /\.drop\b/); assert.match(css, /\.mock-card/); assert.match(css, /:focus-visible/);
   } finally { await s.close(); }

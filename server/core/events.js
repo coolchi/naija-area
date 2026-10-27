@@ -2,14 +2,14 @@
 // Config: server/config/events.js (ESTIMATES). Everything is computed from the clock; the only stored rows are stock sold, per-player purchase counts and once-per-event claims.
 import { bad } from './util.js';
 import { move, cashId, balanceOf, SYS } from './ledger.js';
-import { gameTime, refreshNeeds, addMood, notify } from './economy.js';
+import { gameTime, clockScale, refreshNeeds, addMood, notify } from './economy.js';
 import { dayKey } from './util.js';
 import { EVENTS } from '../config/events.js';
 import { cfgOf as wearCfg } from './wearables.js';
 
 export const cfg = (app) => app.balance.events || EVENTS;
 const money = (n) => '₦' + Math.round(n).toLocaleString('en-NG');
-const GMPM = (app) => app.balance.worldClock.gameMinutesPerRealMinute;
+const GMPM = (app) => clockScale(app);
 const defOf = (app, id) => cfg(app).events.find(e => e.id === id);
 /** stock of a shop item: per night (night events) or per festival run (limited festival items) */
 const stockOf = (it) => it.stockPerRun ?? it.stockPerNight;

@@ -62,7 +62,7 @@ export const PHYS = {
     slideDrag: 0.9,                     // 1/s: rubbing along a wall slows you gently (you slide, you do not stick)
     minImpact: 2.2,                     // m/s into a wall below which there is no shake or thud
     npcCars: true,                      // the player's car bumps the ambient traffic (client only: no damage, no money; crash rules stay on the server)
-    npcR: 1.0, npcOffset: 1.3, selfR: 1.0, selfOffset: 1.3, npcRange: 9 // two circles per car (front and back)
+    npcR: 1.25, npcOffset: 1.6, selfR: 1.15, selfOffset: 1.55, npcRange: 11 // two circles per car (front and back); sized so long bodies do not visually nest
   },
   // ---- camera
   camera: {
