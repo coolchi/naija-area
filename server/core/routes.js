@@ -7,6 +7,7 @@ import { publicTreasures, claimTreasure, adminTreasures } from './treasures.js';
 import * as referrals from './referrals.js';
 import { GameError, bad, cleanText } from './util.js';
 import * as auth from './auth.js';
+import * as pwreset from './password-reset.js';
 import * as eco from './economy.js';
 import * as ads from './ads.js';
 import * as world from './world.js';
@@ -92,6 +93,9 @@ const meView = (app, uid) => ({ ...eco.profile(app, uid), signup: signup.signupV
 route('POST', '/api/auth/signup', { rate: 'auth' }, async (c) => { const uid = await auth.signup(c.app, c.body, c.ipHash); c.out.session = uid; return { ok: true, user: meView(c.app, uid) }; });
 route('POST', '/api/auth/login', { rate: 'auth' }, async (c) => { const uid = await auth.login(c.app, c.body); c.out.session = uid; return { ok: true, user: meView(c.app, uid) }; });
 route('POST', '/api/auth/guest', { rate: 'auth' }, (c) => { const uid = auth.guest(c.app, c.body, c.ipHash); c.out.session = uid; return { ok: true, user: meView(c.app, uid) }; });
+route('POST', '/api/auth/forgot', { rate: 'auth' }, (c) => pwreset.requestReset(c.app, c.body, c.ip));
+route('GET', '/api/auth/reset/check', { rate: 'auth' }, (c) => pwreset.checkToken(c.app, String(c.query.token || '')));
+route('POST', '/api/auth/reset', { rate: 'auth' }, async (c) => { const r = await pwreset.completeReset(c.app, c.body); c.out.session = 'clear'; return r; });
 route('POST', '/api/auth/logout', (c) => { if (c.uid) world.leaveWorld(c.app, c.uid); c.out.session = 'clear'; return { ok: true }; });
 route('GET', '/api/me', { auth: 'user' }, (c) => { missions.recordLogin(c.app, c.uid); achievements.evaluate(c.app, c.uid); return { user: meView(c.app, c.uid) }; });
 route('GET', '/api/referrals/preview', { rate: 'auth' }, (c) => referrals.previewRef(c.app, c.query.ref || c.query.code || ''));
@@ -395,6 +399,8 @@ route('GET', '/api/admin/queue', { auth: 'admin' }, (c) => ({ rows: ads.adminQue
 route('POST', '/api/admin/campaigns/:id/decision', { auth: 'admin' }, (c) => { const st = ads.decide(c.app, Number(c.params.id), c.body.decision, 'admin', c.body.reason, { rejectDesigns: c.body.rejectDesigns }); c.app.db.prepare('INSERT INTO audit_log(actor,action,detail,created_at) VALUES (?,?,?,?)').run('admin', 'ad_' + c.body.decision, `campaign ${c.params.id}: ${c.body.reason || ''}${Array.isArray(c.body.rejectDesigns) && c.body.rejectDesigns.length ? ` (rejected designs ${c.body.rejectDesigns.join(',')})` : ''}`, c.app.clock.now()); return { ok: true, status: st }; });
 route('POST', '/api/admin/campaigns/:id/designs/:creative/decision', { auth: 'admin' }, (c) => { const r = ads.decideDesign(c.app, Number(c.params.id), Number(c.params.creative), c.body.decision, 'admin', c.body.reason); c.app.db.prepare('INSERT INTO audit_log(actor,action,detail,created_at) VALUES (?,?,?,?)').run('admin', 'ad_design_' + c.body.decision, `campaign ${c.params.id} design ${c.params.creative}: ${c.body.reason || ''}`, c.app.clock.now()); return { ok: true, ...r }; });
 route('GET', '/api/admin/players', { auth: 'admin' }, (c) => playerDirectory(c.app, { scope: String(c.query.scope || 'all'), q: c.query.q || '' }));
+route('GET', '/api/admin/players/password-status', { auth: 'admin' }, (c) => pwreset.adminStatus(c.app, c.query.who));
+route('POST', '/api/admin/players/password-reset', { auth: 'admin' }, (c) => pwreset.adminReset(c.app, { who: c.body.who, mode: c.body.mode }, 'admin'));
 route('GET', '/api/admin/treasures', { auth: 'admin' }, (c) => adminTreasures(c.app, { city: c.query.city || '', q: c.query.q || '' }));
 route('GET', '/api/admin/overview', { auth: 'admin' }, (c) => {
   const a = c.app, db = a.db; const byStatus = db.prepare('SELECT status, COUNT(*) n FROM ad_campaigns GROUP BY status').all();

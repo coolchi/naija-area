@@ -94,6 +94,7 @@ export async function deleteAccount(app, uid, { password, confirm } = {}) {
     del(app, 'DELETE FROM police_cases WHERE reporter_id=? OR accused_id=?', uid, uid);
     del(app, 'DELETE FROM police_evidence WHERE attacker_id=? OR victim_id=?', uid, uid);
     del(app, 'DELETE FROM police_holds WHERE user_id=?', uid);
+    del(app, 'DELETE FROM password_resets WHERE user_id=?', uid); // reset links die with the account
     del(app, 'DELETE FROM shifts WHERE user_id=?', uid); del(app, 'DELETE FROM game_scores WHERE user_id=?', uid); del(app, 'DELETE FROM casual_runs WHERE user_id=?', uid); del(app, 'DELETE FROM casual_daily WHERE user_id=?', uid);
     del(app, 'DELETE FROM flights WHERE user_id=?', uid); del(app, 'DELETE FROM boat_trips WHERE user_id=?', uid); del(app, 'DELETE FROM stadium_tickets WHERE user_id=?', uid);
     del(app, 'DELETE FROM ad_impressions WHERE user_id=?', uid); del(app, 'DELETE FROM ad_taps WHERE user_id=?', uid); del(app, 'DELETE FROM age_sessions WHERE user_id=?', uid);

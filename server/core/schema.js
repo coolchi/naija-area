@@ -253,6 +253,9 @@ export function migrate(db, { later = true } = {}) {
   add('player_cars', 'wreck_x', 'REAL'); add('player_cars', 'wreck_z', 'REAL'); add('player_cars', 'wreck_ry', 'REAL');
   add('player_state', 'health', 'REAL NOT NULL DEFAULT 100'); add('player_state', 'health_at', 'INTEGER NOT NULL DEFAULT 0'); add('player_state', 'crash_cd_until', 'INTEGER NOT NULL DEFAULT 0'); add('player_state', 'crash_roll_at', 'INTEGER NOT NULL DEFAULT 0');
   add('player_state', 'fainted', 'INTEGER NOT NULL DEFAULT 0');
+  add('users', 'pass_changed_at', 'INTEGER NOT NULL DEFAULT 0'); add('users', 'must_change_pw', 'INTEGER NOT NULL DEFAULT 0'); // password reset: sessions issued before pass_changed_at are dead; must_change_pw after an admin temp password
+  db.exec(`CREATE TABLE IF NOT EXISTS password_resets (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, token_hash TEXT NOT NULL UNIQUE, via TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER);
+    CREATE INDEX IF NOT EXISTS ix_password_resets_user ON password_resets(user_id, used_at);`);
   add('player_state', 'strength', 'REAL NOT NULL DEFAULT 10'); add('player_state', 'strength_at', 'INTEGER NOT NULL DEFAULT 0');
   db.exec(`CREATE TABLE IF NOT EXISTS car_parking (
     user_id INTEGER PRIMARY KEY, car_id INTEGER NOT NULL, lot_id TEXT NOT NULL, bay INTEGER NOT NULL, x REAL NOT NULL, z REAL NOT NULL, ry REAL NOT NULL, parked_at INTEGER NOT NULL, fee INTEGER NOT NULL DEFAULT 0

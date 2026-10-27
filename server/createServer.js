@@ -107,7 +107,7 @@ export function buildServer(opts = {}) {
   const parseCookies = (h) => Object.fromEntries(String(h || '').split(';').map(s => s.trim().split(/=(.*)/s).slice(0, 2)).filter(a => a[0]));
   const sign = (s) => platform.hmac(s);
   const mkSession = (uid) => { const exp = Date.now() + 14 * 86400000; const v = `${uid}.${exp}`; return `${v}.${sign('s:' + v)}`; };
-  const readSession = (cookie) => { if (!cookie) return null; const [uid, exp, sig] = cookie.split('.'); if (!sig || !platform.safeEqual(sig, sign(`s:${uid}.${exp}`)) || Number(exp) < Date.now()) return null; return Number(uid); };
+  const readSession = (cookie) => { if (!cookie) return null; const [uid, exp, sig] = cookie.split('.'); if (!sig || !platform.safeEqual(sig, sign(`s:${uid}.${exp}`)) || Number(exp) < Date.now()) return null; const changed = db.prepare('SELECT pass_changed_at FROM users WHERE id=?').get(Number(uid))?.pass_changed_at || 0; if (changed && Number(exp) - 14 * 86400000 < changed) return null; return Number(uid); }; // a password change/reset signs out every older session
   const mkAdmin = () => { const exp = Date.now() + 8 * 3600000; return `admin.${exp}.${sign('a:' + exp)}`; };
   const readAdmin = (cookie) => { if (!cookie) return false; const [t, exp, sig] = cookie.split('.'); return t === 'admin' && !!sig && platform.safeEqual(sig, sign('a:' + exp)) && Number(exp) > Date.now(); };
   const cookieAttrs = `Path=/; HttpOnly; SameSite=Lax${prod ? '; Secure' : ''}`;
@@ -161,7 +161,7 @@ export function buildServer(opts = {}) {
   ex.get('/readyz', (req, res) => { res.setHeader('Cache-Control', 'no-store'); try { db.prepare('SELECT 1 AS ok').get(); res.json({ ok: true, db: databaseUrl ? 'postgres' : 'sqlite', uptimeSec: Math.round((Date.now() - startedAt) / 1000), version }); } catch (e) { console.error('readyz: database check failed:', e.message); res.status(503).json({ ok: false, db: databaseUrl ? 'postgres' : 'sqlite', error: 'DATABASE_UNAVAILABLE' }); } });
   ex.get('/metrics', (req, res) => { res.setHeader('Cache-Control', 'no-store'); if (!metricsAllowed(app, { authHeader: req.headers.authorization, isAdmin: readAdmin(parseCookies(req.headers.cookie).na_a), token: app.metricsToken })) return res.status(404).type('text/plain').send('Not found'); res.type('text/plain; version=0.0.4').send(renderMetrics(app, { version, wsClients: [...sockets.values()].reduce((n, x) => n + x.size, 0) })); });
   const pub = opts.publicDir || path.join(ROOT, 'public');
-  const pages = { '/advertise': 'advertise.html', '/advertiser': 'advertiser.html', '/admin': 'admin.html', '/methodology': 'methodology.html', '/play': 'index.html', '/terms': 'terms.html', '/privacy': 'privacy.html', '/refunds': 'refunds.html', '/contact': 'contact.html' };
+  const pages = { '/advertise': 'advertise.html', '/advertiser': 'advertiser.html', '/admin': 'admin.html', '/methodology': 'methodology.html', '/play': 'index.html', '/terms': 'terms.html', '/privacy': 'privacy.html', '/refunds': 'refunds.html', '/contact': 'contact.html', '/reset': 'reset.html' };
   for (const [u, f] of Object.entries(pages)) ex.get(u, (req, res) => res.sendFile(path.join(pub, f)));
   ex.use(staticCompress(pub));
   ex.use(express.static(pub, { index: 'index.html', maxAge: '5m', extensions: ['html'] }));
