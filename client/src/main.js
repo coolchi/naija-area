@@ -305,6 +305,7 @@ class Game {
       $('#fEmail')?.classList.toggle('hidden', t !== 'signup');
       $('#fGender')?.classList.toggle('hidden', t !== 'signup');
       $('#fAge')?.classList.toggle('hidden', t !== 'signup');
+      $('#fForgot')?.classList.toggle('hidden', t !== 'login');
       const pass = form.querySelector('input[name=password]');
       if (pass) pass.autocomplete = t === 'login' ? 'current-password' : 'new-password';
       showRef();
@@ -330,7 +331,7 @@ class Game {
         if (tab === 'signup') try { localStorage.removeItem('na_ref'); } catch { /* ignore */ }
         $('#auth').classList.add('hidden');
         await this.enter(r.user);
-      } catch (er) { $('#authErr').textContent = er.message; } finally { btn.disabled = false; }
+      } catch (er) { if (er.code === 'MUST_CHANGE_PASSWORD' && er.data?.resetPath) { location.href = er.data.resetPath; return; } $('#authErr').textContent = er.message; } finally { btn.disabled = false; }
     };
   }
   async enter(user) {

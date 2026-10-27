@@ -1,0 +1,22 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reset password · Naija Area</title><meta name="robots" content="noindex"><link rel="stylesheet" href="/pages.css"></head><body>
+<header class="top"><a href="/"><img src="/assets/logo.svg" alt="Naija Area"></a><a href="/">Play</a><span class="sp"></span><a href="/contact">Contact</a></header>
+<main>
+<div class="card" id="askCard" hidden>
+  <h1>Forgot your password?</h1>
+  <p>Enter the email on your player account. We will email you a link to choose a new password. The link works once, for 45 minutes.</p>
+  <form id="askForm"><label>Email <input name="email" type="email" autocomplete="email" maxlength="120" required placeholder="you@example.com"></label>
+  <p><button type="submit" id="askGo">Send reset link</button></p></form>
+  <p id="askMsg" role="status"></p>
+  <p class="mut"><small>No email on your account (an old guest account, for example)? A reset link cannot reach you. Contact support from the <a href="/contact">contact page</a> with your username and an admin can reset it for you.</small></p>
+</div>
+<div class="card" id="setCard" hidden>
+  <h1>Choose a new password</h1>
+  <p id="setWho"></p>
+  <form id="setForm"><label>New password <input name="password" type="password" autocomplete="new-password" minlength="8" maxlength="72" required placeholder="8+ characters"></label>
+  <label>Type it again <input name="password2" type="password" autocomplete="new-password" minlength="8" maxlength="72" required></label>
+  <p><button type="submit" id="setGo">Save new password</button></p></form>
+  <p id="setMsg" role="status"></p>
+  <p class="mut"><small>Saving signs you out on every device. Then log in with the new password.</small></p>
+</div>
+<p><a href="/">Back to the game</a></p>
+</main><script src="/js/reset.js"></script></body></html>

@@ -1,6 +1,7 @@
 import { bad, cleanText, hasBadWord } from './util.js';
 import { ensureUserAccounts, move, SYS, cashId } from './ledger.js';
 import { attachReferral, previewRef } from './referrals.js';
+import { mustChangeGate } from './password-reset.js';
 
 const COLORS = ['#e4572e', '#17bebb', '#ffc914', '#76b041', '#a24bcf', '#f28f3b', '#3a86ff', '#ff6392', '#2e9b5e', '#8d6e63'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -55,6 +56,7 @@ export async function login(app, { username, password }) {
   // constant-ish work even when the user is unknown
   const ok = await app.platform.verify(typeof password === 'string' ? password : '', u?.pass_hash || app.platform.dummyHash);
   if (!u || !u.pass_hash || !ok) bad('BAD_LOGIN', 'Wrong username or password.', 401);
+  mustChangeGate(app, u.id); // an admin temporary password only opens the "choose a new password" page
   app.db.prepare('UPDATE users SET last_seen=? WHERE id=?').run(app.clock.now(), u.id);
   return u.id;
 }
