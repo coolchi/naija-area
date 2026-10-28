@@ -51,6 +51,7 @@ import { roadAt } from './roadgeom.js';
 import { PhoneSys } from './phone-v2/phone2.js';
 import { BodyguardClient } from './bodyguard-client.js';
 import { glowTexture } from './textures.js';
+import { PatrolClient } from './patrol-ui.js';
 
 const TIPS = ['Tap any building or sign to see it on the map and travel there.', 'Take a shift at the Corner Mart: the quick task gives +25% if you stop the bar in the green.', 'Knock at a house when its owner is home. They can let you in.', 'Land plots grow in value, but omo-onile may come for a levy.', 'Delivery costs more but works from anywhere.', 'Walk up to your own car and tap it to get in. Press T to chat.'];
 /** Firefox on some Macs rejects powerPreference:"high-performance"; fall back so boot does not die with the generic WebGL tip. */
@@ -449,10 +450,11 @@ class Game {
     this.syncDriveSmoke();
     for (const c of r.chat || []) this.showChat(c); for (const n of r.notifs || []) { if (!['knock', 'dm', 'knock_in', 'knock_no'].includes(n.kind) || true) { this.unread = (this.unread || 0) + 1; this.ui.toast(n.text, ['omo_onile'].includes(n.kind) ? 'bad' : n.kind === 'dm' ? '' : 'money'); if (n.kind === 'dm') this.audio?.play('notify'); if (n.kind === 'achievement') this.audio?.play('achieve'); } } this.ui.badge(this.unread || 0);
     this.lastKnocks = r.knocks; for (const k of r.knocks?.incoming || []) this.ui.hostKnock(k);
+    if (!this.patrol && this.scene) { this.patrol = new PatrolClient(this); this.ui.patrolMm = (c, X, Z) => this.patrol.mm(c, X, Z); } this.patrol?.onHeartbeat(r.patrol);
     if (r.teleport && !r.teleport.travelMs && !this.commute) { this.ctrl.teleport(r.teleport.x, r.teleport.z); }
     if (r.me.shift && r.me.shift.endsAt <= this.serverNow() && this.lastShiftDone !== r.me.shift.id) { this.lastShiftDone = r.me.shift.id; this.ui.toast('Shift done! Open the job sheet to collect your pay.', 'money'); }
   }
-  onPush(m) { if (m.kind === 'knock') this.ui.sfx('knock'); if (m.type?.startsWith?.('needs.') || m.kind === 'needs') this.faint?.onPush(m); }
+  onPush(m) { this.patrol?.onPush?.(m); if (m.kind === 'knock') this.ui.sfx('knock'); if (m.type?.startsWith?.('needs.') || m.kind === 'needs') this.faint?.onPush(m); }
   showChat(c) { this.seenChat ||= new Set(); if (c.id != null && this.seenChat.has(c.id)) return; if (c.id != null) { this.seenChat.add(c.id); if (this.seenChat.size > 200) this.seenChat.delete(this.seenChat.values().next().value); } this.ui.addChat(c.u, c.t, c.id, c.tt); }
 
   // ---- places, tapping, actions

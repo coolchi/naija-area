@@ -12,13 +12,14 @@ import { SportsStage, sportsModel } from './sports3d.js';
 import { wearSheet } from './wear-ui.js';
 import { gunSheet, bodyguardSheet } from './gun-ui.js';
 import { reportSheet, bailSheet, holdingSheet } from './police-ui.js';
+import { patrolSheet } from './patrol-ui.js';
 import { officeSheet } from './office-ui.js';
 import { applyWear } from './wear-models.js';
 import { stateLabel, scoreText, kickoffText, sourceLine, groupByLeague } from './scores-view.js';
 
 const SHAPE = { circle: ['●', '#d6402f'], triangle: ['▲', '#2e7dd1'], cross: ['✚', '#2e9b5e'], square: ['■', '#8a5ad1'], star: ['★', '#e0a020'], whot: ['W', '#222'] };
 const hash = (s) => { let x = 7; for (const c of String(s)) x = (x * 31 + c.charCodeAt(0)) >>> 0; return x; };
-const ICON = { wear: '💎', gun: '🔫', bodyguard: '🛡️', dance: '💃', dj: '🎧', bar: '🥤', songs: '🎵', vip: '👑', style: '✂️', basin: '🚿', eat: '🍲', game: '🎲', board: '🏆', poster: '📜', tv: '📺', ticket: '🎟️', scores: '📊', seat: '🪑', car: '🚗', check: '🔍', service: '🔧', bench: '🏋️', bags: '🥊', treadmill: '🏃', squat: '🦵', weights: '💪', gym: '🏋️', train: '💪', pray: '🙏', cinema: '🎬', rest: '🪑', report: '📋', bail: '🔓', holding: '🏢' };
+const ICON = { patrol: '🚓', wear: '💎', gun: '🔫', bodyguard: '🛡️', dance: '💃', dj: '🎧', bar: '🥤', songs: '🎵', vip: '👑', style: '✂️', basin: '🚿', eat: '🍲', game: '🎲', board: '🏆', poster: '📜', tv: '📺', ticket: '🎟️', scores: '📊', seat: '🪑', car: '🚗', check: '🔍', service: '🔧', bench: '🏋️', bags: '🥊', treadmill: '🏃', squat: '🦵', weights: '💪', gym: '🏋️', train: '💪', pray: '🙏', cinema: '🎬', rest: '🪑', report: '📋', bail: '🔓', holding: '🏢' };
 
 const GAME_NAME = { whot: 'Whot', ludo: 'Ludo', dominoes: 'Dominoes', draughts: 'Draughts', ayo: 'Ayo', football: 'Table football', chess: 'Chess', wordduel: 'Word duel', landlord: 'Landlord Lagos', suwe: 'Suwe', pingpong: 'Ping pong', tennis: 'Tennis' };
 export class Venue {
@@ -125,6 +126,7 @@ export class Venue {
     else if (st.type === 'report') reportSheet(this.g, this.id);
     else if (st.type === 'bail') bailSheet(this.g, this.id);
     else if (st.type === 'holding') holdingSheet(this.g);
+    else if (st.type === 'patrol') patrolSheet(this.g, this.id);
     else if (st.type === 'office') officeSheet(this.g, st.focus);
     else if (st.type === 'club') { ui.lifeTab = 'clubs'; ui.closeSheet?.(); ui.phone('life'); }
     else if (['ticket', 'seat'].includes(st.type)) { const r = await ui.guard(() => post('/api/venue/act', { venueId: this.id, stationId: st.id, idem: crypto.randomUUID?.() })); if (r) { ui.toast(r.text, r.charged ? 'money' : undefined); this.g.refreshMe?.(); this.g.net.nudge(); } }

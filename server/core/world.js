@@ -15,6 +15,7 @@ import { wreckedActive, carStateOf, towStatus } from './meko.js';
 import { myMatchView } from './games.js';
 import { venueTick } from './venues.js';
 import { policeTick } from './police.js';
+import { patrolTick, patrolView } from './patrol.js';
 import { parkedActive } from './parking.js';
 import { wearIds } from './wearables.js';
 import { wornIds as skinsOf } from './skins.js';
@@ -125,7 +126,7 @@ export function snapshotMoves(app, uid) {
 function carBody(app, o, now) {
   if (o.carBody && now - (o.carBodyAt || 0) < 8000) return o.carBody;
   const row = app.db.prepare('SELECT model FROM player_cars WHERE user_id=? AND active=1').get(o.id);
-  o.carBody = app.balance.cars.models[row?.model]?.body || 'hatch'; o.carBodyAt = now; return o.carBody;
+  o.carBody = o.patrol ? 'police' : (app.balance.cars.models[row?.model]?.body || 'hatch'); o.carBodyAt = now; return o.carBody;
 }
 export function heartbeat(app, uid, body, meta = {}) {
   const now = app.clock.now(); const w = app.world;
@@ -140,6 +141,7 @@ export function heartbeat(app, uid, body, meta = {}) {
     else if (body.mode === 'drive' && p.mode !== 'drive' && parkedActive(app, uid)) { /* your car is parked: it cannot be driven from elsewhere */ }
     else if (!p.carpoolDriver) p.mode = body.mode;
   }
+  if (body.mode === 'drive' && !p.fainted && patrolTick(app, uid)) p.mode = 'drive'; // the duty Charger
   if (p.mode === 'drive') p.driveAt = now; // when the player was last in a car (the ad checks for radio spots, item 8)
   if (typeof body.activity === 'string') p.activity = cleanText(body.activity, 24);
   if (p.mode === 'drive') noteRadio(app, uid, body.radio);
@@ -184,6 +186,7 @@ export function heartbeat(app, uid, body, meta = {}) {
     knocks: knockState(app, uid), carpool: rideView(app, p), tow: towStatus(app, uid).tow, game: myMatchView(app, uid), venue: p.venue || null, gd: guardian.heartbeatInfo(app, uid), teleport: p.force || undefined, adsVersion: app.adsVersion, ads: body.adsVersion === app.adsVersion ? undefined : adsSnapshot(app, now, p.city), adResult, tr: takenInCity(app, p.city) };
   const ac = app.db.prepare('SELECT * FROM player_cars WHERE user_id=? AND active=1').get(uid);
   if (ac) resp.carBody = carStateOf(app, ac);
+  if (p.patrol) { try { resp.patrol = patrolView(app, uid); } catch { /* never break the heartbeat */ } }
   p.force = undefined;
   return resp;
 }

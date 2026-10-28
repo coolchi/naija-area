@@ -92,6 +92,11 @@ CREATE INDEX IF NOT EXISTS ix_police_cases_accused ON police_cases(accused_id, i
 CREATE TABLE IF NOT EXISTS police_holds (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, reason TEXT NOT NULL, charge INTEGER NOT NULL DEFAULT 0, reporter_id INTEGER, status TEXT NOT NULL DEFAULT 'held', held_at INTEGER NOT NULL, until_at INTEGER NOT NULL, auto INTEGER NOT NULL DEFAULT 0, released_at INTEGER, released_by INTEGER, release_how TEXT);
 CREATE INDEX IF NOT EXISTS ix_police_holds_user ON police_holds(user_id, status, until_at);
 CREATE INDEX IF NOT EXISTS ix_police_holds_active ON police_holds(status, until_at);` }
+  ,{ n: 31, name: 'police_patrol', sql: `
+CREATE TABLE IF NOT EXISTS police_patrols (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, city_id TEXT NOT NULL, station_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', started_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, ended_at INTEGER, arrests INTEGER NOT NULL DEFAULT 0, needed INTEGER NOT NULL, ammo INTEGER NOT NULL DEFAULT 0, paid INTEGER NOT NULL DEFAULT 0, day INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS ix_police_patrols_user ON police_patrols(user_id, status, ended_at);
+CREATE TABLE IF NOT EXISTS police_suspects (id INTEGER PRIMARY KEY AUTOINCREMENT, city_id TEXT NOT NULL, kind TEXT NOT NULL, road_id TEXT NOT NULL, s0 REAL NOT NULL, speed REAL NOT NULL, hp INTEGER NOT NULL, armed INTEGER NOT NULL DEFAULT 0, spawned_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, caught_by INTEGER, caught_at INTEGER, caught_how TEXT);
+CREATE INDEX IF NOT EXISTS ix_police_suspects_live ON police_suspects(city_id, caught_by, expires_at);` }
 ];
 // 16 (ad placement, 11 Oct 2026) also adds the column ad_campaigns.placement ('shared' | 'exclusive'): SQLite: migrate() in schema.js; Postgres: ALTER in 0016_ad_placement.sql.
 // Campaigns that existed before get one design row each from migrate() (SQLite) / the same INSERT in 0016 (Postgres).

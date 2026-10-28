@@ -146,6 +146,7 @@ export class UI {
     c.fillStyle = '#ffc20e'; for (const s of city.shops) { if (near(s.x, s.z)) c.fillRect(X(s.x) - 3, Z(s.z) - 3, 6, 6); }
     c.fillStyle = '#4aa3ff'; for (const j of city.jobs) { if (near(j.x, j.z)) c.fillRect(X(j.x) - 3, Z(j.z) - 3, 6, 6); }
     c.fillStyle = '#35c46b'; for (const b of city.billboards) if (b.surface !== 'lagoon_plot' && near(b.x, b.z)) c.fillRect(X(b.x) - 2, Z(b.z) - 2, 4, 4);
+    try { this.patrolMm?.(c, X, Z); } catch { /* patrol dots are optional */ }
     if (wp && near(wp.x, wp.z, 60)) { c.fillStyle = '#b44cff'; c.beginPath(); c.arc(X(wp.x), Z(wp.z), 7, 0, 7); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 2; c.stroke(); }
     c.fillStyle = '#fff';
     for (const g of ghosts.map.values()) if (g.root && near(g.root.position.x, g.root.position.z)) { c.beginPath(); c.arc(X(g.root.position.x), Z(g.root.position.z), 3.5, 0, 7); c.fill(); }

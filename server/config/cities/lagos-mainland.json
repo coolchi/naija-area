@@ -17294,6 +17294,14 @@
      "z": 1.2,
      "color": "#f0c419",
      "text": "Nigeria Police Force — Mainland Division. Report assault, theft or harassment. Bail is available at the desk. Game money only (ESTIMATE fees)."
+    },
+    {
+     "id": "patrol",
+     "type": "patrol",
+     "label": "Duty desk: go on patrol",
+     "x": 4.2,
+     "z": 1.2,
+     "color": "#c0392b"
     }
    ],
    "room": {

@@ -462,7 +462,7 @@ export function profile(app, uid) {
     pos: { x, z, ry }, energy: Math.round(st.energy * 10) / 10, hunger: Math.round(st.hunger * 10) / 10, mood: Math.round(st.mood * 10) / 10, fainted: !!st.fainted, totalShifts: st.total_shifts, mode, health: healthView(app, uid), strength: strengthView(app, uid), hair: hairView(app, st), wear: wearView(app, uid), guns: gunView(app, uid), bodyguard: bodyguardView(app, uid), gender: st.gender === 'female' ? 'female' : 'male',
     police,
     home: h ? propertyView(app, propDef(app, h.property_id), uid) : null,
-    car: ownedCar(app, uid),
+    car: (() => { try { if (app.db.prepare("SELECT 1 FROM police_patrols WHERE user_id=? AND status='active' AND expires_at>?").get(uid, app.clock.now())) return { ...(ownedCar(app, uid) || {}), body: 'police', color: '#1d3557', drive: 40, duty: true }; } catch { /* table missing */ } return ownedCar(app, uid); })(),
     shift: sh ? { id: sh.id, jobId: sh.job_id, endsAt: sh.ends_at, startedAt: sh.started_at, wage: sh.wage } : null };
 }
 export function notifications(app, uid, limit = 20) {

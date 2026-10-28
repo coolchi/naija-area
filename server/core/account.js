@@ -49,6 +49,7 @@ export function exportData(app, uid) {
       casesYouFiled: all(app, 'SELECT reason, detail, status, created_at FROM police_cases WHERE reporter_id=?', uid),
       casesAgainstYou: all(app, 'SELECT reason, detail, status, created_at FROM police_cases WHERE accused_id=?', uid),
       holds: all(app, 'SELECT reason, charge, status, held_at, until_at, release_how FROM police_holds WHERE user_id=?', uid),
+      patrols: all(app, 'SELECT status, arrests, paid, started_at, ended_at FROM police_patrols WHERE user_id=?', uid),
       evidenceAsAttacker: all(app, 'SELECT kind, amount, created_at FROM police_evidence WHERE attacker_id=?', uid)
     },
     home: all(app, 'SELECT property_id, mode, custom_name, paid_price, since FROM property_owner WHERE user_id=?', uid), furniture: all(app, 'SELECT property_id, item_id, bought_at FROM property_items WHERE user_id=?', uid), land: all(app, 'SELECT plot_id, paid_price, bought_at FROM land_plots WHERE user_id=?', uid),
@@ -94,6 +95,8 @@ export async function deleteAccount(app, uid, { password, confirm } = {}) {
     del(app, 'DELETE FROM police_cases WHERE reporter_id=? OR accused_id=?', uid, uid);
     del(app, 'DELETE FROM police_evidence WHERE attacker_id=? OR victim_id=?', uid, uid);
     del(app, 'DELETE FROM police_holds WHERE user_id=?', uid);
+    del(app, 'DELETE FROM police_patrols WHERE user_id=?', uid);
+    del(app, 'UPDATE police_suspects SET caught_by=0 WHERE caught_by=?', uid);
     del(app, 'DELETE FROM password_resets WHERE user_id=?', uid); // reset links die with the account
     del(app, 'DELETE FROM shifts WHERE user_id=?', uid); del(app, 'DELETE FROM game_scores WHERE user_id=?', uid); del(app, 'DELETE FROM casual_runs WHERE user_id=?', uid); del(app, 'DELETE FROM casual_daily WHERE user_id=?', uid);
     del(app, 'DELETE FROM flights WHERE user_id=?', uid); del(app, 'DELETE FROM boat_trips WHERE user_id=?', uid); del(app, 'DELETE FROM stadium_tickets WHERE user_id=?', uid);

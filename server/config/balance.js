@@ -1,6 +1,7 @@
 // ALL NUMBERS HERE ARE PLACEHOLDERS / ESTIMATES for v0 play-testing. Not tuned, not benchmarked.
 // In-game ₦ is a closed-loop fictional currency: no cash-out, no real-money value.
 import { POLICE } from './police.js';
+import { PATROL } from './patrol.js';
 const env = process.env;
 const num = (k, d) => (env[k] !== undefined && env[k] !== '' ? Number(env[k]) : d);
 
@@ -163,6 +164,7 @@ export const BALANCE = {
   },
   fight: { punchHealthPct: 0.01, stealNetWorthPct: 0.01, cooldownMs: 15 * 1000, pairPerHour: 8, maxPurse: 500000, _note: 'ESTIMATE. Game money only. Guns and bodyguards (config/guns.js, config/bodyguards.js) modify fights.' },
   police: POLICE,
+  patrol: PATROL,
   places: { prayCdMs: 10 * 60000, prayMood: 3, cinemaCdMs: 15 * 60000, cinemaMood: 4, restCdMs: 5 * 60000, restMood: 1 },
   // ---- casual break games (single player). ALL reward numbers are ESTIMATE placeholders, game money only, no cash-out. dailyCap is the most a player can EARN per day across all casual games.
   casual: { dailyCap: 300, startPerMin: 8, minAccountAgeMs: num('NA_CASUAL_MIN_AGE_MS', 5 * 60 * 1000), staleRunMs: 6 * 3600000,
