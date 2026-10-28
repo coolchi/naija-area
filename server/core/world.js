@@ -87,7 +87,8 @@ function applyTrail(app, p, trail, now, { creditMs } = {}) {
   const mv = app.balance.movement; const out = [];
   const credit = creditMs ?? mv.maxCreditMs ?? 3000;
   let last = p.trail.length ? p.trail[p.trail.length - 1] : null;
-  if (!last || Math.abs(last.x - p.x) > 0.05 || Math.abs(last.z - p.z) > 0.05) last = { t: Math.min(now, last?.t ?? now), x: p.x, z: p.z, ry: p.ry }; // server moved you
+  if (!last) last = { t: now - credit, x: p.x, z: p.z, ry: p.ry }; // empty history (fresh join / restart): allow up to `credit` ms of movement from where the server has you
+  else if (Math.abs(last.x - p.x) > 0.05 || Math.abs(last.z - p.z) > 0.05) last = { t: Math.min(now, last.t), x: p.x, z: p.z, ry: p.ry }; // server moved you
   const floor = Math.max(last.t, now - credit); // never credit more than `credit` ms of movement, whatever the idle time
   const sorted = (Array.isArray(trail) ? trail : []).slice(-80).filter(s => s && Number.isFinite(s.a) && Number.isFinite(s.x) && Number.isFinite(s.z)).map(s => ({ t: now - clamp(s.a, 0, 120000), x: s.x, z: s.z, ry: Number.isFinite(s.ry) ? s.ry : 0 })).sort((a, b) => a.t - b.t);
   let clampedCount = 0; let lastT = floor;
