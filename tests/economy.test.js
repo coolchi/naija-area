@@ -41,7 +41,8 @@ test('jobs: locked until enough shifts; needs gate working; energy/hunger spent 
 test('needs decay with server time and shops restore them (proximity required)', async () => {
   const s = makeServer(); const u = mkUser(s); const shop = s.app.city.shopById.shop_canteen;
   assert.equal((await call(s, 'POST', '/api/shop/buy', { uid: u, body: { shopId: 'shop_canteen', itemId: 'jollof' } })).json.error, 'TOO_FAR');
-  s.app.clock.advance(10 * 60000); const p = (await ok(s, 'GET', '/api/me', { uid: u })).user; assert.ok(p.hunger < 80 - 3 && p.energy < 90 - 2);
+  s.app.clock.advance(10 * 60000); let p = (await ok(s, 'GET', '/api/me', { uid: u })).user; assert.ok(p.hunger === 80 && p.energy < 90 - 2, 'hunger only drains during active play (Sherif, 28 Oct)');
+  for (let i = 0; i < 120; i++) { s.app.clock.advance(30000); await ok(s, 'GET', '/api/me', { uid: u }); } p = (await ok(s, 'GET', '/api/me', { uid: u })).user; assert.ok(p.hunger < 80 - 3, 'an hour of active play drains ~4.2');
   at(s, u, shop.x, shop.z); const b = await ok(s, 'POST', '/api/shop/buy', { uid: u, body: { shopId: 'shop_canteen', itemId: 'jollof' } });
   const jollof = shop.items.find(i => i.id === 'jollof');
   assert.ok(b.user.hunger >= Math.min(100, p.hunger + 54)); assert.equal(b.user.cash, s.app.balance.startingCash - jollof.price);

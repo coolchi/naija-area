@@ -12,6 +12,7 @@ import * as sports from './sports.js';
 import { wearIds } from './wearables.js';
 import { supercarsLeft } from './motoka-stock.js';
 import { areFriends } from './phone/phone.js';
+import { venueDailyStations } from './daily-treasures.js';
 
 export const venueDef = (app, id) => app.all.venueById[id];
 const hourNow = (app) => gameTime(app, app.clock.now()).hour;
@@ -51,7 +52,7 @@ export function venueView(app, uid, venueId) {
     return o;
   });
   const occ = occupants(app, venueId); const crowd = crowdFor(app, uid, venueId, occ);
-  return { id: v.id, name: v.name, blurb: v.blurb, hours: v.hours, open: isOpen(app, v), shopId: v.shopId || null, wearShop: v.wearShop || null, gunShop: !!v.gunShop, bodyguardDesk: !!v.bodyguardDesk, sign: v.sign, room: v.room || { w: 9, d: 9 }, kind: v.kind || null, stations, occupants: occ, inside: occ.length, friendsHere: crowd.friendsHere, people: crowd.people, stakes: app.balance.games.stakes, week: games.weekInfo(app), you: { strength: gym.strengthOf(app, uid).strength }, ...(left != null ? { supercarsLeft: left, supercarsDaily: app.balance.cars.supercarDailyStock ?? 20 } : {}) };
+  return { treasures: venueDailyStations(app, venueId), id: v.id, name: v.name, blurb: v.blurb, hours: v.hours, open: isOpen(app, v), shopId: v.shopId || null, wearShop: v.wearShop || null, gunShop: !!v.gunShop, bodyguardDesk: !!v.bodyguardDesk, sign: v.sign, room: v.room || { w: 9, d: 9 }, kind: v.kind || null, stations, occupants: occ, inside: occ.length, friendsHere: crowd.friendsHere, people: crowd.people, stakes: app.balance.games.stakes, week: games.weekInfo(app), you: { strength: gym.strengthOf(app, uid).strength }, ...(left != null ? { supercarsLeft: left, supercarsDaily: app.balance.cars.supercarDailyStock ?? 20 } : {}) };
 }
 export function enterVenue(app, uid, venueId, pos) {
   const v = venueDef(app, venueId); if (!v) bad('NO_VENUE', 'Unknown place.', 404);

@@ -59,7 +59,11 @@ export function getState(app, uid) {
 export function refreshNeeds(app, uid) {
   const s = getState(app, uid); const now = app.clock.now(); const n = app.balance.needs;
   const mins = Math.max(0, (now - s.needs_at) / 60000);
-  const energy = clamp(s.energy - mins * n.energyDecayPerMin, n.min, n.max), hunger = clamp(s.hunger - mins * n.hungerDecayPerMin, n.min, n.max);
+  // hunger: only ACTIVE time drains. Heartbeats refresh needs every few seconds, so a gap longer than the active window means the player was
+  // offline / disconnected: that gap drains nothing (no catch-up on login). Rate: a full gauge lasts hungerFullLastsActiveHours of active play.
+  const win = app.balance.heartbeat?.activeWindowMs ?? 60000; const activeMins = (now - s.needs_at) <= win ? mins : 0;
+  const perMin = n.hungerFullLastsActiveHours ? (n.max - n.min) / (n.hungerFullLastsActiveHours * 60) : n.hungerDecayPerMin;
+  const energy = clamp(s.energy - mins * n.energyDecayPerMin, n.min, n.max), hunger = clamp(s.hunger - activeMins * perMin, n.min, n.max);
   const M = app.balance.mood; const mood = s.mood > M.baseline ? Math.max(M.baseline, s.mood - mins * M.decayPerMin) : Math.min(M.baseline, s.mood + mins * M.decayPerMin);
   if (mins > 0) app.db.prepare('UPDATE player_state SET energy=?, hunger=?, mood=?, needs_at=? WHERE user_id=?').run(energy, hunger, mood, now, uid);
   const st = { ...s, energy, hunger, mood, needs_at: now };

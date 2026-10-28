@@ -1,3 +1,4 @@
+import { taxCatchUp } from './inactivity-tax.js';
 import { bad, cleanText, hasBadWord } from './util.js';
 import { ensureUserAccounts, move, SYS, cashId } from './ledger.js';
 import { attachReferral, previewRef } from './referrals.js';
@@ -57,6 +58,7 @@ export async function login(app, { username, password }) {
   const ok = await app.platform.verify(typeof password === 'string' ? password : '', u?.pass_hash || app.platform.dummyHash);
   if (!u || !u.pass_hash || !ok) bad('BAD_LOGIN', 'Wrong username or password.', 401);
   mustChangeGate(app, u.id); // an admin temporary password only opens the "choose a new password" page
+  taxCatchUp(app, u.id); // inactivity tax for the away stretch, BEFORE last_seen moves
   app.db.prepare('UPDATE users SET last_seen=? WHERE id=?').run(app.clock.now(), u.id);
   return u.id;
 }

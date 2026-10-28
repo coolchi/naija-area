@@ -97,6 +97,12 @@ CREATE TABLE IF NOT EXISTS police_patrols (id INTEGER PRIMARY KEY AUTOINCREMENT,
 CREATE INDEX IF NOT EXISTS ix_police_patrols_user ON police_patrols(user_id, status, ended_at);
 CREATE TABLE IF NOT EXISTS police_suspects (id INTEGER PRIMARY KEY AUTOINCREMENT, city_id TEXT NOT NULL, kind TEXT NOT NULL, road_id TEXT NOT NULL, s0 REAL NOT NULL, speed REAL NOT NULL, hp INTEGER NOT NULL, armed INTEGER NOT NULL DEFAULT 0, spawned_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, caught_by INTEGER, caught_at INTEGER, caught_how TEXT);
 CREATE INDEX IF NOT EXISTS ix_police_suspects_live ON police_suspects(city_id, caught_by, expires_at);` }
+  ,{ n: 32, name: 'daily_treasures', sql: `
+CREATE TABLE IF NOT EXISTS daily_treasure_claims (treasure_id TEXT PRIMARY KEY, day INTEGER NOT NULL, user_id INTEGER NOT NULL, kind TEXT NOT NULL, prize TEXT NOT NULL, amount INTEGER NOT NULL DEFAULT 0, car_id INTEGER, city_id TEXT NOT NULL, x REAL NOT NULL, z REAL NOT NULL, claimed_at INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS ix_daily_treasure_claims_day ON daily_treasure_claims(day, user_id);` }
+  ,{ n: 33, name: 'inactivity_tax', sql: `
+CREATE TABLE IF NOT EXISTS inactivity_tax_charges (user_id INTEGER NOT NULL, away_from INTEGER NOT NULL, n INTEGER NOT NULL, amount INTEGER NOT NULL, net_worth INTEGER NOT NULL, from_cash INTEGER NOT NULL DEFAULT 0, from_bank INTEGER NOT NULL DEFAULT 0, charged_at INTEGER NOT NULL, notified INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, away_from, n));
+CREATE INDEX IF NOT EXISTS ix_inactivity_tax_notice ON inactivity_tax_charges(user_id, notified);` }
 ];
 // 16 (ad placement, 11 Oct 2026) also adds the column ad_campaigns.placement ('shared' | 'exclusive'): SQLite: migrate() in schema.js; Postgres: ALTER in 0016_ad_placement.sql.
 // Campaigns that existed before get one design row each from migrate() (SQLite) / the same INSERT in 0016 (Postgres).

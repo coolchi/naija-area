@@ -477,7 +477,7 @@ class Game {
     try {
       const r = await post('/api/treasures/claim', { id: t.id, pos: this.pos() });
       this.noteTreasures([t.id]); if (r.user) this.update(r.user); this.ui.toast(r.text || 'Treasure taken.', 'money'); this.ui.sfx('ok');
-    } catch (e) { if (e.code === 'TAKEN') this.noteTreasures([t.id]); this.ui.error(e); }
+    } catch (e) { if (e.code === 'TAKEN' || e.code === 'GONE') this.noteTreasures([t.id]); this.ui.error(e); }
     finally { this.busy = false; }
   }
   tapPlace(clientX, clientY) {

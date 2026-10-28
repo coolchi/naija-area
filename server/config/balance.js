@@ -2,6 +2,8 @@
 // In-game ₦ is a closed-loop fictional currency: no cash-out, no real-money value.
 import { POLICE } from './police.js';
 import { PATROL } from './patrol.js';
+import { DAILY_TREASURES } from './daily-treasures.js';
+import { INACTIVITY_TAX } from './inactivity-tax.js';
 const env = process.env;
 const num = (k, d) => (env[k] !== undefined && env[k] !== '' ? Number(env[k]) : d);
 
@@ -12,8 +14,12 @@ export const BALANCE = {
   // realTime: the sun and the HUD follow Lagos (UTC+1), one real day = 24 hours. epochMs is the unpinned start; admin "set time" moves startRealMs and sets pinned, which falls back to the old fast clock.
   worldClock: { realTime: true, utcOffsetMinutes: 60, epochMs: Date.UTC(2026, 9, 1), gameMinutesPerRealMinute: 15, startRealMs: Date.UTC(2026, 9, 1), pinned: false },
   needs: {
-    // per real minute decay (ESTIMATE) — hunger empties in ~40 real min from a full start so the faint loop shows up in play
-    hungerDecayPerMin: 2, energyDecayPerMin: 0.4, min: 0, max: 100,
+    // Food (Sherif, 28 Oct 2026): a FULL gauge lasts 24 hours of ACTIVE play. Hunger drains only while you are online (a heartbeat within
+    // activeWindowMs, 60 s); offline or idle-disconnected time never drains it, and there is no catch-up drain on login.
+    // Was: hungerDecayPerMin 2 by wall clock (full -> empty in 50 real minutes, also while offline).
+    hungerFullLastsActiveHours: 24,
+    hungerDecayPerMin: 100 / (24 * 60), // = 0.0694 per ACTIVE minute; derived from the line above (keep them in step)
+    energyDecayPerMin: 0.4, min: 0, max: 100,
     startHunger: 80, startEnergy: 90,
     starvationRentPenalty: 0,
     // hunger KO: faint when empty, then cab/friend to a canteen to eat and regain strength
@@ -165,6 +171,8 @@ export const BALANCE = {
   fight: { punchHealthPct: 0.01, stealNetWorthPct: 0.01, cooldownMs: 15 * 1000, pairPerHour: 8, maxPurse: 500000, _note: 'ESTIMATE. Game money only. Guns and bodyguards (config/guns.js, config/bodyguards.js) modify fights.' },
   police: POLICE,
   patrol: PATROL,
+  dailyTreasures: DAILY_TREASURES,
+  inactivityTax: INACTIVITY_TAX,
   places: { prayCdMs: 10 * 60000, prayMood: 3, cinemaCdMs: 15 * 60000, cinemaMood: 4, restCdMs: 5 * 60000, restMood: 1 },
   // ---- casual break games (single player). ALL reward numbers are ESTIMATE placeholders, game money only, no cash-out. dailyCap is the most a player can EARN per day across all casual games.
   casual: { dailyCap: 300, startPerMin: 8, minAccountAgeMs: num('NA_CASUAL_MIN_AGE_MS', 5 * 60 * 1000), staleRunMs: 6 * 3600000,
@@ -225,7 +233,7 @@ export const BALANCE = {
   // trust & safety thresholds (ESTIMATES: tune from real report data)
   safety: { reportsPerHour: 10, maxBlocks: 100, autoHideAfter: 3, autoMuteAfter: 3, autoMuteMs: 10 * 60000, adminMuteMs: 60 * 60000, chatPerMin: 12, dmPerMin: 8, dmPerRecipientPerMin: 3, knockPerMin: 5, knockPerTargetPer10Min: 3, dupWindowMs: 20000 },
   chat: { maxLen: 140, minIntervalMs: 2000, radius: 80, keep: 100 },
-  movement: { maxWalkSpeed: 7, maxDriveSpeed: 42, slack: 1.6 }, // m/s; server clamps teleports (regular free-roam ~40, supercars up to ~39 drive)
+  movement: { maxWalkSpeed: 7, maxDriveSpeed: 42, slack: 1.6, maxCreditMs: 3000, trailCreditMs: 12000, toleranceM: 1 }, // maxCreditMs: most server time credited to one live position; trailCreditMs: to one heartbeat trail (anti idle-then-jump, 28 Oct). Too fast = rejected + snapped back. // m/s; server clamps teleports (regular free-roam ~40, supercars up to ~39 drive)
   interact: { shopRadius: 16, jobRadius: 16, houseRadius: 22 },
   heartbeat: {
     // Slow state poll. Positions move on the websocket. This ladder is for chat backup, ad evidence and money. ESTIMATE.

@@ -8,8 +8,8 @@ const uname = (s, id) => s.app.db.prepare('SELECT username FROM users WHERE id=?
 
 test('hunger faint: empty food marks fainted; cab rescue to nearest canteen; sip + buy clears faint', async () => {
   const s = makeServer(); const u = mkUser(s); at(s, u, 0, 0);
-  s.app.db.prepare('UPDATE player_state SET hunger=2, energy=40, needs_at=? WHERE user_id=?').run(s.app.clock.now(), u);
-  s.app.clock.advance(10 * 60000); // decay past faintAt
+  s.app.db.prepare('UPDATE player_state SET hunger=1.05, energy=40, needs_at=? WHERE user_id=?').run(s.app.clock.now(), u);
+  for (let i = 0; i < 4; i++) { s.app.clock.advance(30000); refreshNeeds(s.app, u); } // 2 active minutes: decay past faintAt (hunger only drains while playing)
   const st = refreshNeeds(s.app, u);
   assert.ok(st.hunger <= (s.app.balance.needs.faintAt ?? 1));
   assert.equal(st.fainted, 1);

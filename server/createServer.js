@@ -1,4 +1,5 @@
 import { adminSettings, ipAllowed } from './core/admin-guard.js';
+import { tickInactivityTax } from './core/inactivity-tax.js';
 import { newMetrics, observe, renderMetrics, metricsAllowed } from './core/metrics.js';
 import { monitorEventLoopDelay } from 'node:perf_hooks';
 import http from 'node:http';
@@ -199,7 +200,7 @@ export function buildServer(opts = {}) {
         for (const sock of set) if (sock.readyState === 1) try { sock.send(msg); } catch { /* closed */ }
       }
     }, 125));
-    timers.push(setInterval(() => { try { tickRent(app); tickInterest(app); tickLand(app); tickGames(app); pruneWorld(app); tickVoice(app); tickSeasons(app); } catch (e) { console.error('tick', e); } }, 30000));
+    timers.push(setInterval(() => { try { tickRent(app); tickInterest(app); tickLand(app); tickGames(app); pruneWorld(app); tickVoice(app); tickSeasons(app); tickInactivityTax(app); } catch (e) { console.error('tick', e); } }, 30000));
   }
   const close = () => new Promise((resolve) => { timers.forEach(clearInterval); clearInterval(loopTimer); loop.disable(); for (const s of sockets.values()) for (const ws of s) ws.terminate(); wss.close(); server.close(() => { try { db.close(); } catch {} resolve(); }); server.closeAllConnections?.(); });
   return { app, db, server, startTimers, close, sockets, ex };

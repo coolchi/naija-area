@@ -449,7 +449,7 @@ export function buildWorld(city) {
     const lid = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.32, 1.05), new THREE.MeshLambertMaterial({ color: 0xd4a24a })); lid.position.y = 1.2; g.add(lid);
     const band = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.2, 1.08), gold); band.position.y = 0.8; g.add(band);
     const ring = new THREE.Mesh(new THREE.RingGeometry(1.1, 1.55, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffc20e, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false })); ring.position.y = 0.2; g.add(ring);
-    const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: nameTag(bn(t.worth), '#ffc20e'), depthTest: false, transparent: true })); tag.scale.set(2.4, 0.6, 1); tag.position.y = 2.3; g.add(tag);
+    const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: nameTag(t.label || (t.worth >= 1e9 ? bn(t.worth) : '₦' + (t.worth / 1e6).toFixed(1) + 'M'), t.prize === 'car' ? '#c5c9d0' : '#ffc20e'), depthTest: false, transparent: true })); tag.scale.set(2.4, 0.6, 1); tag.position.y = 2.3; g.add(tag);
     root.add(g); treasures[t.id] = g;
   }
   // a home skin's accent (item 9): a coloured pole with a lantern beside the door, drawn for everybody (cosmetic)

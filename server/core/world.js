@@ -29,6 +29,8 @@ import { titleOf } from './achievements.js';
 import * as guardian from './guardian.js';
 import { activeOf as emoteOf } from './emotes.js';
 import { takenInCity } from './treasures.js';
+import { takenDailyInCity } from './daily-treasures.js';
+import { taxCatchUp } from './inactivity-tax.js';
 
 export function createWorld() { return { players: new Map(), chatSeq: 0 }; }
 
@@ -74,19 +76,28 @@ export function teleport(app, uid, x, z) {
   const p = ensurePresence(app, uid); p.x = x; p.z = z; p.trail = [{ t: app.clock.now(), x, z, ry: p.ry }]; p.force = { x, z };
   app.db.prepare('UPDATE player_state SET x=?,z=? WHERE user_id=?').run(x, z, uid);
 }
-/** apply client movement trail with server-side sanity: speed clamp, bounds clamp */
-function applyTrail(app, p, trail, now) {
+/** apply client movement trail with server-side sanity (anti-cheat, Sherif 28 Oct 2026).
+ *  - Time credited for movement comes from the SERVER clock and is capped per update (movement.maxCreditMs for one live position,
+ *    movement.trailCreditMs for a heartbeat trail), so idling and then sending a far-away point does not buy distance.
+ *  - Max speed per mode (walk/drive; boat and plane moves are server-driven and never come through here).
+ *  - A sample faster than allowed is REJECTED: the player stays at the last valid point and the client is snapped back (p.force).
+ *  - Server-side moves (spawn, city change, taxi/fast travel, flights, boats, interiors, police, admin/test teleport) set p.x/p.z (and
+ *    usually p.trail) themselves; when the trail does not end where the server put the player, the server position is the anchor. */
+function applyTrail(app, p, trail, now, { creditMs } = {}) {
   const mv = app.balance.movement; const out = [];
-  let last = p.trail.length ? p.trail[p.trail.length - 1] : { t: now - 1000, x: p.x, z: p.z, ry: p.ry };
+  const credit = creditMs ?? mv.maxCreditMs ?? 3000;
+  let last = p.trail.length ? p.trail[p.trail.length - 1] : null;
+  if (!last || Math.abs(last.x - p.x) > 0.05 || Math.abs(last.z - p.z) > 0.05) last = { t: Math.min(now, last?.t ?? now), x: p.x, z: p.z, ry: p.ry }; // server moved you
+  const floor = Math.max(last.t, now - credit); // never credit more than `credit` ms of movement, whatever the idle time
   const sorted = (Array.isArray(trail) ? trail : []).slice(-80).filter(s => s && Number.isFinite(s.a) && Number.isFinite(s.x) && Number.isFinite(s.z)).map(s => ({ t: now - clamp(s.a, 0, 120000), x: s.x, z: s.z, ry: Number.isFinite(s.ry) ? s.ry : 0 })).sort((a, b) => a.t - b.t);
-  let clampedCount = 0;
+  let clampedCount = 0; let lastT = floor;
   for (const s of sorted) {
     if (s.t <= last.t) continue;
-    const dt = Math.max(0.05, (s.t - last.t) / 1000); const maxSpeed = (p.mode === 'drive' ? mv.maxDriveSpeed : mv.maxWalkSpeed) * mv.slack;
-    let { x, z } = s; const d = dist(x, z, last.x, last.z);
-    if (d > maxSpeed * dt) { const k = (maxSpeed * dt) / d; x = last.x + (x - last.x) * k; z = last.z + (z - last.z) * k; clampedCount++; }
-    const b = (app.cities[p.city] || app.city).bounds; x = clamp(x, b.minX, b.maxX); z = clamp(z, b.minZ, b.maxZ);
-    const ns = { t: s.t, x: +x.toFixed(2), z: +z.toFixed(2), ry: +s.ry.toFixed(3) }; out.push(ns); last = ns;
+    const t = Math.max(s.t, lastT); const dt = Math.max(0.05, (t - lastT) / 1000);
+    const maxSpeed = (p.mode === 'drive' ? mv.maxDriveSpeed : mv.maxWalkSpeed) * mv.slack;
+    const b = (app.cities[p.city] || app.city).bounds; const x = clamp(s.x, b.minX, b.maxX), z = clamp(s.z, b.minZ, b.maxZ);
+    if (dist(x, z, last.x, last.z) > maxSpeed * dt + (mv.toleranceM ?? 1)) { clampedCount++; p.force = { x: last.x, z: last.z, ry: last.ry, reason: 'speed' }; break; } // reject + snap back
+    const ns = { t: s.t, x: +x.toFixed(2), z: +z.toFixed(2), ry: +s.ry.toFixed(3) }; out.push(ns); last = ns; lastT = t;
   }
   if (out.length) { p.trail.push(...out); const keep = 120; if (p.trail.length > keep) p.trail.splice(0, p.trail.length - keep); const l = out[out.length - 1]; p.x = l.x; p.z = l.z; p.ry = l.ry; }
   p.suspicious = (p.suspicious || 0) + clampedCount; return clampedCount;
@@ -148,7 +159,7 @@ export function heartbeat(app, uid, body, meta = {}) {
   expireCarpool(app);
   const fl = flightTick(app, uid); const bt = boatTick(app, uid); const flying = fl?.state === 'flying' || bt?.state === 'crossing';
   const stale = typeof body.city === 'string' && body.city !== p.city; // the client is still in the old city (it reloads on this response): its trail and evidence do not count here
-  if (!stale && !flying && !p.carpoolDriver && !p.fainted) applyTrail(app, p, body.trail, now);
+  if (!stale && !flying && !p.carpoolDriver && !p.fainted) applyTrail(app, p, body.trail, now, { creditMs: app.balance.movement.trailCreditMs ?? 12000 });
   if (p.fainted) p.mode = 'walk';
   if (p.carpoolDriver) syncPassenger(app, p);
   venueTick(app, p);
@@ -156,6 +167,7 @@ export function heartbeat(app, uid, body, meta = {}) {
   // Persist as soon as mode changes so a reload keeps you in the car; otherwise every 30s as before.
   if (p.mode !== modeBefore || now - p.lastPersist > 30000) {
     app.db.prepare('UPDATE player_state SET x=?,z=?,ry=?,mode=?,updated_at=? WHERE user_id=?').run(p.x, p.z, p.ry, p.mode, now, uid);
+    if (!p.taxChecked) { p.taxChecked = true; taxCatchUp(app, uid, now); } // a returning session that skipped /login: charge + notice once
     app.db.prepare('UPDATE users SET last_seen=? WHERE id=?').run(now, uid); p.lastPersist = now;
   }
   // ad evidence (validated server-side; client sends evidence, never counts)
@@ -183,7 +195,7 @@ export function heartbeat(app, uid, body, meta = {}) {
   const chatMax = app.db.prepare('SELECT COALESCE(MAX(id),0) m FROM chat_messages').get().m;
   const me = profile(app, uid);
   const resp = { now, interval, ccu, city: p.city, flight: flightMini(app, uid), boat: boatMini(app, uid), shed: interval >= 20000, world: gameTime(app, now), wx: weatherMini(app, p.city, now), fest: activeFestivals(app, now), pl: planesNear(app, p.city, p.x, p.z, now), th: throwsNear(app, p.city, p.x, p.z, hidden), bonk: takeBonk(app, uid), me, players, notifs, chat, chatCursor: chatMax,
-    knocks: knockState(app, uid), carpool: rideView(app, p), tow: towStatus(app, uid).tow, game: myMatchView(app, uid), venue: p.venue || null, gd: guardian.heartbeatInfo(app, uid), teleport: p.force || undefined, adsVersion: app.adsVersion, ads: body.adsVersion === app.adsVersion ? undefined : adsSnapshot(app, now, p.city), adResult, tr: takenInCity(app, p.city) };
+    knocks: knockState(app, uid), carpool: rideView(app, p), tow: towStatus(app, uid).tow, game: myMatchView(app, uid), venue: p.venue || null, gd: guardian.heartbeatInfo(app, uid), teleport: p.force || undefined, adsVersion: app.adsVersion, ads: body.adsVersion === app.adsVersion ? undefined : adsSnapshot(app, now, p.city), adResult, tr: [...takenInCity(app, p.city), ...takenDailyInCity(app, p.city)] };
   const ac = app.db.prepare('SELECT * FROM player_cars WHERE user_id=? AND active=1').get(uid);
   if (ac) resp.carBody = carStateOf(app, ac);
   if (p.patrol) { try { resp.patrol = patrolView(app, uid); } catch { /* never break the heartbeat */ } }

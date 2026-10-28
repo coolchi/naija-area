@@ -4,6 +4,7 @@ import * as boat from './boat.js';
 import { viewScores, buyTicket } from './stadium.js';
 import { cityOf, publicCity, cityList, onlineByCity, useLink } from './cities.js';
 import { publicTreasures, claimTreasure, adminTreasures } from './treasures.js';
+import { publicDaily, claimDaily, adminDaily } from './daily-treasures.js';
 import * as referrals from './referrals.js';
 import { GameError, bad, cleanText } from './util.js';
 import * as auth from './auth.js';
@@ -78,8 +79,8 @@ route('POST', '/api/admin/radio', { auth: 'admin' }, (c) => { realRadioOn(c.app)
 route('GET', '/api/health', (c) => ({ ok: true, name: c.app.gameName, now: c.app.clock.now() }));
 route('GET', '/api/config', (c) => ({ realRadio: realRadioOn(c.app), movement: { maxWalkSpeed: c.app.balance.movement.maxWalkSpeed, maxDriveSpeed: c.app.balance.movement.maxDriveSpeed, slack: c.app.balance.movement.slack }, physx: c.app.balance.physx || null, adFormats: { radio: { everyMs: AD_FORMATS.radio.everyMs, stations: AD_FORMATS.radio.stations, minListenMs: AD_FORMATS.radio.minListenMs } }, crash: { enabled: !!c.app.balance.crash.enabled, regenPerMin: c.app.balance.crash.regenPerMin, max: c.app.balance.crash.maxHealth, smokeAt: c.app.balance.crash.smokeAt, wreckAt: c.app.balance.crash.wreckAt, collideMin: c.app.balance.crash.collide?.minImpact }, moodHappyAt: c.app.balance.mood.happyAt, emotes: emotes.publicList(), name: c.app.gameName, tagline: GAME_TAGLINE, minAge: MIN_AGE, testMode: true, devRoutes: !!c.app.devRoutes, rotationMs: AD_POLICY.rotationMs, balanceNote: c.app.balance._note,
   topupOptions: c.app.balance.topup.options, payments: paymentsConfig(c.app), ageCheck: ageConfig(c.app), phone: !!c.app.balance.phone.enabled, transport: c.app.balance.transport, shopChannels: c.app.balance.shops.channels, workTask: c.app.balance.work.task, land: { risk: c.app.balance.land.risk }, maxNameLen: c.app.balance.housing.maxNameLen, housing: { rentPeriodMs: c.app.balance.housing.rentPeriodMs }, needs: { faintAt: c.app.balance.needs.faintAt, warnAt: c.app.balance.needs.warnAt }, facades: Object.entries(c.app.balance.decor.walls).map(([id, [name, hex]]) => ({ id, name, hex })), furniture: c.app.balance.housing.furniture, fight: { punchHealthPct: c.app.balance.fight.punchHealthPct, stealNetWorthPct: c.app.balance.fight.stealNetWorthPct }, gym: { maxStrength: c.app.balance.gym.maxStrength } }));
-route('GET', '/api/city', (c) => { const city = publicCity(c.uid ? cityOf(c.app, c.uid) : c.app.city); return { ...city, treasures: publicTreasures(c.app, city.id) }; });
-route('POST', '/api/treasures/claim', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); flight.assertNotFlying(c.app, c.uid); return { ...claimTreasure(c.app, c.uid, String(c.body.id || '')), user: eco.profile(c.app, c.uid) }; });
+route('GET', '/api/city', (c) => { const city = publicCity(c.uid ? cityOf(c.app, c.uid) : c.app.city); return { ...city, treasures: [...publicTreasures(c.app, city.id), ...publicDaily(c.app, city.id)] }; });
+route('POST', '/api/treasures/claim', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); flight.assertNotFlying(c.app, c.uid); const id = String(c.body.id || ''); const r = id.startsWith('dt-') ? claimDaily(c.app, c.uid, id, { venueId: c.body.venueId ? String(c.body.venueId) : undefined }) : claimTreasure(c.app, c.uid, id); return { ...r, user: eco.profile(c.app, c.uid) }; });
 route('POST', '/api/cities/link', { auth: 'user' }, (c) => { world.syncPos(c.app, c.uid, c.body.pos); flight.assertNotFlying(c.app, c.uid); return { ...useLink(c.app, c.uid, String(c.body.linkId || ''), c.body.idem), user: eco.profile(c.app, c.uid) }; });
 route('GET', '/api/cities', { auth: 'user' }, (c) => ({ cities: cityList(c.app, c.uid), online: onlineByCity(c.app) }));
 route('GET', '/api/stats', (c) => {
@@ -414,6 +415,7 @@ route('GET', '/api/admin/players', { auth: 'admin' }, (c) => playerDirectory(c.a
 route('GET', '/api/admin/players/password-status', { auth: 'admin' }, (c) => pwreset.adminStatus(c.app, c.query.who));
 route('POST', '/api/admin/players/password-reset', { auth: 'admin' }, (c) => pwreset.adminReset(c.app, { who: c.body.who, mode: c.body.mode }, 'admin'));
 route('GET', '/api/admin/treasures', { auth: 'admin' }, (c) => adminTreasures(c.app, { city: c.query.city || '', q: c.query.q || '' }));
+route('GET', '/api/admin/treasures/daily', { auth: 'admin' }, (c) => adminDaily(c.app, { day: c.query.day }));
 route('GET', '/api/admin/overview', { auth: 'admin' }, (c) => {
   const a = c.app, db = a.db; const byStatus = db.prepare('SELECT status, COUNT(*) n FROM ad_campaigns GROUP BY status').all();
   const faucets = db.prepare("SELECT id, balance FROM accounts WHERE kind='system' ORDER BY id").all();

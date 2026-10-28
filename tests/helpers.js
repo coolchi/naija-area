@@ -11,7 +11,7 @@ import { WEATHER } from '../server/config/weather.js';
 export const PG_URL = process.env.NA_TEST_PG_URL || null;
 let schemaN = 0; const tag = Math.random().toString(36).slice(2, 8);
 export function makeServer(opts = {}) {
-  const balance = structuredClone(BALANCE); balance.shops.enforceHours = false; balance.weather = { ...WEATHER, forced: 'clear' }; // tests never depend on the real clock's weather (weather tests set their own)
+  const balance = structuredClone(BALANCE); balance.shops.enforceHours = false; balance.weather = { ...WEATHER, forced: 'clear' }; balance.inactivityTax = { ...balance.inactivityTax, enabled: false }; // tests jump the clock by days; the inactivity-tax tests switch it on // tests never depend on the real clock's weather (weather tests set their own)
   const pg = PG_URL && !opts.dbPath && opts.databaseUrl === undefined ? { databaseUrl: PG_URL, databaseSchema: `t_${tag}_${++schemaN}` } : {};
   // mail off by default so tests never call a real MailDESK key from the shell env
   return buildServer({ dbPath: ':memory:', quiet: true, adminPassword: 'test-admin', dev: true, balance, mailConfig: { enabled: false, apiKey: '', from: '' }, ...pg, ...opts });

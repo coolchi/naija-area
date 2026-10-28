@@ -19,13 +19,15 @@ import { stateLabel, scoreText, kickoffText, sourceLine, groupByLeague } from '.
 
 const SHAPE = { circle: ['●', '#d6402f'], triangle: ['▲', '#2e7dd1'], cross: ['✚', '#2e9b5e'], square: ['■', '#8a5ad1'], star: ['★', '#e0a020'], whot: ['W', '#222'] };
 const hash = (s) => { let x = 7; for (const c of String(s)) x = (x * 31 + c.charCodeAt(0)) >>> 0; return x; };
-const ICON = { patrol: '🚓', wear: '💎', gun: '🔫', bodyguard: '🛡️', dance: '💃', dj: '🎧', bar: '🥤', songs: '🎵', vip: '👑', style: '✂️', basin: '🚿', eat: '🍲', game: '🎲', board: '🏆', poster: '📜', tv: '📺', ticket: '🎟️', scores: '📊', seat: '🪑', car: '🚗', check: '🔍', service: '🔧', bench: '🏋️', bags: '🥊', treadmill: '🏃', squat: '🦵', weights: '💪', gym: '🏋️', train: '💪', pray: '🙏', cinema: '🎬', rest: '🪑', report: '📋', bail: '🔓', holding: '🏢' };
+// today's hidden treasure chests come as a separate list; draw and tap them like stations
+const withChests = (d) => { if (d && Array.isArray(d.treasures) && Array.isArray(d.stations)) d.stations = [...d.stations, ...d.treasures]; return d; };
+const ICON = { treasure: '💰', patrol: '🚓', wear: '💎', gun: '🔫', bodyguard: '🛡️', dance: '💃', dj: '🎧', bar: '🥤', songs: '🎵', vip: '👑', style: '✂️', basin: '🚿', eat: '🍲', game: '🎲', board: '🏆', poster: '📜', tv: '📺', ticket: '🎟️', scores: '📊', seat: '🪑', car: '🚗', check: '🔍', service: '🔧', bench: '🏋️', bags: '🥊', treadmill: '🏃', squat: '🦵', weights: '💪', gym: '🏋️', train: '💪', pray: '🙏', cinema: '🎬', rest: '🪑', report: '📋', bail: '🔓', holding: '🏢' };
 
 const GAME_NAME = { whot: 'Whot', ludo: 'Ludo', dominoes: 'Dominoes', draughts: 'Draughts', ayo: 'Ayo', football: 'Table football', chess: 'Chess', wordduel: 'Word duel', landlord: 'Landlord Lagos', suwe: 'Suwe', pingpong: 'Ping pong', tennis: 'Tennis' };
 export class Venue {
   constructor(game) { this.g = game; this.el = $('#venue'); this.open = false; this.shotId = null; }
   async show(venueId) {
-    const g = this.g; const data = await g.ui.guard(() => post('/api/venue/enter', { venueId, pos: g.pos() })); if (!data) return false;
+    const g = this.g; const data = withChests(await g.ui.guard(() => post('/api/venue/enter', { venueId, pos: g.pos() }))); if (!data) return false;
     this.g.audio?.play('door'); this.data = data; this.id = venueId; this.open = true; g.busy = true; g.ctrl.frozen = true; this.matchId = null; this.match = null; this.dismissed = this.dismissed || new Set();
     this.el.classList.remove('hidden'); this.el.replaceChildren(); this.build(); this.chrome(); this.loop(); this.poll();
     if (data.kind === 'mosque') this.g.audio?.startAdhan?.(); else this.g.audio?.stopAdhan?.();
@@ -51,6 +53,7 @@ export class Venue {
     else if (st.type === 'game') { grp.add(PR.gameTable(0.95, { c: col.getHex() })); if (st.game === 'ludo') { box(1.5, 0.1, 1.5, 0xfaf5e6, 0.91); [0xd6402f, 0x2e9b5e, 0xe0a020, 0x2e7dd1].forEach((c, k) => { const q = box(0.6, 0.05, 0.6, c, 0.97); q.position.x = (k % 2 ? 1 : -1) * 0.45; q.position.z = (k < 2 ? -1 : 1) * 0.45; }); } else if (st.game === 'football') { box(1.7, 0.1, 1.1, 0x2e7d32, 0.93); for (const x of [-0.55, 0, 0.55]) { box(0.04, 0.04, 1.3, 0xb8bcc4, 1.0).position.x = x; for (const z of [-0.3, 0.3]) { const f = box(0.1, 0.12, 0.1, x < 0 ? 0xd6402f : 0x2e7dd1, 1.04); f.position.set(x, 1.04, z); } } } else for (let i = 0; i < 4; i++) { const c = box(0.34, 0.03, 0.5, [0xd6402f, 0x2e7dd1, 0xe0a020, 0x2e9b5e][i], 0.88); c.position.x = -0.5 + i * 0.33; c.rotation.y = 0.2 * i - 0.3; } for (const sx of [-1.25, 1.25]) { const s = PR.stool({ c: 0x8a3f28 }); s.position.set(sx, 0, 0); grp.add(s); } }
     else if (st.type === 'board') { box(2.4, 1.5, 0.12, col, 1.6).position.z = -0.1; box(2.2, 1.3, 0.14, 0x0f3b27, 1.6).position.z = -0.08; }
     else if (st.type === 'poster') { box(0.1, 1.4, 1.2, col, 1.6); }
+    else if (st.type === 'treasure') { box(0.9, 0.5, 0.6, 0x8a5a24, 0.25); box(0.94, 0.18, 0.64, 0xd4a24a, 0.6); box(0.1, 0.7, 0.66, 0xffc20e, 0.35); }
     else if (st.type === 'tv') { const u = PR.tvUnit(3.0); grp.add(u); const t = PR.tv(2.7, { wall: true }); t.position.set(0, 1.0, -0.3); grp.add(t); }
     else if (st.type === 'check') { const c = makePlayerCar(st.color || '#3a7ca5'); c.scale.setScalar(0.34); c.position.y = 0.55; grp.add(c); box(2.0, 0.5, 1.1, 0x555a60, 0.25); box(0.2, 0.4, 0.2, 0xe0a020, 0.7).position.x = 1.15; }
     else if (st.type === 'service') { grp.add(PR.workbench(2.0)); const tc = PR.toolCart(); tc.position.set(1.4, 0, 0.1); grp.add(tc); for (let i = 0; i < 3; i++) box(0.25, 0.25, 0.25, [0xd6402f, 0x2e7dd1, 0xe0a020][i], 1.1).position.x = -0.6 + i * 0.6; }
@@ -110,6 +113,7 @@ export class Venue {
   async pick(id) { await this.refreshVenue(); const st = this.data.stations.find(x => x.id === id); if (st) this.station(st); }
   async station(st) {
     const ui = this.g.ui;
+    if (st.type === 'treasure') { const r = await ui.guard(() => post('/api/treasures/claim', { id: st.id, venueId: this.id, pos: this.g.pos() })); if (r) { ui.toast(r.text, 'money'); if (r.user) this.g.update(r.user); ui.sfx?.('ok'); } const m = this.meshes?.[st.id]; if (m) { m.parent?.remove(m); delete this.meshes[st.id]; } this.refreshVenue(); return; }
     if (st.type === 'eat') { const body = h('div'); ui.openSheet(st.label, body); ui.shopBlock(body, st.shopId); }
     else if (st.type === 'poster') ui.openSheet(st.label, [h('p', {}, st.text), h('p', { class: 'mut' }, 'Reports, mutes and blocks work here too: tap a name in the chat.')]);
     else if (st.type === 'tv') { const r = await ui.guard(() => post('/api/venue/act', { venueId: this.id, stationId: st.id })); if (r) { ui.toast(r.text); this.g.net.nudge(); } }
@@ -274,7 +278,7 @@ export class Venue {
   async startMatch(v) { const r = await this.g.ui.guard(() => post('/api/game/start', { matchId: v.id })); if (r) this.renderMatch(r); else this.pollGame(); }
   async move(v, mv) { const r = await this.g.ui.guard(() => post('/api/game/move', { matchId: v.id, ...mv })); if (r) { this.renderMatch(r); this.g.ui.sfx('ok'); } else this.pollGame(); }
   async leaveMatch(v) { const r = await this.g.ui.guard(() => post('/api/game/leave', { matchId: v.id })); this.g.ui.closeSheet(); if (r) this.renderMatch(r); else this.pollGame(); this.refreshVenue(); }
-  async refreshVenue() { const d = await get(`/api/venue?id=${this.id}`).catch(() => null); if (d && this.open) { this.data = d; this.drawStrip(); this.drawRoster(); this.people_refresh(); } }
+  async refreshVenue() { const d = withChests(await get(`/api/venue?id=${this.id}`).catch(() => null)); if (d && this.open) { this.data = d; this.drawStrip(); this.drawRoster(); this.people_refresh(); } }
   poll() { clearInterval(this.pt); this.pt = setInterval(async () => { if (!this.open) return; await this.refreshVenue(); if (this.matchId) await this.pollGame(); else { const mine = this.data.stations.find(s => s.match?.you); if (mine && !this.dismissed.has(mine.match.id)) this.focusMatch(mine.match.id); } const t = $('#gtimer'); if (t && this.match?.status === 'active') t.textContent = `${Math.max(0, Math.ceil((this.match.deadlineAt - this.g.serverNow()) / 1000))}s`; }, 1500); }
   tap(ev) { const rc = this.canvas.getBoundingClientRect(); const v = new THREE.Vector2(((ev.clientX - rc.left) / rc.width) * 2 - 1, -((ev.clientY - rc.top) / rc.height) * 2 + 1); const ray = new THREE.Raycaster(); ray.setFromCamera(v, this.cam); const hit = ray.intersectObjects(this.stations.children, true)[0]; if (hit) { const id = hit.object.userData.stationId; this.pick(id); } }
   bind() {
